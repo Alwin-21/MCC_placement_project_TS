@@ -1124,6 +1124,29 @@ Report Generated: ${new Date().toLocaleDateString()}
       {/* MAIN CONTAINER */}
       <div className="flex-1 overflow-y-auto px-10 py-8 space-y-10">
         
+        {/* BANNER SHOWCASE */}
+        <div className="relative rounded-3xl overflow-hidden h-44 bg-[#18233c] text-white flex items-end p-8 border border-amber-600/20 shadow-md mb-4">
+          <div className="absolute inset-0 z-0">
+            <img 
+              src="/mcc-facade.jpg" 
+              alt="MCC Quadrangle" 
+              className="w-full h-full object-cover opacity-35 filter brightness-90 contrast-110"
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-[#18233c] via-[#18233c]/40 to-transparent" />
+          </div>
+          <div className="relative z-10 space-y-1 w-full text-left">
+            <span className="text-[9px] uppercase font-mono font-black tracking-widest text-amber-400 bg-[#781c1c] px-3 py-1 rounded-full border border-amber-500/20 inline-block">
+              {user?.stream || "General"} Stream · {user?.department || "Unassigned"}
+            </span>
+            <h1 className="font-serif text-2xl md:text-3xl font-black text-white mt-2">
+              Welcome back, {fullName || user?.fullName || "Student Scholar"}
+            </h1>
+            <p className="text-xs text-slate-300">
+              Manage your academic records, certifications, and portfolio pages.
+            </p>
+          </div>
+        </div>
+        
         {/* HEADER BAR */}
         <div className="flex justify-between items-center pb-6 border-b border-white/10">
           <div>

@@ -683,6 +683,29 @@ export default function AdminPage() {
           ========================================== */}
       <div className="flex-1 min-w-0 p-8 md:p-12 relative z-10 overflow-y-auto max-h-screen">
         
+        {/* BANNER SHOWCASE */}
+        <div className="relative rounded-3xl overflow-hidden h-44 bg-[#18233c] text-white flex items-end p-8 border border-amber-600/20 shadow-md mb-8">
+          <div className="absolute inset-0 z-0">
+            <img 
+              src="/mcc-main-gate.jpg" 
+              alt="MCC Historic Archway" 
+              className="w-full h-full object-cover opacity-30 filter brightness-75 contrast-125"
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-[#18233c] via-[#18233c]/50 to-transparent" />
+          </div>
+          <div className="relative z-10 space-y-1 w-full text-left">
+            <span className="text-[9px] uppercase font-mono font-black tracking-widest text-amber-400 bg-[#781c1c] px-3 py-1 rounded-full border border-amber-500/20 inline-block">
+              Super Admin Console
+            </span>
+            <h1 className="font-serif text-2xl md:text-3xl font-black text-white mt-2">
+              Placement & Portfolio Administration
+            </h1>
+            <p className="text-xs text-slate-300">
+              Review and approve student directories, customize templates, and examine security audit logs.
+            </p>
+          </div>
+        </div>
+        
         {/* Title Bar */}
         <div className={`mb-10 flex items-center justify-between flex-wrap gap-4 border-b pb-6 ${
           themeMode === "dark" ? "border-white/5" : "border-slate-200"
