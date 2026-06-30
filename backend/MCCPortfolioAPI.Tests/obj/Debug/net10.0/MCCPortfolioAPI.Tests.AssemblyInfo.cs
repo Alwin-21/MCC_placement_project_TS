@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("MCCPortfolioAPI.Tests")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+f6dfd33289ba322d809d2ef6d56c511873c2f61c")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+3fa742d1c44a43c274e8f54525fcff3effd671b4")]
 [assembly: System.Reflection.AssemblyProductAttribute("MCCPortfolioAPI.Tests")]
 [assembly: System.Reflection.AssemblyTitleAttribute("MCCPortfolioAPI.Tests")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
