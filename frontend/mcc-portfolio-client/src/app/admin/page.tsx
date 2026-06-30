@@ -577,17 +577,25 @@ export default function AdminPage() {
         <div>
           {/* Logo & Console Title */}
           <div className={`p-6 border-b flex items-center gap-3 ${
-            themeMode === "dark" ? "border-white/5" : "border-slate-200"
+            themeMode === "dark" ? "border-white/5" : "border-amber-600/20"
           }`}>
-            <div className="w-10 h-10 rounded-xl bg-[#781c1c]/10 border border-[#781c1c]/20 flex items-center justify-center shrink-0">
-              <Shield size={20} className="text-[#781c1c]" />
+            <div className="w-9 h-9 rounded-full bg-[#781c1c] flex items-center justify-center shrink-0 shadow-md">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#f7f5f0" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
+                <circle cx="12" cy="5" r="3" />
+                <line x1="12" y1="8" x2="12" y2="22" />
+                <line x1="6" y1="12" x2="18" y2="12" />
+                <path d="M5 12a7 7 0 0 0 14 0" />
+              </svg>
             </div>
             <div>
-              <h1 className={`font-extrabold text-sm tracking-tight leading-tight ${themeMode === "dark" ? "text-white" : "text-slate-900"}`}>
-                MCC Portfolio
-              </h1>
-              <span className="text-[9px] uppercase font-mono tracking-widest text-[#781c1c] font-bold block">
-                Super Admin Console
+              <span className="font-serif font-black text-xs tracking-tight text-white block leading-none">
+                MADRAS CHRISTIAN
+              </span>
+              <span className="font-serif font-black text-xs tracking-tight text-white block mt-0.5 leading-none">
+                COLLEGE
+              </span>
+              <span className="text-[7px] uppercase font-mono tracking-widest text-[#d4af37] block font-extrabold mt-1 leading-none">
+                Admin Console
               </span>
             </div>
           </div>

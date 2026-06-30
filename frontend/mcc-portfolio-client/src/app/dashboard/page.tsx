@@ -1034,13 +1034,31 @@ Report Generated: ${new Date().toLocaleDateString()}
       <div className={`w-72 border-r backdrop-blur-xl sticky top-0 h-screen flex flex-col transition-colors duration-300 shrink-0 ${
         themeMode === "dark" ? "bg-[#09090d] border-white/5 text-white" : "bg-[#18233c] border-[#781c1c]/10 text-white shadow-xl"
       }`}>
-        <div className="p-6 border-b border-white/10 flex items-center justify-between">
-          <h1 className="text-xl font-bold tracking-tight bg-gradient-to-r from-[#781c1c] to-[#18233c] bg-clip-text text-transparent">
-            MCC Dashboard
-          </h1>
+        <div className="p-6 border-b border-white/10 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-full bg-[#781c1c] flex items-center justify-center shrink-0 shadow-md">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#f7f5f0" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
+                <circle cx="12" cy="5" r="3" />
+                <line x1="12" y1="8" x2="12" y2="22" />
+                <line x1="6" y1="12" x2="18" y2="12" />
+                <path d="M5 12a7 7 0 0 0 14 0" />
+              </svg>
+            </div>
+            <div>
+              <span className="font-serif font-black text-xs tracking-tight text-white block leading-none">
+                MADRAS CHRISTIAN
+              </span>
+              <span className="font-serif font-black text-xs tracking-tight text-white block mt-0.5 leading-none">
+                COLLEGE
+              </span>
+              <span className="text-[7px] uppercase font-mono tracking-widest text-[#d4af37] block font-extrabold mt-1 leading-none">
+                Autonomous
+              </span>
+            </div>
+          </div>
           <button
             onClick={toggleThemeMode}
-            className="p-2 rounded-xl bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white transition"
+            className="p-2 rounded-xl bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white transition shrink-0"
           >
             {themeMode === "dark" ? <Sun size={16} /> : <Moon size={16} />}
           </button>
