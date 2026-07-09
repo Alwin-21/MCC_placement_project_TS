@@ -1,0 +1,353 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model AcademicRecords {
+  Id            Int    @id(map: "PK_AcademicRecords") @default(autoincrement())
+  Institution   String
+  Degree        String
+  FieldOfStudy  String
+  Grade         String
+  StartYear     Int
+  EndYear       Int
+  AttachmentUrl String
+  UserId        Int
+  Users         Users  @relation(fields: [UserId], references: [Id], onDelete: Cascade, onUpdate: NoAction, map: "FK_AcademicRecords_Users_UserId")
+
+  @@index([UserId], map: "IX_AcademicRecords_UserId")
+}
+
+model Achievements {
+  Id              Int      @id(map: "PK_Achievements") @default(autoincrement())
+  Title           String
+  Description     String
+  AchievementUrl  String
+  AchievementDate DateTime @db.Timestamptz(6)
+  UserId          Int
+  Category        String   @default("")
+  Users           Users    @relation(fields: [UserId], references: [Id], onDelete: Cascade, onUpdate: NoAction, map: "FK_Achievements_Users_UserId")
+
+  @@index([UserId], map: "IX_Achievements_UserId")
+}
+
+model AuditLogs {
+  Id               Int      @id(map: "PK_AuditLogs") @default(autoincrement())
+  Action           String
+  PerformedByEmail String
+  Timestamp        DateTime @db.Timestamptz(6)
+  Details          String
+  IpAddress        String
+}
+
+model Certifications {
+  Id             Int      @id(map: "PK_Certifications") @default(autoincrement())
+  Title          String
+  Issuer         String
+  CertificateUrl String
+  IssueDate      DateTime @db.Timestamptz(6)
+  UserId         Int
+  Category       String   @default("")
+  Users          Users    @relation(fields: [UserId], references: [Id], onDelete: Cascade, onUpdate: NoAction, map: "FK_Certifications_Users_UserId")
+
+  @@index([UserId], map: "IX_Certifications_UserId")
+}
+
+model CommunityServices {
+  Id            Int      @id(map: "PK_CommunityServices") @default(autoincrement())
+  Title         String
+  Organization  String
+  Description   String
+  HoursServed   Float
+  Date          DateTime @db.Timestamptz(6)
+  AttachmentUrl String
+  UserId        Int
+  Users         Users    @relation(fields: [UserId], references: [Id], onDelete: Cascade, onUpdate: NoAction, map: "FK_CommunityServices_Users_UserId")
+
+  @@index([UserId], map: "IX_CommunityServices_UserId")
+}
+
+model CreativeWorks {
+  Id          Int      @id(map: "PK_CreativeWorks") @default(autoincrement())
+  Title       String
+  Category    String
+  Description String
+  WorkUrl     String
+  MediaUrl    String
+  Date        DateTime @db.Timestamptz(6)
+  UserId      Int
+  Users       Users    @relation(fields: [UserId], references: [Id], onDelete: Cascade, onUpdate: NoAction, map: "FK_CreativeWorks_Users_UserId")
+
+  @@index([UserId], map: "IX_CreativeWorks_UserId")
+}
+
+model Experiences {
+  Id          Int     @id(map: "PK_Experiences") @default(autoincrement())
+  Title       String
+  Company     String
+  Location    String
+  Description String
+  StartDate   String
+  EndDate     String
+  IsCurrent   Boolean
+  Category    String
+  UserId      Int
+  Users       Users   @relation(fields: [UserId], references: [Id], onDelete: Cascade, onUpdate: NoAction, map: "FK_Experiences_Users_UserId")
+
+  @@index([UserId], map: "IX_Experiences_UserId")
+}
+
+model Hackathons {
+  Id             Int      @id(map: "PK_Hackathons") @default(autoincrement())
+  Title          String
+  Organizer      String
+  Description    String
+  ProjectName    String
+  HackathonUrl   String
+  EventDate      DateTime @db.Timestamptz(6)
+  UserId         Int
+  CertificateUrl String   @default("")
+  Users          Users    @relation(fields: [UserId], references: [Id], onDelete: Cascade, onUpdate: NoAction, map: "FK_Hackathons_Users_UserId")
+
+  @@index([UserId], map: "IX_Hackathons_UserId")
+}
+
+model InstitutionDetails {
+  Id           Int    @id(map: "PK_InstitutionDetails") @default(autoincrement())
+  Name         String
+  Code         String
+  Description  String
+  Address      String
+  ContactEmail String
+  ContactPhone String
+  Website      String
+  LogoUrl      String
+  Departments  String
+}
+
+model NgoActivities {
+  Id               Int       @id(map: "PK_NgoActivities") @default(autoincrement())
+  OrganizationName String
+  Role             String
+  Description      String
+  HoursContributed Float
+  StartDate        DateTime  @db.Timestamptz(6)
+  EndDate          DateTime? @db.Timestamptz(6)
+  CertificateUrl   String
+  UserId           Int
+  Users            Users     @relation(fields: [UserId], references: [Id], onDelete: Cascade, onUpdate: NoAction, map: "FK_NgoActivities_Users_UserId")
+
+  @@index([UserId], map: "IX_NgoActivities_UserId")
+}
+
+model Notifications {
+  Id        Int      @id(map: "PK_Notifications") @default(autoincrement())
+  Title     String
+  Message   String
+  Type      String
+  IsRead    Boolean
+  CreatedAt DateTime @db.Timestamptz(6)
+  UserId    Int?
+  Users     Users?   @relation(fields: [UserId], references: [Id], onDelete: NoAction, onUpdate: NoAction, map: "FK_Notifications_Users_UserId")
+
+  @@index([UserId], map: "IX_Notifications_UserId")
+}
+
+model Olympiads {
+  Id             Int    @id(map: "PK_Olympiads") @default(autoincrement())
+  Name           String
+  Subject        String
+  Rank           String
+  Year           Int
+  Description    String
+  CertificateUrl String
+  UserId         Int
+  Users          Users  @relation(fields: [UserId], references: [Id], onDelete: Cascade, onUpdate: NoAction, map: "FK_Olympiads_Users_UserId")
+
+  @@index([UserId], map: "IX_Olympiads_UserId")
+}
+
+model Profiles {
+  Id                    Int     @id(map: "PK_Profiles") @default(autoincrement())
+  Bio                   String
+  LinkedInUrl           String
+  GitHubUrl             String
+  ProfileImageUrl       String
+  UserId                Int
+  IsApproved            Boolean @default(false)
+  SelectedTheme         String  @default("")
+  BehanceUrl            String  @default("")
+  CGPA                  Float   @default(0.0)
+  GitHubUsername        String  @default("")
+  TargetCareer          String  @default("")
+  PersonalStory         String  @default("")
+  SOP                   String  @default("")
+  CurrentCompany        String  @default("")
+  CurrentJobTitle       String  @default("")
+  GraduationYear        Int?
+  HigherStudyProgram    String  @default("")
+  HigherStudyUniversity String  @default("")
+  IsAlumni              Boolean @default(false)
+  BlogUrl               String  @default("")
+  Course                String  @default("")
+  CurrentLocation       String  @default("")
+  InstagramUrl          String  @default("")
+  Languages             String  @default("")
+  OtherHandles          String  @default("")
+  Patents               String  @default("")
+  Phone                 String  @default("")
+  TestScores            String  @default("")
+  YearOfStudy           String  @default("")
+  Users                 Users   @relation(fields: [UserId], references: [Id], onDelete: Cascade, onUpdate: NoAction, map: "FK_Profiles_Users_UserId")
+
+  @@index([UserId], map: "IX_Profiles_UserId")
+}
+
+model Projects {
+  Id           Int    @id(map: "PK_Projects") @default(autoincrement())
+  Title        String
+  Description  String
+  Technologies String
+  GithubUrl    String
+  LiveUrl      String
+  UserId       Int
+  Category     String @default("")
+  DemoVideoUrl String @default("")
+  ImageUrl     String @default("")
+  Users        Users  @relation(fields: [UserId], references: [Id], onDelete: Cascade, onUpdate: NoAction, map: "FK_Projects_Users_UserId")
+
+  @@index([UserId], map: "IX_Projects_UserId")
+}
+
+model ResearchPapers {
+  Id            Int      @id(map: "PK_ResearchPapers") @default(autoincrement())
+  Title         String
+  Abstract      String
+  Conference    String
+  PaperUrl      String
+  PublishedDate DateTime @db.Timestamptz(6)
+  UserId        Int
+  Category      String   @default("")
+  Users         Users    @relation(fields: [UserId], references: [Id], onDelete: Cascade, onUpdate: NoAction, map: "FK_ResearchPapers_Users_UserId")
+
+  @@index([UserId], map: "IX_ResearchPapers_UserId")
+}
+
+model Resumes {
+  Id          Int    @id(map: "PK_Resumes") @default(autoincrement())
+  ResumeTitle String
+  ResumeUrl   String
+  UserId      Int
+  Users       Users  @relation(fields: [UserId], references: [Id], onDelete: Cascade, onUpdate: NoAction, map: "FK_Resumes_Users_UserId")
+
+  @@index([UserId], map: "IX_Resumes_UserId")
+}
+
+model SavedResumes {
+  Id             Int      @id(map: "PK_SavedResumes") @default(autoincrement())
+  ResumeTitle    String
+  SelectedTheme  String
+  AccentColor    String
+  ResumeDataJson String
+  CreatedAt      DateTime @db.Timestamptz(6)
+  UpdatedAt      DateTime @db.Timestamptz(6)
+  UserId         Int
+  Users          Users    @relation(fields: [UserId], references: [Id], onDelete: Cascade, onUpdate: NoAction, map: "FK_SavedResumes_Users_UserId")
+
+  @@index([UserId], map: "IX_SavedResumes_UserId")
+}
+
+model Skills {
+  Id       Int    @id(map: "PK_Skills") @default(autoincrement())
+  Name     String
+  Level    String
+  UserId   Int
+  Category String @default("")
+  Users    Users  @relation(fields: [UserId], references: [Id], onDelete: Cascade, onUpdate: NoAction, map: "FK_Skills_Users_UserId")
+
+  @@index([UserId], map: "IX_Skills_UserId")
+}
+
+model SportsAchievements {
+  Id             Int      @id(map: "PK_SportsAchievements") @default(autoincrement())
+  SportName      String
+  Level          String
+  Achievement    String
+  Description    String
+  Date           DateTime @db.Timestamptz(6)
+  CertificateUrl String
+  UserId         Int
+  Users          Users    @relation(fields: [UserId], references: [Id], onDelete: Cascade, onUpdate: NoAction, map: "FK_SportsAchievements_Users_UserId")
+
+  @@index([UserId], map: "IX_SportsAchievements_UserId")
+}
+
+model StartupCompetitions {
+  Id              Int      @id(map: "PK_StartupCompetitions") @default(autoincrement())
+  CompetitionName String
+  ProjectName     String
+  Role            String
+  Result          String
+  Description     String
+  Date            DateTime @db.Timestamptz(6)
+  PitchDeckUrl    String
+  UserId          Int
+  Users           Users    @relation(fields: [UserId], references: [Id], onDelete: Cascade, onUpdate: NoAction, map: "FK_StartupCompetitions_Users_UserId")
+
+  @@index([UserId], map: "IX_StartupCompetitions_UserId")
+}
+
+model ThemeConfigs {
+  Id             Int     @id(map: "PK_ThemeConfigs") @default(autoincrement())
+  ThemeId        String
+  DisplayName    String
+  Description    String
+  IsActive       Boolean
+  FontFamily     String  @default("")
+  PrimaryColor   String  @default("")
+  SecondaryColor String  @default("")
+}
+
+model Users {
+  Id                  Int                   @id(map: "PK_Users") @default(autoincrement())
+  FullName            String
+  Email               String
+  PasswordHash        String
+  Department          String
+  RegisterNumber      String
+  ProfileImageUrl     String
+  Role                Int
+  CreatedAt           DateTime              @db.Timestamptz(6)
+  Stream              String                @default("")
+  IsTemporaryPassword Boolean               @default(false)
+  Username            String                @default("")
+  IsActive            Boolean               @default(false)
+  AcademicRecords     AcademicRecords[]
+  Achievements        Achievements[]
+  Certifications      Certifications[]
+  CommunityServices   CommunityServices[]
+  CreativeWorks       CreativeWorks[]
+  Experiences         Experiences[]
+  Hackathons          Hackathons[]
+  NgoActivities       NgoActivities[]
+  Notifications       Notifications[]
+  Olympiads           Olympiads[]
+  Profiles            Profiles[]
+  Projects            Projects[]
+  ResearchPapers      ResearchPapers[]
+  Resumes             Resumes[]
+  SavedResumes        SavedResumes[]
+  Skills              Skills[]
+  SportsAchievements  SportsAchievements[]
+  StartupCompetitions StartupCompetitions[]
+}
+
+model EFMigrationsHistory {
+  MigrationId    String @id(map: "PK___EFMigrationsHistory") @db.VarChar(150)
+  ProductVersion String @db.VarChar(32)
+
+  @@map("__EFMigrationsHistory")
+}

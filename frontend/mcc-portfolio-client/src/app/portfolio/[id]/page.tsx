@@ -236,7 +236,7 @@ function PortfolioPageContent() {
     { id: "languages", label: "Languages known", icon: Globe, visible: !!profile?.languages?.trim() },
     { id: "test-scores", label: "Test Scores", icon: Award, visible: !!profile?.testScores?.trim() },
     { id: "patents", label: "Patents", icon: FileText, visible: !!profile?.patents?.trim() },
-    { id: "media-handles", label: "Other Media handles", icon: LinkIcon, visible: !!(profile?.linkedInUrl || profile?.gitHubUrl || profile?.instagramUrl || profile?.blogUrl || profile?.otherHandles) },
+    { id: "media-handles", label: "Other Media handles", icon: LinkIcon, visible: !!(profile?.linkedInUrl || profile?.gitHubUrl || profile?.instagramUrl || profile?.blogUrl || profile?.behanceUrl || profile?.otherHandles) },
     { id: "resume", label: "Resume", icon: FileText, visible: resumes.length > 0 }
   ].filter(item => item.visible);
 
@@ -280,19 +280,29 @@ function PortfolioPageContent() {
                       {initials}
                     </div>
                   )}
-                  <div className="space-y-1 overflow-hidden">
+                  <div className="space-y-1.5 overflow-hidden">
                     <h2 className="text-base font-bold text-[#18233c] leading-tight truncate">{user.fullName}</h2>
                     {profile?.course && (
                       <p className="text-xs text-slate-500 font-medium leading-tight truncate">
-                        {profile.course}
+                        {profile.course} {profile?.yearOfStudy ? `(${profile.yearOfStudy})` : ""}
                       </p>
                     )}
                     <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider font-mono">
                       Department: {user.department || "N/A"}
                     </p>
-                    {profile?.employeeId && (
+                    {user.registerNumber && (
                       <p className="text-[9px] text-slate-400 font-bold">
-                        Register ID: {profile.employeeId}
+                        Register ID: {user.registerNumber}
+                      </p>
+                    )}
+                    {profile?.cgpa !== undefined && Number(profile.cgpa) > 0 && (
+                      <p className="text-[10px] text-emerald-600 font-bold">
+                        CGPA: {profile.cgpa}
+                      </p>
+                    )}
+                    {profile?.targetCareer && (
+                      <p className="text-[9px] text-indigo-600 font-bold uppercase tracking-wider">
+                        Target: {profile.targetCareer}
                       </p>
                     )}
                   </div>
@@ -327,7 +337,7 @@ function PortfolioPageContent() {
                 </div>
               )}
               {/* Connected Media Handles / Contacts summary widget */}
-              {(user.email || profile?.phone || profile?.currentLocation || profile?.linkedInUrl || profile?.gitHubUrl) && (
+              {(user.email || profile?.phone || profile?.currentLocation || profile?.linkedInUrl || profile?.gitHubUrl || profile?.gitHubUsername || profile?.behanceUrl) && (
                 <div className="bg-white border border-[#781c1c]/10 rounded-xl p-5 shadow-[0_1px_3px_rgba(0,0,0,0.01)]">
                   <h3 className="text-xs font-bold text-[#18233c] uppercase tracking-wider pb-3 border-b border-slate-100 mb-3 flex items-center gap-1.5">
                     <LinkIcon size={14} className="text-[#781c1c]" /> Contacts & Socials
@@ -361,6 +371,18 @@ function PortfolioPageContent() {
                       <a href={profile.gitHubUrl} target="_blank" className="flex items-center gap-2 text-slate-700 hover:underline">
                         <Github size={13} className="shrink-0" />
                         <span>GitHub profile</span>
+                      </a>
+                    )}
+                    {profile?.gitHubUsername && !profile?.gitHubUrl && (
+                      <a href={`https://github.com/${profile.gitHubUsername}`} target="_blank" className="flex items-center gap-2 text-slate-700 hover:underline">
+                        <Github size={13} className="shrink-0" />
+                        <span>GitHub: @{profile.gitHubUsername}</span>
+                      </a>
+                    )}
+                    {profile?.behanceUrl && (
+                      <a href={profile.behanceUrl} target="_blank" className="flex items-center gap-2 text-blue-600 hover:underline">
+                        <span className="text-[11px] font-serif font-black shrink-0">Bē</span>
+                        <span>Behance Portfolio</span>
                       </a>
                     )}
                   </div>
@@ -802,6 +824,15 @@ function PortfolioPageContent() {
                   <div>
                     <span className="font-bold text-xs text-[#18233c] block">Blog / Website</span>
                     <span className="text-[10px] text-slate-455 block mt-0.5 truncate">{profile.blogUrl}</span>
+                  </div>
+                </a>
+              )}
+              {profile?.behanceUrl && (
+                <a href={profile.behanceUrl} target="_blank" className="border border-slate-205 p-4 rounded-xl flex items-center gap-3 bg-slate-50/50 hover:bg-slate-50 transition">
+                  <span className="text-[#1769ff] font-serif font-black text-xl w-5 text-center shrink-0">Bē</span>
+                  <div>
+                    <span className="font-bold text-xs text-[#18233c] block">Behance Portfolio</span>
+                    <span className="text-[10px] text-slate-455 block mt-0.5 truncate">{profile.behanceUrl}</span>
                   </div>
                 </a>
               )}

@@ -1316,7 +1316,7 @@ export default function ResumeEditorPage() {
                     className="p-8 text-white relative flex flex-col justify-end shrink-0"
                     style={{ backgroundColor: accentColor, height: "140px" }}
                   >
-                    <div className={pInfo.showPhoto && pInfo.profileImageUrl ? "pl-36" : ""}>
+                    <div className={pInfo.showPhoto && pInfo.profileImageUrl ? "pl-40" : ""}>
                       <h2 className="font-sans font-black text-2xl tracking-wide uppercase leading-none text-white">
                         {pInfo.fullName || "Your Name"}
                       </h2>
@@ -1334,7 +1334,7 @@ export default function ResumeEditorPage() {
                       
                       {/* Overlapping profile photo */}
                       {pInfo.showPhoto && pInfo.profileImageUrl && (
-                        <div className="w-28 h-28 rounded-full border-4 border-white shadow-md -mt-20 overflow-hidden mx-auto mb-2 shrink-0 bg-white">
+                        <div className="w-32 h-32 rounded-full border-4 border-white shadow-md -mt-24 overflow-hidden mx-auto mb-2 shrink-0 bg-white">
                           <img src={pInfo.profileImageUrl} alt={pInfo.fullName} className="w-full h-full object-cover" />
                         </div>
                       )}
@@ -1344,13 +1344,13 @@ export default function ResumeEditorPage() {
                         <h4 className="font-sans text-[10px] uppercase tracking-wider font-bold border-b-2 pb-1 text-slate-800" style={{ borderColor: accentColor }}>
                           Contact
                         </h4>
-                        <div className="space-y-2 text-[10px] text-slate-600 font-medium">
-                          {pInfo.phone && <div className="flex items-center gap-1.5"><span>📞</span> {pInfo.phone}</div>}
-                          {pInfo.email && <div className="flex items-center gap-1.5 break-all"><span>✉</span> {pInfo.email}</div>}
-                          {pInfo.address && <div className="flex items-center gap-1.5"><span>📍</span> {pInfo.address}</div>}
+                        <div className="space-y-2 text-[10px] text-slate-600 font-semibold">
+                          {pInfo.phone && <div className="flex items-center gap-1.5"><span>Phone:</span> {pInfo.phone}</div>}
+                          {pInfo.email && <div className="flex items-center gap-1.5 break-all"><span>Email:</span> {pInfo.email}</div>}
+                          {pInfo.address && <div className="flex items-center gap-1.5"><span>Address:</span> {pInfo.address}</div>}
                           {pInfo.portfolio && (
                             <div className="flex items-center gap-1.5 truncate">
-                              <span>🌐</span>
+                              <span>Web:</span>
                               <a href={pInfo.portfolio} target="_blank" rel="noreferrer" className="underline">{pInfo.portfolio}</a>
                             </div>
                           )}
@@ -1398,7 +1398,6 @@ export default function ResumeEditorPage() {
                           <div className="space-y-1.5 text-[10px] text-slate-600">
                             {resumeData.mediaHandles.items.filter((h: any) => h.visible).map((h: any) => (
                               <div key={h.platform} className="truncate flex items-center gap-1">
-                                <span>🔗</span>
                                 <strong className="font-semibold">{h.platform}:</strong>
                                 <a href={h.url} target="_blank" rel="noreferrer" className="underline opacity-80">{h.url}</a>
                               </div>
@@ -1546,7 +1545,7 @@ export default function ResumeEditorPage() {
                                   <div key={cert.id} className="relative flex justify-between text-xs text-slate-700">
                                     {/* Bullet point on line */}
                                     <div className="absolute left-[-21px] top-1.5 w-2 h-2 rounded-full border-2 border-white bg-slate-400 z-10" />
-                                    <span>🎓 <strong>{cert.name}</strong> <span className="text-slate-500">by {cert.issuer}</span></span>
+                                    <span><strong>{cert.name}</strong> <span className="text-slate-500">by {cert.issuer}</span></span>
                                     <span className="text-slate-400 font-mono text-[9px]">{cert.date}</span>
                                   </div>
                                 ))}
@@ -1559,7 +1558,7 @@ export default function ResumeEditorPage() {
                                   <div key={ach.id} className="relative pl-1">
                                     {/* Bullet point on line */}
                                     <div className="absolute left-[-21px] top-1.5 w-2 h-2 rounded-full border-2 border-white bg-slate-400 z-10" />
-                                    ⭐ <strong>{ach.title}</strong> {ach.date && `(${ach.date})`}
+                                    <strong>{ach.title}</strong> {ach.date && `(${ach.date})`}
                                     {ach.description && <p className="text-[10px] pl-3 text-slate-500 mt-0.5">{ach.description}</p>}
                                   </div>
                                 ))}
@@ -1572,7 +1571,7 @@ export default function ResumeEditorPage() {
                                   <div key={pat.id} className="relative pl-1">
                                     {/* Bullet point on line */}
                                     <div className="absolute left-[-21px] top-1.5 w-2 h-2 rounded-full border-2 border-white bg-slate-400 z-10" />
-                                    📜 <strong>{pat.title}</strong> (No: {pat.number})
+                                    <strong>{pat.title}</strong> (No: {pat.number})
                                   </div>
                                 ))}
                               </div>
@@ -1597,9 +1596,9 @@ export default function ResumeEditorPage() {
                     </h2>
                     <p className="text-xs font-semibold text-slate-700">{pInfo.title}</p>
                     <div className="flex flex-wrap justify-center gap-x-3 gap-y-1 text-xs text-slate-600">
-                      {pInfo.email && <span>✉ {pInfo.email}</span>}
-                      {pInfo.phone && <span>📞 {pInfo.phone}</span>}
-                      {pInfo.address && <span>📍 {pInfo.address}</span>}
+                      {pInfo.email && <span>Email: {pInfo.email}</span>}
+                      {pInfo.phone && <span>Phone: {pInfo.phone}</span>}
+                      {pInfo.address && <span>Address: {pInfo.address}</span>}
                     </div>
                     <div className="flex flex-wrap justify-center gap-x-3 text-[10px] text-slate-500 font-mono">
                       {pInfo.linkedin && <span>LinkedIn: {pInfo.linkedin}</span>}

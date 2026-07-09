@@ -374,10 +374,6 @@ export default function DashboardPage() {
       alert("Course is a required field.");
       return;
     }
-    if (!yearOfStudy.trim()) {
-      alert("Year of Study is a required field.");
-      return;
-    }
     if (!phone.trim()) {
       alert("Phone Number is a required field.");
       return;
@@ -1274,7 +1270,7 @@ Report Generated: ${new Date().toLocaleDateString()}
               <div className="text-[10px] font-mono break-all truncate opacity-85 mb-2">
                 {typeof window !== "undefined" && user?.fullName
                   ? `${window.location.origin}/student/${user.fullName.replace(/\s+/g, "").toLowerCase()}`
-                  : "http://localhost:3000/student/username"}
+                  : "http://localhost:3001/student/username"}
               </div>
               <div className="flex gap-2">
                 <button
@@ -1418,7 +1414,7 @@ Report Generated: ${new Date().toLocaleDateString()}
                   <div className="text-[10px] font-mono break-all truncate opacity-85 mb-2">
                     {typeof window !== "undefined" && user?.fullName
                       ? `${window.location.origin}/student/${user.fullName.replace(/\s+/g, "").toLowerCase()}`
-                      : "http://localhost:3000/student/username"}
+                      : "http://localhost:3001/student/username"}
                   </div>
                   <div className="flex gap-2">
                     <button

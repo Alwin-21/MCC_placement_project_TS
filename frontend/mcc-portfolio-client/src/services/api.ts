@@ -1,4 +1,5 @@
 import axios from "axios";
+import { mapKeysToCamelCase } from "@/utils/mapper";
 
 const api = axios.create({
   baseURL: process.env.NEXT_PUBLIC_API_URL || "http://localhost:5203/api",
@@ -26,5 +27,18 @@ api.interceptors.request.use((config) => {
   }
   return config;
 });
+
+// Automatically map PascalCase database response keys to camelCase frontend keys
+api.interceptors.response.use(
+  (response) => {
+    if (response.data) {
+      response.data = mapKeysToCamelCase(response.data);
+    }
+    return response;
+  },
+  (error) => {
+    return Promise.reject(error);
+  }
+);
 
 export default api;
