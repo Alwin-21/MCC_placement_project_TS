@@ -22,11 +22,6 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  // Social Mock Login Modal
-  const [showSocialModal, setShowSocialModal] = useState(false);
-  const [socialProvider, setSocialProvider] = useState("");
-  const [socialEmail, setSocialEmail] = useState("");
-  const [socialName, setSocialName] = useState("");
 
   // Change Password States (For First Login Requirement)
   const [tempToken, setTempToken] = useState("");
@@ -128,47 +123,6 @@ export default function LoginPage() {
     }
   };
 
-  const handleExternalSignIn = (provider: string) => {
-    setSocialProvider(provider);
-    if (provider === "Google") {
-      setSocialEmail("alwin.rosh@mcc.edu.in");
-      setSocialName("Alwin Rosh");
-    } else {
-      setSocialEmail("alwinrosh_git@mcc.edu.in");
-      setSocialName("Alwin Rosh GitHub");
-    }
-    setShowSocialModal(true);
-  };
-
-  const submitExternalLogin = async () => {
-    if (!socialEmail || !socialName) {
-      alert("Please enter both email and name.");
-      return;
-    }
-    if (!socialEmail.toLowerCase().endsWith("@mcc.edu.in")) {
-      alert("External login is restricted to Madras Christian College email addresses ending with '@mcc.edu.in'.");
-      return;
-    }
-    try {
-      setLoading(true);
-      setError("");
-      const response = await api.post("/Auth/external-login", {
-        email: socialEmail,
-        fullName: socialName,
-        provider: socialProvider,
-        externalId: "ext_" + Math.random().toString(36).substring(2, 9),
-      });
-
-      localStorage.setItem("token", response.data.token);
-      localStorage.setItem("user", JSON.stringify(response.data));
-      router.push("/dashboard");
-    } catch {
-      setError("External login simulation failed");
-    } finally {
-      setLoading(false);
-      setShowSocialModal(false);
-    }
-  };
 
   return (
     <div className="min-h-screen flex bg-[#fcfaf6] text-[#2c2c2c] font-sans">
@@ -279,41 +233,20 @@ export default function LoginPage() {
               </button>
 
             </form>
-
-            {/* Social Divider */}
-            <div className="flex items-center my-6">
-              <div className="flex-1 h-px bg-slate-200" />
-              <span className="px-3 text-[10px] text-slate-400 uppercase tracking-widest font-mono font-bold">Or Continue With</span>
-              <div className="flex-1 h-px bg-slate-200" />
-            </div>
-
-            {/* Social Logins */}
-            <div className="grid grid-cols-2 gap-3">
-              <button
-                onClick={() => handleExternalSignIn("Google")}
-                type="button"
-                className="py-3 px-4 rounded-xl border border-slate-200 hover:border-slate-355 hover:bg-slate-50 text-slate-700 text-[11px] font-bold transition flex items-center justify-center gap-2 cursor-pointer hover:scale-[1.01]"
-              >
-                Google
-              </button>
-              <button
-                onClick={() => handleExternalSignIn("GitHub")}
-                type="button"
-                className="py-3 px-4 rounded-xl border border-slate-200 hover:border-slate-355 hover:bg-slate-50 text-slate-700 text-[11px] font-bold transition flex items-center justify-center gap-2 cursor-pointer hover:scale-[1.01]"
-              >
-                GitHub
-              </button>
-            </div>
-
             <p className="text-center text-slate-400 mt-6 text-[10px] uppercase font-mono font-semibold tracking-wider">
               Verify credentials via email delivery
             </p>
 
           </div>
 
-          <div className="text-center text-xs text-slate-500">
-            Don't have an account? <Link href="/register" className="text-[#781c1c] font-bold hover:underline">Register here</Link>
-          </div>
+          <div className="space-y-3 text-center">
+            <div className="text-xs text-slate-500">
+              Don't have an account? <Link href="/register" className="text-[#781c1c] font-bold hover:underline">Register here</Link>
+            </div>
+            <div className="text-[11px] text-slate-400">
+              Are you an Admin? <Link href="/admin/login" className="text-[#18233c] font-bold hover:underline">Admin Login</Link>
+            </div>
+          </div>>
 
         </div>
       </div>
@@ -393,56 +326,6 @@ export default function LoginPage() {
         </div>
       )}
 
-      {/* Simulated Social OAuth Dialog */}
-      {showSocialModal && (
-        <div className="fixed inset-0 z-50 bg-[#18233c]/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="relative w-full max-w-md bg-white border border-slate-200 rounded-3xl p-8 shadow-2xl text-left">
-            <h3 className="text-lg font-serif font-extrabold text-[#18233c] mb-2 flex items-center gap-2">
-              🔒 Simulated {socialProvider} Authentication
-            </h3>
-            <p className="text-slate-500 text-xs mb-6">
-              This simulated social OAuth registers you and issues a standard JWT token locally.
-            </p>
-
-            <div className="space-y-4">
-              <div>
-                <label className="text-[10px] uppercase font-mono font-bold text-slate-655 block mb-1">Full Name</label>
-                <input
-                  type="text"
-                  value={socialName}
-                  onChange={(e) => setSocialName(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs text-slate-800 focus:outline-none focus:border-[#781c1c]"
-                />
-              </div>
-
-              <div>
-                <label className="text-[10px] uppercase font-mono font-bold text-slate-655 block mb-1">Social Email Address</label>
-                <input
-                  type="email"
-                  value={socialEmail}
-                  onChange={(e) => setSocialEmail(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs text-slate-800 focus:outline-none focus:border-[#781c1c]"
-                />
-              </div>
-
-              <div className="pt-2 flex gap-3">
-                <button
-                  onClick={() => setShowSocialModal(false)}
-                  className="flex-1 py-2.5 rounded-xl border border-slate-200 hover:bg-slate-50 text-xs font-bold text-slate-655 transition"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={submitExternalLogin}
-                  className="flex-1 py-2.5 rounded-xl bg-[#781c1c] text-white text-xs font-bold transition hover:opacity-95"
-                >
-                  Confirm & Sign In
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
 
     </div>
   );
