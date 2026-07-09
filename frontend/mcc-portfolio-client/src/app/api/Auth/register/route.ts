@@ -128,7 +128,8 @@ export async function POST(request: Request) {
                  `Best regards,\n` +
                  `Placement Cell, Madras Christian College`;
 
-    await sendEmail(user.Email, subject, emailBody);
+    // Email sending bypassed as requested by user
+    // await sendEmail(user.Email, subject, emailBody);
 
     const ip = request.headers.get("x-forwarded-for") || "127.0.0.1";
 
@@ -155,7 +156,12 @@ export async function POST(request: Request) {
       }
     });
 
-    return NextResponse.json({ success: true, message: "Registration successful. Login credentials have been sent to your registered email." });
+    return NextResponse.json({
+      success: true,
+      username: username,
+      temporaryPassword: temporaryPassword,
+      message: "Registration successful. Login credentials generated successfully."
+    });
   } catch (err: any) {
     console.error("Registration Error:", err);
     return NextResponse.json({ message: "Internal server error" }, { status: 500 });

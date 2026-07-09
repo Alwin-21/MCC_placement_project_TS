@@ -31,6 +31,8 @@ export default function RegisterPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [registered, setRegistered] = useState(false);
+  const [generatedUsername, setGeneratedUsername] = useState("");
+  const [generatedPassword, setGeneratedPassword] = useState("");
 
   const handleStreamChange = (val: string) => {
     setStream(val);
@@ -71,7 +73,7 @@ export default function RegisterPage() {
       setLoading(true);
       setError("");
 
-      await api.post("/Auth/register", {
+      const res = await api.post("/Auth/register", {
         fullName,
         email,
         stream,
@@ -79,6 +81,8 @@ export default function RegisterPage() {
         registerNumber,
       });
 
+      setGeneratedUsername(res.data.username || "");
+      setGeneratedPassword(res.data.temporaryPassword || "");
       setRegistered(true);
     } catch (err: any) {
       let errorMsg = "Registration failed";
@@ -152,7 +156,7 @@ export default function RegisterPage() {
                     Student Registration
                   </h1>
                   <p className="text-xs text-slate-500 font-medium">
-                    Submit details to receive your generated credentials in your email inbox
+                    Submit details to generate your unique login credentials
                   </p>
                 </div>
 
@@ -268,7 +272,7 @@ export default function RegisterPage() {
                 </form>
 
                 <p className="text-center text-slate-400 mt-6 text-[10px] uppercase font-mono font-semibold tracking-wider">
-                  Credentials will be sent to the email provided above
+                  Credentials will be generated directly on the screen
                 </p>
               </>
             ) : (
@@ -281,15 +285,24 @@ export default function RegisterPage() {
                   Registration Successful!
                 </h1>
 
-                <div className="bg-slate-50 border border-slate-200 rounded-2xl p-6 text-xs text-slate-600 leading-relaxed text-left space-y-3">
-                  <p>
-                    <strong>An automated unique username and secure temporary password</strong> have been successfully generated for your student account.
+                <div className="bg-slate-50 border border-slate-200 rounded-2xl p-6 text-xs text-slate-655 leading-relaxed text-left space-y-4">
+                  <p className="text-slate-700 text-center font-semibold">
+                    An automated unique username and secure temporary password have been successfully generated for your student account:
                   </p>
-                  <p>
-                    We have dispatched an email containing your credentials and login guidelines to: <strong className="text-slate-800">{email}</strong>.
-                  </p>
-                  <p className="text-[10px] text-slate-500 border-t pt-3 font-mono">
-                    💡 <em>Note: Local simulated emails are written directly to <strong>backend/sent-emails.txt</strong> for testing purposes.</em>
+                  
+                  <div className="bg-white border border-slate-200 p-4 rounded-xl space-y-3 font-mono">
+                    <div className="flex justify-between items-center pb-2 border-b border-slate-100">
+                      <span className="text-slate-400 text-[10px] uppercase font-bold tracking-wider">Username</span>
+                      <span className="text-slate-800 font-extrabold text-xs select-all">{generatedUsername}</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-slate-400 text-[10px] uppercase font-bold tracking-wider">Temporary Password</span>
+                      <span className="text-slate-800 font-extrabold text-xs select-all">{generatedPassword}</span>
+                    </div>
+                  </div>
+                  
+                  <p className="text-[10px] text-amber-600 font-bold text-center border-t border-slate-100/60 pt-3">
+                    ⚠️ IMPORTANT: Please write down or copy these credentials now. You will be required to set a new permanent password on your first login.
                   </p>
                 </div>
 
