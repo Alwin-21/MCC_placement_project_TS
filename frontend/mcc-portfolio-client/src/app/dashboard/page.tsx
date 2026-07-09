@@ -30,7 +30,8 @@ import {
   Link,
   ChevronRight,
   Menu,
-  X
+  X,
+  Copy
 } from "lucide-react";
 import api from "@/services/api";
 import { useTheme } from "@/hooks/useTheme";
@@ -177,6 +178,10 @@ export default function DashboardPage() {
   const [resumeUrl, setResumeUrl] = useState("");
   const [editingResumeId, setEditingResumeId] = useState<number | null>(null);
   const [previewResumeUrl, setPreviewResumeUrl] = useState<string | null>(null);
+
+  // Copy Link State
+  const [copiedIdLink, setCopiedIdLink] = useState(false);
+  const [copiedSlugLink, setCopiedSlugLink] = useState(false);
 
   // Default themes if backend does not load them
   const defaultThemes = [
@@ -1491,6 +1496,119 @@ Report Generated: ${new Date().toLocaleDateString()}
                 </div>
               </div>
             )}
+          </div>
+        </div>
+
+        {/* ==========================================
+            PORTFOLIO LINKS SECTION
+            ========================================== */}
+        <div className={`border rounded-3xl p-8 transition duration-300 ${
+          themeMode === "dark" ? "bg-white/5 border-white/10 text-white" : "bg-white border-slate-200 shadow-sm text-slate-800"
+        }`}>
+          <h3 className="font-serif text-2xl font-black mb-4 flex items-center gap-2 text-[#18233c] dark:text-white border-b border-[#781c1c]/10 pb-3">
+            <Link size={22} className="text-[#781c1c] dark:text-[#a83232]" /> Portfolio Links
+          </h3>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mb-6">
+            Share these links with recruiters or embed them in your resume to showcase your placement portfolio.
+          </p>
+
+          <div className="grid gap-6">
+            {/* ID-based Link */}
+            <div className={`border rounded-2xl p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 transition ${
+              themeMode === "dark" ? "bg-white/[0.02] border-white/10" : "bg-slate-50 border-slate-200"
+            }`}>
+              <div className="space-y-1">
+                <span className="text-[10px] uppercase font-mono tracking-wider font-bold text-slate-500 dark:text-slate-400 block">
+                  Official Portfolio Link (ID-Based)
+                </span>
+                <span className="text-xs font-mono font-semibold break-all text-[#18233c] dark:text-cyan-455">
+                  {typeof window !== "undefined" ? `${window.location.origin}/portfolio/${user?.id || ""}` : "http://localhost:3000/portfolio"}
+                </span>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <button
+                  onClick={() => {
+                    if (typeof window !== "undefined" && user?.id) {
+                      const link = `${window.location.origin}/portfolio/${user.id}`;
+                      navigator.clipboard.writeText(link);
+                      setCopiedIdLink(true);
+                      setTimeout(() => setCopiedIdLink(false), 2000);
+                    }
+                  }}
+                  className="inline-flex items-center justify-center gap-1.5 bg-[#781c1c] hover:bg-[#5f1515] text-white px-4 py-2.5 rounded-xl text-xs font-bold transition active:scale-95 cursor-pointer"
+                >
+                  {copiedIdLink ? (
+                    <>
+                      <CheckCircle size={14} /> Copied!
+                    </>
+                  ) : (
+                    <>
+                      <Copy size={14} /> Copy Link
+                    </>
+                  )}
+                </button>
+                <a
+                  href={user?.id ? `/portfolio/${user.id}` : "#"}
+                  target="_blank"
+                  className={`inline-flex items-center justify-center gap-1.5 border px-4 py-2.5 rounded-xl text-xs font-bold transition hover:bg-slate-100 dark:hover:bg-white/5 ${
+                    themeMode === "dark" ? "border-white/10 text-white" : "border-slate-200 text-slate-750"
+                  }`}
+                >
+                  <ExternalLink size={14} /> View
+                </a>
+              </div>
+            </div>
+
+            {/* Slug-based Link */}
+            <div className={`border rounded-2xl p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 transition ${
+              themeMode === "dark" ? "bg-white/[0.02] border-white/10" : "bg-slate-50 border-slate-200"
+            }`}>
+              <div className="space-y-1">
+                <span className="text-[10px] uppercase font-mono tracking-wider font-bold text-slate-500 dark:text-slate-400 block">
+                  Public Student Slug Link (Name-Based)
+                </span>
+                <span className="text-xs font-mono font-semibold break-all text-[#18233c] dark:text-cyan-455">
+                  {typeof window !== "undefined" && user?.fullName
+                    ? `${window.location.origin}/student/${user.fullName.replace(/\s+/g, "").toLowerCase()}`
+                    : "http://localhost:3000/student/username"}
+                </span>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <button
+                  onClick={() => {
+                    if (typeof window !== "undefined" && user?.fullName) {
+                      const slug = user.fullName.replace(/\s+/g, "").toLowerCase();
+                      const link = `${window.location.origin}/student/${slug}`;
+                      navigator.clipboard.writeText(link);
+                      setCopiedSlugLink(true);
+                      setTimeout(() => setCopiedSlugLink(false), 2000);
+                    } else {
+                      alert("Please save your Header details with your Full Name first.");
+                    }
+                  }}
+                  className="inline-flex items-center justify-center gap-1.5 bg-[#781c1c] hover:bg-[#5f1515] text-white px-4 py-2.5 rounded-xl text-xs font-bold transition active:scale-95 cursor-pointer"
+                >
+                  {copiedSlugLink ? (
+                    <>
+                      <CheckCircle size={14} /> Copied!
+                    </>
+                  ) : (
+                    <>
+                      <Copy size={14} /> Copy Link
+                    </>
+                  )}
+                </button>
+                <a
+                  href={user?.fullName ? `/student/${user.fullName.replace(/\s+/g, "").toLowerCase()}` : "#"}
+                  target="_blank"
+                  className={`inline-flex items-center justify-center gap-1.5 border px-4 py-2.5 rounded-xl text-xs font-bold transition hover:bg-slate-100 dark:hover:bg-white/5 ${
+                    themeMode === "dark" ? "border-white/10 text-white" : "border-slate-200 text-slate-750"
+                  }`}
+                >
+                  <ExternalLink size={14} /> View
+                </a>
+              </div>
+            </div>
           </div>
         </div>
 
