@@ -295,6 +295,16 @@ function PortfolioPageContent() {
                         Register ID: {user.registerNumber}
                       </p>
                     )}
+                    {profile?.phone && (
+                      <p className="text-[10px] text-slate-500 font-medium leading-tight truncate">
+                        Phone: {profile.phone}
+                      </p>
+                    )}
+                    {user.email && (
+                      <p className="text-[10px] text-slate-500 leading-tight truncate">
+                        Email: {user.email}
+                      </p>
+                    )}
                     {profile?.cgpa !== undefined && Number(profile.cgpa) > 0 && (
                       <p className="text-[10px] text-emerald-600 font-bold">
                         CGPA: {profile.cgpa}
