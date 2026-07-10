@@ -24,7 +24,6 @@ import {
   Menu,
   X,
   Copy,
-  Download,
   Calendar,
   AlertCircle
 } from "lucide-react";
@@ -385,16 +384,6 @@ export default function ResumesDashboardPage() {
                         className="flex-1 bg-[#18233c] hover:bg-[#0f1627] text-white py-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer"
                       >
                         <Edit size={14} /> Edit
-                      </button>
-                      <button
-                        onClick={() => router.push(`/dashboard/resumes/${resume.id}?print=true`)}
-                        className={`flex-1 border py-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer ${
-                          themeMode === "dark"
-                            ? "border-white/10 hover:bg-white/5 text-white"
-                            : "border-slate-200 hover:bg-slate-50 text-slate-700"
-                        }`}
-                      >
-                        <Download size={14} /> PDF
                       </button>
                     </div>
 

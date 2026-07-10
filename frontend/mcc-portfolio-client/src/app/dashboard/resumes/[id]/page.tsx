@@ -5,7 +5,6 @@ import { useParams, useRouter } from "next/navigation";
 import {
   ArrowLeft,
   Save,
-  Download,
   RefreshCw,
   Eye,
   Settings,
@@ -1378,13 +1377,6 @@ export default function ResumeEditorPage() {
                 <Maximize2 size={12} />
               </button>
             </div>
-
-            <button
-              onClick={handlePrint}
-              className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 sm:px-5 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-md shrink-0"
-            >
-              <Download size={14} /> Download PDF
-            </button>
           </div>
         </div>
 

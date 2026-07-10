@@ -185,7 +185,6 @@ export default function DashboardPage() {
   const [resumeTitle, setResumeTitle] = useState("");
   const [resumeUrl, setResumeUrl] = useState("");
   const [editingResumeId, setEditingResumeId] = useState<number | null>(null);
-  const [previewResumeUrl, setPreviewResumeUrl] = useState<string | null>(null);
 
   // Copy Link State
   const [copiedIdLink, setCopiedIdLink] = useState(false);
@@ -3156,12 +3155,6 @@ Report Generated: ${new Date().toLocaleDateString()}
                         <a href={res.resumeUrl} target="_blank" className="text-[10px] text-[#781c1c] hover:underline flex items-center gap-0.5">
                           <ExternalLink size={10} /> View / Download Document
                         </a>
-                        <button
-                          onClick={() => setPreviewResumeUrl(previewResumeUrl === res.resumeUrl ? null : res.resumeUrl)}
-                          className="text-[10px] text-blue-400 hover:underline flex items-center gap-0.5 cursor-pointer bg-transparent border-none p-0"
-                        >
-                          <Eye size={10} /> {previewResumeUrl === res.resumeUrl ? "Hide Preview" : "Preview"}
-                        </button>
                       </div>
                     </div>
                   </div>
@@ -3171,12 +3164,6 @@ Report Generated: ${new Date().toLocaleDateString()}
                     <button onClick={() => deleteResume(res.id)} className="p-1.5 rounded-lg text-red-400 hover:bg-red-500/10"><Trash2 size={14} /></button>
                   </div>
                 </div>
-
-                {previewResumeUrl === res.resumeUrl && (
-                  <div className="mt-4 w-full h-[500px] rounded-xl overflow-hidden border border-slate-200 dark:border-white/10 shadow-inner">
-                    <iframe src={res.resumeUrl} className="w-full h-full" title="Resume Preview" />
-                  </div>
-                )}
               </div>
             ))}
           </div>
