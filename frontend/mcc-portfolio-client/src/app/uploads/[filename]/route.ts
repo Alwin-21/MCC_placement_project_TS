@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import fs from "fs/promises";
 import path from "path";
 
+export const dynamic = "force-dynamic";
+
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ filename: string }> }
@@ -40,6 +42,7 @@ export async function GET(
         },
       });
     } catch (err) {
+      console.error("Serve Uploads Read File Error:", err, "Path:", filePath);
       return NextResponse.json("File not found", { status: 404 });
     }
   } catch (err) {

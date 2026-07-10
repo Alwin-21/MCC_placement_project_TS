@@ -407,6 +407,18 @@ export default function ResumeEditorPage() {
     setSectionOrder(newOrder);
   };
 
+  // Remove section helper
+  const removeSection = (section: string) => {
+    setSectionOrder(sectionOrder.filter((s) => s !== section));
+  };
+
+  // Add section helper
+  const addSection = (section: string) => {
+    if (!sectionOrder.includes(section)) {
+      setSectionOrder([...sectionOrder, section]);
+    }
+  };
+
   // Reorder individual items helper
   const moveItem = (section: string, index: number, direction: "up" | "down") => {
     const items = [...resumeData[section].items];
@@ -700,11 +712,12 @@ export default function ResumeEditorPage() {
                         />
                       </div>
                       
-                      <div className="flex gap-1">
+                      <div className="flex gap-1 items-center">
                         <button
                           onClick={() => moveSection(idx, "up")}
                           disabled={idx === 0}
                           className="p-1 hover:bg-slate-700 rounded text-slate-400 disabled:opacity-20 cursor-pointer"
+                          title="Move Up"
                         >
                           <ChevronUp size={14} />
                         </button>
@@ -712,12 +725,61 @@ export default function ResumeEditorPage() {
                           onClick={() => moveSection(idx, "down")}
                           disabled={idx === sectionOrder.length - 1}
                           className="p-1 hover:bg-slate-700 rounded text-slate-400 disabled:opacity-20 cursor-pointer"
+                          title="Move Down"
                         >
                           <ChevronDown size={14} />
+                        </button>
+                        <button
+                          onClick={() => removeSection(section)}
+                          className="p-1 hover:bg-red-950 hover:text-red-400 rounded text-red-500 cursor-pointer"
+                          title="Remove Section"
+                        >
+                          <Trash2 size={14} />
                         </button>
                       </div>
                     </div>
                   ))}
+
+                  {/* Add back hidden sections */}
+                  {(() => {
+                    const allPossible = [
+                      "summary",
+                      "experience",
+                      "education",
+                      "projects",
+                      "skills",
+                      "certifications",
+                      "achievements",
+                      "languages",
+                      "testScores",
+                      "patents",
+                      "mediaHandles"
+                    ];
+                    const hidden = allPossible.filter(s => !sectionOrder.includes(s));
+                    if (hidden.length === 0) return null;
+
+                    return (
+                      <div className="pt-2 border-t border-slate-800 mt-2">
+                        <select
+                          onChange={(e) => {
+                            if (e.target.value) {
+                              addSection(e.target.value);
+                              e.target.value = ""; // Reset selection
+                            }
+                          }}
+                          className="w-full bg-slate-800 border border-slate-700 rounded-xl px-2.5 py-1.5 text-[11px] text-slate-300 outline-none focus:border-[#781c1c] cursor-pointer"
+                          defaultValue=""
+                        >
+                          <option value="" disabled>＋ Add back removed section...</option>
+                          {hidden.map(sec => (
+                            <option key={sec} value={sec}>
+                              {headings[sec] || sec.charAt(0).toUpperCase() + sec.slice(1)}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    );
+                  })()}
                 </div>
               </div>
             </div>

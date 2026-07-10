@@ -54,8 +54,8 @@ export default function HomePage() {
           {/* Logo & Branding */}
           <Link href="/" className="flex items-center gap-2 sm:gap-3 group min-w-0 shrink">
             <img 
-              src="/mcc-logo.png" 
-              className="h-10 sm:h-14 md:h-16 w-auto object-contain transition-all duration-300 group-hover:scale-[1.01] shrink-0" 
+              src="/mcc-logo.jpg" 
+              className="h-16 sm:h-22 md:h-26 w-auto object-contain transition-all duration-300 group-hover:scale-[1.01] shrink-0 rounded-md" 
               alt="Madras Christian College Logo" 
             />
             <div className={`border-l h-6 mx-1 sm:mx-2 shrink-0 ${isDarkMode ? "border-slate-800" : "border-slate-300"}`} />
