@@ -504,6 +504,7 @@ export default function ResumeEditorPage() {
     printWindow.document.write(`
       <html>
         <head>
+          <base href="${window.location.origin}" />
           <title>${resumeTitle}</title>
           ${styles}
           <style>
@@ -536,10 +537,10 @@ export default function ResumeEditorPage() {
             ${printContent.innerHTML}
           </div>
           <script>
-            window.onload = function() {
+            setTimeout(function() {
               window.print();
               setTimeout(function() { window.close(); }, 500);
-            };
+            }, 500);
           </script>
         </body>
       </html>
