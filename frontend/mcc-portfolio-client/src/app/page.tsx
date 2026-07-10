@@ -63,19 +63,6 @@ export default function HomePage() {
               Portfolios
             </span>
           </Link>
-
-          {/* Action Area: Sun/Moon Toggle */}
-          <div className="flex items-center gap-3 sm:gap-5 shrink-0">
-            <button 
-              onClick={toggleTheme} 
-              className={`p-2 rounded-lg transition cursor-pointer hover:bg-slate-500/10 ${
-                isDarkMode ? "text-amber-400" : "text-slate-400 hover:text-[#781c1c]"
-              }`} 
-              title={isDarkMode ? "Switch to Light Mode" : "Switch to Dark Mode"}
-            >
-              {isDarkMode ? <Sun size={18} /> : <Moon size={18} />}
-            </button>
-          </div>
         </div>
       </header>
 
@@ -197,13 +184,6 @@ export default function HomePage() {
                 className="bg-[#781c1c] hover:bg-[#5f1515] text-white px-8 py-3.5 rounded-full font-bold uppercase tracking-wider text-xs transition duration-200"
               >
                 Register Profile
-              </Link>
-              
-              <Link
-                href="/search"
-                className="bg-white/10 hover:bg-white/15 border border-white/20 text-white px-8 py-3.5 rounded-full font-bold uppercase tracking-wider text-xs transition-all"
-              >
-                Search Placement Directory
               </Link>
             </div>
           </div>

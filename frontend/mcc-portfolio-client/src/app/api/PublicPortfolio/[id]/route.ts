@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/utils/db";
+import { fixUrlsInObject } from "@/utils/mapper";
 
 async function fetchFullPortfolio(id: number) {
   const user = await prisma.users.findUnique({ where: { Id: id } });
@@ -80,7 +81,8 @@ export async function GET(
       return NextResponse.json("User not found", { status: 404 });
     }
 
-    return NextResponse.json(portfolio);
+    const origin = request.headers.get("origin") || new URL(request.url).origin;
+    return NextResponse.json(fixUrlsInObject(portfolio, origin));
   } catch (err: any) {
     console.error("GET PublicPortfolio Error:", err);
     return NextResponse.json({ message: "Internal server error" }, { status: 500 });

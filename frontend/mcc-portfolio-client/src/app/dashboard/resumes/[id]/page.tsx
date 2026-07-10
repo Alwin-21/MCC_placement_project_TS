@@ -42,6 +42,21 @@ export default function ResumeEditorPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [showSyncModal, setShowSyncModal] = useState(false);
+  const [mobileTab, setMobileTab] = useState<"edit" | "preview">("edit");
+
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth < 768) {
+        const calculatedZoom = (window.innerWidth - 32) / 800;
+        setZoomLevel(Math.max(0.35, Math.min(1.0, calculatedZoom)));
+      } else {
+        setZoomLevel(0.9);
+      }
+    };
+    handleResize();
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
 
   // Resume metadata
   const [resumeTitle, setResumeTitle] = useState("");
@@ -532,55 +547,75 @@ export default function ResumeEditorPage() {
   const pInfo = resumeData.personalInfo;
 
   return (
-    <div className={`flex h-screen overflow-hidden ${themeMode === "dark" ? "bg-[#09090d] text-white" : "bg-slate-900 text-slate-100"}`}>
+    <div className={`flex flex-col md:flex-row h-screen overflow-hidden ${themeMode === "dark" ? "bg-[#09090d] text-white" : "bg-slate-900 text-slate-100"} relative`}>
       
+      {/* Mobile Top View Switcher (Fixed floating toggle bar) */}
+      <div className="md:hidden fixed bottom-6 left-1/2 -translate-x-1/2 z-[60] flex bg-slate-900/90 border border-slate-800 p-1.5 rounded-full shadow-2xl backdrop-blur-md">
+        <button
+          onClick={() => setMobileTab("edit")}
+          className={`px-5 py-2 rounded-full text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer ${
+            mobileTab === "edit" ? "bg-[#781c1c] text-white shadow-md animate-pulse-slow" : "text-slate-400 hover:text-white"
+          }`}
+        >
+          Edit Details
+        </button>
+        <button
+          onClick={() => setMobileTab("preview")}
+          className={`px-5 py-2 rounded-full text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer ${
+            mobileTab === "preview" ? "bg-[#781c1c] text-white shadow-md animate-pulse-slow" : "text-slate-400 hover:text-white"
+          }`}
+        >
+          Live Preview
+        </button>
+      </div>
+
       {/* LEFT COLUMN: EDITOR CONTROL PANEL */}
-      <div className="w-[480px] shrink-0 flex flex-col border-r border-slate-700 bg-slate-800">
+      <div className={`w-full md:w-[480px] md:shrink-0 flex flex-col border-r border-slate-700 bg-slate-800 h-full ${mobileTab === "edit" ? "flex" : "hidden md:flex"}`}>
         
         {/* Editor Top Bar */}
-        <div className="p-4 border-b border-slate-700 flex items-center justify-between shrink-0">
+        <div className="p-3 sm:p-4 border-b border-slate-700 flex items-center justify-between shrink-0 gap-1.5 sm:gap-2">
           <button
             onClick={() => router.push("/dashboard/resumes")}
-            className="p-2 rounded-lg hover:bg-slate-700 transition text-slate-300 hover:text-white cursor-pointer"
+            className="p-1.5 sm:p-2 rounded-lg hover:bg-slate-700 transition text-slate-300 hover:text-white cursor-pointer shrink-0"
             title="Back to Dashboard"
           >
-            <ArrowLeft size={18} />
+            <ArrowLeft size={16} />
           </button>
 
           <input
             type="text"
             value={resumeTitle}
             onChange={(e) => setResumeTitle(e.target.value)}
-            className="flex-1 mx-3 bg-slate-900 border border-slate-700 rounded-xl px-3 py-1.5 text-xs text-white outline-none focus:border-[#781c1c] font-bold"
+            className="flex-1 min-w-[60px] sm:min-w-[80px] bg-slate-900 border border-slate-700 rounded-xl px-2 sm:px-3 py-1.5 text-xs text-white outline-none focus:border-[#781c1c] font-bold"
             placeholder="Resume Name"
           />
 
-          <div className="flex gap-1.5">
+          <div className="flex gap-1 sm:gap-1.5 shrink-0">
             <button
               onClick={handleSyncFromPortfolio}
-              className="p-2 rounded-lg hover:bg-slate-700 transition text-emerald-400 cursor-pointer"
+              className="p-1.5 sm:p-2 rounded-lg hover:bg-slate-700 transition text-emerald-400 cursor-pointer"
               title="Sync latest from Portfolio"
             >
-              <RefreshCw size={16} />
+              <RefreshCw size={14} />
             </button>
             <button
               onClick={handleSaveResume}
               disabled={saving}
-              className="p-2 rounded-lg bg-[#781c1c] hover:bg-[#5f1515] transition text-white cursor-pointer disabled:opacity-50"
+              className="p-1.5 sm:p-2 rounded-lg bg-[#781c1c] hover:bg-[#5f1515] transition text-white cursor-pointer disabled:opacity-50"
               title="Save Resume Draft"
             >
-              <Save size={16} />
+              <Save size={14} />
             </button>
           </div>
         </div>
 
         {/* Tab Headers */}
-        <div className="flex border-b border-slate-700 text-[10px] uppercase font-mono tracking-wider font-bold shrink-0 overflow-x-auto bg-slate-850 scrollbar-none">
+        <div className="flex border-b border-slate-700 text-[10px] uppercase font-mono tracking-wider font-bold shrink-0 overflow-x-auto bg-slate-800 scrollbar-none whitespace-nowrap">
           {["theme", "profile", "summary", "experience", "education", "projects", "skills", "others"].map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
-              className={`flex-1 py-3 text-center border-b-2 cursor-pointer transition ${
+              className={`px-4 py-3 text-center border-b-2 cursor-pointer transition shrink-0 ${
                 activeTab === tab ? "border-[#781c1c] text-[#781c1c]" : "border-transparent text-slate-400 hover:text-white"
               }`}
             >
@@ -1247,15 +1282,15 @@ export default function ResumeEditorPage() {
       </div>
 
       {/* RIGHT COLUMN: HIGHER FIDELITY RESUME PREVIEW PANEL */}
-      <div className="flex-1 flex flex-col min-w-0 bg-slate-950">
+      <div className={`flex-1 flex flex-col min-w-0 bg-slate-950 h-full ${mobileTab === "preview" ? "flex" : "hidden md:flex"}`}>
         
         {/* Preview Panel Top Bar */}
-        <div className="p-4 border-b border-slate-800 bg-slate-900/50 backdrop-blur flex justify-between items-center shrink-0">
-          <div className="flex items-center gap-2 text-slate-400 text-xs">
+        <div className="p-3 sm:p-4 border-b border-slate-800 bg-slate-900/50 backdrop-blur flex justify-between items-center shrink-0">
+          <div className="hidden sm:flex items-center gap-2 text-slate-400 text-xs">
             <span>Theme: <strong>{selectedTheme}</strong></span>
           </div>
 
-          <div className="flex gap-2">
+          <div className="flex items-center justify-between w-full sm:w-auto gap-2">
             <div className="flex items-center gap-1 bg-slate-850 border border-slate-800 rounded-xl px-2 py-1 text-slate-400">
               <button
                 onClick={() => setZoomLevel(Math.max(0.5, zoomLevel - 0.1))}
@@ -1283,7 +1318,7 @@ export default function ResumeEditorPage() {
 
             <button
               onClick={handlePrint}
-              className="bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-md"
+              className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 sm:px-5 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-md shrink-0"
             >
               <Download size={14} /> Download PDF
             </button>

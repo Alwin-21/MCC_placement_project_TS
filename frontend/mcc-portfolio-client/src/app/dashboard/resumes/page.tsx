@@ -199,12 +199,6 @@ export default function ResumesDashboardPage() {
             <button onClick={() => router.push("/dashboard")} className="w-full flex items-center gap-3 transition px-4 py-2.5 rounded-xl text-sm font-medium text-left text-slate-300 hover:text-white hover:bg-white/5 cursor-pointer">
               <Eye size={16} className="text-emerald-400" /> Back to Dashboard
             </button>
-            <button onClick={() => router.push("/search")} className="w-full flex items-center gap-3 transition px-4 py-2.5 rounded-xl text-sm font-medium text-left text-slate-300 hover:text-white hover:bg-white/5 cursor-pointer">
-              <Globe size={16} className="text-gray-400" /> Search Students
-            </button>
-            <button onClick={() => router.push("/leaderboard")} className="w-full flex items-center gap-3 transition px-4 py-2.5 rounded-xl text-sm font-medium text-left text-slate-300 hover:text-white hover:bg-white/5 cursor-pointer">
-              <Trophy size={16} className="text-gray-400" /> Leaderboard
-            </button>
           </div>
         </div>
 
@@ -267,9 +261,6 @@ export default function ResumesDashboardPage() {
                 <button onClick={() => { router.push("/dashboard"); setShowMobileNav(false); }} className="w-full flex items-center gap-3 transition px-4 py-2.5 rounded-xl text-sm font-medium text-left text-slate-300 hover:text-white cursor-pointer">
                   <Eye size={16} className="text-emerald-400" /> Back to Dashboard
                 </button>
-                <button onClick={() => { router.push("/search"); setShowMobileNav(false); }} className="w-full flex items-center gap-3 transition px-4 py-2.5 rounded-xl text-sm font-medium text-left text-slate-300 hover:text-white cursor-pointer">
-                  <Globe size={16} className="text-gray-400" /> Search Students
-                </button>
               </div>
             </nav>
             <div className="pt-4 border-t border-white/10">
@@ -298,12 +289,6 @@ export default function ResumesDashboardPage() {
               Resume Dashboard
             </span>
           </div>
-          <button
-            onClick={toggleThemeMode}
-            className="p-2 rounded-xl border border-slate-200 dark:border-white/5 hover:bg-slate-50 dark:hover:bg-white/5 transition text-slate-500 dark:text-slate-400"
-          >
-            {themeMode === "dark" ? <Sun size={18} /> : <Moon size={18} />}
-          </button>
         </div>
 
         {/* DESKTOP TOP BAR */}
@@ -314,13 +299,6 @@ export default function ResumesDashboardPage() {
           </div>
 
           <div className="flex items-center gap-3">
-            <button
-              onClick={toggleThemeMode}
-              className="p-2.5 rounded-xl border border-slate-200 dark:border-white/5 hover:bg-slate-50 dark:hover:bg-white/5 transition text-slate-500 dark:text-slate-400 cursor-pointer"
-              title="Toggle Dark/Light Mode"
-            >
-              {themeMode === "dark" ? <Sun size={18} /> : <Moon size={18} />}
-            </button>
             <button
               onClick={() => setShowCreateModal(true)}
               className="bg-[#781c1c] hover:bg-[#5f1515] text-white px-5 py-2.5 rounded-xl font-bold text-xs transition flex items-center gap-2 shadow-sm shadow-[#781c1c]/10 cursor-pointer"

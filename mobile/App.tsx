@@ -31,7 +31,6 @@ export type ScreenName =
   | "CRUDList"
   | "CRUDEdit"
   | "PublicSearch"
-  | "Leaderboard"
   | "AICareer"
   | "AISop"
   | "AdminDashboard"
@@ -219,8 +218,6 @@ function ScreenRenderer() {
       return <CRUDEditScreen />;
     case "PublicSearch":
       return <PublicSearchScreen />;
-    case "Leaderboard":
-      return <LeaderboardScreen />;
     case "AICareer":
       return <AICareerScreen />;
     case "AISop":
@@ -284,11 +281,6 @@ function BottomTabBar() {
       <TouchableOpacity style={styles.tabItem} onPress={() => context.navigate("PublicSearch")}>
         <Ionicons name="search" size={22} color={current === "PublicSearch" ? "#6366f1" : "#94a3b8"} />
         <Text style={[styles.tabLabel, current === "PublicSearch" && styles.tabLabelActive]}>Search</Text>
-      </TouchableOpacity>
-
-      <TouchableOpacity style={styles.tabItem} onPress={() => context.navigate("Leaderboard")}>
-        <Ionicons name="trophy" size={22} color={current === "Leaderboard" ? "#6366f1" : "#94a3b8"} />
-        <Text style={[styles.tabLabel, current === "Leaderboard" && styles.tabLabelActive]}>Rankings</Text>
       </TouchableOpacity>
 
       {isAdminOrMod ? (
@@ -1358,75 +1350,6 @@ function PublicSearchScreen() {
   );
 }
 
-// ==========================================
-// 9. LEADERBOARD SCREEN
-// ==========================================
-
-function LeaderboardScreen() {
-  const context = useContext(AppContext);
-  const [board, setBoard] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  const fetchBoard = async () => {
-    setLoading(true);
-    try {
-      const res = await requestApi(`${context?.apiUrl}/Leaderboard`, "GET", null, null);
-      setBoard(Array.isArray(res) ? res : []);
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchBoard();
-  }, [context?.screen]);
-
-  return (
-    <View style={styles.container}>
-      <Header title="Ecosystem Leaderboard" showBack={false} />
-      {loading ? (
-        <View style={styles.centerContainer}>
-          <ActivityIndicator size="large" color="#6366f1" />
-        </View>
-      ) : board.length === 0 ? (
-        <View style={styles.centerContainer}>
-          <Text style={styles.cardDesc}>No approved portfolios available for scoreboard ranking.</Text>
-        </View>
-      ) : (
-        <ScrollView contentContainerStyle={styles.scrollContent}>
-          {board.map((student, idx) => {
-            const isTop3 = idx < 3;
-            const trophyColor = idx === 0 ? "#fbbf24" : idx === 1 ? "#cbd5e1" : "#b45309";
-            
-            return (
-              <View key={student.id} style={styles.crudCard}>
-                <View style={styles.leaderboardRank}>
-                  {isTop3 ? (
-                    <Ionicons name="trophy" size={24} color={trophyColor} />
-                  ) : (
-                    <Text style={styles.rankText}>#{idx + 1}</Text>
-                  )}
-                </View>
-                <View style={styles.crudDetails}>
-                  <Text style={styles.crudTitle}>{student.fullName}</Text>
-                  <Text style={styles.crudSubtitle}>{student.department}</Text>
-                  <Text style={styles.cardDesc}>Projects: {student.projects} | Skills: {student.skills}</Text>
-                </View>
-                <View style={styles.scoreContainer}>
-                  <Text style={styles.scoreText}>{student.score}</Text>
-                  <Text style={styles.scoreLabel}>Pts</Text>
-                </View>
-              </View>
-            );
-          })}
-        </ScrollView>
-      )}
-      <BottomTabBar />
-    </View>
-  );
-}
 
 // ==========================================
 // 10. AI CAREER ANALYZER SCREEN

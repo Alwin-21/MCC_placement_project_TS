@@ -128,6 +128,7 @@ function PortfolioPageContent() {
 
   const [loading, setLoading] = useState(true);
   const [copiedLink, setCopiedLink] = useState(false);
+  const [imgError, setImgError] = useState(false);
   
   // Custom states matching image UI components
   const [currentView, setCurrentView] = useState("dashboard"); // mapping to sidebar
@@ -214,8 +215,8 @@ function PortfolioPageContent() {
         <AlertCircle size={48} className="text-[#781c1c] mb-4 animate-bounce" />
         <h2 className="text-xl font-bold text-[#18233c]">Portfolio Record Not Found</h2>
         <p className="text-sm text-slate-550 mt-2">The requested student directory is empty or the URL slug is invalid.</p>
-        <button onClick={() => router.push("/search")} className="mt-6 bg-[#781c1c] hover:bg-[#5f1515] text-white px-6 py-2.5 rounded-xl font-bold transition-all">
-          Search Placement Directory
+        <button onClick={() => router.push("/")} className="mt-6 bg-[#781c1c] hover:bg-[#5f1515] text-white px-6 py-2.5 rounded-xl font-bold transition-all">
+          Back to Homepage
         </button>
       </div>
     );
@@ -273,8 +274,13 @@ function PortfolioPageContent() {
               {/* Profile Card */}
               <div className="bg-white border border-[#781c1c]/10 rounded-xl p-6 shadow-[0_1px_3px_rgba(0,0,0,0.01)] text-center lg:text-left">
                 <div className="flex flex-col lg:flex-row items-center gap-4">
-                  {profile?.profileImageUrl ? (
-                    <img src={profile.profileImageUrl} className="w-16 h-16 rounded-full object-cover border-2 border-slate-100 shadow-xs" alt={user.fullName} />
+                  {(profile?.profileImageUrl || user?.profileImageUrl) && !imgError ? (
+                    <img 
+                      src={profile?.profileImageUrl || user?.profileImageUrl} 
+                      onError={() => setImgError(true)}
+                      className="w-16 h-16 rounded-full object-cover border-2 border-slate-100 shadow-xs" 
+                      alt={user.fullName} 
+                    />
                   ) : (
                     <div className="w-16 h-16 rounded-full bg-[#f0ece1] text-[#781c1c] flex items-center justify-center font-bold text-lg border border-slate-205 shadow-xs shrink-0">
                       {initials}
@@ -936,8 +942,13 @@ function PortfolioPageContent() {
         <div className={`p-4 border-b border-slate-700/30 flex items-center gap-3 ${
           isSidebarCollapsed ? "justify-center" : ""
         }`}>
-          {profile?.profileImageUrl ? (
-            <img src={profile.profileImageUrl} className="w-8 h-8 rounded-full object-cover border border-[#d4af37]/40" alt={user.fullName} />
+          {(profile?.profileImageUrl || user?.profileImageUrl) && !imgError ? (
+            <img 
+              src={profile?.profileImageUrl || user?.profileImageUrl} 
+              onError={() => setImgError(true)}
+              className="w-8 h-8 rounded-full object-cover border border-[#d4af37]/40" 
+              alt={user.fullName} 
+            />
           ) : (
             <div className="w-8 h-8 rounded-full bg-[#781c1c] text-white flex items-center justify-center text-xs font-bold border border-amber-600/30">
               {initials}
@@ -1004,8 +1015,13 @@ function PortfolioPageContent() {
             </div>
 
             <div className="flex items-center gap-3 py-4 border-b border-slate-700/30">
-              {profile?.profileImageUrl ? (
-                <img src={profile.profileImageUrl} className="w-8 h-8 rounded-full object-cover border border-[#d4af37]/40" alt={user.fullName} />
+              {(profile?.profileImageUrl || user?.profileImageUrl) && !imgError ? (
+                <img 
+                  src={profile?.profileImageUrl || user?.profileImageUrl} 
+                  onError={() => setImgError(true)}
+                  className="w-8 h-8 rounded-full object-cover border border-[#d4af37]/40" 
+                  alt={user.fullName} 
+                />
               ) : (
                 <div className="w-8 h-8 rounded-full bg-[#781c1c] text-white flex items-center justify-center text-xs font-bold">
                   {initials}

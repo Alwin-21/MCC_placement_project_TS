@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/utils/db";
 import { getUserFromRequest } from "@/utils/auth";
+import { fixUrlsInObject } from "@/utils/mapper";
 
 export async function GET(request: Request) {
   try {
@@ -18,18 +19,21 @@ export async function GET(request: Request) {
 
     const roleName = user.Role === 2 ? "Admin" : user.Role === 3 ? "Moderator" : "Student";
 
-    return NextResponse.json({
-      id: user.Id,
-      fullName: user.FullName,
-      email: user.Email,
-      department: user.Department,
-      stream: user.Stream,
-      username: user.Username,
-      isTemporaryPassword: user.IsTemporaryPassword,
-      registerNumber: user.RegisterNumber,
-      profileImageUrl: user.ProfileImageUrl,
-      role: roleName
-    });
+    const origin = request.headers.get("origin") || new URL(request.url).origin;
+    return NextResponse.json(
+      fixUrlsInObject({
+        id: user.Id,
+        fullName: user.FullName,
+        email: user.Email,
+        department: user.Department,
+        stream: user.Stream,
+        username: user.Username,
+        isTemporaryPassword: user.IsTemporaryPassword,
+        registerNumber: user.RegisterNumber,
+        profileImageUrl: user.ProfileImageUrl,
+        role: roleName
+      }, origin)
+    );
   } catch (err: any) {
     console.error("GET Users me Error:", err);
     return NextResponse.json({ message: "Internal server error" }, { status: 500 });

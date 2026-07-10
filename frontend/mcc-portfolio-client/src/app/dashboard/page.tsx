@@ -60,6 +60,14 @@ export default function DashboardPage() {
   const [generatingSop, setGeneratingSop] = useState(false);
   const [sopTone, setSopTone] = useState("Academic");
   const [targetCareer, setTargetCareer] = useState("");
+  const [successBanner, setSuccessBanner] = useState<{ section: string; message: string } | null>(null);
+
+  const showSuccessBanner = (section: string, message: string) => {
+    setSuccessBanner({ section, message });
+    setTimeout(() => {
+      setSuccessBanner(null);
+    }, 3500);
+  };
 
   // ==========================================
   // SECTION 1: HEADER SECTION FIELDS
@@ -238,7 +246,24 @@ export default function DashboardPage() {
     loadAllData();
   }, []);
 
+  const fetchUserMe = async () => {
+    try {
+      const res = await api.get("/Users/me");
+      if (res.data) {
+        setUser(res.data);
+        const stored = localStorage.getItem("user");
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          localStorage.setItem("user", JSON.stringify({ ...parsed, ...res.data }));
+        }
+      }
+    } catch (err) {
+      console.error("Failed to load user me", err);
+    }
+  };
+
   const loadAllData = () => {
+    fetchUserMe();
     fetchProfile();
     fetchSkills();
     fetchCertifications();
@@ -408,7 +433,7 @@ export default function DashboardPage() {
         setUser(updated);
       }
 
-      alert("Header & Profile Settings Saved Successfully!");
+      showSuccessBanner("profile", "Header & Profile Settings Saved Successfully!");
       loadAllData();
     } catch (err: any) {
       console.error(err);
@@ -479,10 +504,10 @@ export default function DashboardPage() {
 
       if (editingExpId) {
         await api.put(`/Experiences/${editingExpId}`, payload);
-        alert("Experience updated successfully!");
+        showSuccessBanner("experience", "Experience entry updated successfully!");
       } else {
         await api.post("/Experiences", payload);
-        alert("Experience added successfully!");
+        showSuccessBanner("experience", "Experience entry added successfully!");
       }
       cancelEditExperience();
       fetchExperiences();
@@ -591,10 +616,10 @@ export default function DashboardPage() {
 
       if (editingAcademicId) {
         await api.put(`/AcademicRecords/${editingAcademicId}`, payload);
-        alert("Academic Record Updated!");
+        showSuccessBanner("academic", "Academic Record updated successfully!");
       } else {
         await api.post("/AcademicRecords", payload);
-        alert("Academic Record Added!");
+        showSuccessBanner("academic", "Academic Record added successfully!");
       }
       cancelEditAcademicRecord();
       fetchAcademicRecords();
@@ -675,10 +700,10 @@ export default function DashboardPage() {
 
       if (editingAchId) {
         await api.put(`/Achievements/${editingAchId}`, payload);
-        alert("Achievement Updated!");
+        showSuccessBanner("achievement", "Achievement details updated successfully!");
       } else {
         await api.post("/Achievements", payload);
-        alert("Achievement Added!");
+        showSuccessBanner("achievement", "Achievement details added successfully!");
       }
       cancelEditAchievement();
       fetchAchievements();
@@ -767,10 +792,10 @@ export default function DashboardPage() {
         };
         if (editingProjId) {
           await api.put(`/ResearchPapers/${editingProjId}`, payload);
-          alert("Research Paper/Publication Updated!");
+          showSuccessBanner("project", "Research paper details updated successfully!");
         } else {
           await api.post("/ResearchPapers", payload);
-          alert("Research Paper/Publication Added!");
+          showSuccessBanner("project", "Research paper details added successfully!");
         }
       } else {
         const payload = {
@@ -785,10 +810,10 @@ export default function DashboardPage() {
         };
         if (editingProjId) {
           await api.put(`/Projects/${editingProjId}`, payload);
-          alert("Project Updated!");
+          showSuccessBanner("project", "Project details updated successfully!");
         } else {
           await api.post("/Projects", payload);
-          alert("Project Added!");
+          showSuccessBanner("project", "Project details added successfully!");
         }
       }
       cancelEditProj();
@@ -874,10 +899,10 @@ export default function DashboardPage() {
 
       if (editingSkillId) {
         await api.put(`/Skills/${editingSkillId}`, payload);
-        alert("Skill Updated!");
+        showSuccessBanner("skill", "Skill updated successfully!");
       } else {
         await api.post("/Skills", payload);
-        alert("Skill Added!");
+        showSuccessBanner("skill", "Skill added successfully!");
       }
       cancelEditSkill();
       fetchSkills();
@@ -943,10 +968,10 @@ export default function DashboardPage() {
 
       if (editingCertId) {
         await api.put(`/Certifications/${editingCertId}`, payload);
-        alert("Certification Updated!");
+        showSuccessBanner("certification", "Certification details updated successfully!");
       } else {
         await api.post("/Certifications", payload);
-        alert("Certification Added!");
+        showSuccessBanner("certification", "Certification details added successfully!");
       }
       cancelEditCertification();
       fetchCertifications();
@@ -1013,10 +1038,10 @@ export default function DashboardPage() {
 
       if (editingResumeId) {
         await api.put(`/Resumes/${editingResumeId}`, payload);
-        alert("Resume Updated!");
+        showSuccessBanner("resume", "Resume document updated successfully!");
       } else {
         await api.post("/Resumes", payload);
-        alert("Resume Saved!");
+        showSuccessBanner("resume", "Resume document saved successfully!");
       }
       cancelEditResume();
       fetchResumes();
@@ -1198,15 +1223,9 @@ Report Generated: ${new Date().toLocaleDateString()}
               <span className="text-[7px] uppercase font-mono tracking-widest text-[#d4af37] block font-extrabold mt-1 leading-none">
                 Autonomous
               </span>
-            </div>
           </div>
-          <button
-            onClick={toggleThemeMode}
-            className="p-2 rounded-xl bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white transition shrink-0"
-          >
-            {themeMode === "dark" ? <Sun size={16} /> : <Moon size={16} />}
-          </button>
         </div>
+      </div>
 
         {/* 13 SECTIONS LINKS */}
         <div className="flex-1 overflow-y-auto p-4 space-y-1 scrollbar-thin">
@@ -1269,14 +1288,14 @@ Report Generated: ${new Date().toLocaleDateString()}
               </span>
               <div className="text-[10px] font-mono break-all truncate opacity-85 mb-2">
                 {typeof window !== "undefined" && user?.fullName
-                  ? `${window.location.origin}/student/${user.fullName.replace(/\s+/g, "").toLowerCase()}`
+                  ? `${window.location.origin}/student/${user.registerNumber || user.fullName.replace(/\s+/g, "").toLowerCase()}`
                   : "http://localhost:3001/student/username"}
               </div>
               <div className="flex gap-2">
                 <button
                   onClick={() => {
                     if (typeof window !== "undefined" && user?.fullName) {
-                      const slug = user.fullName.replace(/\s+/g, "").toLowerCase();
+                      const slug = user.registerNumber || user.fullName.replace(/\s+/g, "").toLowerCase();
                       const link = `${window.location.origin}/student/${slug}`;
                       navigator.clipboard.writeText(link);
                       setCopiedSlugLink(true);
@@ -1291,7 +1310,7 @@ Report Generated: ${new Date().toLocaleDateString()}
                   {copiedSlugLink ? "Copied" : "Copy Link"}
                 </button>
                 <a
-                  href={user?.fullName ? `/student/${user.fullName.replace(/\s+/g, "").toLowerCase()}` : "#"}
+                  href={user?.fullName ? `/student/${user.registerNumber || user.fullName.replace(/\s+/g, "").toLowerCase()}` : "#"}
                   target="_blank"
                   className="bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-350 text-[9px] font-bold py-1 px-2 rounded-lg transition flex items-center gap-1"
                 >
@@ -1301,19 +1320,13 @@ Report Generated: ${new Date().toLocaleDateString()}
             </div>
             <button onClick={() => {
               if (user?.fullName) {
-                const slug = user.fullName.replace(/\s+/g, "").toLowerCase();
+                const slug = user.registerNumber || user.fullName.replace(/\s+/g, "").toLowerCase();
                 window.open(`/student/${slug}`, "_blank");
               } else {
                 alert("Please save your Header details first.");
               }
             }} className={`w-full flex items-center gap-3 transition px-4 py-2.5 rounded-xl text-sm font-medium text-left ${themeMode === "dark" ? "hover:bg-white/5 text-slate-300 hover:text-white" : "hover:bg-white/10 text-slate-200 hover:text-white"}`}>
               <Eye size={16} className="text-emerald-400" /> View Public Portfolio
-            </button>
-            <button onClick={() => window.location.href = "/search"} className={`w-full flex items-center gap-3 transition px-4 py-2.5 rounded-xl text-sm font-medium text-left ${themeMode === "dark" ? "hover:bg-white/5 text-slate-300 hover:text-white" : "hover:bg-white/10 text-slate-200 hover:text-white"}`}>
-              <Globe size={16} className="text-gray-400" /> Search Students
-            </button>
-            <button onClick={() => window.location.href = "/leaderboard"} className={`w-full flex items-center gap-3 transition px-4 py-2.5 rounded-xl text-sm font-medium text-left ${themeMode === "dark" ? "hover:bg-white/5 text-slate-300 hover:text-white" : "hover:bg-white/10 text-slate-200 hover:text-white"}`}>
-              <Trophy size={16} className="text-gray-400" /> Leaderboard
             </button>
           </div>
         </div>
@@ -1413,14 +1426,14 @@ Report Generated: ${new Date().toLocaleDateString()}
                   </span>
                   <div className="text-[10px] font-mono break-all truncate opacity-85 mb-2">
                     {typeof window !== "undefined" && user?.fullName
-                      ? `${window.location.origin}/student/${user.fullName.replace(/\s+/g, "").toLowerCase()}`
+                      ? `${window.location.origin}/student/${user.registerNumber || user.fullName.replace(/\s+/g, "").toLowerCase()}`
                       : "http://localhost:3001/student/username"}
                   </div>
                   <div className="flex gap-2">
                     <button
                       onClick={() => {
                         if (typeof window !== "undefined" && user?.fullName) {
-                          const slug = user.fullName.replace(/\s+/g, "").toLowerCase();
+                          const slug = user.registerNumber || user.fullName.replace(/\s+/g, "").toLowerCase();
                           const link = `${window.location.origin}/student/${slug}`;
                           navigator.clipboard.writeText(link);
                           setCopiedSlugLink(true);
@@ -1435,7 +1448,7 @@ Report Generated: ${new Date().toLocaleDateString()}
                       {copiedSlugLink ? "Copied" : "Copy Link"}
                     </button>
                     <a
-                      href={user?.fullName ? `/student/${user.fullName.replace(/\s+/g, "").toLowerCase()}` : "#"}
+                      href={user?.fullName ? `/student/${user.registerNumber || user.fullName.replace(/\s+/g, "").toLowerCase()}` : "#"}
                       target="_blank"
                       className="bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-350 text-[9px] font-bold py-1 px-2 rounded-lg transition flex items-center gap-1"
                     >
@@ -1445,7 +1458,7 @@ Report Generated: ${new Date().toLocaleDateString()}
                 </div>
                 <button onClick={() => {
                   if (user?.fullName) {
-                    const slug = user.fullName.replace(/\s+/g, "").toLowerCase();
+                    const slug = user.registerNumber || user.fullName.replace(/\s+/g, "").toLowerCase();
                     window.open(`/student/${slug}`, "_blank");
                     setShowMobileNav(false);
                   } else {
@@ -1453,12 +1466,6 @@ Report Generated: ${new Date().toLocaleDateString()}
                   }
                 }} className={`w-full flex items-center gap-3 transition px-4 py-2.5 rounded-xl text-sm font-medium text-left ${themeMode === "dark" ? "hover:bg-white/5 text-slate-300 hover:text-white" : "hover:bg-white/10 text-slate-200 hover:text-white"} cursor-pointer`}>
                   <Eye size={16} className="text-emerald-400" /> View Public Portfolio
-                </button>
-                <button onClick={() => { window.location.href = "/search"; setShowMobileNav(false); }} className={`w-full flex items-center gap-3 transition px-4 py-2.5 rounded-xl text-sm font-medium text-left ${themeMode === "dark" ? "hover:bg-white/5 text-slate-300 hover:text-white" : "hover:bg-white/10 text-slate-200 hover:text-white"} cursor-pointer`}>
-                  <Globe size={16} className="text-gray-400" /> Search Students
-                </button>
-                <button onClick={() => { window.location.href = "/leaderboard"; setShowMobileNav(false); }} className={`w-full flex items-center gap-3 transition px-4 py-2.5 rounded-xl text-sm font-medium text-left ${themeMode === "dark" ? "hover:bg-white/5 text-slate-300 hover:text-white" : "hover:bg-white/10 text-slate-200 hover:text-white"} cursor-pointer`}>
-                  <Trophy size={16} className="text-gray-400" /> Leaderboard
                 </button>
               </div>
             </nav>
@@ -1488,12 +1495,6 @@ Report Generated: ${new Date().toLocaleDateString()}
               Dashboard Menu
             </span>
           </div>
-          <button
-            onClick={toggleThemeMode}
-            className="p-2 rounded-xl text-gray-400 hover:text-white transition cursor-pointer"
-          >
-            {themeMode === "dark" ? <Sun size={16} /> : <Moon size={16} />}
-          </button>
         </div>
 
         {/* MAIN CONTAINER */}
@@ -1612,15 +1613,23 @@ Report Generated: ${new Date().toLocaleDateString()}
                   </div>
                 )}
               </div>
-            </div>
+            </div>            {/* Inputs */}
+            {successBanner?.section === "profile" && (
+              <div className="md:col-span-2 bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs p-3.5 rounded-xl mb-4 font-bold flex items-center gap-2">
+                <CheckCircle size={14} className="text-emerald-600" />
+                {successBanner.message}
+              </div>
+            )}
 
-            {/* Inputs */}
             <div className="flex flex-col gap-2">
-              <label className="text-[10px] uppercase font-mono tracking-wider font-bold text-slate-500 mb-1.5">Full Name *</label>
+              <label className="text-[10px] uppercase font-mono tracking-wider font-bold text-slate-500 mb-1.5 flex flex-col">
+                Full Name *
+                <span className="block text-[9px] text-slate-400 font-normal normal-case mt-0.5">Enter your full student name</span>
+              </label>
               <input
                 type="text"
                 required
-                placeholder="Student Full Name"
+                placeholder="e.g. Adithya Kumar"
                 value={fullName}
                 onChange={(e) => setFullName(e.target.value)}
                 className={`border rounded-xl px-4 py-3 text-sm outline-none transition ${
@@ -1630,24 +1639,47 @@ Report Generated: ${new Date().toLocaleDateString()}
             </div>
 
             <div className="flex flex-col gap-2">
-              <label className="text-[10px] uppercase font-mono tracking-wider font-bold text-slate-500 mb-1.5">Course & Year *</label>
+              <label className="text-[10px] uppercase font-mono tracking-wider font-bold text-slate-500 mb-1.5 flex flex-col">
+                Course
+                <span className="block text-[9px] text-slate-400 font-normal normal-case mt-0.5">Collected at registration</span>
+              </label>
               <input
                 type="text"
-                required
-                placeholder="e.g. B.Sc. Computer Science - III Year"
+                disabled
                 value={course}
-                onChange={(e) => setCourse(e.target.value)}
-                className={`border rounded-xl px-4 py-3 text-sm outline-none transition ${
-                  themeMode === "dark" ? "bg-white/5 border-white/10 text-white" : "bg-white border-slate-200"
-                }`}
+                className="border rounded-xl px-4 py-3 text-sm outline-none bg-slate-100 border-slate-200 text-slate-450 cursor-not-allowed"
               />
             </div>
 
             <div className="flex flex-col gap-2">
-              <label className="text-[10px] uppercase font-mono tracking-wider font-bold text-slate-500 mb-1.5">Current Location</label>
+              <label className="text-[10px] uppercase font-mono tracking-wider font-bold text-slate-500 mb-1.5 flex flex-col">
+                Year of Study *
+                <span className="block text-[9px] text-slate-400 font-normal normal-case mt-0.5">Select current year</span>
+              </label>
+              <select
+                required
+                value={yearOfStudy}
+                onChange={(e) => setYearOfStudy(e.target.value)}
+                className={`border rounded-xl px-4 py-3 text-sm outline-none transition cursor-pointer ${
+                  themeMode === "dark" ? "bg-white/5 border-white/10 text-white" : "bg-white border-slate-200"
+                }`}
+              >
+                <option value="">Select Year</option>
+                <option value="I Year">I Year</option>
+                <option value="II Year">II Year</option>
+                <option value="III Year">III Year</option>
+                <option value="IV Year">IV Year</option>
+              </select>
+            </div>
+
+            <div className="flex flex-col gap-2">
+              <label className="text-[10px] uppercase font-mono tracking-wider font-bold text-slate-500 mb-1.5 flex flex-col">
+                Current Location
+                <span className="block text-[9px] text-slate-400 font-normal normal-case mt-0.5">City & State</span>
+              </label>
               <input
                 type="text"
-                placeholder="e.g. Chennai, Tamil Nadu, India"
+                placeholder="e.g. Chennai, Tamil Nadu"
                 value={currentLocation}
                 onChange={(e) => setCurrentLocation(e.target.value)}
                 className={`border rounded-xl px-4 py-3 text-sm outline-none transition ${
@@ -1657,22 +1689,28 @@ Report Generated: ${new Date().toLocaleDateString()}
             </div>
 
             <div className="flex flex-col gap-2">
-              <label className="text-[10px] uppercase font-mono tracking-wider font-bold text-slate-500 mb-1.5">Contact Email</label>
+              <label className="text-[10px] uppercase font-mono tracking-wider font-bold text-slate-500 mb-1.5 flex flex-col">
+                Contact Email
+                <span className="block text-[9px] text-slate-400 font-normal normal-case mt-0.5">Read-only institutional email</span>
+              </label>
               <input
                 type="email"
                 placeholder="Email Address"
                 value={email}
                 disabled
-                className="border rounded-xl px-4 py-3 text-sm outline-none bg-neutral-900 border-white/5 text-gray-500 cursor-not-allowed"
+                className="border rounded-xl px-4 py-3 text-sm outline-none bg-slate-100 border-slate-200 text-slate-450 cursor-not-allowed"
               />
             </div>
 
             <div className="flex flex-col gap-2">
-              <label className="text-[10px] uppercase font-mono tracking-wider font-bold text-slate-500 mb-1.5">Contact Phone *</label>
+              <label className="text-[10px] uppercase font-mono tracking-wider font-bold text-slate-500 mb-1.5 flex flex-col">
+                Contact Phone *
+                <span className="block text-[9px] text-slate-400 font-normal normal-case mt-0.5">10-digit mobile number</span>
+              </label>
               <input
                 type="text"
                 required
-                placeholder="e.g. +91 98765 43210"
+                placeholder="e.g. 9876543210"
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
                 className={`border rounded-xl px-4 py-3 text-sm outline-none transition ${
@@ -1682,10 +1720,13 @@ Report Generated: ${new Date().toLocaleDateString()}
             </div>
 
             <div className="flex flex-col gap-2 md:col-span-2">
-              <label className="text-[10px] uppercase font-mono tracking-wider font-bold text-slate-500 mb-1.5">LinkedIn Profile URL</label>
+              <label className="text-[10px] uppercase font-mono tracking-wider font-bold text-slate-500 mb-1.5 flex flex-col">
+                LinkedIn Profile URL
+                <span className="block text-[9px] text-slate-400 font-normal normal-case mt-0.5">Optional professional profile link</span>
+              </label>
               <input
                 type="text"
-                placeholder="https://linkedin.com/in/username"
+                placeholder="e.g. https://linkedin.com/in/adithyakumar"
                 value={linkedInUrl}
                 onChange={(e) => setLinkedInUrl(e.target.value)}
                 className={`border rounded-xl px-4 py-3 text-sm outline-none transition ${
@@ -1717,23 +1758,40 @@ Report Generated: ${new Date().toLocaleDateString()}
             <FileText size={22} /> Section 2: About Section
           </h3>
 
+          {successBanner?.section === "profile" && (
+            <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs p-3.5 rounded-xl mb-4 font-bold flex items-center gap-2">
+              <CheckCircle size={14} className="text-emerald-600" />
+              {successBanner.message}
+            </div>
+          )}
+
           <div className="space-y-4">
             <div className="flex flex-col gap-2">
-              <label className="text-[10px] uppercase font-mono tracking-wider font-bold text-slate-500 mb-1.5">Short bio / Professional Summary</label>
+              <label className="text-[10px] uppercase font-mono tracking-wider font-bold text-slate-500 mb-1.5 flex flex-col">
+                Short bio / Professional Summary
+                <span className="block text-[9px] text-slate-400 font-normal normal-case mt-0.5">
+                  Describe yourself to recruiters in 2-3 sentences (e.g. "A passionate Computer Science student specialing in Web Development...")
+                </span>
+              </label>
               <textarea
-                placeholder="A compelling, short biography to pitch yourself to employers and academies..."
+                placeholder="Enter a brief professional summary..."
                 value={bio}
                 onChange={(e) => setBio(e.target.value)}
-                className={`w-full border rounded-xl px-4 py-3 text-sm outline-none min-h-[100px] transition ${
+                className={`w-full border rounded-xl px-4 py-3 text-sm outline-none min-h-[80px] transition ${
                   themeMode === "dark" ? "bg-white/5 border-white/10 text-white" : "bg-white border-slate-200"
                 }`}
               />
             </div>
 
             <div className="flex flex-col gap-2">
-              <label className="text-[10px] uppercase font-mono tracking-wider font-bold text-slate-500 mb-1.5">Personal Journey Story (Optional)</label>
+              <label className="text-[10px] uppercase font-mono tracking-wider font-bold text-slate-500 mb-1.5 flex flex-col">
+                Personal Journey Story (Optional)
+                <span className="block text-[9px] text-slate-400 font-normal normal-case mt-0.5">
+                  Share your background (e.g. "My passion for programming started in high school when I wrote my first script...")
+                </span>
+              </label>
               <textarea
-                placeholder="Share your personal background or story of how you entered this field..."
+                placeholder="Share your personal tech background story..."
                 value={personalStory}
                 onChange={(e) => setPersonalStory(e.target.value)}
                 className={`w-full border rounded-xl px-4 py-3 text-sm outline-none min-h-[80px] transition ${
@@ -1743,9 +1801,14 @@ Report Generated: ${new Date().toLocaleDateString()}
             </div>
 
             <div className="flex flex-col gap-2">
-              <label className="text-[10px] uppercase font-mono tracking-wider font-bold text-slate-500 mb-1.5">Statement of Purpose (SOP) / Career Intentions (Optional)</label>
+              <label className="text-[10px] uppercase font-mono tracking-wider font-bold text-slate-500 mb-1.5 flex flex-col">
+                Statement of Purpose (SOP) / Career Intentions (Optional)
+                <span className="block text-[9px] text-slate-400 font-normal normal-case mt-0.5">
+                  State your career intentions (e.g. "Aiming to work as a Software Developer in a progressive product firm...")
+                </span>
+              </label>
               <textarea
-                placeholder="Write your long-term career aspirations and objectives..."
+                placeholder="State your career placement intentions..."
                 value={sop}
                 onChange={(e) => setSop(e.target.value)}
                 className={`w-full border rounded-xl px-4 py-3 text-sm outline-none min-h-[80px] transition ${
@@ -1775,119 +1838,149 @@ Report Generated: ${new Date().toLocaleDateString()}
             <Briefcase size={22} /> Section 3: Experience
           </h3>
 
-          {/* Form */}
-          <div className="grid md:grid-cols-2 gap-4 mb-6">
-            <input
-              type="text"
-              required
-              placeholder="Job Title / Role (e.g. Frontend Intern) *"
-              value={expTitle}
-              onChange={(e) => setExpTitle(e.target.value)}
-              className={`border rounded-xl px-4 py-3 text-sm outline-none transition ${
-                themeMode === "dark" ? "bg-white/5 border-white/10 text-white" : "bg-white border-slate-200"
-              }`}
-            />
+          {/* Form in separate card container */}
+          <div className={`p-6 rounded-2xl border mb-6 transition duration-300 ${
+            themeMode === "dark" ? "bg-white/[0.02] border-white/10" : "bg-slate-50 border-slate-200"
+          }`}>
+            <h4 className="text-xs font-bold font-mono uppercase tracking-wider text-slate-500 mb-4 flex items-center gap-1.5">
+              {editingExpId ? "✏️ Edit Experience Entry" : "➕ Add New Experience"}
+            </h4>
 
-            <input
-              type="text"
-              required
-              placeholder="Company / Organization *"
-              value={expCompany}
-              onChange={(e) => setExpCompany(e.target.value)}
-              className={`border rounded-xl px-4 py-3 text-sm outline-none transition ${
-                themeMode === "dark" ? "bg-white/5 border-white/10 text-white" : "bg-white border-slate-200"
-              }`}
-            />
-
-            <input
-              type="text"
-              placeholder="Location (e.g. Remote / Chennai)"
-              value={expLocation}
-              onChange={(e) => setExpLocation(e.target.value)}
-              className={`border rounded-xl px-4 py-3 text-sm outline-none transition ${
-                themeMode === "dark" ? "bg-white/5 border-white/10 text-white" : "bg-white border-slate-200"
-              }`}
-            />
-
-            <select
-              value={expCategory}
-              onChange={(e) => setExpCategory(e.target.value)}
-              className={`border rounded-xl px-4 py-3 text-sm outline-none transition ${
-                themeMode === "dark" ? "bg-[#0b0b0f] border-white/10 text-white" : "bg-white border-slate-200"
-              }`}
-            >
-              <option value="Full-time jobs">Full-time jobs</option>
-              <option value="Internships">Internships</option>
-              <option value="Part-time jobs">Part-time jobs</option>
-              <option value="Volunteering">Volunteering</option>
-              <option value="Administrative positions">Administrative positions</option>
-              <option value="Others">Others</option>
-            </select>
-
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs opacity-60">Start Date *</label>
-              <input
-                type="date"
-                required
-                value={expStartDate}
-                onChange={(e) => setExpStartDate(e.target.value)}
-                className={`border rounded-xl px-4 py-3 text-sm outline-none transition ${
-                  themeMode === "dark" ? "bg-white/5 border-white/10 text-white" : "bg-white border-slate-200"
-                }`}
-              />
-            </div>
-
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs opacity-60">End Date</label>
-              <input
-                type="date"
-                value={expEndDate}
-                disabled={expIsCurrent}
-                onChange={(e) => setExpEndDate(e.target.value)}
-                className={`border rounded-xl px-4 py-3 text-sm outline-none transition ${
-                  expIsCurrent
-                    ? "bg-neutral-900 border-white/5 text-gray-500 cursor-not-allowed"
-                    : themeMode === "dark" ? "bg-white/5 border-white/10 text-white" : "bg-white border-slate-200"
-                }`}
-              />
-            </div>
-
-            <div className="md:col-span-2 flex items-center gap-2 py-2">
-              <input
-                type="checkbox"
-                id="expIsCurrent"
-                checked={expIsCurrent}
-                onChange={(e) => setExpIsCurrent(e.target.checked)}
-                className="w-4 h-4 rounded text-purple-600 accent-[#781c1c]"
-              />
-              <label htmlFor="expIsCurrent" className="text-sm cursor-pointer select-none">I currently work here</label>
-            </div>
-
-            <textarea
-              placeholder="Description of duties, key projects and achievements..."
-              value={expDesc}
-              onChange={(e) => setExpDesc(e.target.value)}
-              className={`md:col-span-2 border rounded-xl px-4 py-3 text-sm outline-none min-h-[100px] transition ${
-                themeMode === "dark" ? "bg-white/5 border-white/10 text-white" : "bg-white border-slate-200"
-              }`}
-            />
-          </div>
-
-          <div className="flex gap-2 justify-end">
-            {editingExpId && (
-              <button
-                onClick={cancelEditExperience}
-                className="px-6 py-2.5 border border-red-500/20 hover:bg-red-500/5 text-red-400 rounded-xl font-bold transition text-xs"
-              >
-                Cancel
-              </button>
+            {successBanner?.section === "experience" && (
+              <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs p-3.5 rounded-xl mb-4 font-bold flex items-center gap-2 animate-pulse-slow">
+                <CheckCircle size={14} className="text-emerald-600" />
+                {successBanner.message}
+              </div>
             )}
-            <button
-              onClick={addExperience}
-              className="bg-[#781c1c] hover:bg-[#5f1515] text-white px-6 py-2.5 rounded-xl font-bold transition text-xs"
-            >
-              {editingExpId ? "Update Experience" : "Add Experience"}
-            </button>
+
+            <div className="grid md:grid-cols-2 gap-4 mb-6">
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[10px] uppercase font-mono tracking-wider font-bold text-slate-500">Job Title / Role *</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Software Developer Intern"
+                  value={expTitle}
+                  onChange={(e) => setExpTitle(e.target.value)}
+                  className={`border rounded-xl px-4 py-3 text-sm outline-none transition ${
+                    themeMode === "dark" ? "bg-white/5 border-white/10 text-white" : "bg-white border-slate-200"
+                  }`}
+                />
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[10px] uppercase font-mono tracking-wider font-bold text-slate-500">Company / Organization *</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Tata Consultancy Services"
+                  value={expCompany}
+                  onChange={(e) => setExpCompany(e.target.value)}
+                  className={`border rounded-xl px-4 py-3 text-sm outline-none transition ${
+                    themeMode === "dark" ? "bg-white/5 border-white/10 text-white" : "bg-white border-slate-200"
+                  }`}
+                />
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[10px] uppercase font-mono tracking-wider font-bold text-slate-500">Job Location</label>
+                <input
+                  type="text"
+                  placeholder="e.g. Chennai or Remote"
+                  value={expLocation}
+                  onChange={(e) => setExpLocation(e.target.value)}
+                  className={`border rounded-xl px-4 py-3 text-sm outline-none transition ${
+                    themeMode === "dark" ? "bg-white/5 border-white/10 text-white" : "bg-white border-slate-200"
+                  }`}
+                />
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[10px] uppercase font-mono tracking-wider font-bold text-slate-500">Experience Type</label>
+                <select
+                  value={expCategory}
+                  onChange={(e) => setExpCategory(e.target.value)}
+                  className={`border rounded-xl px-4 py-3 text-sm outline-none transition cursor-pointer ${
+                    themeMode === "dark" ? "bg-[#0b0b0f] border-white/10 text-white" : "bg-white border-slate-200"
+                  }`}
+                >
+                  <option value="Full-time jobs">Full-time jobs</option>
+                  <option value="Internships">Internships</option>
+                  <option value="Part-time jobs">Part-time jobs</option>
+                  <option value="Volunteering">Volunteering</option>
+                  <option value="Administrative positions">Administrative positions</option>
+                  <option value="Others">Others</option>
+                </select>
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs opacity-60 font-bold">Start Date *</label>
+                <input
+                  type="date"
+                  required
+                  value={expStartDate}
+                  onChange={(e) => setExpStartDate(e.target.value)}
+                  className={`border rounded-xl px-4 py-3 text-sm outline-none transition ${
+                    themeMode === "dark" ? "bg-white/5 border-white/10 text-white" : "bg-white border-slate-200"
+                  }`}
+                />
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs opacity-60 font-bold">End Date</label>
+                <input
+                  type="date"
+                  value={expEndDate}
+                  disabled={expIsCurrent}
+                  onChange={(e) => setExpEndDate(e.target.value)}
+                  className={`border rounded-xl px-4 py-3 text-sm outline-none transition ${
+                    expIsCurrent
+                      ? "bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed"
+                      : themeMode === "dark" ? "bg-white/5 border-white/10 text-white" : "bg-white border-slate-200"
+                  }`}
+                />
+              </div>
+
+              <div className="md:col-span-2 flex items-center gap-2 py-2">
+                <input
+                  type="checkbox"
+                  id="expIsCurrent"
+                  checked={expIsCurrent}
+                  onChange={(e) => setExpIsCurrent(e.target.checked)}
+                  className="w-4 h-4 rounded text-[#781c1c] accent-[#781c1c] cursor-pointer"
+                />
+                <label htmlFor="expIsCurrent" className="text-sm cursor-pointer select-none">I currently work here</label>
+              </div>
+
+              <div className="md:col-span-2 flex flex-col gap-1.5">
+                <label className="text-[10px] uppercase font-mono tracking-wider font-bold text-slate-500">Responsibilities & Achievements</label>
+                <textarea
+                  placeholder="Describe your duties, key projects, and achievements..."
+                  value={expDesc}
+                  onChange={(e) => setExpDesc(e.target.value)}
+                  className={`border rounded-xl px-4 py-3 text-sm outline-none min-h-[100px] transition ${
+                    themeMode === "dark" ? "bg-white/5 border-white/10 text-white" : "bg-white border-slate-200"
+                  }`}
+                />
+              </div>
+            </div>
+
+            <div className="flex gap-2 justify-end">
+              {editingExpId && (
+                <button
+                  onClick={cancelEditExperience}
+                  className="px-6 py-2.5 border border-red-500/20 hover:bg-red-500/5 text-red-400 rounded-xl font-bold transition text-xs cursor-pointer"
+                >
+                  Cancel
+                </button>
+              )}
+              <button
+                onClick={addExperience}
+                className="bg-[#781c1c] hover:bg-[#5f1515] text-white px-6 py-2.5 rounded-xl font-bold transition text-xs cursor-pointer shadow-sm"
+              >
+                {editingExpId ? "Update Experience" : "Add Experience"}
+              </button>
+            </div>
           </div>
 
           {/* Grid list */}
@@ -1927,135 +2020,172 @@ Report Generated: ${new Date().toLocaleDateString()}
             <Award size={22} /> Section 4: Academic Details
           </h3>
 
-          <div className="grid md:grid-cols-2 gap-4 mb-6">
-            <select
-              value={academicDegreeType}
-              onChange={(e) => {
-                setAcademicDegreeType(e.target.value);
-                if (e.target.value !== "Other") {
-                  setAcademicDegree(e.target.value);
-                } else {
-                  setAcademicDegree("");
-                }
-              }}
-              className={`border rounded-xl px-4 py-3 text-sm outline-none transition ${
-                themeMode === "dark" ? "bg-[#0b0b0f] border-white/10 text-white" : "bg-white border-slate-200"
-              }`}
-            >
-              <option value="">Select Qualification / Marksheet Type *</option>
-              <option value="10th Marksheet">10th Marksheet (Required)</option>
-              <option value="11th Marksheet">11th Marksheet (Required)</option>
-              <option value="12th Marksheet">12th Marksheet (Required)</option>
-              <option value="UG Marksheet">UG Marksheet (Required)</option>
-              <option value="PG Marksheet">PG Marksheet (Optional)</option>
-              <option value="Other">Other (Custom Title)</option>
-            </select>
+          {/* Form in separate card container */}
+          <div className={`p-6 rounded-2xl border mb-6 transition duration-300 ${
+            themeMode === "dark" ? "bg-white/[0.02] border-white/10" : "bg-slate-50 border-slate-200"
+          }`}>
+            <h4 className="text-xs font-bold font-mono uppercase tracking-wider text-slate-500 mb-4 flex items-center gap-1.5">
+              {editingAcademicId ? "✏️ Edit Academic Record Details" : "➕ Add New Academic Record"}
+            </h4>
 
-            {academicDegreeType === "Other" && (
-              <input
-                type="text"
-                required
-                placeholder="Custom Degree Title (e.g. B.Sc. Computer Science) *"
-                value={academicDegree}
-                onChange={(e) => setAcademicDegree(e.target.value)}
-                className={`border rounded-xl px-4 py-3 text-sm outline-none transition ${
-                  themeMode === "dark" ? "bg-white/5 border-white/10 text-white" : "bg-white border-slate-200"
-                }`}
-              />
+            {successBanner?.section === "academic" && (
+              <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs p-3.5 rounded-xl mb-4 font-bold flex items-center gap-2 animate-pulse-slow">
+                <CheckCircle size={14} className="text-emerald-600" />
+                {successBanner.message}
+              </div>
             )}
 
-            <input
-              type="text"
-              placeholder="Department / Field (e.g. Computer Science)"
-              value={academicField}
-              onChange={(e) => setAcademicField(e.target.value)}
-              className={`border rounded-xl px-4 py-3 text-sm outline-none transition ${
-                themeMode === "dark" ? "bg-white/5 border-white/10 text-white" : "bg-white border-slate-200"
-              }`}
-            />
+            <div className="grid md:grid-cols-2 gap-4 mb-6">
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[10px] uppercase font-mono tracking-wider font-bold text-slate-500">Qualification / Marksheet Type *</label>
+                <select
+                  value={academicDegreeType}
+                  onChange={(e) => {
+                    setAcademicDegreeType(e.target.value);
+                    if (e.target.value !== "Other") {
+                      setAcademicDegree(e.target.value);
+                    } else {
+                      setAcademicDegree("");
+                    }
+                  }}
+                  className={`border rounded-xl px-4 py-3 text-sm outline-none transition cursor-pointer ${
+                    themeMode === "dark" ? "bg-[#0b0b0f] border-white/10 text-white" : "bg-white border-slate-200"
+                  }`}
+                >
+                  <option value="">Select Qualification / Marksheet Type *</option>
+                  <option value="10th Marksheet">10th Marksheet (Required)</option>
+                  <option value="11th Marksheet">11th Marksheet (Required)</option>
+                  <option value="12th Marksheet">12th Marksheet (Required)</option>
+                  <option value="UG Marksheet">UG Marksheet (Required)</option>
+                  <option value="PG Marksheet">PG Marksheet (Optional)</option>
+                  <option value="Other">Other (Custom Title)</option>
+                </select>
+              </div>
 
-            <input
-              type="text"
-              required
-              placeholder="College / University Name *"
-              value={academicInstitution}
-              onChange={(e) => setAcademicInstitution(e.target.value)}
-              className={`border rounded-xl px-4 py-3 text-sm outline-none transition ${
-                themeMode === "dark" ? "bg-white/5 border-white/10 text-white" : "bg-white border-slate-200"
-              }`}
-            />
+              {academicDegreeType === "Other" && (
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[10px] uppercase font-mono tracking-wider font-bold text-slate-500">Custom Degree Title *</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. B.Sc. Computer Science"
+                    value={academicDegree}
+                    onChange={(e) => setAcademicDegree(e.target.value)}
+                    className={`border rounded-xl px-4 py-3 text-sm outline-none transition ${
+                      themeMode === "dark" ? "bg-white/5 border-white/10 text-white" : "bg-white border-slate-200"
+                    }`}
+                  />
+                </div>
+              )}
 
-            <input
-              type="text"
-              required
-              placeholder="Grade / CGPA (e.g. 9.45 / 94%) *"
-              value={academicGrade}
-              onChange={(e) => setAcademicGrade(e.target.value)}
-              className={`border rounded-xl px-4 py-3 text-sm outline-none transition ${
-                themeMode === "dark" ? "bg-white/5 border-white/10 text-white" : "bg-white border-slate-200"
-              }`}
-            />
-
-            <input
-              type="number"
-              required
-              placeholder="Start Year *"
-              value={academicStartYear}
-              onChange={(e) => setAcademicStartYear(e.target.value)}
-              className={`border rounded-xl px-4 py-3 text-sm outline-none transition ${
-                themeMode === "dark" ? "bg-white/5 border-white/10 text-white" : "bg-white border-slate-200"
-              }`}
-            />
-
-            <input
-              type="number"
-              required
-              placeholder="End Year (or Expected) *"
-              value={academicEndYear}
-              onChange={(e) => setAcademicEndYear(e.target.value)}
-              className={`border rounded-xl px-4 py-3 text-sm outline-none transition ${
-                themeMode === "dark" ? "bg-white/5 border-white/10 text-white" : "bg-white border-slate-200"
-              }`}
-            />
-
-            <div className={`border rounded-2xl px-5 py-3 flex flex-col justify-center gap-2 md:col-span-2 transition ${
-              themeMode === "dark" ? "bg-white/[0.02] border-white/10" : "bg-slate-50 border-slate-200"
-            }`}>
-              <label className="text-[10px] uppercase font-mono tracking-wider font-bold text-slate-500 mb-1.5">Transcript / Marksheet Proof (PDF / Image)</label>
-              <div className="flex items-center gap-4 mt-1">
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[10px] uppercase font-mono tracking-wider font-bold text-slate-500">Department / Major Field</label>
                 <input
-                  type="file"
-                  accept=".pdf,image/*"
-                  onChange={(e) => handleFileUpload(e, setAcademicAttachment, "Academic Proof")}
-                  className="hidden"
-                  id="academic-file-input"
+                  type="text"
+                  placeholder="e.g. Computer Science or Chemistry"
+                  value={academicField}
+                  onChange={(e) => setAcademicField(e.target.value)}
+                  className={`border rounded-xl px-4 py-3 text-sm outline-none transition ${
+                    themeMode === "dark" ? "bg-white/5 border-white/10 text-white" : "bg-white border-slate-200"
+                  }`}
                 />
-                {!academicAttachment ? (
-                  <label
-                    htmlFor="academic-file-input"
-                    className="bg-[#781c1c] hover:bg-[#5f1515] text-white px-5 py-2 rounded-lg cursor-pointer text-xs font-bold transition"
-                  >
-                    {uploadingField === "Academic Proof" ? "Uploading..." : "Upload Proof Document"}
-                  </label>
-                ) : (
-                  <div className="flex items-center gap-3">
-                    <span className="flex items-center gap-1.5 text-xs text-[#781c1c] font-bold bg-[#781c1c]/10 px-3 py-1.5 rounded-xl border border-[#781c1c]/20">
-                      <FileText size={14} /> Document Attached
-                    </span>
-                    <button onClick={() => setAcademicAttachment("")} className="text-xs text-red-400 font-semibold underline">Remove</button>
-                  </div>
-                )}
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[10px] uppercase font-mono tracking-wider font-bold text-slate-500">College / School Name *</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Madras Christian College"
+                  value={academicInstitution}
+                  onChange={(e) => setAcademicInstitution(e.target.value)}
+                  className={`border rounded-xl px-4 py-3 text-sm outline-none transition ${
+                    themeMode === "dark" ? "bg-white/5 border-white/10 text-white" : "bg-white border-slate-200"
+                  }`}
+                />
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[10px] uppercase font-mono tracking-wider font-bold text-slate-500">Final CGPA or Percentage *</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. 8.5 CGPA or 85%"
+                  value={academicGrade}
+                  onChange={(e) => setAcademicGrade(e.target.value)}
+                  className={`border rounded-xl px-4 py-3 text-sm outline-none transition ${
+                    themeMode === "dark" ? "bg-white/5 border-white/10 text-white" : "bg-white border-slate-200"
+                  }`}
+                />
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[10px] uppercase font-mono tracking-wider font-bold text-slate-500">Start Year *</label>
+                <input
+                  type="number"
+                  required
+                  placeholder="e.g. 2023"
+                  value={academicStartYear}
+                  onChange={(e) => setAcademicStartYear(e.target.value)}
+                  className={`border rounded-xl px-4 py-3 text-sm outline-none transition ${
+                    themeMode === "dark" ? "bg-white/5 border-white/10 text-white" : "bg-white border-slate-200"
+                  }`}
+                />
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[10px] uppercase font-mono tracking-wider font-bold text-slate-500">End Year / Expected *</label>
+                <input
+                  type="number"
+                  required
+                  placeholder="e.g. 2026"
+                  value={academicEndYear}
+                  onChange={(e) => setAcademicEndYear(e.target.value)}
+                  className={`border rounded-xl px-4 py-3 text-sm outline-none transition ${
+                    themeMode === "dark" ? "bg-white/5 border-white/10 text-white" : "bg-white border-slate-200"
+                  }`}
+                />
+              </div>
+
+              <div className={`border rounded-2xl px-5 py-3 flex flex-col justify-center gap-2 md:col-span-2 transition ${
+                themeMode === "dark" ? "bg-white/[0.02] border-white/10" : "bg-slate-50 border-slate-200"
+              }`}>
+                <label className="text-[10px] uppercase font-mono tracking-wider font-bold text-slate-500 mb-1.5">Transcript / Marksheet Proof (PDF / Image)</label>
+                <div className="flex items-center gap-4 mt-1">
+                  <input
+                    type="file"
+                    accept=".pdf,image/*"
+                    onChange={(e) => handleFileUpload(e, setAcademicAttachment, "Academic Proof")}
+                    className="hidden"
+                    id="academic-file-input"
+                  />
+                  {!academicAttachment ? (
+                    <label
+                      htmlFor="academic-file-input"
+                      className="bg-[#781c1c] hover:bg-[#5f1515] text-white px-5 py-2 rounded-lg cursor-pointer text-xs font-bold transition"
+                    >
+                      {uploadingField === "Academic Proof" ? "Uploading..." : "Upload Proof Document"}
+                    </label>
+                  ) : (
+                    <div className="flex items-center gap-3">
+                      <span className="flex items-center gap-1.5 text-xs text-[#781c1c] font-bold bg-[#781c1c]/10 px-3 py-1.5 rounded-xl border border-[#781c1c]/20">
+                        <FileText size={14} /> Document Attached
+                      </span>
+                      <button onClick={() => setAcademicAttachment("")} className="text-xs text-red-400 font-semibold underline">Remove</button>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
-          </div>
 
-          <div className="flex gap-2 justify-end mb-6">
-            {editingAcademicId && (
-              <button onClick={cancelEditAcademicRecord} className="px-6 py-2.5 border border-red-500/20 text-red-400 rounded-xl font-bold transition text-xs">Cancel</button>
-            )}
-            <button onClick={addAcademicRecord} className="bg-[#781c1c] hover:bg-[#5f1515] text-white px-6 py-2.5 rounded-xl font-bold transition text-xs">
-              {editingAcademicId ? "Update Record" : "Add Record"}
-            </button>
+            <div className="flex gap-2 justify-end">
+              {editingAcademicId && (
+                <button onClick={cancelEditAcademicRecord} className="px-6 py-2.5 border border-red-500/20 text-red-400 rounded-xl font-bold transition text-xs cursor-pointer">Cancel</button>
+              )}
+              <button onClick={addAcademicRecord} className="bg-[#781c1c] hover:bg-[#5f1515] text-white px-6 py-2.5 rounded-xl font-bold transition text-xs cursor-pointer shadow-sm">
+                {editingAcademicId ? "Update Record" : "Add Record"}
+              </button>
+            </div>
           </div>
 
           {/* List */}
@@ -2096,91 +2226,119 @@ Report Generated: ${new Date().toLocaleDateString()}
             <Trophy size={22} /> Section 5: Achievements
           </h3>
 
-          <div className="grid md:grid-cols-2 gap-4 mb-6">
-            <input
-              type="text"
-              required
-              placeholder="Achievement / Award Title *"
-              value={achievementTitle}
-              onChange={(e) => setAchievementTitle(e.target.value)}
-              className={`border rounded-xl px-4 py-3 text-sm outline-none transition ${
-                themeMode === "dark" ? "bg-white/5 border-white/10 text-white" : "bg-white border-slate-200"
-              }`}
-            />
+          {/* Form in separate card container */}
+          <div className={`p-6 rounded-2xl border mb-6 transition duration-300 ${
+            themeMode === "dark" ? "bg-white/[0.02] border-white/10" : "bg-slate-50 border-slate-200"
+          }`}>
+            <h4 className="text-xs font-bold font-mono uppercase tracking-wider text-slate-500 mb-4 flex items-center gap-1.5">
+              {editingAchId ? "✏️ Edit Achievement Details" : "➕ Add New Achievement"}
+            </h4>
 
-            <select
-              value={achievementCategory}
-              onChange={(e) => setAchievementCategory(e.target.value)}
-              className={`border rounded-xl px-4 py-3 text-sm outline-none transition ${
-                themeMode === "dark" ? "bg-[#0b0b0f] border-white/10 text-white" : "bg-white border-slate-200"
-              }`}
-            >
-              <option value="Scholarships">Scholarships</option>
-              <option value="Ranks">Ranks</option>
-              <option value="Awards">Awards</option>
-              <option value="Others">Others</option>
-            </select>
+            {successBanner?.section === "achievement" && (
+              <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs p-3.5 rounded-xl mb-4 font-bold flex items-center gap-2 animate-pulse-slow">
+                <CheckCircle size={14} className="text-emerald-600" />
+                {successBanner.message}
+              </div>
+            )}
 
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs opacity-60">Achievement Date *</label>
-              <input
-                type="date"
-                required
-                value={achievementDate}
-                onChange={(e) => setAchievementDate(e.target.value)}
-                className={`border rounded-xl px-4 py-3 text-sm outline-none transition ${
-                  themeMode === "dark" ? "bg-white/5 border-white/10 text-white" : "bg-white border-slate-200"
-                }`}
-              />
-            </div>
-
-            <div className={`border rounded-2xl px-5 py-3 flex flex-col justify-center gap-2 transition ${
-              themeMode === "dark" ? "bg-white/[0.02] border-white/10" : "bg-slate-50 border-slate-200"
-            }`}>
-              <label className="text-[10px] uppercase font-mono tracking-wider font-bold text-slate-500 mb-1.5">Certificate / Proof File (PDF / Image)</label>
-              <div className="flex items-center gap-4 mt-1">
+            <div className="grid md:grid-cols-2 gap-4 mb-6">
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[10px] uppercase font-mono tracking-wider font-bold text-slate-500">Achievement / Award Title *</label>
                 <input
-                  type="file"
-                  accept=".pdf,image/*"
-                  onChange={(e) => handleFileUpload(e, setAchievementUrl, "Achievement")}
-                  className="hidden"
-                  id="achievement-upload"
+                  type="text"
+                  required
+                  placeholder="e.g. First Place in National Hackathon"
+                  value={achievementTitle}
+                  onChange={(e) => setAchievementTitle(e.target.value)}
+                  className={`border rounded-xl px-4 py-3 text-sm outline-none transition ${
+                    themeMode === "dark" ? "bg-white/5 border-white/10 text-white" : "bg-white border-slate-200"
+                  }`}
                 />
-                {!achievementUrl ? (
-                  <label
-                    htmlFor="achievement-upload"
-                    className="bg-[#781c1c] hover:bg-[#5f1515] text-white px-5 py-2 rounded-lg cursor-pointer text-xs font-bold transition"
-                  >
-                    {uploadingField === "Achievement" ? "Uploading..." : "Upload Certificate"}
-                  </label>
-                ) : (
-                  <div className="flex items-center gap-3">
-                    <span className="flex items-center gap-1.5 text-xs text-[#781c1c] font-bold bg-[#781c1c]/10 px-3 py-1.5 rounded-xl border border-[#781c1c]/20">
-                      <FileText size={14} /> Uploaded
-                    </span>
-                    <button onClick={() => setAchievementUrl("")} className="text-xs text-red-400 font-semibold underline">Remove</button>
-                  </div>
-                )}
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[10px] uppercase font-mono tracking-wider font-bold text-slate-500">Category</label>
+                <select
+                  value={achievementCategory}
+                  onChange={(e) => setAchievementCategory(e.target.value)}
+                  className={`border rounded-xl px-4 py-3 text-sm outline-none transition cursor-pointer ${
+                    themeMode === "dark" ? "bg-[#0b0b0f] border-white/10 text-white" : "bg-white border-slate-200"
+                  }`}
+                >
+                  <option value="Scholarships">Scholarships</option>
+                  <option value="Ranks">Ranks</option>
+                  <option value="Awards">Awards</option>
+                  <option value="Others">Others</option>
+                </select>
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs opacity-60 font-bold">Achievement Date *</label>
+                <input
+                  type="date"
+                  required
+                  value={achievementDate}
+                  onChange={(e) => setAchievementDate(e.target.value)}
+                  className={`border rounded-xl px-4 py-3 text-sm outline-none transition ${
+                    themeMode === "dark" ? "bg-white/5 border-white/10 text-white" : "bg-white border-slate-200"
+                  }`}
+                />
+              </div>
+
+              <div className={`border rounded-2xl px-5 py-3 flex flex-col justify-center gap-2 transition ${
+                themeMode === "dark" ? "bg-white/[0.02] border-white/10" : "bg-slate-50 border-slate-200"
+              }`}>
+                <label className="text-[10px] uppercase font-mono tracking-wider font-bold text-slate-500 mb-1.5">Certificate / Proof File (PDF / Image)</label>
+                <div className="flex items-center gap-4 mt-1">
+                  <input
+                    type="file"
+                    accept=".pdf,image/*"
+                    onChange={(e) => handleFileUpload(e, setAchievementUrl, "Achievement")}
+                    className="hidden"
+                    id="achievement-upload"
+                  />
+                  {!achievementUrl ? (
+                    <label
+                      htmlFor="achievement-upload"
+                      className="bg-[#781c1c] hover:bg-[#5f1515] text-white px-5 py-2 rounded-lg cursor-pointer text-xs font-bold transition"
+                    >
+                      {uploadingField === "Achievement" ? "Uploading..." : "Upload Certificate"}
+                    </label>
+                  ) : (
+                    <div className="flex items-center gap-3">
+                      <span className="flex items-center gap-1.5 text-xs text-[#781c1c] font-bold bg-[#781c1c]/10 px-3 py-1.5 rounded-xl border border-[#781c1c]/20">
+                        <FileText size={14} /> Uploaded
+                      </span>
+                      <button onClick={() => setAchievementUrl("")} className="text-xs text-red-400 font-semibold underline text-rose-500 cursor-pointer">Remove</button>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="md:col-span-2 flex flex-col gap-1.5">
+                <label className="text-[10px] uppercase font-mono tracking-wider font-bold text-slate-500">
+                  Award Description & Conditions
+                  <span className="block text-[9px] text-slate-400 font-normal normal-case mt-0.5">e.g. Awarded first place out of 150 participant teams in a 24-hour national code challenge</span>
+                </label>
+                <textarea
+                  placeholder="Provide a brief description of the award, ranking, or scholarship conditions..."
+                  value={achievementDescription}
+                  onChange={(e) => setAchievementDescription(e.target.value)}
+                  className={`border rounded-xl px-4 py-3 text-sm outline-none min-h-[100px] transition ${
+                    themeMode === "dark" ? "bg-white/5 border-white/10 text-white" : "bg-white border-slate-200"
+                  }`}
+                />
               </div>
             </div>
 
-            <textarea
-              placeholder="Description of the award, ranking, or scholarship conditions..."
-              value={achievementDescription}
-              onChange={(e) => setAchievementDescription(e.target.value)}
-              className={`md:col-span-2 border rounded-xl px-4 py-3 text-sm outline-none min-h-[100px] transition ${
-                themeMode === "dark" ? "bg-white/5 border-white/10 text-white" : "bg-white border-slate-200"
-              }`}
-            />
-          </div>
-
-          <div className="flex gap-2 justify-end mb-6">
-            {editingAchId && (
-              <button onClick={cancelEditAchievement} className="px-6 py-2.5 border border-red-500/20 text-red-400 rounded-xl font-bold transition text-xs">Cancel</button>
-            )}
-            <button onClick={addAchievement} className="bg-[#781c1c] hover:bg-[#5f1515] text-white px-6 py-2.5 rounded-xl font-bold transition text-xs">
-              {editingAchId ? "Update Achievement" : "Add Achievement"}
-            </button>
+            <div className="flex gap-2 justify-end">
+              {editingAchId && (
+                <button onClick={cancelEditAchievement} className="px-6 py-2.5 border border-red-500/20 text-red-400 rounded-xl font-bold transition text-xs cursor-pointer">Cancel</button>
+              )}
+              <button onClick={addAchievement} className="bg-[#781c1c] hover:bg-[#5f1515] text-white px-6 py-2.5 rounded-xl font-bold transition text-xs cursor-pointer shadow-sm">
+                {editingAchId ? "Update Achievement" : "Add Achievement"}
+              </button>
+            </div>
           </div>
 
           {/* List */}
@@ -2224,85 +2382,119 @@ Report Generated: ${new Date().toLocaleDateString()}
             <GitBranch size={22} /> Section 6: Projects & Research
           </h3>
 
-          <div className="grid md:grid-cols-2 gap-4 mb-6">
-            <input
-              type="text"
-              required
-              placeholder="Title of Project / Publication *"
-              value={projTitle}
-              onChange={(e) => setProjTitle(e.target.value)}
-              className={`border rounded-xl px-4 py-3 text-sm outline-none transition ${
-                themeMode === "dark" ? "bg-white/5 border-white/10 text-white" : "bg-white border-slate-200"
-              }`}
-            />
+          {/* Form in separate card container */}
+          <div className={`p-6 rounded-2xl border mb-6 transition duration-300 ${
+            themeMode === "dark" ? "bg-white/[0.02] border-white/10" : "bg-slate-50 border-slate-200"
+          }`}>
+            <h4 className="text-xs font-bold font-mono uppercase tracking-wider text-slate-500 mb-4 flex items-center gap-1.5">
+              {editingProjId ? "✏️ Edit Project/Research Details" : "➕ Add New Project/Research"}
+            </h4>
 
-            <select
-              value={projCategory}
-              onChange={(e) => setProjCategory(e.target.value)}
-              className={`border rounded-xl px-4 py-3 text-sm outline-none transition ${
-                themeMode === "dark" ? "bg-[#0b0b0f] border-white/10 text-white" : "bg-white border-slate-200"
-              }`}
-            >
-              <option value="Academic projects">Academic projects</option>
-              <option value="Internships or industry collaborations projects">Internships or industry collaborations projects</option>
-              <option value="Publications">Publications</option>
-              <option value="Conference presentations">Conference presentations</option>
-              <option value="Others">Others</option>
-            </select>
+            {successBanner?.section === "project" && (
+              <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs p-3.5 rounded-xl mb-4 font-bold flex items-center gap-2 animate-pulse-slow">
+                <CheckCircle size={14} className="text-emerald-600" />
+                {successBanner.message}
+              </div>
+            )}
 
-            <input
-              type="text"
-              placeholder="Technologies used (Required for Projects) / Conference details"
-              value={projTechnologies}
-              onChange={(e) => setProjTechnologies(e.target.value)}
-              className={`border rounded-xl px-4 py-3 text-sm outline-none transition ${
-                themeMode === "dark" ? "bg-white/5 border-white/10 text-white" : "bg-white border-slate-200"
-              }`}
-            />
-
-            <input
-              type="text"
-              placeholder="Github / Paper / Live URL"
-              value={projUrl}
-              onChange={(e) => setProjUrl(e.target.value)}
-              className={`border rounded-xl px-4 py-3 text-sm outline-none transition ${
-                themeMode === "dark" ? "bg-white/5 border-white/10 text-white" : "bg-white border-slate-200"
-              }`}
-            />
-
-            {(projCategory === "Publications" || projCategory === "Conference presentations") && (
-              <div className="flex flex-col gap-1.5 md:col-span-2">
-                <label className="text-xs opacity-60">Published/Presented Date *</label>
+            <div className="grid md:grid-cols-2 gap-4 mb-6">
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[10px] uppercase font-mono tracking-wider font-bold text-slate-500">Title of Project / Publication *</label>
                 <input
-                  type="date"
+                  type="text"
                   required
-                  value={projDate}
-                  onChange={(e) => setProjDate(e.target.value)}
+                  placeholder="e.g. Smart E-Commerce Web App"
+                  value={projTitle}
+                  onChange={(e) => setProjTitle(e.target.value)}
                   className={`border rounded-xl px-4 py-3 text-sm outline-none transition ${
                     themeMode === "dark" ? "bg-white/5 border-white/10 text-white" : "bg-white border-slate-200"
                   }`}
                 />
               </div>
-            )}
 
-            <textarea
-              required
-              placeholder="Abstract / Detailed Description of project features, research methodology and outcomes * (Required)"
-              value={projDescription}
-              onChange={(e) => setProjDescription(e.target.value)}
-              className={`md:col-span-2 border rounded-xl px-4 py-3 text-sm outline-none min-h-[120px] transition ${
-                themeMode === "dark" ? "bg-white/5 border-white/10 text-white" : "bg-white border-slate-200"
-              }`}
-            />
-          </div>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[10px] uppercase font-mono tracking-wider font-bold text-slate-500">Category</label>
+                <select
+                  value={projCategory}
+                  onChange={(e) => setProjCategory(e.target.value)}
+                  className={`border rounded-xl px-4 py-3 text-sm outline-none transition cursor-pointer ${
+                    themeMode === "dark" ? "bg-[#0b0b0f] border-white/10 text-white" : "bg-white border-slate-200"
+                  }`}
+                >
+                  <option value="Academic projects">Academic projects</option>
+                  <option value="Internships or industry collaborations projects">Internships or industry collaborations projects</option>
+                  <option value="Publications">Publications</option>
+                  <option value="Conference presentations">Conference presentations</option>
+                  <option value="Others">Others</option>
+                </select>
+              </div>
 
-          <div className="flex gap-2 justify-end mb-6">
-            {editingProjId && (
-              <button onClick={cancelEditProj} className="px-6 py-2.5 border border-red-500/20 text-red-400 rounded-xl font-bold transition text-xs">Cancel</button>
-            )}
-            <button onClick={addProjectOrResearch} className="bg-[#781c1c] hover:bg-[#5f1515] text-white px-6 py-2.5 rounded-xl font-bold transition text-xs">
-              {editingProjId ? "Update Entry" : "Add Entry"}
-            </button>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[10px] uppercase font-mono tracking-wider font-bold text-slate-500">Technologies used / Conference details *</label>
+                <input
+                  type="text"
+                  placeholder="e.g. React, Node.js, PostgreSQL"
+                  value={projTechnologies}
+                  onChange={(e) => setProjTechnologies(e.target.value)}
+                  className={`border rounded-xl px-4 py-3 text-sm outline-none transition ${
+                    themeMode === "dark" ? "bg-white/5 border-white/10 text-white" : "bg-white border-slate-200"
+                  }`}
+                />
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[10px] uppercase font-mono tracking-wider font-bold text-slate-500">Github / Paper / Live URL</label>
+                <input
+                  type="text"
+                  placeholder="e.g. https://github.com/username/project"
+                  value={projUrl}
+                  onChange={(e) => setProjUrl(e.target.value)}
+                  className={`border rounded-xl px-4 py-3 text-sm outline-none transition ${
+                    themeMode === "dark" ? "bg-white/5 border-white/10 text-white" : "bg-white border-slate-200"
+                  }`}
+                />
+              </div>
+
+              {(projCategory === "Publications" || projCategory === "Conference presentations") && (
+                <div className="flex flex-col gap-1.5 md:col-span-2">
+                  <label className="text-xs opacity-60 font-bold">Published/Presented Date *</label>
+                  <input
+                    type="date"
+                    required
+                    value={projDate}
+                    onChange={(e) => setProjDate(e.target.value)}
+                    className={`border rounded-xl px-4 py-3 text-sm outline-none transition ${
+                      themeMode === "dark" ? "bg-white/5 border-white/10 text-white" : "bg-white border-slate-200"
+                    }`}
+                  />
+                </div>
+              )}
+
+              <div className="md:col-span-2 flex flex-col gap-1.5">
+                <label className="text-[10px] uppercase font-mono tracking-wider font-bold text-slate-500">
+                  Project Description / Publication Abstract *
+                  <span className="block text-[9px] text-slate-400 font-normal normal-case mt-0.5">e.g. Built a complete web app with features like shopping cart, user auth, and payment gateway</span>
+                </label>
+                <textarea
+                  required
+                  placeholder="Briefly describe the project features, research methodology and outcomes..."
+                  value={projDescription}
+                  onChange={(e) => setProjDescription(e.target.value)}
+                  className={`border rounded-xl px-4 py-3 text-sm outline-none min-h-[120px] transition ${
+                    themeMode === "dark" ? "bg-white/5 border-white/10 text-white" : "bg-white border-slate-200"
+                  }`}
+                />
+              </div>
+            </div>
+
+            <div className="flex gap-2 justify-end">
+              {editingProjId && (
+                <button onClick={cancelEditProj} className="px-6 py-2.5 border border-red-500/20 text-red-400 rounded-xl font-bold transition text-xs cursor-pointer">Cancel</button>
+              )}
+              <button onClick={addProjectOrResearch} className="bg-[#781c1c] hover:bg-[#5f1515] text-white px-6 py-2.5 rounded-xl font-bold transition text-xs cursor-pointer shadow-sm">
+                {editingProjId ? "Update Entry" : "Add Entry"}
+              </button>
+            </div>
           </div>
 
           {/* List */}
@@ -2375,51 +2567,76 @@ Report Generated: ${new Date().toLocaleDateString()}
             <Code size={22} /> Section 7: Skills
           </h3>
 
-          <div className="grid md:grid-cols-3 gap-4 mb-6">
-            <input
-              type="text"
-              required
-              placeholder="Skill Name (e.g. React.js / Public Speaking) *"
-              value={skillName}
-              onChange={(e) => setSkillName(e.target.value)}
-              className={`border rounded-xl px-4 py-3 text-sm outline-none transition ${
-                themeMode === "dark" ? "bg-white/5 border-white/10 text-white" : "bg-white border-slate-200"
-              }`}
-            />
+          {/* Form in separate card container */}
+          <div className={`p-6 rounded-2xl border mb-6 transition duration-300 ${
+            themeMode === "dark" ? "bg-white/[0.02] border-white/10" : "bg-slate-50 border-slate-200"
+          }`}>
+            <h4 className="text-xs font-bold font-mono uppercase tracking-wider text-slate-500 mb-4 flex items-center gap-1.5">
+              {editingSkillId ? "✏️ Edit Skill Details" : "➕ Add New Skill"}
+            </h4>
 
-            <select
-              value={skillLevel}
-              onChange={(e) => setSkillLevel(e.target.value)}
-              className={`border rounded-xl px-4 py-3 text-sm outline-none transition ${
-                themeMode === "dark" ? "bg-[#0b0b0f] border-white/10 text-white" : "bg-white border-slate-200"
-              }`}
-            >
-              <option value="Beginner">Beginner (Level ~35%)</option>
-              <option value="Intermediate">Intermediate (Level ~65%)</option>
-              <option value="Advanced">Advanced (Level ~85%)</option>
-              <option value="Expert">Expert (Level ~95%)</option>
-            </select>
-
-            <select
-              value={skillCategory}
-              onChange={(e) => setSkillCategory(e.target.value)}
-              className={`border rounded-xl px-4 py-3 text-sm outline-none transition ${
-                themeMode === "dark" ? "bg-[#0b0b0f] border-white/10 text-white" : "bg-white border-slate-200"
-              }`}
-            >
-              <option value="Subject-specific skills">Subject-specific skills</option>
-              <option value="Soft skills">Soft skills</option>
-              <option value="Technical skills">Technical skills</option>
-            </select>
-          </div>
-
-          <div className="flex gap-2 justify-end mb-6">
-            {editingSkillId && (
-              <button onClick={cancelEditSkill} className="px-6 py-2.5 border border-red-500/20 text-red-400 rounded-xl font-bold transition text-xs">Cancel</button>
+            {successBanner?.section === "skill" && (
+              <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs p-3.5 rounded-xl mb-4 font-bold flex items-center gap-2 animate-pulse-slow">
+                <CheckCircle size={14} className="text-emerald-600" />
+                {successBanner.message}
+              </div>
             )}
-            <button onClick={addSkill} className="bg-[#781c1c] hover:bg-[#5f1515] text-white px-6 py-2.5 rounded-xl font-bold transition text-xs">
-              {editingSkillId ? "Update Skill" : "Add Skill"}
-            </button>
+
+            <div className="grid md:grid-cols-3 gap-4 mb-6">
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[10px] uppercase font-mono tracking-wider font-bold text-slate-500">Skill Name *</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. JavaScript, Python"
+                  value={skillName}
+                  onChange={(e) => setSkillName(e.target.value)}
+                  className={`border rounded-xl px-4 py-3 text-sm outline-none transition ${
+                    themeMode === "dark" ? "bg-white/5 border-white/10 text-white" : "bg-white border-slate-200"
+                  }`}
+                />
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[10px] uppercase font-mono tracking-wider font-bold text-slate-500">Proficiency Level</label>
+                <select
+                  value={skillLevel}
+                  onChange={(e) => setSkillLevel(e.target.value)}
+                  className={`border rounded-xl px-4 py-3 text-sm outline-none transition cursor-pointer ${
+                    themeMode === "dark" ? "bg-[#0b0b0f] border-white/10 text-white" : "bg-white border-slate-200"
+                  }`}
+                >
+                  <option value="Beginner">Beginner (Level ~35%)</option>
+                  <option value="Intermediate">Intermediate (Level ~65%)</option>
+                  <option value="Advanced">Advanced (Level ~85%)</option>
+                  <option value="Expert">Expert (Level ~95%)</option>
+                </select>
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[10px] uppercase font-mono tracking-wider font-bold text-slate-500">Skill Category</label>
+                <select
+                  value={skillCategory}
+                  onChange={(e) => setSkillCategory(e.target.value)}
+                  className={`border rounded-xl px-4 py-3 text-sm outline-none transition cursor-pointer ${
+                    themeMode === "dark" ? "bg-[#0b0b0f] border-white/10 text-white" : "bg-white border-slate-200"
+                  }`}
+                >
+                  <option value="Subject-specific skills">Subject-specific skills</option>
+                  <option value="Soft skills">Soft skills</option>
+                  <option value="Technical skills">Technical skills</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="flex gap-2 justify-end">
+              {editingSkillId && (
+                <button onClick={cancelEditSkill} className="px-6 py-2.5 border border-red-500/20 text-red-400 rounded-xl font-bold transition text-xs cursor-pointer">Cancel</button>
+              )}
+              <button onClick={addSkill} className="bg-[#781c1c] hover:bg-[#5f1515] text-white px-6 py-2.5 rounded-xl font-bold transition text-xs cursor-pointer shadow-sm">
+                {editingSkillId ? "Update Skill" : "Add Skill"}
+              </button>
+            </div>
           </div>
 
           {/* List */}
@@ -2457,90 +2674,118 @@ Report Generated: ${new Date().toLocaleDateString()}
             <Award size={22} /> Section 8: Licenses & Certifications
           </h3>
 
-          <div className="grid md:grid-cols-2 gap-4 mb-6">
-            <input
-              type="text"
-              required
-              placeholder="Certification Title / Course Title *"
-              value={certificationTitle}
-              onChange={(e) => setCertificationTitle(e.target.value)}
-              className={`border rounded-xl px-4 py-3 text-sm outline-none transition ${
-                themeMode === "dark" ? "bg-white/5 border-white/10 text-white" : "bg-white border-slate-200"
-              }`}
-            />
+          {/* Form in separate card container */}
+          <div className={`p-6 rounded-2xl border mb-6 transition duration-300 ${
+            themeMode === "dark" ? "bg-white/[0.02] border-white/10" : "bg-slate-50 border-slate-200"
+          }`}>
+            <h4 className="text-xs font-bold font-mono uppercase tracking-wider text-slate-500 mb-4 flex items-center gap-1.5">
+              {editingCertId ? "✏️ Edit Certification Details" : "➕ Add New Certification"}
+            </h4>
 
-            <input
-              type="text"
-              required
-              placeholder="Issuer (e.g. AWS / Coursera / Google) *"
-              value={issuer}
-              onChange={(e) => setIssuer(e.target.value)}
-              className={`border rounded-xl px-4 py-3 text-sm outline-none transition ${
-                themeMode === "dark" ? "bg-white/5 border-white/10 text-white" : "bg-white border-slate-200"
-              }`}
-            />
+            {successBanner?.section === "certification" && (
+              <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs p-3.5 rounded-xl mb-4 font-bold flex items-center gap-2 animate-pulse-slow">
+                <CheckCircle size={14} className="text-emerald-600" />
+                {successBanner.message}
+              </div>
+            )}
 
-            <select
-              value={certCategory}
-              onChange={(e) => setCertCategory(e.target.value)}
-              className={`border rounded-xl px-4 py-3 text-sm outline-none transition ${
-                themeMode === "dark" ? "bg-[#0b0b0f] border-white/10 text-white" : "bg-white border-slate-200"
-              }`}
-            >
-              <option value="Licenses">Licenses</option>
-              <option value="Online courses">Online courses</option>
-              <option value="Workshops">Workshops</option>
-              <option value="Conference">Conference</option>
-              <option value="Others">Others</option>
-            </select>
-
-            <input
-              type="date"
-              value={issueDate}
-              onChange={(e) => setIssueDate(e.target.value)}
-              className={`border rounded-xl px-4 py-3 text-sm outline-none transition ${
-                themeMode === "dark" ? "bg-white/5 border-white/10 text-white" : "bg-white border-slate-200"
-              }`}
-            />
-
-            <div className={`border rounded-2xl px-5 py-3 flex flex-col justify-center gap-2 md:col-span-2 transition ${
-              themeMode === "dark" ? "bg-white/[0.02] border-white/10" : "bg-slate-50 border-slate-200"
-            }`}>
-              <label className="text-[10px] uppercase font-mono tracking-wider font-bold text-slate-500 mb-1.5">Certificate PDF / Image Proof</label>
-              <div className="flex items-center gap-4 mt-1">
+            <div className="grid md:grid-cols-2 gap-4 mb-6">
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[10px] uppercase font-mono tracking-wider font-bold text-slate-500">Certification / Course Title *</label>
                 <input
-                  type="file"
-                  accept=".pdf,image/*"
-                  onChange={(e) => handleFileUpload(e, setCertificateUrl, "Certificate")}
-                  className="hidden"
-                  id="certificate-file-upload"
+                  type="text"
+                  required
+                  placeholder="e.g. AWS Cloud Practitioner"
+                  value={certificationTitle}
+                  onChange={(e) => setCertificationTitle(e.target.value)}
+                  className={`border rounded-xl px-4 py-3 text-sm outline-none transition ${
+                    themeMode === "dark" ? "bg-white/5 border-white/10 text-white" : "bg-white border-slate-200"
+                  }`}
                 />
-                {!certificateUrl ? (
-                  <label
-                    htmlFor="certificate-file-upload"
-                    className="bg-[#781c1c] hover:bg-[#5f1515] text-white px-5 py-2 rounded-lg cursor-pointer text-xs font-bold transition"
-                  >
-                    {uploadingField === "Certificate" ? "Uploading..." : "Upload Certificate"}
-                  </label>
-                ) : (
-                  <div className="flex items-center gap-3">
-                    <span className="flex items-center gap-1.5 text-xs text-[#781c1c] font-bold bg-[#781c1c]/10 px-3 py-1.5 rounded-xl border border-[#781c1c]/20">
-                      <FileText size={14} /> Certificate Loaded
-                    </span>
-                    <button onClick={() => setCertificateUrl("")} className="text-xs text-red-400 font-semibold underline">Remove</button>
-                  </div>
-                )}
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[10px] uppercase font-mono tracking-wider font-bold text-slate-500">Issuer Name *</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Amazon Web Services"
+                  value={issuer}
+                  onChange={(e) => setIssuer(e.target.value)}
+                  className={`border rounded-xl px-4 py-3 text-sm outline-none transition ${
+                    themeMode === "dark" ? "bg-white/5 border-white/10 text-white" : "bg-white border-slate-200"
+                  }`}
+                />
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[10px] uppercase font-mono tracking-wider font-bold text-slate-500">Category</label>
+                <select
+                  value={certCategory}
+                  onChange={(e) => setCertCategory(e.target.value)}
+                  className={`border rounded-xl px-4 py-3 text-sm outline-none transition cursor-pointer ${
+                    themeMode === "dark" ? "bg-[#0b0b0f] border-white/10 text-white" : "bg-white border-slate-200"
+                  }`}
+                >
+                  <option value="Licenses">Licenses</option>
+                  <option value="Online courses">Online courses</option>
+                  <option value="Workshops">Workshops</option>
+                  <option value="Conference">Conference</option>
+                  <option value="Others">Others</option>
+                </select>
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs opacity-60 font-bold">Issue Date</label>
+                <input
+                  type="date"
+                  value={issueDate}
+                  onChange={(e) => setIssueDate(e.target.value)}
+                  className={`border rounded-xl px-4 py-3 text-sm outline-none transition ${
+                    themeMode === "dark" ? "bg-white/5 border-white/10 text-white" : "bg-white border-slate-200"
+                  }`}
+                />
+              </div>
+
+              <div className={`border rounded-2xl px-5 py-3 flex flex-col justify-center gap-2 md:col-span-2 transition ${
+                themeMode === "dark" ? "bg-white/[0.02] border-white/10" : "bg-slate-50 border-slate-200"
+              }`}>
+                <label className="text-[10px] uppercase font-mono tracking-wider font-bold text-slate-500 mb-1.5">Certificate PDF / Image Proof</label>
+                <div className="flex items-center gap-4 mt-1">
+                  <input
+                    type="file"
+                    accept=".pdf,image/*"
+                    onChange={(e) => handleFileUpload(e, setCertificateUrl, "Certificate")}
+                    className="hidden"
+                    id="certificate-file-upload"
+                  />
+                  {!certificateUrl ? (
+                    <label
+                      htmlFor="certificate-file-upload"
+                      className="bg-[#781c1c] hover:bg-[#5f1515] text-white px-5 py-2 rounded-lg cursor-pointer text-xs font-bold transition"
+                    >
+                      {uploadingField === "Certificate" ? "Uploading..." : "Upload Certificate"}
+                    </label>
+                  ) : (
+                    <div className="flex items-center gap-3">
+                      <span className="flex items-center gap-1.5 text-xs text-[#781c1c] font-bold bg-[#781c1c]/10 px-3 py-1.5 rounded-xl border border-[#781c1c]/20">
+                        <FileText size={14} /> Certificate Loaded
+                      </span>
+                      <button onClick={() => setCertificateUrl("")} className="text-xs text-red-400 font-semibold underline">Remove</button>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
-          </div>
 
-          <div className="flex gap-2 justify-end mb-6">
-            {editingCertId && (
-              <button onClick={cancelEditCertification} className="px-6 py-2.5 border border-red-500/20 text-red-400 rounded-xl font-bold transition text-xs">Cancel</button>
-            )}
-            <button onClick={addCertification} className="bg-[#781c1c] hover:bg-[#5f1515] text-white px-6 py-2.5 rounded-xl font-bold transition text-xs">
-              {editingCertId ? "Update Certificate" : "Add Certificate"}
-            </button>
+            <div className="flex gap-2 justify-end">
+              {editingCertId && (
+                <button onClick={cancelEditCertification} className="px-6 py-2.5 border border-red-500/20 text-red-400 rounded-xl font-bold transition text-xs cursor-pointer">Cancel</button>
+              )}
+              <button onClick={addCertification} className="bg-[#781c1c] hover:bg-[#5f1515] text-white px-6 py-2.5 rounded-xl font-bold transition text-xs cursor-pointer shadow-sm">
+                {editingCertId ? "Update Certificate" : "Add Certificate"}
+              </button>
+            </div>
           </div>
 
           {/* List */}
@@ -2690,9 +2935,14 @@ Report Generated: ${new Date().toLocaleDateString()}
           </h3>
 
           <div className="flex flex-col gap-2">
-            <label className="text-[10px] uppercase font-mono tracking-wider font-bold text-slate-500 mb-1.5">Enter standardized test scores (IELTS, GRE, GATE, TOEFL, etc.)</label>
+            <label className="text-[10px] uppercase font-mono tracking-wider font-bold text-slate-500 mb-1.5 flex flex-col">
+              Enter standardized test scores (IELTS, GRE, GATE, TOEFL, etc.)
+              <span className="block text-[9px] text-slate-400 font-normal normal-case mt-0.5">
+                Include tests and metrics (e.g. "IELTS Academic: 8.0 Band, GRE: 325 (Quant: 168, Verbal: 157, AWA: 4.5)")
+              </span>
+            </label>
             <textarea
-              placeholder="e.g. IELTS Academic: 8.0 Band, GRE: 325 (Quant: 168, Verbal: 157, AWA: 4.5)"
+              placeholder="Enter standardized test scores details..."
               value={testScores}
               onChange={(e) => setTestScores(e.target.value)}
               className={`w-full border rounded-xl px-4 py-3 text-sm outline-none min-h-[80px] transition ${
@@ -2722,9 +2972,14 @@ Report Generated: ${new Date().toLocaleDateString()}
           </h3>
 
           <div className="flex flex-col gap-2">
-            <label className="text-[10px] uppercase font-mono tracking-wider font-bold text-slate-500 mb-1.5">List any patents filed, published, or granted</label>
+            <label className="text-[10px] uppercase font-mono tracking-wider font-bold text-slate-500 mb-1.5 flex flex-col">
+              List any patents filed, published, or granted
+              <span className="block text-[9px] text-slate-400 font-normal normal-case mt-0.5">
+                Include titles, registration/patent numbers, status, and dates (e.g. "Smart Agricultural Watering System, App No: 20264102931A")
+              </span>
+            </label>
             <textarea
-              placeholder="e.g. Patent Title: Smart Agricultural Watering System, App No: 20264102931A (Published 2026, Indian Patent Office)"
+              placeholder="List any patents details..."
               value={patents}
               onChange={(e) => setPatents(e.target.value)}
               className={`w-full border rounded-xl px-4 py-3 text-sm outline-none min-h-[80px] transition ${
@@ -2814,57 +3069,76 @@ Report Generated: ${new Date().toLocaleDateString()}
             <FileText size={22} /> Section 13: Resume
           </h3>
 
-          <div className="grid md:grid-cols-2 gap-4 mb-6">
-            <input
-              type="text"
-              required
-              placeholder="Resume Title (e.g. Software Engineer Resume 2026) *"
-              value={resumeTitle}
-              onChange={(e) => setResumeTitle(e.target.value)}
-              className={`border rounded-xl px-4 py-3 text-sm outline-none transition ${
-                themeMode === "dark" ? "bg-white/5 border-white/10 text-white" : "bg-white border-slate-200"
-              }`}
-            />
+          {/* Form in separate card container */}
+          <div className={`p-6 rounded-2xl border mb-6 transition duration-300 ${
+            themeMode === "dark" ? "bg-white/[0.02] border-white/10" : "bg-slate-50 border-slate-200"
+          }`}>
+            <h4 className="text-xs font-bold font-mono uppercase tracking-wider text-slate-500 mb-4 flex items-center gap-1.5">
+              {editingResumeId ? "✏️ Edit Resume Details" : "➕ Add New Resume Document"}
+            </h4>
 
-            <div className={`border rounded-2xl px-5 py-3 flex flex-col justify-center gap-2 transition ${
-              themeMode === "dark" ? "bg-white/[0.02] border-white/10" : "bg-slate-50 border-slate-200"
-            }`}>
-              <label className="text-[10px] uppercase font-mono tracking-wider font-bold text-slate-500 mb-1.5">Upload Resume (PDF only) *</label>
-              <div className="flex items-center gap-4 mt-1">
+            {successBanner?.section === "resume" && (
+              <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs p-3.5 rounded-xl mb-4 font-bold flex items-center gap-2 animate-pulse-slow">
+                <CheckCircle size={14} className="text-emerald-600" />
+                {successBanner.message}
+              </div>
+            )}
+
+            <div className="grid md:grid-cols-2 gap-4 mb-6">
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[10px] uppercase font-mono tracking-wider font-bold text-slate-500">Resume Display Name *</label>
                 <input
-                  type="file"
-                  accept=".pdf"
-                  required={!resumeUrl}
-                  onChange={(e) => handleFileUpload(e, setResumeUrl, "Resume File")}
-                  className="hidden"
-                  id="resume-file-upload-input"
+                  type="text"
+                  required
+                  placeholder="e.g. Adithya Kumar Resume 2026"
+                  value={resumeTitle}
+                  onChange={(e) => setResumeTitle(e.target.value)}
+                  className={`border rounded-xl px-4 py-3 text-sm outline-none transition ${
+                    themeMode === "dark" ? "bg-white/5 border-white/10 text-white" : "bg-white border-slate-200"
+                  }`}
                 />
-                {!resumeUrl ? (
-                  <label
-                    htmlFor="resume-file-upload-input"
-                    className="bg-[#781c1c] hover:bg-[#5f1515] text-white px-5 py-2 rounded-lg cursor-pointer text-xs font-bold transition"
-                  >
-                    {uploadingField === "Resume File" ? "Uploading..." : "Upload PDF"}
-                  </label>
-                ) : (
-                  <div className="flex items-center gap-3">
-                    <span className="flex items-center gap-1.5 text-xs text-[#781c1c] font-bold bg-[#781c1c]/10 px-3 py-1.5 rounded-xl border border-[#781c1c]/20">
-                      <FileText size={14} /> Resume PDF Attached
-                    </span>
-                    <button onClick={() => setResumeUrl("")} className="text-xs text-red-400 font-semibold underline">Remove</button>
-                  </div>
-                )}
+              </div>
+
+              <div className={`border rounded-2xl px-5 py-3 flex flex-col justify-center gap-2 transition ${
+                themeMode === "dark" ? "bg-white/[0.02] border-white/10" : "bg-slate-50 border-slate-200"
+              }`}>
+                <label className="text-[10px] uppercase font-mono tracking-wider font-bold text-slate-500 mb-1.5">Upload Resume Document (PDF only) *</label>
+                <div className="flex items-center gap-4 mt-1">
+                  <input
+                    type="file"
+                    accept=".pdf"
+                    required={!resumeUrl}
+                    onChange={(e) => handleFileUpload(e, setResumeUrl, "Resume File")}
+                    className="hidden"
+                    id="resume-file-upload-input"
+                  />
+                  {!resumeUrl ? (
+                    <label
+                      htmlFor="resume-file-upload-input"
+                      className="bg-[#781c1c] hover:bg-[#5f1515] text-white px-5 py-2 rounded-lg cursor-pointer text-xs font-bold transition"
+                    >
+                      {uploadingField === "Resume File" ? "Uploading..." : "Upload PDF"}
+                    </label>
+                  ) : (
+                    <div className="flex items-center gap-3">
+                      <span className="flex items-center gap-1.5 text-xs text-[#781c1c] font-bold bg-[#781c1c]/10 px-3 py-1.5 rounded-xl border border-[#781c1c]/20">
+                        <FileText size={14} /> Resume PDF Attached
+                      </span>
+                      <button onClick={() => setResumeUrl("")} className="text-xs text-red-400 font-semibold underline text-rose-500 cursor-pointer">Remove</button>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
-          </div>
 
-          <div className="flex gap-2 justify-end mb-6">
-            {editingResumeId && (
-              <button onClick={cancelEditResume} className="px-6 py-2.5 border border-red-500/20 text-red-400 rounded-xl font-bold transition text-xs">Cancel</button>
-            )}
-            <button onClick={addResume} className="bg-[#781c1c] hover:bg-[#5f1515] text-white px-6 py-2.5 rounded-xl font-bold transition text-xs">
-              {editingResumeId ? "Update Resume" : "Save Resume"}
-            </button>
+            <div className="flex gap-2 justify-end">
+              {editingResumeId && (
+                <button onClick={cancelEditResume} className="px-6 py-2.5 border border-red-500/20 text-red-400 rounded-xl font-bold transition text-xs cursor-pointer">Cancel</button>
+              )}
+              <button onClick={addResume} className="bg-[#781c1c] hover:bg-[#5f1515] text-white px-6 py-2.5 rounded-xl font-bold transition text-xs cursor-pointer shadow-sm">
+                {editingResumeId ? "Update Resume" : "Save Resume"}
+              </button>
+            </div>
           </div>
 
           {/* List */}

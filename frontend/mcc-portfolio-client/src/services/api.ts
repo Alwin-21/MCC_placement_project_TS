@@ -1,5 +1,5 @@
 import axios from "axios";
-import { mapKeysToCamelCase } from "@/utils/mapper";
+import { mapKeysToCamelCase, fixUrlsInObject } from "@/utils/mapper";
 
 const api = axios.create({
   baseURL: process.env.NEXT_PUBLIC_API_URL || "http://localhost:5203/api",
@@ -28,11 +28,14 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-// Automatically map PascalCase database response keys to camelCase frontend keys
+// Automatically map PascalCase database response keys to camelCase frontend keys and fix legacy backend URLs
 api.interceptors.response.use(
   (response) => {
     if (response.data) {
       response.data = mapKeysToCamelCase(response.data);
+      if (typeof window !== "undefined") {
+        response.data = fixUrlsInObject(response.data, window.location.origin);
+      }
     }
     return response;
   },

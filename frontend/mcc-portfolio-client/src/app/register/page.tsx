@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, User, Mail, Key, ShieldAlert, CheckCircle2 } from "lucide-react";
+import { ArrowLeft, User, Mail, Key, ShieldAlert, BookOpen } from "lucide-react";
 import api from "@/services/api";
 
 export default function RegisterPage() {
@@ -28,11 +28,19 @@ export default function RegisterPage() {
   const [stream, setStream] = useState("");
   const [department, setDepartment] = useState("");
   const [registerNumber, setRegisterNumber] = useState("");
+  const [course, setCourse] = useState("");
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [registered, setRegistered] = useState(false);
-  const [generatedUsername, setGeneratedUsername] = useState("");
-  const [generatedPassword, setGeneratedPassword] = useState("");
+  const [emailRegMismatch, setEmailRegMismatch] = useState(false);
+
+  // Helper: check that the local part of the email matches the register number
+  const checkEmailRegMatch = (emailVal: string, regVal: string) => {
+    if (!emailVal || !regVal) return;
+    const localPart = emailVal.split("@")[0];
+    setEmailRegMismatch(localPart !== regVal);
+  };
 
   const handleStreamChange = (val: string) => {
     setStream(val);
@@ -42,23 +50,20 @@ export default function RegisterPage() {
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!fullName || !email || !registerNumber) {
-      setError("All fields are required.");
+    if (!fullName || !email || !registerNumber || !stream || !department || !course || !username || !password) {
+      setError("All fields are compulsory.");
+      return;
+    }
+
+    // Validate that the local part of the email matches the register number
+    const localPart = email.split("@")[0];
+    if (localPart !== registerNumber) {
+      setError(`Email mismatch: the part before '@' ("${localPart}") must exactly match your register number ("${registerNumber}").`);
       return;
     }
 
     if (!email.toLowerCase().endsWith("@mcc.edu.in")) {
       setError("Registration is restricted to Madras Christian College email addresses ending with '@mcc.edu.in'.");
-      return;
-    }
-
-    if (!stream) {
-      setError("Stream is required.");
-      return;
-    }
-
-    if (!department) {
-      setError("Department is required.");
       return;
     }
 
@@ -79,11 +84,19 @@ export default function RegisterPage() {
         stream,
         department,
         registerNumber,
+        username,
+        password,
+        course
       });
 
-      setGeneratedUsername(res.data.username || "");
-      setGeneratedPassword(res.data.temporaryPassword || "");
-      setRegistered(true);
+      // Automatically log the student in on successful registration
+      if (res.data.token) {
+        localStorage.setItem("token", res.data.token);
+        localStorage.setItem("user", JSON.stringify(res.data));
+        router.push("/dashboard");
+      } else {
+        setError("Registration succeeded but credentials login token was not generated.");
+      }
     } catch (err: any) {
       let errorMsg = "Registration failed";
       if (err.response?.data) {
@@ -121,7 +134,7 @@ export default function RegisterPage() {
           </div>
           <div>
             <span className="font-serif font-black text-sm tracking-wider block uppercase">Madras Christian College</span>
-            <span className="text-[8px] uppercase tracking-widest text-amber-400 block font-bold">Autonomous placement directory</span>
+            <span className="text-[8px] uppercase tracking-widest text-amber-400 block font-bold">Autonomous placement platform</span>
           </div>
         </div>
 
@@ -139,7 +152,7 @@ export default function RegisterPage() {
         </div>
       </div>
 
-      {/* RIGHT PANEL: REGISTER FORM SECTION OR SUCCESS VIEW */}
+      {/* RIGHT PANEL: REGISTER FORM SECTION */}
       <div className="w-full lg:w-7/12 flex items-center justify-center p-6 md:p-12 overflow-y-auto">
         <div className="w-full max-w-xl space-y-6">
           
@@ -149,181 +162,197 @@ export default function RegisterPage() {
 
           <div className="bg-white border border-slate-200 rounded-3xl p-8 md:p-10 shadow-lg">
             
-            {!registered ? (
-              <>
-                <div className="text-center mb-8">
-                  <h1 className="font-serif text-3xl font-extrabold text-[#18233c] mb-1">
-                    Student Registration
-                  </h1>
-                  <p className="text-xs text-slate-500 font-medium">
-                    Submit details to generate your unique login credentials
-                  </p>
-                </div>
+            <div className="text-center mb-8">
+              <h1 className="font-serif text-3xl font-extrabold text-[#18233c] mb-1">
+                Student Registration
+              </h1>
+              <p className="text-xs text-slate-500 font-medium">
+                Submit details to create your student placement account
+              </p>
+            </div>
 
-                <form onSubmit={handleRegister} className="space-y-4">
-                  
-                  <div className="grid md:grid-cols-2 gap-4">
-                    
-                    <div>
-                      <label className="text-[10px] uppercase font-mono tracking-wider font-bold text-slate-655 block mb-1.5">
-                        Full Name
-                      </label>
-                      <div className="relative">
-                        <User className="absolute left-4 top-3.5 text-slate-400" size={16} />
-                        <input
-                          type="text"
-                          required
-                          placeholder="Enter full name"
-                          value={fullName}
-                          onChange={(e) => setFullName(e.target.value)}
-                          className="w-full bg-slate-50 border border-slate-200 focus:border-[#781c1c] text-slate-800 placeholder-slate-400 text-xs px-11 py-3.5 rounded-xl outline-none focus:ring-1 focus:ring-[#781c1c]/10 transition"
-                        />
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className="text-[10px] uppercase font-mono tracking-wider font-bold text-slate-655 block mb-1.5">
-                        Email Address
-                      </label>
-                      <div className="relative">
-                        <Mail className="absolute left-4 top-3.5 text-slate-400" size={16} />
-                        <input
-                          type="email"
-                          required
-                          placeholder="Enter college email"
-                          value={email}
-                          onChange={(e) => setEmail(e.target.value)}
-                          className="w-full bg-slate-50 border border-slate-200 focus:border-[#781c1c] text-slate-800 placeholder-slate-400 text-xs px-11 py-3.5 rounded-xl outline-none focus:ring-1 focus:ring-[#781c1c]/10 transition"
-                        />
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className="text-[10px] uppercase font-mono tracking-wider font-bold text-slate-655 block mb-1.5">
-                        Register Number
-                      </label>
-                      <div className="relative">
-                        <Key className="absolute left-4 top-3.5 text-slate-400" size={16} />
-                        <input
-                          type="text"
-                          required
-                          placeholder="e.g. 2111711019011"
-                          value={registerNumber}
-                          onChange={(e) => setRegisterNumber(e.target.value)}
-                          className="w-full bg-slate-50 border border-slate-200 focus:border-[#781c1c] text-slate-800 placeholder-slate-400 text-xs px-11 py-3.5 rounded-xl outline-none focus:ring-1 focus:ring-[#781c1c]/10 transition"
-                        />
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className="text-[10px] uppercase font-mono tracking-wider font-bold text-slate-655 block mb-1.5">
-                        Stream *
-                      </label>
-                      <select
-                        required
-                        value={stream}
-                        onChange={(e) => handleStreamChange(e.target.value)}
-                        className="w-full bg-slate-50 border border-slate-200 focus:border-[#781c1c] text-slate-800 text-xs px-4 py-3.5 rounded-xl outline-none transition cursor-pointer"
-                      >
-                        <option value="">Select Stream</option>
-                        <option value="Aided">Aided</option>
-                        <option value="SFS">SFS</option>
-                      </select>
-                    </div>
-
-                    <div className="md:col-span-2">
-                      <label className="text-[10px] uppercase font-mono tracking-wider font-bold text-slate-655 block mb-1.5">
-                        Department *
-                      </label>
-                      <select
-                        required
-                        disabled={!stream}
-                        value={department}
-                        onChange={(e) => setDepartment(e.target.value)}
-                        className="w-full bg-slate-50 border border-slate-200 focus:border-[#781c1c] text-slate-800 text-xs px-4 py-3.5 rounded-xl outline-none transition disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-                      >
-                        <option value="">Select Department</option>
-                        {stream === "Aided" && aidedDepartments.map((dept, idx) => (
-                          <option key={idx} value={dept}>{dept}</option>
-                        ))}
-                        {stream === "SFS" && sfsDepartments.map((dept, idx) => (
-                          <option key={idx} value={dept}>{dept}</option>
-                        ))}
-                      </select>
-                    </div>
-
-                  </div>
-
-                  {error && (
-                    <div className="bg-red-50 border border-red-200 text-red-700 text-xs p-3 rounded-xl flex items-center gap-2">
-                      <ShieldAlert size={14} className="shrink-0" />
-                      <span>{error}</span>
-                    </div>
-                  )}
-
-                  <button
-                    type="submit"
-                    disabled={loading}
-                    className="w-full py-3.5 rounded-xl bg-[#781c1c] hover:bg-[#5f1515] text-white font-bold text-xs uppercase tracking-wider transition-all duration-300 shadow-md cursor-pointer hover:shadow-lg active:scale-98"
-                  >
-                    {loading ? "Registering account..." : "Submit Registration"}
-                  </button>
-
-                </form>
-
-                <p className="text-center text-slate-400 mt-6 text-[10px] uppercase font-mono font-semibold tracking-wider">
-                  Credentials will be generated directly on the screen
-                </p>
-              </>
-            ) : (
-              <div className="text-center py-6 space-y-6">
-                <div className="flex justify-center">
-                  <CheckCircle2 size={56} className="text-emerald-500" />
-                </div>
+            <form onSubmit={handleRegister} className="space-y-4">
+              
+              <div className="grid md:grid-cols-2 gap-4">
                 
-                <h1 className="font-serif text-3xl font-extrabold text-[#18233c]">
-                  Registration Successful!
-                </h1>
-
-                <div className="bg-slate-50 border border-slate-200 rounded-2xl p-6 text-xs text-slate-655 leading-relaxed text-left space-y-4">
-                  <p className="text-slate-700 text-center font-semibold">
-                    An automated unique username and secure temporary password have been successfully generated for your student account:
-                  </p>
-                  
-                  <div className="bg-white border border-slate-200 p-4 rounded-xl space-y-3 font-mono">
-                    <div className="flex justify-between items-center pb-2 border-b border-slate-100">
-                      <span className="text-slate-400 text-[10px] uppercase font-bold tracking-wider">Username</span>
-                      <span className="text-slate-800 font-extrabold text-xs select-all">{generatedUsername}</span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-slate-400 text-[10px] uppercase font-bold tracking-wider">Temporary Password</span>
-                      <span className="text-slate-800 font-extrabold text-xs select-all">{generatedPassword}</span>
-                    </div>
+                <div>
+                  <label className="text-[10px] uppercase font-mono tracking-wider font-bold text-slate-655 block mb-1.5">
+                    Full Name *
+                  </label>
+                  <div className="relative">
+                    <User className="absolute left-4 top-3.5 text-slate-400" size={16} />
+                    <input
+                      type="text"
+                      required
+                      placeholder="Enter full name"
+                      value={fullName}
+                      onChange={(e) => setFullName(e.target.value)}
+                      className="w-full bg-slate-50 border border-slate-200 focus:border-[#781c1c] text-slate-800 placeholder-slate-400 text-xs px-11 py-3.5 rounded-xl outline-none focus:ring-1 focus:ring-[#781c1c]/10 transition"
+                    />
                   </div>
-                  
-                  <p className="text-[10px] text-amber-600 font-bold text-center border-t border-slate-100/60 pt-3">
-                    ⚠️ IMPORTANT: Please write down or copy these credentials now. You will be required to set a new permanent password on your first login.
-                  </p>
                 </div>
 
-                <div className="pt-2">
-                  <Link
-                    href="/login"
-                    className="inline-block w-full py-3.5 rounded-xl bg-[#781c1c] hover:bg-[#5f1515] text-white text-xs font-bold uppercase tracking-wider transition duration-200 shadow text-center cursor-pointer"
-                  >
-                    Proceed to Login
-                  </Link>
+                <div>
+                  <label className="text-[10px] uppercase font-mono tracking-wider font-bold text-slate-655 block mb-1.5">
+                    Email Address *
+                  </label>
+                  <div className="relative">
+                    <Mail className="absolute left-4 top-3.5 text-slate-400" size={16} />
+                    <input
+                      type="email"
+                      required
+                      placeholder="e.g. 2501722037011@mcc.edu.in"
+                      value={email}
+                      onChange={(e) => {
+                        setEmail(e.target.value);
+                        checkEmailRegMatch(e.target.value, registerNumber);
+                      }}
+                      className={`w-full bg-slate-50 border text-slate-800 placeholder-slate-400 text-xs px-11 py-3.5 rounded-xl outline-none focus:ring-1 transition ${
+                        emailRegMismatch
+                          ? "border-amber-400 focus:border-amber-500 focus:ring-amber-100"
+                          : "border-slate-200 focus:border-[#781c1c] focus:ring-[#781c1c]/10"
+                      }`}
+                    />
+                  </div>
+                  {emailRegMismatch && (
+                    <p className="text-[10px] text-amber-600 font-semibold mt-1.5 flex items-center gap-1">
+                      ⚠️ The part before '@' must match your register number exactly.
+                    </p>
+                  )}
                 </div>
+
+                <div>
+                  <label className="text-[10px] uppercase font-mono tracking-wider font-bold text-slate-655 block mb-1.5">
+                    Register Number *
+                  </label>
+                  <div className="relative">
+                    <Key className="absolute left-4 top-3.5 text-slate-400" size={16} />
+                    <input
+                      type="text"
+                      required
+                      placeholder="e.g. 2501722037011"
+                      value={registerNumber}
+                      onChange={(e) => {
+                        setRegisterNumber(e.target.value);
+                        checkEmailRegMatch(email, e.target.value);
+                      }}
+                      className="w-full bg-slate-50 border border-slate-200 focus:border-[#781c1c] text-slate-800 placeholder-slate-400 text-xs px-11 py-3.5 rounded-xl outline-none focus:ring-1 focus:ring-[#781c1c]/10 transition"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-[10px] uppercase font-mono tracking-wider font-bold text-slate-655 block mb-1.5">
+                    Stream *
+                  </label>
+                  <select
+                    required
+                    value={stream}
+                    onChange={(e) => handleStreamChange(e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-200 focus:border-[#781c1c] text-slate-800 text-xs px-4 py-3.5 rounded-xl outline-none transition cursor-pointer"
+                  >
+                    <option value="">Select Stream</option>
+                    <option value="Aided">Aided</option>
+                    <option value="SFS">SFS</option>
+                  </select>
+                </div>
+
+                <div className="md:col-span-2">
+                  <label className="text-[10px] uppercase font-mono tracking-wider font-bold text-slate-655 block mb-1.5">
+                    Department *
+                  </label>
+                  <select
+                    required
+                    disabled={!stream}
+                    value={department}
+                    onChange={(e) => setDepartment(e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-200 focus:border-[#781c1c] text-slate-800 text-xs px-4 py-3.5 rounded-xl outline-none transition disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                  >
+                    <option value="">Select Department</option>
+                    {stream === "Aided" && aidedDepartments.map((dept, idx) => (
+                      <option key={idx} value={dept}>{dept}</option>
+                    ))}
+                    {stream === "SFS" && sfsDepartments.map((dept, idx) => (
+                      <option key={idx} value={dept}>{dept}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="md:col-span-2">
+                  <label className="text-[10px] uppercase font-mono tracking-wider font-bold text-slate-655 block mb-1.5">
+                    Course *
+                  </label>
+                  <div className="relative">
+                    <BookOpen className="absolute left-4 top-3.5 text-slate-400" size={16} />
+                    <input
+                      type="text"
+                      required
+                      placeholder="e.g. B.Sc. Computer Science, MCA, English"
+                      value={course}
+                      onChange={(e) => setCourse(e.target.value)}
+                      className="w-full bg-slate-50 border border-slate-200 focus:border-[#781c1c] text-slate-800 placeholder-slate-400 text-xs px-11 py-3.5 rounded-xl outline-none focus:ring-1 focus:ring-[#781c1c]/10 transition"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-[10px] uppercase font-mono tracking-wider font-bold text-slate-655 block mb-1.5">
+                    Choose Username *
+                  </label>
+                  <div className="relative">
+                    <User className="absolute left-4 top-3.5 text-slate-400" size={16} />
+                    <input
+                      type="text"
+                      required
+                      placeholder="Create unique username"
+                      value={username}
+                      onChange={(e) => setUsername(e.target.value)}
+                      className="w-full bg-slate-50 border border-slate-200 focus:border-[#781c1c] text-slate-800 placeholder-slate-400 text-xs px-11 py-3.5 rounded-xl outline-none focus:ring-1 focus:ring-[#781c1c]/10 transition"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-[10px] uppercase font-mono tracking-wider font-bold text-slate-655 block mb-1.5">
+                    Create Password *
+                  </label>
+                  <div className="relative">
+                    <Key className="absolute left-4 top-3.5 text-slate-400" size={16} />
+                    <input
+                      type="password"
+                      required
+                      placeholder="Enter secure password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      className="w-full bg-slate-50 border border-slate-200 focus:border-[#781c1c] text-slate-800 placeholder-slate-400 text-xs px-11 py-3.5 rounded-xl outline-none focus:ring-1 focus:ring-[#781c1c]/10 transition"
+                    />
+                  </div>
+                </div>
+
               </div>
-            )}
+
+              {error && (
+                <div className="bg-red-50 border border-red-200 text-red-700 text-xs p-3 rounded-xl flex items-center gap-2">
+                  <ShieldAlert size={14} className="shrink-0" />
+                  <span>{error}</span>
+                </div>
+              )}
+
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full py-3.5 rounded-xl bg-[#781c1c] hover:bg-[#5f1515] text-white font-bold text-xs uppercase tracking-wider transition-all duration-300 shadow-md cursor-pointer hover:shadow-lg active:scale-98"
+              >
+                {loading ? "Registering account..." : "Submit Registration"}
+              </button>
+
+            </form>
 
           </div>
 
-          {!registered && (
-            <div className="text-center text-xs text-slate-500">
-              Already have an account? <Link href="/login" className="text-[#781c1c] font-bold hover:underline">Log in here</Link>
-            </div>
-          )}
+          <div className="text-center text-xs text-slate-500">
+            Already have an account? <Link href="/login" className="text-[#781c1c] font-bold hover:underline">Log in here</Link>
+          </div>
 
         </div>
       </div>

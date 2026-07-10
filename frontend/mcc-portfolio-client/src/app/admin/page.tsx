@@ -22,8 +22,6 @@ import {
   Settings,
   Building,
   BarChart2,
-  UserCheck,
-  Palette,
   Download,
   Bell,
   Plus,
@@ -48,8 +46,6 @@ type ActiveTab =
   | "students" 
   | "institution" 
   | "analytics" 
-  | "roles" 
-  | "themes" 
   | "reports" 
   | "notifications"
   | "audit-logs"
@@ -596,9 +592,32 @@ export default function AdminPage() {
   // REPORTS & GROWTH EXPORT
   // ==========================================
 
-  const handleExportCSV = () => {
+  const handleExportCSV = async () => {
     const adminToken = localStorage.getItem("adminToken");
-    window.open(`http://localhost:5203/api/Admin/reports/export?token=${adminToken}`, "_blank");
+    try {
+      const res = await fetch("/api/Admin/reports/export", {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${adminToken}`,
+        },
+      });
+      if (!res.ok) {
+        alert("Export failed: " + (await res.text()));
+        return;
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const dateStr = new Date().toISOString().split("T")[0].replace(/-/g, "");
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `mcc_portfolios_report_${dateStr}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (err: any) {
+      alert("Export error: " + err.message);
+    }
   };
 
   // Filter students list based on searchQuery, verification filter, and alumni status
@@ -695,15 +714,13 @@ export default function AdminPage() {
               { id: "students", label: "Student Directory", icon: Users },
               { id: "institution", label: "Institution Details", icon: Building },
               { id: "analytics", label: "Department Analytics", icon: BarChart2 },
-              { id: "roles", label: "Role Configuration", icon: UserCheck },
-              { id: "themes", label: "Theme Customization", icon: Palette },
               { id: "reports", label: "Analytics & Export", icon: FileText },
               { id: "notifications", label: "Notification Manager", icon: Bell },
               { id: "audit-logs", label: "Security Audit Logs", icon: Shield },
               { id: "backup-restore", label: "System Backup/Restore", icon: Settings }
             ].filter((tab) => {
               if (adminRole === "Moderator" || adminRole === "3") {
-                return !["roles", "audit-logs", "backup-restore"].includes(tab.id);
+                return !["audit-logs", "backup-restore"].includes(tab.id);
               }
               return true;
             }).map((tab) => {
@@ -736,21 +753,7 @@ export default function AdminPage() {
         <div className={`p-4 border-t space-y-3 ${
           themeMode === "dark" ? "border-white/5" : "border-[#781c1c]/10"
         }`}>
-          {/* Theme Mode Toggle */}
-          <button
-            onClick={toggleThemeMode}
-            className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-bold transition border cursor-pointer ${
-              themeMode === "dark"
-                ? "bg-white/5 border-white/10 text-gray-300 hover:bg-white/10"
-                : "bg-white/10 border-white/20 text-slate-200 hover:bg-white/15"
-            }`}
-          >
-            <span className="flex items-center gap-2">
-              {themeMode === "dark" ? <Sun size={14} className="text-amber-405" /> : <Moon size={14} className="text-[#d4af37]" />}
-              {themeMode === "dark" ? "Light Mode" : "Dark Mode"}
-            </span>
-            <span className="text-[9px] uppercase font-mono tracking-wider opacity-60">Theme</span>
-          </button>
+
 
           <Link
             href="/"
@@ -806,15 +809,13 @@ export default function AdminPage() {
                   { id: "students", label: "Student Directory", icon: Users },
                   { id: "institution", label: "Institution Details", icon: Building },
                   { id: "analytics", label: "Department Analytics", icon: BarChart2 },
-                  { id: "roles", label: "Role Configuration", icon: UserCheck },
-                  { id: "themes", label: "Theme Customization", icon: Palette },
                   { id: "reports", label: "Analytics & Export", icon: FileText },
                   { id: "notifications", label: "Notification Manager", icon: Bell },
                   { id: "audit-logs", label: "Security Audit Logs", icon: Shield },
                   { id: "backup-restore", label: "System Backup/Restore", icon: Settings }
                 ].filter((tab) => {
                   if (adminRole === "Moderator" || adminRole === "3") {
-                    return !["roles", "audit-logs", "backup-restore"].includes(tab.id);
+                    return !["audit-logs", "backup-restore"].includes(tab.id);
                   }
                   return true;
                 }).map((tab) => {
@@ -876,12 +877,6 @@ export default function AdminPage() {
               Admin Console
             </span>
           </div>
-          <button
-            onClick={toggleThemeMode}
-            className="p-2 rounded-xl text-gray-400 hover:text-white transition cursor-pointer"
-          >
-            {themeMode === "dark" ? <Sun size={16} /> : <Moon size={16} />}
-          </button>
         </div>
 
         {/* BANNER SHOWCASE */}
@@ -1593,254 +1588,8 @@ export default function AdminPage() {
           </div>
         )}
 
-        {/* ==========================================
-            TAB: ROLE CONFIGURATION
-            ========================================== */}
-        {activeTab === "roles" && (
-          <div className={`border rounded-3xl p-6 shadow-xl space-y-6 transition-colors duration-300 ${
-            themeMode === "dark" ? "bg-[#0b0b0f] border-white/5" : "bg-white border-slate-200"
-          }`}>
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-              <div>
-                <h3 className={`text-lg font-bold ${themeMode === "dark" ? "text-white" : "text-slate-900"}`}>Console Role Management</h3>
-                <p className="text-gray-400 text-xs mt-1">Configure authorization roles for admin portal access.</p>
-              </div>
-              <div className={`flex-1 max-w-xs border rounded-xl px-4 h-[40px] flex items-center gap-2 ${
-                themeMode === "dark" ? "bg-[#121217] border-white/5" : "bg-slate-50 border-slate-200"
-              }`}>
-                <Search size={13} className="text-gray-500 shrink-0" />
-                <input
-                  type="text"
-                  placeholder="Search user accounts..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className={`bg-transparent border-none outline-none text-xs w-full ${
-                    themeMode === "dark" ? "text-white placeholder-gray-500" : "text-slate-900 placeholder-slate-400"
-                  }`}
-                />
-              </div>
-            </div>
 
-            <div className={`overflow-x-auto border rounded-2xl ${
-              themeMode === "dark" ? "border-white/5" : "border-slate-200"
-            }`}>
-              <table className="w-full text-left border-collapse text-xs">
-                <thead>
-                  <tr className={`border-b text-gray-400 font-bold uppercase tracking-wider ${
-                    themeMode === "dark" ? "bg-white/5 border-white/5" : "bg-slate-50 border-slate-200 text-slate-500"
-                  }`}>
-                    <th className="p-4">Full Name</th>
-                    <th className="p-4">Email Address</th>
-                    <th className="p-4">Department</th>
-                    <th className="p-4">Active Role</th>
-                    <th className="p-4 text-center">Toggle Promotion</th>
-                  </tr>
-                </thead>
-                <tbody className={`divide-y ${
-                  themeMode === "dark" ? "divide-white/5" : "divide-slate-200"
-                }`}>
-                  {students
-                    .filter((u) => 
-                      u.fullName.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                      u.email.toLowerCase().includes(searchQuery.toLowerCase())
-                    )
-                    .map((user) => (
-                      <tr key={user.id} className={themeMode === "dark" ? "hover:bg-white/[0.02] transition" : "hover:bg-slate-50 transition"}>
-                        <td className={`p-4 font-bold ${themeMode === "dark" ? "text-white" : "text-slate-900"}`}>{user.fullName}</td>
-                        <td className="p-4 text-gray-400">{user.email}</td>
-                        <td className="p-4 text-gray-550">{user.department || "N/A"}</td>
-                        <td className="p-4">
-                          <span className={`inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full text-[10px] font-bold ${
-                            user.role === "Admin"
-                              ? "bg-[#781c1c]/10 text-[#781c1c] border border-[#781c1c]/25"
-                              : "bg-blue-500/10 text-blue-400 border border-blue-500/25"
-                          }`}>
-                            <Shield size={10} />
-                            {user.role}
-                          </span>
-                        </td>
-                        <td className="p-4 text-center">
-                          <button
-                            onClick={() => handleToggleRole(user.id, user.role)}
-                            className={`px-3 py-1.5 rounded-lg font-bold text-[10px] transition ${
-                              user.role === "Admin"
-                                ? "bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/25"
-                                : "bg-[#781c1c] hover:bg-[#5f1515] text-white"
-                            }`}
-                          >
-                            {user.role === "Admin" ? "Demote to Student" : "Promote to Admin"}
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
 
-        {/* ==========================================
-            TAB: THEME CONFIGURATION
-            ========================================== */}
-        {activeTab === "themes" && (
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {themes.map((theme) => (
-              <div
-                key={theme.id}
-                className={`border rounded-3xl p-6 flex flex-col justify-between transition-all duration-300 relative overflow-hidden group ${
-                  theme.isActive
-                    ? themeMode === "dark"
-                      ? "bg-[#0b0b0f] border-white/5 hover:border-[#781c1c]/20"
-                      : "bg-white border-slate-200 hover:border-[#781c1c]/30 hover:shadow-lg"
-                    : "border-rose-500/20 grayscale opacity-60 bg-slate-50"
-                }`}
-              >
-                <div>
-                  <div className="flex justify-between items-center mb-4">
-                    <span className="text-[10px] uppercase font-mono tracking-widest text-[#781c1c] font-bold bg-[#a78bfa]/10 px-2.5 py-1 rounded-md border border-[#a78bfa]/15">
-                      {theme.studentCount} Students
-                    </span>
-
-                    <button
-                      onClick={() => handleToggleTheme(theme.themeId, theme.displayName, theme.description, theme.isActive)}
-                      className={`text-[9px] uppercase font-bold px-2.5 py-1 rounded transition duration-200 ${
-                        theme.isActive
-                          ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 hover:bg-emerald-500/20"
-                          : "bg-rose-500/10 text-rose-400 border border-rose-500/20 hover:bg-rose-500/20"
-                      }`}
-                    >
-                      {theme.isActive ? "Active" : "Disabled"}
-                    </button>
-                  </div>
-
-                  <h4 className={`text-lg font-bold mb-2 leading-tight group-hover:text-[#781c1c] transition-colors ${
-                    themeMode === "dark" ? "text-white" : "text-slate-900"
-                  }`}>
-                    {theme.displayName}
-                  </h4>
-                  <p className="text-gray-400 text-xs leading-relaxed mb-4">
-                    {theme.description}
-                  </p>
-
-                  {/* Customizable styling controls */}
-                  <div className={`mt-4 pt-4 border-t space-y-3 text-xs mb-4 ${
-                    themeMode === "dark" ? "border-white/5" : "border-slate-200"
-                  }`}>
-                    <h5 className={`font-bold uppercase tracking-wider text-[9px] ${
-                      themeMode === "dark" ? "text-[#781c1c]" : "text-[#18233c]"
-                    }`}>
-                      🎨 Dynamic Style Overrides
-                    </h5>
-
-                    <div className="grid grid-cols-2 gap-2">
-                      <div>
-                        <label className="text-[9px] text-gray-500 block mb-1">Primary Color</label>
-                        <div className="flex items-center gap-1.5">
-                          <input
-                            type="color"
-                            value={theme.primaryColor || "#000000"}
-                            onChange={(e) => handleUpdateThemeStyle(theme.themeId, {
-                              displayName: theme.displayName,
-                              description: theme.description,
-                              isActive: theme.isActive,
-                              primaryColor: e.target.value,
-                              secondaryColor: theme.secondaryColor || "",
-                              fontFamily: theme.fontFamily || ""
-                            })}
-                            className="w-5 h-5 rounded cursor-pointer border-none bg-transparent shrink-0"
-                          />
-                          <input
-                            type="text"
-                            value={theme.primaryColor || ""}
-                            placeholder="#00ffcc"
-                            onChange={(e) => handleUpdateThemeStyle(theme.themeId, {
-                              displayName: theme.displayName,
-                              description: theme.description,
-                              isActive: theme.isActive,
-                              primaryColor: e.target.value,
-                              secondaryColor: theme.secondaryColor || "",
-                              fontFamily: theme.fontFamily || ""
-                            })}
-                            className={`w-full text-[9px] font-mono px-1 py-0.5 rounded border outline-none ${
-                              themeMode === "dark" ? "bg-white/5 border-white/10 text-white" : "bg-white border-slate-200"
-                            }`}
-                          />
-                        </div>
-                      </div>
-
-                      <div>
-                        <label className="text-[9px] text-gray-500 block mb-1">Secondary Color</label>
-                        <div className="flex items-center gap-1.5">
-                          <input
-                            type="color"
-                            value={theme.secondaryColor || "#000000"}
-                            onChange={(e) => handleUpdateThemeStyle(theme.themeId, {
-                              displayName: theme.displayName,
-                              description: theme.description,
-                              isActive: theme.isActive,
-                              primaryColor: theme.primaryColor || "",
-                              secondaryColor: e.target.value,
-                              fontFamily: theme.fontFamily || ""
-                            })}
-                            className="w-5 h-5 rounded cursor-pointer border-none bg-transparent shrink-0"
-                          />
-                          <input
-                            type="text"
-                            value={theme.secondaryColor || ""}
-                            placeholder="#9333ea"
-                            onChange={(e) => handleUpdateThemeStyle(theme.themeId, {
-                              displayName: theme.displayName,
-                              description: theme.description,
-                              isActive: theme.isActive,
-                              primaryColor: theme.primaryColor || "",
-                              secondaryColor: e.target.value,
-                              fontFamily: theme.fontFamily || ""
-                            })}
-                            className={`w-full text-[9px] font-mono px-1 py-0.5 rounded border outline-none ${
-                              themeMode === "dark" ? "bg-white/5 border-white/10 text-white" : "bg-white border-slate-200"
-                            }`}
-                          />
-                        </div>
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className="text-[9px] text-gray-500 block mb-1">Font Family</label>
-                      <select
-                        value={theme.fontFamily || ""}
-                        onChange={(e) => handleUpdateThemeStyle(theme.themeId, {
-                          displayName: theme.displayName,
-                          description: theme.description,
-                          isActive: theme.isActive,
-                          primaryColor: theme.primaryColor || "",
-                          secondaryColor: theme.secondaryColor || "",
-                          fontFamily: e.target.value
-                        })}
-                        className={`w-full text-[9px] px-1.5 py-0.5 rounded border outline-none ${
-                          themeMode === "dark" ? "bg-[#0b0b0f] border-white/10 text-white" : "bg-white border-slate-200 text-slate-900"
-                        }`}
-                      >
-                        <option value="">Default theme font</option>
-                        <option value="Inter">Inter (Modern Sans)</option>
-                        <option value="Georgia">Georgia (Classic Serif)</option>
-                        <option value="Courier New">Courier New (Monospace)</option>
-                        <option value="Playfair Display">Playfair Display (Elegant Serif)</option>
-                        <option value="Montserrat">Montserrat (Geometric Sans)</option>
-                      </select>
-                    </div>
-                  </div>
-                </div>
-
-                <div className={`border-t pt-4 text-gray-500 text-[10px] font-semibold uppercase tracking-wider flex justify-between items-center ${
-                  themeMode === "dark" ? "border-white/5" : "border-slate-200"
-                }`}>
-                  <span>Theme Identifier</span>
-                  <span className={`font-mono ${themeMode === "dark" ? "text-white" : "text-slate-800"}`}>{theme.themeId}</span>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
 
         {/* ==========================================
             TAB: REPORTS & EXPORTS

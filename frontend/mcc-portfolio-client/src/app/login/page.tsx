@@ -177,7 +177,7 @@ export default function LoginPage() {
                 Student Log In
               </h1>
               <p className="text-xs text-slate-500 font-medium">
-                Enter your generated unique credentials received in your email
+                Enter your student credentials to access your account
               </p>
             </div>
 
@@ -235,9 +235,7 @@ export default function LoginPage() {
               </button>
 
             </form>
-            <p className="text-center text-slate-400 mt-6 text-[10px] uppercase font-mono font-semibold tracking-wider">
-              Verify credentials via email delivery
-            </p>
+
 
           </div>
 
