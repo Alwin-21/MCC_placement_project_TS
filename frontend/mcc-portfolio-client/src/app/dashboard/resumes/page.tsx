@@ -143,7 +143,7 @@ export default function ResumesDashboardPage() {
   };
 
   return (
-    <div className={`flex h-screen overflow-hidden ${themeMode === "dark" ? "bg-[#09090d] text-white" : "bg-slate-50 text-slate-900"}`}>
+    <div className={`flex h-screen h-[100dvh] overflow-hidden ${themeMode === "dark" ? "bg-[#09090d] text-white" : "bg-slate-50 text-slate-900"}`}>
       
       {/* DESKTOP SIDEBAR */}
       <div className={`hidden md:flex flex-col w-72 shrink-0 border-r select-none ${
@@ -276,7 +276,7 @@ export default function ResumesDashboardPage() {
       <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
         
         {/* MOBILE TOP BAR */}
-        <div className="sticky top-0 z-40 md:hidden flex items-center justify-between p-4 bg-white/90 dark:bg-[#09090d]/90 backdrop-blur-md border-b border-slate-200 dark:border-white/5 select-none shadow-md shrink-0">
+        <div className="sticky top-0 z-[49] md:hidden flex items-center justify-between p-4 bg-white/90 dark:bg-[#09090d]/90 backdrop-blur-md border-b border-slate-200 dark:border-white/5 select-none shadow-md shrink-0">
           <div className="flex items-center gap-2">
             <button
               onClick={() => setShowMobileNav(true)}

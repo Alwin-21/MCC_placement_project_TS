@@ -70,6 +70,7 @@ export default function AdminPage() {
   // Security & System States
   const [auditLogs, setAuditLogs] = useState<any[]>([]);
   const [adminRole, setAdminRole] = useState<string>("Admin");
+  const isReadOnly = adminRole === "Moderator" || adminRole === "3";
   const [backingUp, setBackingUp] = useState(false);
   const [restoringBackup, setRestoringBackup] = useState(false);
 
@@ -624,15 +625,12 @@ export default function AdminPage() {
   const filteredStudents = students.filter((s) => {
     if (!s) return false;
     const name = s.fullName || s.FullName || "";
-    const email = s.email || s.Email || "";
     const dept = s.department || s.Department || "";
     const stream = s.stream || s.Stream || "";
     const regNum = s.registerNumber || s.RegisterNumber || "";
     
     const matchesSearch =
       name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      dept.toLowerCase().includes(searchQuery.toLowerCase()) ||
       regNum.toLowerCase().includes(searchQuery.toLowerCase());
 
     if (!matchesSearch) return false;
@@ -1067,15 +1065,16 @@ export default function AdminPage() {
           <div className={`border rounded-3xl p-6 shadow-xl space-y-6 transition-colors duration-300 ${
             themeMode === "dark" ? "bg-[#0b0b0f] border-white/5" : "bg-white border-slate-200"
           }`}>
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-              <div className="flex flex-1 items-center gap-3 w-full max-w-xl">
-                <div className={`flex-1 border rounded-xl px-4 h-[40px] flex items-center gap-2 ${
+            <div className="flex flex-col gap-4 mb-6">
+              {/* Search & Add Row */}
+              <div className="flex flex-col md:flex-row justify-between items-stretch md:items-center gap-4">
+                <div className={`flex-1 border rounded-xl px-4 h-[44px] flex items-center gap-2 ${
                   themeMode === "dark" ? "bg-[#121217] border-white/5" : "bg-slate-50 border-slate-200"
                 }`}>
                   <Search size={14} className="text-gray-500 shrink-0" />
                   <input
                     type="text"
-                    placeholder="Search by name, email, reg no..."
+                    placeholder="Search students by Name or Register Number..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     className={`bg-transparent border-none outline-none text-xs w-full ${
@@ -1083,45 +1082,98 @@ export default function AdminPage() {
                     }`}
                   />
                 </div>
-                <select
-                  value={streamFilter}
-                  onChange={(e) => setStreamFilter(e.target.value)}
-                  className={`px-3 h-[40px] rounded-xl text-xs font-semibold outline-none border ${
-                    themeMode === "dark" ? "bg-[#121217] border-white/5 text-white" : "bg-white border-slate-200 text-slate-700"
-                  }`}
-                >
-                  <option value="all">All Streams</option>
-                  <option value="Aided">Aided</option>
-                  <option value="SFS">SFS</option>
-                </select>
-                <select
-                  value={filter}
-                  onChange={(e) => setFilter(e.target.value as any)}
-                  className={`px-3 h-[40px] rounded-xl text-xs font-semibold outline-none border ${
-                    themeMode === "dark" ? "bg-[#121217] border-white/5 text-white" : "bg-white border-slate-200 text-slate-700"
-                  }`}
-                >
-                  <option value="all">All Status</option>
-                  <option value="approved">Approved</option>
-                  <option value="pending">Pending</option>
-                </select>
+                {!isReadOnly && (
+                  <button
+                    onClick={() => {
+                      setStudentForm({
+                        fullName: "",
+                        email: "",
+                        password: "",
+                        department: institution?.departments?.split(";")[0] || "",
+                        registerNumber: "",
+                        role: "Student"
+                      });
+                      setIsCreateModalOpen(true);
+                    }}
+                    className="inline-flex items-center justify-center gap-2 px-5 h-[44px] rounded-xl text-xs bg-[#781c1c] hover:bg-[#5f1515] text-white font-bold transition shadow-lg shadow-[#781c1c]/10 cursor-pointer shrink-0"
+                  >
+                    <Plus size={14} /> Add Student
+                  </button>
+                )}
               </div>
-              <button
-                onClick={() => {
-                  setStudentForm({
-                    fullName: "",
-                    email: "",
-                    password: "",
-                    department: institution?.departments?.split(";")[0] || "",
-                    registerNumber: "",
-                    role: "Student"
-                  });
-                  setIsCreateModalOpen(true);
-                }}
-                className="inline-flex items-center gap-2 px-4 h-[40px] rounded-xl text-xs bg-[#781c1c] hover:bg-[#5f1515] text-white font-bold transition shadow-lg shadow-[#781c1c]/10"
-              >
-                <Plus size={14} /> Add Student
-              </button>
+
+              {/* Filters Row */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                {/* Stream Filter */}
+                <div className="flex flex-col gap-1">
+                  <label className="text-[9px] uppercase font-mono tracking-wider font-bold text-slate-400">Stream</label>
+                  <select
+                    value={streamFilter}
+                    onChange={(e) => setStreamFilter(e.target.value)}
+                    className={`px-3 h-[38px] rounded-xl text-xs font-semibold outline-none border cursor-pointer ${
+                      themeMode === "dark" ? "bg-[#121217] border-white/5 text-white" : "bg-white border-slate-200 text-slate-700"
+                    }`}
+                  >
+                    <option value="all">All Streams</option>
+                    <option value="Aided">Aided</option>
+                    <option value="SFS">SFS</option>
+                  </select>
+                </div>
+
+                {/* Department Filter */}
+                <div className="flex flex-col gap-1">
+                  <label className="text-[9px] uppercase font-mono tracking-wider font-bold text-slate-400">Department</label>
+                  <select
+                    value={deptFilter}
+                    onChange={(e) => setDeptFilter(e.target.value)}
+                    className={`px-3 h-[38px] rounded-xl text-xs font-semibold outline-none border cursor-pointer ${
+                      themeMode === "dark" ? "bg-[#121217] border-white/5 text-white" : "bg-white border-slate-200 text-slate-700"
+                    }`}
+                  >
+                    <option value="all">All Departments</option>
+                    {Array.from(
+                      new Set([
+                        ...(institution?.departments?.split(";").map((d: string) => d.trim()).filter(Boolean) || []),
+                        ...students.map((s) => (s.department || s.Department || "").trim()).filter(Boolean)
+                      ])
+                    ).sort().map((d) => (
+                      <option key={d} value={d}>{d}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Verification Status Filter */}
+                <div className="flex flex-col gap-1">
+                  <label className="text-[9px] uppercase font-mono tracking-wider font-bold text-slate-400">Verification Status</label>
+                  <select
+                    value={filter}
+                    onChange={(e) => setFilter(e.target.value as any)}
+                    className={`px-3 h-[38px] rounded-xl text-xs font-semibold outline-none border cursor-pointer ${
+                      themeMode === "dark" ? "bg-[#121217] border-white/5 text-white" : "bg-white border-slate-200 text-slate-700"
+                    }`}
+                  >
+                    <option value="all">All Status</option>
+                    <option value="approved">Verified Only</option>
+                    <option value="pending">Pending Only</option>
+                  </select>
+                </div>
+
+                {/* Alumni Status Filter */}
+                <div className="flex flex-col gap-1">
+                  <label className="text-[9px] uppercase font-mono tracking-wider font-bold text-slate-400">Alumni / Active</label>
+                  <select
+                    value={alumniFilter}
+                    onChange={(e) => setAlumniFilter(e.target.value as any)}
+                    className={`px-3 h-[38px] rounded-xl text-xs font-semibold outline-none border cursor-pointer ${
+                      themeMode === "dark" ? "bg-[#121217] border-white/5 text-white" : "bg-white border-slate-200 text-slate-700"
+                    }`}
+                  >
+                    <option value="all">All Students</option>
+                    <option value="active">Active Students</option>
+                    <option value="alumni">Alumni Only</option>
+                  </select>
+                </div>
+              </div>
             </div>
 
             {/* Student count */}
@@ -1190,13 +1242,15 @@ export default function AdminPage() {
                       >
                         Portfolio
                       </Link>
-                      <button
-                        onClick={() => handleDeleteStudent(student.id, student.fullName)}
-                        className="p-2 rounded-lg bg-rose-500/10 border border-rose-500/10 hover:bg-rose-500/20 text-rose-400 transition"
-                        title="Delete"
-                      >
-                        <Trash2 size={13} />
-                      </button>
+                      {!isReadOnly && (
+                        <button
+                          onClick={() => handleDeleteStudent(student.id, student.fullName)}
+                          className="p-2 rounded-lg bg-rose-500/10 border border-rose-500/10 hover:bg-rose-500/20 text-rose-400 transition"
+                          title="Delete"
+                        >
+                          <Trash2 size={13} />
+                        </button>
+                      )}
                     </div>
                   </div>
                 ))}
@@ -1235,7 +1289,10 @@ export default function AdminPage() {
                       type="text"
                       value={institution.name}
                       onChange={(e) => setInstitution({ ...institution, name: e.target.value })}
+                      disabled={isReadOnly}
                       className={`w-full border rounded-xl px-4 py-3 text-xs outline-none focus:border-[#781c1c] transition ${
+                        isReadOnly ? "opacity-75 cursor-not-allowed bg-slate-100/50" : ""
+                      } ${
                         themeMode === "dark" ? "bg-[#121217] border-white/5 text-white" : "bg-white border-slate-200 text-slate-900"
                       }`}
                     />
@@ -1246,7 +1303,10 @@ export default function AdminPage() {
                       type="text"
                       value={institution.code}
                       onChange={(e) => setInstitution({ ...institution, code: e.target.value })}
+                      disabled={isReadOnly}
                       className={`w-full border rounded-xl px-4 py-3 text-xs outline-none focus:border-[#781c1c] transition ${
+                        isReadOnly ? "opacity-75 cursor-not-allowed bg-slate-100/50" : ""
+                      } ${
                         themeMode === "dark" ? "bg-[#121217] border-white/5 text-white" : "bg-white border-slate-200 text-slate-900"
                       }`}
                     />
@@ -1259,7 +1319,10 @@ export default function AdminPage() {
                     rows={4}
                     value={institution.description}
                     onChange={(e) => setInstitution({ ...institution, description: e.target.value })}
+                    disabled={isReadOnly}
                     className={`w-full border rounded-xl px-4 py-3 text-xs outline-none focus:border-[#781c1c] transition resize-none ${
+                      isReadOnly ? "opacity-75 cursor-not-allowed bg-slate-100/50" : ""
+                    } ${
                       themeMode === "dark" ? "bg-[#121217] border-white/5 text-white" : "bg-white border-slate-200 text-slate-900"
                     }`}
                   />
@@ -1272,7 +1335,10 @@ export default function AdminPage() {
                       type="email"
                       value={institution.contactEmail}
                       onChange={(e) => setInstitution({ ...institution, contactEmail: e.target.value })}
+                      disabled={isReadOnly}
                       className={`w-full border rounded-xl px-4 py-3 text-xs outline-none focus:border-[#781c1c] transition ${
+                        isReadOnly ? "opacity-75 cursor-not-allowed bg-slate-100/50" : ""
+                      } ${
                         themeMode === "dark" ? "bg-[#121217] border-white/5 text-white" : "bg-white border-slate-200 text-slate-900"
                       }`}
                     />
@@ -1283,7 +1349,10 @@ export default function AdminPage() {
                       type="text"
                       value={institution.contactPhone}
                       onChange={(e) => setInstitution({ ...institution, contactPhone: e.target.value })}
+                      disabled={isReadOnly}
                       className={`w-full border rounded-xl px-4 py-3 text-xs outline-none focus:border-[#781c1c] transition ${
+                        isReadOnly ? "opacity-75 cursor-not-allowed bg-slate-100/50" : ""
+                      } ${
                         themeMode === "dark" ? "bg-[#121217] border-white/5 text-white" : "bg-white border-slate-200 text-slate-900"
                       }`}
                     />
@@ -1297,7 +1366,10 @@ export default function AdminPage() {
                       type="text"
                       value={institution.website}
                       onChange={(e) => setInstitution({ ...institution, website: e.target.value })}
+                      disabled={isReadOnly}
                       className={`w-full border rounded-xl px-4 py-3 text-xs outline-none focus:border-[#781c1c] transition ${
+                        isReadOnly ? "opacity-75 cursor-not-allowed bg-slate-100/50" : ""
+                      } ${
                         themeMode === "dark" ? "bg-[#121217] border-white/5 text-white" : "bg-white border-slate-200 text-slate-900"
                       }`}
                     />
@@ -1308,7 +1380,10 @@ export default function AdminPage() {
                       type="text"
                       value={institution.logoUrl}
                       onChange={(e) => setInstitution({ ...institution, logoUrl: e.target.value })}
+                      disabled={isReadOnly}
                       className={`w-full border rounded-xl px-4 py-3 text-xs outline-none focus:border-[#781c1c] transition ${
+                        isReadOnly ? "opacity-75 cursor-not-allowed bg-slate-100/50" : ""
+                      } ${
                         themeMode === "dark" ? "bg-[#121217] border-white/5 text-white" : "bg-white border-slate-200 text-slate-900"
                       }`}
                     />
@@ -1321,18 +1396,23 @@ export default function AdminPage() {
                     type="text"
                     value={institution.address}
                     onChange={(e) => setInstitution({ ...institution, address: e.target.value })}
+                    disabled={isReadOnly}
                     className={`w-full border rounded-xl px-4 py-3 text-xs outline-none focus:border-[#781c1c] transition ${
+                      isReadOnly ? "opacity-75 cursor-not-allowed bg-slate-100/50" : ""
+                    } ${
                       themeMode === "dark" ? "bg-[#121217] border-white/5 text-white" : "bg-white border-slate-200 text-slate-900"
                     }`}
                   />
                 </div>
 
-                <button
-                  type="submit"
-                  className="px-6 py-3 rounded-xl bg-[#781c1c] hover:bg-[#5f1515] text-white text-xs font-bold transition shadow-lg shadow-[#781c1c]/10"
-                >
-                  Save Configuration
-                </button>
+                {!isReadOnly && (
+                  <button
+                    type="submit"
+                    className="px-6 py-3 rounded-xl bg-[#781c1c] hover:bg-[#5f1515] text-white text-xs font-bold transition shadow-lg shadow-[#781c1c]/10"
+                  >
+                    Save Configuration
+                  </button>
+                )}
               </form>
             </div>
 
@@ -1345,23 +1425,25 @@ export default function AdminPage() {
                 <p className="text-gray-400 text-xs mt-1">Manage standard list of active streams inside the portal.</p>
               </div>
 
-              <form onSubmit={handleAddDepartment} className="flex gap-2">
-                <input
-                  type="text"
-                  placeholder="New department name..."
-                  value={newDeptName}
-                  onChange={(e) => setNewDeptName(e.target.value)}
-                  className={`flex-1 border rounded-xl px-3 py-2.5 text-xs outline-none focus:border-[#781c1c] transition ${
-                    themeMode === "dark" ? "bg-[#121217] border-white/5 text-white" : "bg-white border-slate-200 text-slate-900"
-                  }`}
-                />
-                <button
-                  type="submit"
-                  className="px-4 py-2.5 rounded-xl bg-[#781c1c] hover:bg-[#5f1515] text-white text-xs font-bold transition shrink-0"
-                >
-                  Add
-                </button>
-              </form>
+              {!isReadOnly && (
+                <form onSubmit={handleAddDepartment} className="flex gap-2">
+                  <input
+                    type="text"
+                    placeholder="New department name..."
+                    value={newDeptName}
+                    onChange={(e) => setNewDeptName(e.target.value)}
+                    className={`flex-1 border rounded-xl px-3 py-2.5 text-xs outline-none focus:border-[#781c1c] transition ${
+                      themeMode === "dark" ? "bg-[#121217] border-white/5 text-white" : "bg-white border-slate-200 text-slate-900"
+                    }`}
+                  />
+                  <button
+                    type="submit"
+                    className="px-4 py-2.5 rounded-xl bg-[#781c1c] hover:bg-[#5f1515] text-white text-xs font-bold transition shrink-0"
+                  >
+                    Add
+                  </button>
+                </form>
+              )}
 
               <div className="space-y-2 max-h-[300px] overflow-y-auto pr-1">
                 {institution.departments
@@ -1375,13 +1457,15 @@ export default function AdminPage() {
                       }`}
                     >
                       <span className={`text-xs font-semibold ${themeMode === "dark" ? "text-white" : "text-slate-700"}`}>{dept}</span>
-                      <button
-                        onClick={() => handleDeleteDepartment(dept)}
-                        className="text-rose-400 p-1 hover:bg-rose-500/10 rounded transition"
-                        title="Remove stream"
-                      >
-                        <Trash2 size={13} />
-                      </button>
+                      {!isReadOnly && (
+                        <button
+                          onClick={() => handleDeleteDepartment(dept)}
+                          className="text-rose-400 p-1 hover:bg-rose-500/10 rounded transition"
+                          title="Remove stream"
+                        >
+                          <Trash2 size={13} />
+                        </button>
+                      )}
                     </div>
                   ))}
               </div>
@@ -2267,10 +2351,12 @@ export default function AdminPage() {
                 <h4 className={`text-xs uppercase font-mono font-bold tracking-widest ${themeMode === "dark" ? "text-gray-400" : "text-slate-500"}`}>Account Controls</h4>
                 <div className="grid grid-cols-2 gap-3">
                   <button
-                    onClick={() => toggleApproval(selectedStudent.id, selectedStudent.isApproved)}
-                    disabled={manageLoading}
+                    onClick={() => !isReadOnly && toggleApproval(selectedStudent.id, selectedStudent.isApproved)}
+                    disabled={manageLoading || isReadOnly}
                     className={`py-3 rounded-xl text-xs font-bold transition flex items-center justify-center gap-2 ${
-                      selectedStudent.isApproved
+                      isReadOnly
+                        ? "bg-slate-500/10 text-slate-500 cursor-not-allowed border border-slate-500/15"
+                        : selectedStudent.isApproved
                         ? "bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20"
                         : "bg-emerald-500 hover:bg-emerald-600 text-black"
                     }`}
@@ -2279,10 +2365,12 @@ export default function AdminPage() {
                     {selectedStudent.isApproved ? "Revoke Portfolio" : "Approve Portfolio"}
                   </button>
                   <button
-                    onClick={() => handleToggleActive(selectedStudent.id, selectedStudent.isActive !== false)}
-                    disabled={manageLoading}
+                    onClick={() => !isReadOnly && handleToggleActive(selectedStudent.id, selectedStudent.isActive !== false)}
+                    disabled={manageLoading || isReadOnly}
                     className={`py-3 rounded-xl text-xs font-bold transition flex items-center justify-center gap-2 ${
-                      selectedStudent.isActive !== false
+                      isReadOnly
+                        ? "bg-slate-500/10 text-slate-500 cursor-not-allowed border border-slate-500/15"
+                        : selectedStudent.isActive !== false
                         ? "bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/20"
                         : "bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 border border-blue-500/20"
                     }`}
@@ -2294,70 +2382,74 @@ export default function AdminPage() {
               </div>
 
               {/* ── RESET PASSWORD ── */}
-              <div className={`border rounded-2xl p-5 space-y-3 ${themeMode === "dark" ? "border-white/5 bg-white/[0.02]" : "border-slate-200 bg-slate-50"}`}>
-                <h4 className={`text-xs uppercase font-mono font-bold tracking-widest ${themeMode === "dark" ? "text-gray-400" : "text-slate-500"}`}>Reset Password</h4>
-                <div className="flex gap-3">
-                  <input
-                    type="password"
-                    placeholder="Enter new password (min 6 chars)"
-                    value={resetPasswordValue}
-                    onChange={(e) => setResetPasswordValue(e.target.value)}
-                    className={`flex-1 border rounded-xl px-4 py-2.5 text-xs outline-none focus:border-[#781c1c] ${
-                      themeMode === "dark" ? "bg-[#121217] border-white/5 text-white placeholder-gray-600" : "bg-white border-slate-200 text-slate-900 placeholder-slate-400"
-                    }`}
-                  />
-                  <button
-                    onClick={() => handleAdminResetPassword(selectedStudent.id)}
-                    disabled={manageLoading || !resetPasswordValue}
-                    className="px-4 py-2.5 rounded-xl bg-[#781c1c] hover:bg-[#5f1515] text-white text-xs font-bold transition disabled:opacity-40"
-                  >
-                    Reset
-                  </button>
+              {!isReadOnly && (
+                <div className={`border rounded-2xl p-5 space-y-3 ${themeMode === "dark" ? "border-white/5 bg-white/[0.02]" : "border-slate-200 bg-slate-50"}`}>
+                  <h4 className={`text-xs uppercase font-mono font-bold tracking-widest ${themeMode === "dark" ? "text-gray-400" : "text-slate-500"}`}>Reset Password</h4>
+                  <div className="flex gap-3">
+                    <input
+                      type="password"
+                      placeholder="Enter new password (min 6 chars)"
+                      value={resetPasswordValue}
+                      onChange={(e) => setResetPasswordValue(e.target.value)}
+                      className={`flex-1 border rounded-xl px-4 py-2.5 text-xs outline-none focus:border-[#781c1c] ${
+                        themeMode === "dark" ? "bg-[#121217] border-white/5 text-white placeholder-gray-600" : "bg-white border-slate-200 text-slate-900 placeholder-slate-400"
+                      }`}
+                    />
+                    <button
+                      onClick={() => handleAdminResetPassword(selectedStudent.id)}
+                      disabled={manageLoading || !resetPasswordValue}
+                      className="px-4 py-2.5 rounded-xl bg-[#781c1c] hover:bg-[#5f1515] text-white text-xs font-bold transition disabled:opacity-40"
+                    >
+                      Reset
+                    </button>
+                  </div>
+                  <p className={`text-[10px] ${themeMode === "dark" ? "text-gray-600" : "text-slate-400"}`}>
+                    The new password will be set immediately. Student will need to use the new password on next login.
+                  </p>
                 </div>
-                <p className={`text-[10px] ${themeMode === "dark" ? "text-gray-600" : "text-slate-400"}`}>
-                  The new password will be set immediately. Student will need to use the new password on next login.
-                </p>
-              </div>
+              )}
 
               {/* ── ACTIVITY TIMELINE ── */}
-              <div className={`border rounded-2xl p-5 space-y-3 ${themeMode === "dark" ? "border-white/5 bg-white/[0.02]" : "border-slate-200 bg-slate-50"}`}>
-                <h4 className={`text-xs uppercase font-mono font-bold tracking-widest ${themeMode === "dark" ? "text-gray-400" : "text-slate-500"}`}>
-                  Activity Timeline
-                </h4>
-                {(() => {
-                  const studentLogs = auditLogs.filter(
-                    (log) => log.performedByEmail === selectedStudent.email
-                  ).sort((a: any, b: any) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
-                  
-                  if (studentLogs.length === 0) {
+              {!isReadOnly && (
+                <div className={`border rounded-2xl p-5 space-y-3 ${themeMode === "dark" ? "border-white/5 bg-white/[0.02]" : "border-slate-200 bg-slate-50"}`}>
+                  <h4 className={`text-xs uppercase font-mono font-bold tracking-widest ${themeMode === "dark" ? "text-gray-400" : "text-slate-500"}`}>
+                    Activity Timeline
+                  </h4>
+                  {(() => {
+                    const studentLogs = auditLogs.filter(
+                      (log) => log.performedByEmail === selectedStudent.email
+                    ).sort((a: any, b: any) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+                    
+                    if (studentLogs.length === 0) {
+                      return (
+                        <p className="text-xs text-gray-500 text-center py-4">No activity recorded yet for this student.</p>
+                      );
+                    }
+                    
                     return (
-                      <p className="text-xs text-gray-500 text-center py-4">No activity recorded yet for this student.</p>
-                    );
-                  }
-                  
-                  return (
-                    <div className="space-y-2 max-h-56 overflow-y-auto pr-1 scrollbar-thin">
-                      {studentLogs.map((log: any, i: number) => (
-                        <div key={log.id || i} className={`flex gap-3 items-start text-xs pb-2 border-b last:border-b-0 ${themeMode === "dark" ? "border-white/5" : "border-slate-100"}`}>
-                          <div className="w-1.5 h-1.5 rounded-full bg-[#781c1c] mt-1.5 shrink-0" />
-                          <div className="min-w-0">
-                            <span className={`font-bold block truncate ${themeMode === "dark" ? "text-white" : "text-slate-900"}`}>
-                              {log.action}
-                            </span>
-                            <span className="text-gray-500 text-[10px] block">
-                              {new Date(log.timestamp).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" })}
-                              {log.ipAddress && log.ipAddress !== "127.0.0.1" ? ` · ${log.ipAddress}` : ""}
-                            </span>
-                            {log.details && (
-                              <span className="text-gray-500 text-[10px] truncate block">{log.details}</span>
-                            )}
+                      <div className="space-y-2 max-h-56 overflow-y-auto pr-1 scrollbar-thin">
+                        {studentLogs.map((log: any, i: number) => (
+                          <div key={log.id || i} className={`flex gap-3 items-start text-xs pb-2 border-b last:border-b-0 ${themeMode === "dark" ? "border-white/5" : "border-slate-100"}`}>
+                            <div className="w-1.5 h-1.5 rounded-full bg-[#781c1c] mt-1.5 shrink-0" />
+                            <div className="min-w-0">
+                              <span className={`font-bold block truncate ${themeMode === "dark" ? "text-white" : "text-slate-900"}`}>
+                                {log.action}
+                              </span>
+                              <span className="text-gray-500 text-[10px] block">
+                                {new Date(log.timestamp).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" })}
+                                {log.ipAddress && log.ipAddress !== "127.0.0.1" ? ` · ${log.ipAddress}` : ""}
+                              </span>
+                              {log.details && (
+                                <span className="text-gray-500 text-[10px] truncate block">{log.details}</span>
+                              )}
+                            </div>
                           </div>
-                        </div>
-                      ))}
-                    </div>
-                  );
-                })()}
-              </div>
+                        ))}
+                      </div>
+                    );
+                  })()}
+                </div>
+              )}
 
               {/* ── QUICK LINKS ── */}
               <div className="flex gap-3 pt-1">
@@ -2370,18 +2462,22 @@ export default function AdminPage() {
                 >
                   View Public Portfolio ↗
                 </Link>
-                <button
-                  onClick={() => { openEditModal(selectedStudent); setIsManageModalOpen(false); }}
-                  className="flex-1 py-2.5 rounded-xl text-xs font-bold bg-[#18233c] hover:bg-[#1f2d4f] text-white text-center transition"
-                >
-                  Edit Details
-                </button>
-                <button
-                  onClick={() => { handleDeleteStudent(selectedStudent.id, selectedStudent.fullName); setIsManageModalOpen(false); }}
-                  className="flex-1 py-2.5 rounded-xl text-xs font-bold bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 text-center transition"
-                >
-                  Delete Account
-                </button>
+                {!isReadOnly && (
+                  <>
+                    <button
+                      onClick={() => { openEditModal(selectedStudent); setIsManageModalOpen(false); }}
+                      className="flex-1 py-2.5 rounded-xl text-xs font-bold bg-[#18233c] hover:bg-[#1f2d4f] text-white text-center transition"
+                    >
+                      Edit Details
+                    </button>
+                    <button
+                      onClick={() => { handleDeleteStudent(selectedStudent.id, selectedStudent.fullName); setIsManageModalOpen(false); }}
+                      className="flex-1 py-2.5 rounded-xl text-xs font-bold bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 text-center transition"
+                    >
+                      Delete Account
+                    </button>
+                  </>
+                )}
               </div>
 
             </div>

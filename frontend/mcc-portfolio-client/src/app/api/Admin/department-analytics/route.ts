@@ -26,7 +26,7 @@ export async function GET(request: Request) {
     const allDepts = Array.from(new Set([...declaredDepts, ...userDepts]));
 
     const analytics = allDepts.map(dept => {
-      const deptUsers = users.filter(u => u.Department.toLowerCase() === dept.toLowerCase());
+      const deptUsers = users.filter(u => u.Department && u.Department.toLowerCase() === dept.toLowerCase());
       const deptUserIds = new Set(deptUsers.map(u => u.Id));
 
       const studentCount = deptUsers.length;

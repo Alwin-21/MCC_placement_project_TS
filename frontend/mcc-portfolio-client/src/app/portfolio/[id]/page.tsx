@@ -51,6 +51,7 @@ import {
   Eye
 } from "lucide-react";
 import api from "@/services/api";
+import { parseImageAdjustments } from "@/utils/image";
 
 const InstagramIcon = ({ size = 16, className = "" }: { size?: number; className?: string }) => (
   <svg
@@ -274,14 +275,20 @@ function PortfolioPageContent() {
               {/* Profile Card */}
               <div className="bg-white border border-[#781c1c]/10 rounded-xl p-6 shadow-[0_1px_3px_rgba(0,0,0,0.01)] text-center lg:text-left">
                 <div className="flex flex-col lg:flex-row items-center gap-4">
-                  {(profile?.profileImageUrl || user?.profileImageUrl) && !imgError ? (
-                    <img 
-                      src={profile?.profileImageUrl || user?.profileImageUrl} 
-                      onError={() => setImgError(true)}
-                      className="w-16 h-16 rounded-full object-cover border-2 border-slate-100 shadow-xs" 
-                      alt={user.fullName} 
-                    />
-                  ) : (
+                  {(profile?.profileImageUrl || user?.profileImageUrl) && !imgError ? (() => {
+                    const imgDetails = parseImageAdjustments(profile?.profileImageUrl || user?.profileImageUrl);
+                    return (
+                      <div className="w-16 h-16 rounded-full border-2 border-slate-100 shadow-xs overflow-hidden flex items-center justify-center shrink-0">
+                        <img 
+                          src={imgDetails.src} 
+                          onError={() => setImgError(true)}
+                          style={imgDetails.style} 
+                          className="w-full h-full"
+                          alt={user.fullName} 
+                        />
+                      </div>
+                    );
+                  })() : (
                     <div className="w-16 h-16 rounded-full bg-[#f0ece1] text-[#781c1c] flex items-center justify-center font-bold text-lg border border-slate-205 shadow-xs shrink-0">
                       {initials}
                     </div>
@@ -605,7 +612,7 @@ function PortfolioPageContent() {
                       </span>
                     </div>
                     <p className="text-[9px] font-bold text-slate-400 mt-0.5">
-                      {ach.achievementDate ? new Date(ach.achievementDate).toLocaleDateString() : ""}
+                      Year: {ach.achievementDate ? new Date(ach.achievementDate).getFullYear() : ""}
                     </p>
                     <p className="text-xs text-slate-655 mt-2 leading-relaxed">{ach.description}</p>
                     {ach.achievementUrl && (
@@ -732,7 +739,7 @@ function PortfolioPageContent() {
                     </div>
                     <p className="text-[10px] text-slate-500 font-bold mt-0.5">{cert.issuer}</p>
                     <p className="text-[9px] font-bold text-slate-400 mt-0.5">
-                      Issued: {cert.issueDate ? new Date(cert.issueDate).toLocaleDateString() : ""}
+                      Year: {cert.issueDate ? new Date(cert.issueDate).getFullYear() : ""}
                     </p>
                     {cert.certificateUrl && (
                       <a href={cert.certificateUrl} target="_blank" className="inline-flex items-center gap-1 text-[10px] font-bold text-[#18233c] hover:underline mt-2">
@@ -808,54 +815,54 @@ function PortfolioPageContent() {
             </h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {profile?.linkedInUrl && (
-                <a href={profile.linkedInUrl} target="_blank" className="border border-slate-205 p-4 rounded-xl flex items-center gap-3 bg-slate-50/50 hover:bg-slate-50 transition">
-                  <Linkedin size={20} className="text-[#0a66c2]" />
-                  <div>
+                <a href={profile.linkedInUrl} target="_blank" className="border border-slate-205 p-4 rounded-xl flex items-center gap-3 bg-slate-50/50 hover:bg-slate-50 transition min-w-0">
+                  <Linkedin size={20} className="text-[#0a66c2] shrink-0" />
+                  <div className="min-w-0">
                     <span className="font-bold text-xs text-[#18233c] block">LinkedIn Profile</span>
                     <span className="text-[10px] text-slate-455 block mt-0.5 truncate">{profile.linkedInUrl}</span>
                   </div>
                 </a>
               )}
               {profile?.gitHubUrl && (
-                <a href={profile.gitHubUrl} target="_blank" className="border border-slate-205 p-4 rounded-xl flex items-center gap-3 bg-slate-50/50 hover:bg-slate-50 transition">
-                  <Github size={20} className="text-slate-850" />
-                  <div>
+                <a href={profile.gitHubUrl} target="_blank" className="border border-slate-205 p-4 rounded-xl flex items-center gap-3 bg-slate-50/50 hover:bg-slate-50 transition min-w-0">
+                  <Github size={20} className="text-slate-850 shrink-0" />
+                  <div className="min-w-0">
                     <span className="font-bold text-xs text-[#18233c] block">GitHub Profile</span>
                     <span className="text-[10px] text-slate-455 block mt-0.5 truncate">{profile.gitHubUrl}</span>
                   </div>
                 </a>
               )}
               {profile?.instagramUrl && (
-                <a href={profile.instagramUrl} target="_blank" className="border border-slate-205 p-4 rounded-xl flex items-center gap-3 bg-slate-50/50 hover:bg-slate-50 transition">
-                  <InstagramIcon size={20} className="text-pink-655" />
-                  <div>
+                <a href={profile.instagramUrl} target="_blank" className="border border-slate-205 p-4 rounded-xl flex items-center gap-3 bg-slate-50/50 hover:bg-slate-50 transition min-w-0">
+                  <InstagramIcon size={20} className="text-pink-655 shrink-0" />
+                  <div className="min-w-0">
                     <span className="font-bold text-xs text-[#18233c] block">Instagram Profile</span>
                     <span className="text-[10px] text-slate-455 block mt-0.5 truncate">{profile.instagramUrl}</span>
                   </div>
                 </a>
               )}
               {profile?.blogUrl && (
-                <a href={profile.blogUrl} target="_blank" className="border border-slate-205 p-4 rounded-xl flex items-center gap-3 bg-slate-50/50 hover:bg-slate-50 transition">
-                  <Globe size={20} className="text-emerald-600" />
-                  <div>
+                <a href={profile.blogUrl} target="_blank" className="border border-slate-205 p-4 rounded-xl flex items-center gap-3 bg-slate-50/50 hover:bg-slate-50 transition min-w-0">
+                  <Globe size={20} className="text-emerald-600 shrink-0" />
+                  <div className="min-w-0">
                     <span className="font-bold text-xs text-[#18233c] block">Blog / Website</span>
                     <span className="text-[10px] text-slate-455 block mt-0.5 truncate">{profile.blogUrl}</span>
                   </div>
                 </a>
               )}
               {profile?.behanceUrl && (
-                <a href={profile.behanceUrl} target="_blank" className="border border-slate-205 p-4 rounded-xl flex items-center gap-3 bg-slate-50/50 hover:bg-slate-50 transition">
+                <a href={profile.behanceUrl} target="_blank" className="border border-slate-205 p-4 rounded-xl flex items-center gap-3 bg-slate-50/50 hover:bg-slate-50 transition min-w-0">
                   <span className="text-[#1769ff] font-serif font-black text-xl w-5 text-center shrink-0">Bē</span>
-                  <div>
+                  <div className="min-w-0">
                     <span className="font-bold text-xs text-[#18233c] block">Behance Portfolio</span>
                     <span className="text-[10px] text-slate-455 block mt-0.5 truncate">{profile.behanceUrl}</span>
                   </div>
                 </a>
               )}
               {profile?.otherHandles && (
-                <div className="border border-slate-205 p-4 rounded-xl bg-slate-50/50 sm:col-span-2">
+                <div className="border border-slate-205 p-4 rounded-xl bg-slate-50/50 sm:col-span-2 min-w-0 overflow-hidden">
                   <span className="font-bold text-xs text-[#18233c] block">Other Information / Handles</span>
-                  <p className="text-xs text-slate-655 mt-1 leading-relaxed">{profile.otherHandles}</p>
+                  <p className="text-xs text-slate-655 mt-1 leading-relaxed break-words">{profile.otherHandles}</p>
                 </div>
               )}
             </div>
@@ -942,14 +949,20 @@ function PortfolioPageContent() {
         <div className={`p-4 border-b border-slate-700/30 flex items-center gap-3 ${
           isSidebarCollapsed ? "justify-center" : ""
         }`}>
-          {(profile?.profileImageUrl || user?.profileImageUrl) && !imgError ? (
-            <img 
-              src={profile?.profileImageUrl || user?.profileImageUrl} 
-              onError={() => setImgError(true)}
-              className="w-8 h-8 rounded-full object-cover border border-[#d4af37]/40" 
-              alt={user.fullName} 
-            />
-          ) : (
+          {(profile?.profileImageUrl || user?.profileImageUrl) && !imgError ? (() => {
+            const imgDetails = parseImageAdjustments(profile?.profileImageUrl || user?.profileImageUrl);
+            return (
+              <div className="w-8 h-8 rounded-full border border-[#d4af37]/40 overflow-hidden flex items-center justify-center shrink-0">
+                <img 
+                  src={imgDetails.src} 
+                  onError={() => setImgError(true)}
+                  style={imgDetails.style} 
+                  className="w-full h-full" 
+                  alt={user.fullName} 
+                />
+              </div>
+            );
+          })() : (
             <div className="w-8 h-8 rounded-full bg-[#781c1c] text-white flex items-center justify-center text-xs font-bold border border-amber-600/30">
               {initials}
             </div>
@@ -1015,14 +1028,20 @@ function PortfolioPageContent() {
             </div>
 
             <div className="flex items-center gap-3 py-4 border-b border-slate-700/30">
-              {(profile?.profileImageUrl || user?.profileImageUrl) && !imgError ? (
-                <img 
-                  src={profile?.profileImageUrl || user?.profileImageUrl} 
-                  onError={() => setImgError(true)}
-                  className="w-8 h-8 rounded-full object-cover border border-[#d4af37]/40" 
-                  alt={user.fullName} 
-                />
-              ) : (
+              {(profile?.profileImageUrl || user?.profileImageUrl) && !imgError ? (() => {
+                const imgDetails = parseImageAdjustments(profile?.profileImageUrl || user?.profileImageUrl);
+                return (
+                  <div className="w-8 h-8 rounded-full border border-[#d4af37]/40 overflow-hidden flex items-center justify-center shrink-0">
+                    <img 
+                      src={imgDetails.src} 
+                      onError={() => setImgError(true)}
+                      style={imgDetails.style} 
+                      className="w-full h-full" 
+                      alt={user.fullName} 
+                    />
+                  </div>
+                );
+              })() : (
                 <div className="w-8 h-8 rounded-full bg-[#781c1c] text-white flex items-center justify-center text-xs font-bold">
                   {initials}
                 </div>
@@ -1065,7 +1084,7 @@ function PortfolioPageContent() {
       <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
         
         {/* TOP BAR */}
-        <header className="h-16 bg-white border-b border-[#781c1c]/10 flex items-center justify-between px-6 z-10 select-none shadow-xs shrink-0">
+        <header className="h-16 bg-white border-b border-[#781c1c]/10 flex items-center justify-between px-6 z-[49] select-none shadow-xs shrink-0">
           <div className="flex items-center gap-3">
             {/* Hamburger Button for mobile */}
             <button

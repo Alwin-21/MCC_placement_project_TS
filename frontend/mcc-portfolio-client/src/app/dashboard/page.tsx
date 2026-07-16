@@ -31,10 +31,12 @@ import {
   ChevronRight,
   Menu,
   X,
-  Copy
+  Copy,
+  Sliders
 } from "lucide-react";
 import api from "@/services/api";
 import { useTheme } from "@/hooks/useTheme";
+import { parseImageAdjustments } from "@/utils/image";
 
 export default function DashboardPage() {
   const [user, setUser] = useState<any>(null);
@@ -68,6 +70,15 @@ export default function DashboardPage() {
       setSuccessBanner(null);
     }, 3500);
   };
+
+  // Photo adjustments & preview states
+  const [showPhotoAdjustModal, setShowPhotoAdjustModal] = useState(false);
+  const [showPhotoPreviewModal, setShowPhotoPreviewModal] = useState(false);
+  const [adjustScale, setAdjustScale] = useState(1);
+  const [adjustRotate, setAdjustRotate] = useState(0);
+  const [adjustPosX, setAdjustPosX] = useState(50);
+  const [adjustPosY, setAdjustPosY] = useState(50);
+  const [adjustFit, setAdjustFit] = useState("cover");
 
   // ==========================================
   // SECTION 1: HEADER SECTION FIELDS
@@ -389,7 +400,38 @@ export default function DashboardPage() {
     }
   };
 
-  const saveProfile = async () => {
+  const openPhotoAdjustModal = () => {
+    if (!profileImageUrl) return;
+    try {
+      const paramsIndex = profileImageUrl.indexOf("?");
+      if (paramsIndex !== -1) {
+        const searchParams = new URLSearchParams(profileImageUrl.substring(paramsIndex + 1));
+        setAdjustScale(parseFloat(searchParams.get("scale") || "1"));
+        setAdjustRotate(parseInt(searchParams.get("rotate") || "0", 10));
+        setAdjustPosX(parseInt(searchParams.get("x") || "50", 10));
+        setAdjustPosY(parseInt(searchParams.get("y") || "50", 10));
+        setAdjustFit(searchParams.get("fit") || "cover");
+      } else {
+        setAdjustScale(1);
+        setAdjustRotate(0);
+        setAdjustPosX(50);
+        setAdjustPosY(50);
+        setAdjustFit("cover");
+      }
+    } catch (e) {
+      console.error("Failed to parse image adjustments", e);
+    }
+    setShowPhotoAdjustModal(true);
+  };
+
+  const applyPhotoAdjustments = () => {
+    const cleanUrl = profileImageUrl.split("?")[0];
+    const updatedUrl = `${cleanUrl}?scale=${adjustScale}&rotate=${adjustRotate}&x=${adjustPosX}&y=${adjustPosY}&fit=${adjustFit}`;
+    setProfileImageUrl(updatedUrl);
+    setShowPhotoAdjustModal(false);
+  };
+
+  const saveHeaderSettings = async () => {
     if (!fullName.trim()) {
       alert("Full Name is a required field.");
       return;
@@ -405,38 +447,99 @@ export default function DashboardPage() {
     try {
       await api.post("/Profiles", {
         fullName,
-        bio,
-        linkedInUrl,
         profileImageUrl,
-        selectedTheme,
-        targetCareer,
-        cgpa: Number(cgpa) || 0.0,
-        personalStory,
-        sop,
         course,
         yearOfStudy,
         currentLocation,
         phone,
-        languages,
-        testScores,
-        patents,
-        instagramUrl,
-        blogUrl,
-        otherHandles
+        linkedInUrl
       });
 
-      // Update local storage user name representation
       if (user) {
         const updated = { ...user, fullName };
         localStorage.setItem("user", JSON.stringify(updated));
         setUser(updated);
       }
 
-      showSuccessBanner("profile", "Header & Profile Settings Saved Successfully!");
+      showSuccessBanner("header", "Header & Profile Settings Saved Successfully!");
       loadAllData();
     } catch (err: any) {
       console.error(err);
-      alert(`Failed to save settings: ${err?.response?.data || err?.message}`);
+      alert(`Failed to save header settings: ${err?.response?.data || err?.message}`);
+    }
+  };
+
+  const saveAboutSettings = async () => {
+    try {
+      await api.post("/Profiles", {
+        bio,
+        personalStory,
+        sop
+      });
+
+      showSuccessBanner("about", "About Section Details Saved Successfully!");
+      loadAllData();
+    } catch (err: any) {
+      console.error(err);
+      alert(`Failed to save about details: ${err?.response?.data || err?.message}`);
+    }
+  };
+
+  const saveLanguagesSettings = async () => {
+    try {
+      await api.post("/Profiles", {
+        languages
+      });
+
+      showSuccessBanner("languages", "Languages Saved Successfully!");
+      loadAllData();
+    } catch (err: any) {
+      console.error(err);
+      alert(`Failed to save languages: ${err?.response?.data || err?.message}`);
+    }
+  };
+
+  const saveTestScoresSettings = async () => {
+    try {
+      await api.post("/Profiles", {
+        testScores
+      });
+
+      showSuccessBanner("testScores", "Test Scores Saved Successfully!");
+      loadAllData();
+    } catch (err: any) {
+      console.error(err);
+      alert(`Failed to save test scores: ${err?.response?.data || err?.message}`);
+    }
+  };
+
+  const savePatentsSettings = async () => {
+    try {
+      await api.post("/Profiles", {
+        patents
+      });
+
+      showSuccessBanner("patents", "Patents Saved Successfully!");
+      loadAllData();
+    } catch (err: any) {
+      console.error(err);
+      alert(`Failed to save patents: ${err?.response?.data || err?.message}`);
+    }
+  };
+
+  const saveMediaHandlesSettings = async () => {
+    try {
+      await api.post("/Profiles", {
+        instagramUrl,
+        blogUrl,
+        otherHandles
+      });
+
+      showSuccessBanner("mediaHandles", "Media Handles Saved Successfully!");
+      loadAllData();
+    } catch (err: any) {
+      console.error(err);
+      alert(`Failed to save media handles: ${err?.response?.data || err?.message}`);
     }
   };
 
@@ -486,7 +589,7 @@ export default function DashboardPage() {
       return;
     }
     if (!expStartDate) {
-      alert("Start Date is a required field.");
+      alert("Start Year is a required field.");
       return;
     }
     try {
@@ -528,9 +631,20 @@ export default function DashboardPage() {
 
   const formatDisplayDate = (dateStr: string) => {
     if (!dateStr) return "";
+    if (/^\d{4}$/.test(dateStr)) return dateStr;
     const d = new Date(dateStr);
     if (!isNaN(d.getTime())) {
       return d.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+    }
+    return dateStr;
+  };
+
+  const extractYearFromDate = (dateStr: string) => {
+    if (!dateStr) return "";
+    if (/^\d{4}$/.test(dateStr)) return dateStr;
+    const d = new Date(dateStr);
+    if (!isNaN(d.getTime())) {
+      return d.getFullYear().toString();
     }
     return dateStr;
   };
@@ -541,8 +655,8 @@ export default function DashboardPage() {
     setExpCompany(item.company);
     setExpLocation(item.location);
     setExpDesc(item.description);
-    setExpStartDate(formatDateForInput(item.startDate));
-    setExpEndDate(formatDateForInput(item.endDate));
+    setExpStartDate(extractYearFromDate(item.startDate));
+    setExpEndDate(extractYearFromDate(item.endDate));
     setExpIsCurrent(item.isCurrent);
     setExpCategory(item.category || "Full-time jobs");
   };
@@ -685,7 +799,12 @@ export default function DashboardPage() {
       return;
     }
     if (!achievementDate) {
-      alert("Achievement Date is a required field.");
+      alert("Achievement Year is a required field.");
+      return;
+    }
+    const yearNum = parseInt(achievementDate, 10);
+    if (isNaN(yearNum) || yearNum < 1900 || yearNum > 2100) {
+      alert("Please enter a valid 4-digit Achievement Year (e.g., 2025).");
       return;
     }
     try {
@@ -693,7 +812,7 @@ export default function DashboardPage() {
         title: achievementTitle,
         description: achievementDescription,
         achievementUrl,
-        achievementDate,
+        achievementDate: achievementDate.length === 4 ? `${achievementDate}-01-01` : achievementDate,
         category: achievementCategory
       };
 
@@ -717,7 +836,7 @@ export default function DashboardPage() {
     setAchievementTitle(item.title);
     setAchievementDescription(item.description);
     setAchievementUrl(item.achievementUrl);
-    setAchievementDate(item.achievementDate ? item.achievementDate.split("T")[0] : "");
+    setAchievementDate(item.achievementDate ? new Date(item.achievementDate).getFullYear().toString() : "");
     setAchievementCategory(item.category || "Scholarships");
   };
 
@@ -956,12 +1075,21 @@ export default function DashboardPage() {
       alert("Issuer is a required field.");
       return;
     }
+    if (!issueDate) {
+      alert("Issue Year is a required field.");
+      return;
+    }
+    const yearNum = parseInt(issueDate, 10);
+    if (isNaN(yearNum) || yearNum < 1900 || yearNum > 2100) {
+      alert("Please enter a valid 4-digit Issue Year (e.g., 2025).");
+      return;
+    }
     try {
       const payload = {
         title: certificationTitle,
         issuer,
         certificateUrl,
-        issueDate,
+        issueDate: issueDate.length === 4 ? `${issueDate}-01-01` : issueDate,
         category: certCategory
       };
 
@@ -985,7 +1113,7 @@ export default function DashboardPage() {
     setCertificationTitle(item.title);
     setIssuer(item.issuer);
     setCertificateUrl(item.certificateUrl);
-    setIssueDate(item.issueDate ? item.issueDate.split("T")[0] : "");
+    setIssueDate(item.issueDate ? new Date(item.issueDate).getFullYear().toString() : "");
     setCertCategory(item.category || "Licenses");
   };
 
@@ -1199,7 +1327,7 @@ Report Generated: ${new Date().toLocaleDateString()}
   };
 
   return (
-    <div className={`h-screen overflow-hidden flex transition-colors duration-300 ${
+    <div className={`h-screen h-[100dvh] overflow-hidden flex transition-colors duration-300 ${
       themeMode === "dark" ? "bg-[#0d0d12] text-white" : "bg-[#fcfaf6] text-[#0f172a]"
     }`}>
       
@@ -1482,7 +1610,7 @@ Report Generated: ${new Date().toLocaleDateString()}
       <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
         
         {/* MOBILE TOP HEADER BAR */}
-        <div className="sticky top-0 z-40 md:hidden flex items-center justify-between p-4 bg-white/90 dark:bg-[#09090d]/90 backdrop-blur-md border-b border-slate-200 dark:border-white/5 select-none shadow-md shrink-0">
+        <div className="sticky top-0 z-[49] md:hidden flex items-center justify-between p-4 bg-white/90 dark:bg-[#09090d]/90 backdrop-blur-md border-b border-slate-200 dark:border-white/5 select-none shadow-md shrink-0">
           <div className="flex items-center gap-2">
             <button
               onClick={() => setShowMobileNav(true)}
@@ -1605,15 +1733,44 @@ Report Generated: ${new Date().toLocaleDateString()}
                 >
                   {uploadingField === "Profile Image" ? "Uploading..." : "Upload Photo"}
                 </label>
-                {profileImageUrl && (
-                  <div className="flex items-center gap-3">
-                    <img src={profileImageUrl} className="w-10 h-10 object-cover rounded-full border border-[#781c1c]" alt="Preview" />
-                    <span className="text-green-400 text-xs font-bold flex items-center gap-1"><CheckCircle size={14} /> Uploaded</span>
-                  </div>
-                )}
+                {profileImageUrl && (() => {
+                  const imgDetails = parseImageAdjustments(profileImageUrl);
+                  return (
+                    <div className="flex items-center gap-3 flex-wrap">
+                      <div 
+                        className="w-10 h-10 rounded-full border border-[#781c1c] overflow-hidden flex items-center justify-center cursor-pointer"
+                        onClick={() => setShowPhotoPreviewModal(true)}
+                        title="Click to view full preview"
+                      >
+                        <img 
+                          src={imgDetails.src} 
+                          style={imgDetails.style} 
+                          className="w-full h-full" 
+                          alt="Preview" 
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        onClick={openPhotoAdjustModal}
+                        className="p-2 bg-slate-800 dark:bg-white/5 hover:bg-slate-700 dark:hover:bg-white/10 rounded-xl text-white text-[10px] font-semibold flex items-center gap-1 cursor-pointer transition border border-white/5"
+                        title="Adjust Photo position / zoom / rotation"
+                      >
+                        <Sliders size={12} /> Adjust
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setProfileImageUrl("")}
+                        className="p-2 bg-red-950/40 border border-red-500/20 hover:bg-red-950/70 rounded-xl text-red-400 text-[10px] font-semibold flex items-center gap-1 cursor-pointer transition"
+                        title="Delete profile image"
+                      >
+                        <Trash2 size={12} /> Delete
+                      </button>
+                    </div>
+                  );
+                })()}
               </div>
-            </div>            {/* Inputs */}
-            {successBanner?.section === "profile" && (
+            </div>            {/* Inputs */}
+            {successBanner?.section === "header" && (
               <div className="md:col-span-2 bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs p-3.5 rounded-xl mb-4 font-bold flex items-center gap-2">
                 <CheckCircle size={14} className="text-emerald-600" />
                 {successBanner.message}
@@ -1646,7 +1803,7 @@ Report Generated: ${new Date().toLocaleDateString()}
                 type="text"
                 disabled
                 value={course}
-                className="border rounded-xl px-4 py-3 text-sm outline-none bg-slate-100 border-slate-200 text-slate-450 cursor-not-allowed"
+                className="border rounded-xl px-4 py-3 text-sm outline-none bg-slate-100 border-slate-200 text-slate-455 cursor-not-allowed"
               />
             </div>
 
@@ -1697,7 +1854,7 @@ Report Generated: ${new Date().toLocaleDateString()}
                 placeholder="Email Address"
                 value={email}
                 disabled
-                className="border rounded-xl px-4 py-3 text-sm outline-none bg-slate-100 border-slate-200 text-slate-450 cursor-not-allowed"
+                className="border rounded-xl px-4 py-3 text-sm outline-none bg-slate-100 border-slate-200 text-slate-455 cursor-not-allowed"
               />
             </div>
 
@@ -1735,11 +1892,9 @@ Report Generated: ${new Date().toLocaleDateString()}
             </div>
           </div>
 
-
-
           <div className="mt-6 flex justify-end">
             <button
-              onClick={saveProfile}
+              onClick={saveHeaderSettings}
               className="bg-gradient-to-r from-[#781c1c] to-[#18233c] hover:opacity-90 text-white px-8 py-3 rounded-xl font-bold shadow-lg transition"
             >
               Save Header Settings
@@ -1757,7 +1912,7 @@ Report Generated: ${new Date().toLocaleDateString()}
             <FileText size={22} /> Section 2: About Section
           </h3>
 
-          {successBanner?.section === "profile" && (
+          {successBanner?.section === "about" && (
             <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs p-3.5 rounded-xl mb-4 font-bold flex items-center gap-2">
               <CheckCircle size={14} className="text-emerald-600" />
               {successBanner.message}
@@ -1819,7 +1974,7 @@ Report Generated: ${new Date().toLocaleDateString()}
 
           <div className="mt-6 flex justify-end">
             <button
-              onClick={saveProfile}
+              onClick={saveAboutSettings}
               className="bg-[#781c1c] hover:bg-[#5f1515] text-white px-6 py-2.5 rounded-xl font-bold transition"
             >
               Save About Section
@@ -1913,10 +2068,11 @@ Report Generated: ${new Date().toLocaleDateString()}
               </div>
 
               <div className="flex flex-col gap-1.5">
-                <label className="text-xs opacity-60 font-bold">Start Date *</label>
+                <label className="text-xs opacity-60 font-bold">Start Year *</label>
                 <input
-                  type="date"
+                  type="number"
                   required
+                  placeholder="e.g. 2023"
                   value={expStartDate}
                   onChange={(e) => setExpStartDate(e.target.value)}
                   className={`border rounded-xl px-4 py-3 text-sm outline-none transition ${
@@ -1926,9 +2082,10 @@ Report Generated: ${new Date().toLocaleDateString()}
               </div>
 
               <div className="flex flex-col gap-1.5">
-                <label className="text-xs opacity-60 font-bold">End Date</label>
+                <label className="text-xs opacity-60 font-bold">End Year</label>
                 <input
-                  type="date"
+                  type="number"
+                  placeholder="e.g. 2026"
                   value={expEndDate}
                   disabled={expIsCurrent}
                   onChange={(e) => setExpEndDate(e.target.value)}
@@ -2105,17 +2262,51 @@ Report Generated: ${new Date().toLocaleDateString()}
               </div>
 
               <div className="flex flex-col gap-1.5">
-                <label className="text-[10px] uppercase font-mono tracking-wider font-bold text-slate-500">Final CGPA or Percentage *</label>
+                <label className="text-[10px] uppercase font-mono tracking-wider font-bold text-slate-500">
+                  {academicDegreeType === "10th Marksheet" || academicDegreeType === "12th Marksheet"
+                    ? "Percentage *"
+                    : academicDegreeType === "UG Marksheet" || academicDegreeType === "PG Marksheet"
+                    ? "Final CGPA *"
+                    : "Final CGPA or Percentage *"}
+                </label>
                 <input
                   type="text"
                   required
-                  placeholder="e.g. 8.5 CGPA or 85%"
+                  placeholder={
+                    academicDegreeType === "10th Marksheet" || academicDegreeType === "12th Marksheet"
+                      ? "e.g. 95%"
+                      : academicDegreeType === "UG Marksheet" || academicDegreeType === "PG Marksheet"
+                      ? "e.g. 8.5"
+                      : academicDegreeType === "11th Marksheet"
+                      ? "e.g. 85% or All Pass"
+                      : "e.g. 8.5 CGPA or 85%"
+                  }
                   value={academicGrade}
                   onChange={(e) => setAcademicGrade(e.target.value)}
                   className={`border rounded-xl px-4 py-3 text-sm outline-none transition ${
                     themeMode === "dark" ? "bg-white/5 border-white/10 text-white" : "bg-white border-slate-200"
                   }`}
                 />
+                {academicDegreeType === "11th Marksheet" && (
+                  <div className="flex items-center gap-2 mt-1">
+                    <input
+                      type="checkbox"
+                      id="all-pass"
+                      checked={academicGrade === "All Pass"}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setAcademicGrade("All Pass");
+                        } else {
+                          setAcademicGrade("");
+                        }
+                      }}
+                      className="h-4 w-4 rounded border-slate-300 text-[#781c1c] focus:ring-[#781c1c] cursor-pointer"
+                    />
+                    <label htmlFor="all-pass" className="text-[11px] text-slate-500 font-bold select-none cursor-pointer">
+                      All Pass (COVID batch / special exemption)
+                    </label>
+                  </div>
+                )}
               </div>
 
               <div className="flex flex-col gap-1.5">
@@ -2272,10 +2463,11 @@ Report Generated: ${new Date().toLocaleDateString()}
               </div>
 
               <div className="flex flex-col gap-1.5">
-                <label className="text-xs opacity-60 font-bold">Achievement Date *</label>
+                <label className="text-xs opacity-60 font-bold">Achievement Year *</label>
                 <input
-                  type="date"
+                  type="number"
                   required
+                  placeholder="e.g. 2025"
                   value={achievementDate}
                   onChange={(e) => setAchievementDate(e.target.value)}
                   className={`border rounded-xl px-4 py-3 text-sm outline-none transition ${
@@ -2352,7 +2544,7 @@ Report Generated: ${new Date().toLocaleDateString()}
                       {ach.category}
                     </span>
                     <h4 className="font-bold text-base leading-tight">{ach.title}</h4>
-                    <p className="text-[10px] opacity-50 mt-1 font-semibold">{ach.achievementDate ? new Date(ach.achievementDate).toLocaleDateString() : ""}</p>
+                    <p className="text-[10px] opacity-50 mt-1 font-semibold">Year: {ach.achievementDate ? new Date(ach.achievementDate).getFullYear() : ""}</p>
                   </div>
                   
                   <div className="flex items-center gap-1 shrink-0">
@@ -2735,9 +2927,11 @@ Report Generated: ${new Date().toLocaleDateString()}
               </div>
 
               <div className="flex flex-col gap-1.5">
-                <label className="text-xs opacity-60 font-bold">Issue Date</label>
+                <label className="text-xs opacity-60 font-bold">Issue Year *</label>
                 <input
-                  type="date"
+                  type="number"
+                  placeholder="e.g. 2025"
+                  required
                   value={issueDate}
                   onChange={(e) => setIssueDate(e.target.value)}
                   className={`border rounded-xl px-4 py-3 text-sm outline-none transition ${
@@ -2800,7 +2994,7 @@ Report Generated: ${new Date().toLocaleDateString()}
                     </span>
                     <h4 className="font-bold text-base leading-tight">{cert.title}</h4>
                     <p className="text-xs opacity-75 mt-1">{cert.issuer}</p>
-                    <p className="text-[10px] opacity-50 mt-1 font-semibold">{cert.issueDate ? new Date(cert.issueDate).toLocaleDateString() : ""}</p>
+                    <p className="text-[10px] opacity-50 mt-1 font-semibold">Year: {cert.issueDate ? new Date(cert.issueDate).getFullYear() : ""}</p>
                   </div>
                   
                   <div className="flex items-center gap-1 shrink-0">
@@ -2827,6 +3021,13 @@ Report Generated: ${new Date().toLocaleDateString()}
           <h3 className="font-serif text-2xl font-black mb-4 flex items-center gap-2 text-[#18233c] border-b border-[#781c1c]/10 pb-3">
             <Globe size={22} /> Section 9: Languages known
           </h3>
+
+          {successBanner?.section === "languages" && (
+            <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs p-3.5 rounded-xl mb-4 font-bold flex items-center gap-2">
+              <CheckCircle size={14} className="text-emerald-600" />
+              {successBanner.message}
+            </div>
+          )}
 
           {/* Current Languages List */}
           <div className="mb-6">
@@ -2915,7 +3116,7 @@ Report Generated: ${new Date().toLocaleDateString()}
 
           <div className="mt-6 flex justify-end">
             <button
-              onClick={saveProfile}
+              onClick={saveLanguagesSettings}
               className="bg-[#781c1c] hover:bg-[#5f1515] text-white px-6 py-2.5 rounded-xl font-bold transition"
             >
               Save Languages
@@ -2932,6 +3133,13 @@ Report Generated: ${new Date().toLocaleDateString()}
           <h3 className="font-serif text-2xl font-black mb-4 flex items-center gap-2 text-[#18233c] border-b border-[#781c1c]/10 pb-3">
             <Award size={22} /> Section 10: Test Scores
           </h3>
+
+          {successBanner?.section === "testScores" && (
+            <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs p-3.5 rounded-xl mb-4 font-bold flex items-center gap-2">
+              <CheckCircle size={14} className="text-emerald-600" />
+              {successBanner.message}
+            </div>
+          )}
 
           <div className="flex flex-col gap-2">
             <label className="text-[10px] uppercase font-mono tracking-wider font-bold text-slate-500 mb-1.5 flex flex-col">
@@ -2952,7 +3160,7 @@ Report Generated: ${new Date().toLocaleDateString()}
 
           <div className="mt-6 flex justify-end">
             <button
-              onClick={saveProfile}
+              onClick={saveTestScoresSettings}
               className="bg-[#781c1c] hover:bg-[#5f1515] text-white px-6 py-2.5 rounded-xl font-bold transition"
             >
               Save Test Scores
@@ -2969,6 +3177,13 @@ Report Generated: ${new Date().toLocaleDateString()}
           <h3 className="font-serif text-2xl font-black mb-4 flex items-center gap-2 text-[#18233c] border-b border-[#781c1c]/10 pb-3">
             <FileText size={22} /> Section 11: Patents
           </h3>
+
+          {successBanner?.section === "patents" && (
+            <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs p-3.5 rounded-xl mb-4 font-bold flex items-center gap-2">
+              <CheckCircle size={14} className="text-emerald-600" />
+              {successBanner.message}
+            </div>
+          )}
 
           <div className="flex flex-col gap-2">
             <label className="text-[10px] uppercase font-mono tracking-wider font-bold text-slate-500 mb-1.5 flex flex-col">
@@ -2989,7 +3204,7 @@ Report Generated: ${new Date().toLocaleDateString()}
 
           <div className="mt-6 flex justify-end">
             <button
-              onClick={saveProfile}
+              onClick={savePatentsSettings}
               className="bg-[#781c1c] hover:bg-[#5f1515] text-white px-6 py-2.5 rounded-xl font-bold transition"
             >
               Save Patents
@@ -3006,6 +3221,13 @@ Report Generated: ${new Date().toLocaleDateString()}
           <h3 className="font-serif text-2xl font-black mb-4 flex items-center gap-2 text-[#18233c] border-b border-[#781c1c]/10 pb-3">
             <Link size={22} /> Section 12: Other Media handles
           </h3>
+
+          {successBanner?.section === "mediaHandles" && (
+            <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs p-3.5 rounded-xl mb-4 font-bold flex items-center gap-2">
+              <CheckCircle size={14} className="text-emerald-600" />
+              {successBanner.message}
+            </div>
+          )}
 
           <div className="grid md:grid-cols-2 gap-4">
             <div className="flex flex-col gap-2">
@@ -3050,7 +3272,7 @@ Report Generated: ${new Date().toLocaleDateString()}
 
           <div className="mt-6 flex justify-end">
             <button
-              onClick={saveProfile}
+              onClick={saveMediaHandlesSettings}
               className="bg-[#781c1c] hover:bg-[#5f1515] text-white px-6 py-2.5 rounded-xl font-bold transition"
             >
               Save Media Handles
@@ -3170,6 +3392,187 @@ Report Generated: ${new Date().toLocaleDateString()}
         </div>
 
 
+
+        {/* Photo Adjustment Modal */}
+        {showPhotoAdjustModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fadeIn">
+            <div className={`w-full max-w-md rounded-3xl p-6 shadow-2xl transition-all border ${
+              themeMode === "dark" ? "bg-[#0f172a] border-white/10 text-white" : "bg-white border-slate-200 text-slate-800"
+            }`}>
+              <div className="flex justify-between items-center mb-6 border-b pb-3 border-slate-200/10">
+                <h4 className="font-serif text-xl font-bold flex items-center gap-2">
+                  <Sliders size={20} className="text-[#781c1c]" /> Adjust Profile Photo
+                </h4>
+                <button 
+                  onClick={() => setShowPhotoAdjustModal(false)}
+                  className="p-1.5 rounded-lg hover:bg-slate-200/20 text-slate-455 transition cursor-pointer"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              {/* Preview Circle */}
+              <div className="flex justify-center mb-6">
+                <div className="w-32 h-32 rounded-full border-2 border-[#781c1c] overflow-hidden flex items-center justify-center bg-slate-800">
+                  <img
+                    src={profileImageUrl.split("?")[0]}
+                    style={{
+                      transform: `scale(${adjustScale}) rotate(${adjustRotate}deg)`,
+                      objectPosition: `${adjustPosX}% ${adjustPosY}%`,
+                      objectFit: adjustFit as any
+                    }}
+                    className="w-full h-full"
+                    alt="Adjust Preview"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                {/* Scale / Zoom */}
+                <div className="flex flex-col gap-1.5">
+                  <div className="flex justify-between text-xs font-semibold">
+                    <span className="text-slate-455">Zoom / Scale</span>
+                    <span>{adjustScale.toFixed(1)}x</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="1"
+                    max="3"
+                    step="0.1"
+                    value={adjustScale}
+                    onChange={(e) => setAdjustScale(parseFloat(e.target.value))}
+                    className="w-full h-1.5 bg-slate-200 dark:bg-white/10 rounded-lg appearance-none cursor-pointer accent-[#781c1c]"
+                  />
+                </div>
+
+                {/* Rotation */}
+                <div className="flex flex-col gap-1.5">
+                  <div className="flex justify-between text-xs font-semibold">
+                    <span className="text-slate-455">Rotate</span>
+                    <span>{adjustRotate}°</span>
+                  </div>
+                  <div className="flex gap-2">
+                    {[0, 90, 180, 270].map((deg) => (
+                      <button
+                        key={deg}
+                        type="button"
+                        onClick={() => setAdjustRotate(deg)}
+                        className={`flex-1 py-1.5 text-xs font-bold rounded-lg border transition cursor-pointer ${
+                          adjustRotate === deg
+                            ? "bg-[#781c1c] text-white border-[#781c1c]"
+                            : "bg-transparent border-slate-200/20 text-slate-455 hover:bg-slate-200/10"
+                        }`}
+                      >
+                        {deg}°
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* X Position */}
+                <div className="flex flex-col gap-1.5">
+                  <div className="flex justify-between text-xs font-semibold">
+                    <span className="text-slate-455">Horizontal Align</span>
+                    <span>{adjustPosX}%</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="0"
+                    max="100"
+                    step="1"
+                    value={adjustPosX}
+                    onChange={(e) => setAdjustPosX(parseInt(e.target.value, 10))}
+                    className="w-full h-1.5 bg-slate-200 dark:bg-white/10 rounded-lg appearance-none cursor-pointer accent-[#781c1c]"
+                  />
+                </div>
+
+                {/* Y Position */}
+                <div className="flex flex-col gap-1.5">
+                  <div className="flex justify-between text-xs font-semibold">
+                    <span className="text-slate-455">Vertical Align</span>
+                    <span>{adjustPosY}%</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="0"
+                    max="100"
+                    step="1"
+                    value={adjustPosY}
+                    onChange={(e) => setAdjustPosY(parseInt(e.target.value, 10))}
+                    className="w-full h-1.5 bg-slate-200 dark:bg-white/10 rounded-lg appearance-none cursor-pointer accent-[#781c1c]"
+                  />
+                </div>
+
+                {/* Fit Option */}
+                <div className="flex flex-col gap-1.5">
+                  <span className="text-xs font-semibold text-slate-455">Fit Type</span>
+                  <div className="flex gap-2">
+                    {["cover", "contain"].map((f) => (
+                      <button
+                        key={f}
+                        type="button"
+                        onClick={() => setAdjustFit(f)}
+                        className={`flex-1 py-1.5 text-xs font-bold rounded-lg border transition cursor-pointer capitalize ${
+                          adjustFit === f
+                            ? "bg-[#781c1c] text-white border-[#781c1c]"
+                            : "bg-transparent border-slate-200/20 text-slate-455 hover:bg-slate-200/10"
+                        }`}
+                      >
+                        {f}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex gap-3 mt-8">
+                <button
+                  type="button"
+                  onClick={() => setShowPhotoAdjustModal(false)}
+                  className="flex-1 py-2.5 border border-slate-200/20 rounded-xl text-slate-455 font-bold text-sm cursor-pointer hover:bg-slate-200/10 transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={applyPhotoAdjustments}
+                  className="flex-1 py-2.5 bg-[#781c1c] hover:bg-[#5f1515] text-white font-bold text-sm rounded-xl cursor-pointer shadow-lg transition"
+                >
+                  Apply Settings
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Photo Preview Modal */}
+        {showPhotoPreviewModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-xs animate-fadeIn">
+            <div className="relative w-full max-w-lg rounded-3xl overflow-hidden bg-slate-900 border border-white/10 p-6 flex flex-col items-center">
+              <button
+                onClick={() => setShowPhotoPreviewModal(false)}
+                className="absolute top-4 right-4 p-2 rounded-full bg-slate-800 hover:bg-slate-700 text-white transition cursor-pointer"
+                title="Close preview"
+              >
+                <X size={18} />
+              </button>
+              <h4 className="text-white font-serif text-lg font-bold mb-4 font-bold">Photo Preview</h4>
+              <div className="w-80 h-80 rounded-full border-4 border-[#781c1c] overflow-hidden flex items-center justify-center bg-slate-950 shadow-2xl">
+                {(() => {
+                  const imgDetails = parseImageAdjustments(profileImageUrl);
+                  return (
+                    <img
+                      src={imgDetails.src}
+                      style={imgDetails.style}
+                      className="w-full h-full animate-scaleUp"
+                      alt="Large Preview"
+                    />
+                  );
+                })()}
+              </div>
+            </div>
+          </div>
+        )}
 
         </div>
       </div>

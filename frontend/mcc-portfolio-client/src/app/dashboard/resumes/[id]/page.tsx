@@ -27,10 +27,12 @@ import {
   Link as LinkIcon,
   ZoomIn,
   ZoomOut,
-  Maximize2
+  Maximize2,
+  Download
 } from "lucide-react";
 import api from "@/services/api";
 import { useTheme } from "@/hooks/useTheme";
+import { parseImageAdjustments } from "@/utils/image";
 
 export default function ResumeEditorPage() {
   const { id } = useParams();
@@ -42,6 +44,7 @@ export default function ResumeEditorPage() {
   const [saving, setSaving] = useState(false);
   const [showSyncModal, setShowSyncModal] = useState(false);
   const [mobileTab, setMobileTab] = useState<"edit" | "preview">("edit");
+  const [showPreviewModal, setShowPreviewModal] = useState(false);
 
   useEffect(() => {
     const handleResize = () => {
@@ -125,6 +128,34 @@ export default function ResumeEditorPage() {
       // Parse or initialize resume JSON data
       if (resume.resumeDataJson && resume.resumeDataJson !== "{}" && resume.resumeDataJson.trim() !== "") {
         const parsed = JSON.parse(resume.resumeDataJson);
+        if (parsed.personalInfo) {
+          parsed.personalInfo.behance = parsed.personalInfo.behance || "";
+          parsed.personalInfo.instagram = parsed.personalInfo.instagram || "";
+        }
+        // Ensure all 5 items exist in mediaHandles
+        if (parsed.mediaHandles) {
+          if (!parsed.mediaHandles.items) {
+            parsed.mediaHandles.items = [];
+          }
+          const platforms = ["LinkedIn", "GitHub", "Behance", "Instagram", "Portfolio"];
+          platforms.forEach((platform) => {
+            const exists = parsed.mediaHandles.items.some((item: any) => item.platform === platform);
+            if (!exists) {
+              let url = "";
+              if (platform === "LinkedIn") url = parsed.personalInfo.linkedin || "";
+              else if (platform === "GitHub") url = parsed.personalInfo.github || "";
+              else if (platform === "Portfolio") url = parsed.personalInfo.portfolio || "";
+              else if (platform === "Behance") url = parsed.personalInfo.behance || "";
+              else if (platform === "Instagram") url = parsed.personalInfo.instagram || "";
+              
+              parsed.mediaHandles.items.push({
+                platform,
+                url,
+                visible: !!url
+              });
+            }
+          });
+        }
         setResumeData(parsed);
         if (parsed.headings) setHeadings(parsed.headings);
         if (parsed.sectionOrder) setSectionOrder(parsed.sectionOrder);
@@ -243,6 +274,8 @@ export default function ResumeEditorPage() {
         linkedin: prof.linkedInUrl || "",
         github: prof.gitHubUrl || "",
         portfolio: prof.blogUrl || "",
+        behance: prof.behanceUrl || "",
+        instagram: prof.instagramUrl || "",
         profileImageUrl: prof.profileImageUrl || "",
         showPhoto: true
       },
@@ -252,15 +285,26 @@ export default function ResumeEditorPage() {
       },
       experience: {
         visible: true,
-        items: portfolio.experiences.map((exp: any) => ({
-          id: exp.id,
-          company: exp.company,
-          role: exp.title,
-          duration: `${exp.startDate ? new Date(exp.startDate).toLocaleDateString("en-US", { year: "numeric", month: "short" }) : ""} - ${exp.isCurrent ? "Present" : exp.endDate ? new Date(exp.endDate).toLocaleDateString("en-US", { year: "numeric", month: "short" }) : ""}`,
-          responsibilities: exp.description || "",
-          technologies: exp.category || "", // Using Category field as placeholder for technologies
-          visible: true
-        }))
+        items: portfolio.experiences.map((exp: any) => {
+          const formatResumeYear = (val: string) => {
+            if (!val) return "";
+            if (/^\d{4}$/.test(val)) return val;
+            const d = new Date(val);
+            if (!isNaN(d.getTime())) {
+              return d.toLocaleDateString("en-US", { year: "numeric", month: "short" });
+            }
+            return val;
+          };
+          return {
+            id: exp.id,
+            company: exp.company,
+            role: exp.title,
+            duration: `${formatResumeYear(exp.startDate)} - ${exp.isCurrent ? "Present" : formatResumeYear(exp.endDate)}`,
+            responsibilities: exp.description || "",
+            technologies: exp.category || "", // Using Category field as placeholder for technologies
+            visible: true
+          };
+        })
       },
       education: {
         visible: true,
@@ -307,7 +351,7 @@ export default function ResumeEditorPage() {
           id: cert.id,
           name: cert.title,
           issuer: cert.issuer,
-          date: cert.issueDate ? new Date(cert.issueDate).toLocaleDateString("en-US", { year: "numeric", month: "short" }) : "",
+          date: cert.issueDate ? new Date(cert.issueDate).getFullYear().toString() : "",
           visible: true
         }))
       },
@@ -316,7 +360,7 @@ export default function ResumeEditorPage() {
         items: portfolio.achievements.map((ach: any) => ({
           id: ach.id,
           title: ach.title,
-          date: ach.achievementDate ? new Date(ach.achievementDate).toLocaleDateString("en-US", { year: "numeric", month: "short" }) : "",
+          date: ach.achievementDate ? new Date(ach.achievementDate).getFullYear().toString() : "",
           description: ach.description || "",
           visible: true
         }))
@@ -344,12 +388,12 @@ export default function ResumeEditorPage() {
       mediaHandles: {
         visible: true,
         items: [
-          { platform: "LinkedIn", url: prof.linkedInUrl, visible: !!prof.linkedInUrl },
-          { platform: "GitHub", url: prof.gitHubUrl, visible: !!prof.gitHubUrl },
-          { platform: "Behance", url: prof.behanceUrl, visible: !!prof.behanceUrl },
-          { platform: "Instagram", url: prof.instagramUrl, visible: !!prof.instagramUrl },
-          { platform: "Portfolio", url: prof.blogUrl, visible: !!prof.blogUrl }
-        ].filter(item => item.url)
+          { platform: "LinkedIn", url: prof.linkedInUrl || "", visible: !!prof.linkedInUrl },
+          { platform: "GitHub", url: prof.gitHubUrl || "", visible: !!prof.gitHubUrl },
+          { platform: "Behance", url: prof.behanceUrl || "", visible: !!prof.behanceUrl },
+          { platform: "Instagram", url: prof.instagramUrl || "", visible: !!prof.instagramUrl },
+          { platform: "Portfolio", url: prof.blogUrl || "", visible: !!prof.blogUrl }
+        ]
       }
     };
   };
@@ -465,12 +509,31 @@ export default function ResumeEditorPage() {
 
   // Edit fields dynamically
   const updatePersonalInfo = (field: string, val: any) => {
+    const updatedPInfo = {
+      ...resumeData.personalInfo,
+      [field]: val
+    };
+
+    let updatedMediaHandles = { ...resumeData.mediaHandles };
+    if (updatedMediaHandles.items) {
+      updatedMediaHandles.items = updatedMediaHandles.items.map((item: any) => {
+        if (
+          (field === "linkedin" && item.platform === "LinkedIn") ||
+          (field === "github" && item.platform === "GitHub") ||
+          (field === "portfolio" && item.platform === "Portfolio") ||
+          (field === "behance" && item.platform === "Behance") ||
+          (field === "instagram" && item.platform === "Instagram")
+        ) {
+          return { ...item, url: val };
+        }
+        return item;
+      });
+    }
+
     setResumeData({
       ...resumeData,
-      personalInfo: {
-        ...resumeData.personalInfo,
-        [field]: val
-      }
+      personalInfo: updatedPInfo,
+      mediaHandles: updatedMediaHandles
     });
   };
 
@@ -484,67 +547,862 @@ export default function ResumeEditorPage() {
     });
   };
 
-  // Print function matching preview exactly
+  // Print function matching preview exactly (Optimized inline print to prevent mobile popup-blocker issues)
   const handlePrint = () => {
     const printContent = document.getElementById("resume-preview-container");
     if (!printContent) return;
 
-    const printWindow = window.open("", "_blank");
-    if (!printWindow) {
-      alert("Please allow popups to export your resume PDF.");
-      return;
-    }
+    // Create a style element for print page styling
+    const styleEl = document.createElement("style");
+    styleEl.innerHTML = `
+      @media print {
+        html, body {
+          height: auto !important;
+          overflow: visible !important;
+          margin: 0 !important;
+          padding: 0 !important;
+          -webkit-print-color-adjust: exact !important;
+          print-color-adjust: exact !important;
+        }
+        body > *:not(#print-temp-container) {
+          display: none !important;
+        }
+        #print-temp-container {
+          display: block !important;
+          width: 794px !important;
+          height: 1123px !important;
+          margin: 0 auto !important;
+          padding: 0 !important;
+          background: white !important;
+          color: black !important;
+          position: absolute !important;
+          left: 0 !important;
+          top: 0 !important;
+        }
+        @page {
+          size: A4;
+          margin: 0;
+        }
+        .print-avoid-break {
+          page-break-inside: avoid;
+        }
+      }
+      #print-temp-container {
+        display: none;
+      }
+    `;
+    document.head.appendChild(styleEl);
 
-    // Capture styling tags to inject in print window
-    const styles = Array.from(document.querySelectorAll("style, link[rel='stylesheet']"))
-      .map((el) => el.outerHTML)
-      .join("\n");
+    // Create temporary container
+    const tempContainer = document.createElement("div");
+    tempContainer.id = "print-temp-container";
+    tempContainer.innerHTML = printContent.innerHTML;
+    tempContainer.className = printContent.className;
+    
+    // Reset background and box-shadow for paper print
+    tempContainer.style.boxShadow = "none";
+    tempContainer.style.border = "none";
+    tempContainer.style.backgroundColor = "white";
 
-    printWindow.document.write(`
-      <html>
-        <head>
-          <base href="${window.location.origin}" />
-          <title>${resumeTitle}</title>
-          ${styles}
-          <style>
-            body {
-              background: white !important;
-              color: black !important;
-              margin: 0 !important;
-              padding: 0 !important;
-            }
-            @page {
-              size: A4;
-              margin: 1.2cm 1.5cm;
-            }
-            .resume-preview-wrapper {
-              box-shadow: none !important;
-              border: none !important;
-              width: 100% !important;
-              max-width: 100% !important;
-              margin: 0 !important;
-              padding: 0 !important;
-            }
-            /* Avoid breaking elements midway */
-            .print-avoid-break {
-              page-break-inside: avoid;
-            }
-          </style>
-        </head>
-        <body>
-          <div class="resume-preview-wrapper">
-            ${printContent.innerHTML}
+    document.body.appendChild(tempContainer);
+
+    // Short timeout to let layout settle, then print
+    setTimeout(() => {
+      window.print();
+      // Cleanup
+      if (document.body.contains(tempContainer)) {
+        document.body.removeChild(tempContainer);
+      }
+      if (document.head.contains(styleEl)) {
+        document.head.removeChild(styleEl);
+      }
+    }, 150);
+  };
+
+  const renderResumeDocument = (isModal = false) => {
+    const pInfo = resumeData.personalInfo;
+    return (
+      <div
+        id={isModal ? "resume-preview-container-modal" : "resume-preview-container"}
+        className={`w-[794px] min-h-[1123px] bg-white text-slate-800 shadow-2xl rounded-sm font-sans flex flex-col justify-between ${
+          selectedTheme === "Professional" ? "p-0" : "p-12"
+        }`}
+        style={{ fontFamily: "'Inter', sans-serif" }}
+      >
+        {/* RENDER SELECTED THEMES */}
+        {selectedTheme === "Professional" && (
+          <div className="flex flex-col h-full flex-1 text-left">
+            
+            {/* Top Header Banner (Richard Sanchez style) */}
+            <div
+              className="p-8 text-white relative flex flex-col justify-end shrink-0"
+              style={{ backgroundColor: accentColor, height: "140px" }}
+            >
+              <div className={pInfo.showPhoto && pInfo.profileImageUrl ? "pl-40" : ""}>
+                <h2 className="font-sans font-black text-2xl tracking-wide uppercase leading-none text-white">
+                  {pInfo.fullName || "Your Name"}
+                </h2>
+                <p className="text-[10px] uppercase font-mono tracking-wider font-bold opacity-85 mt-2">
+                  {pInfo.title || "Headline Title"}
+                </p>
+              </div>
+            </div>
+
+            {/* Split body area */}
+            <div className="flex flex-1 min-h-0">
+              
+              {/* Left column sidebar (light gray tinted background) */}
+              <div className="w-[240px] bg-slate-100 p-6 flex flex-col gap-6 shrink-0 relative">
+                
+                {/* Overlapping profile photo */}
+                 {pInfo.showPhoto && pInfo.profileImageUrl && (() => {
+                   const imgDetails = parseImageAdjustments(pInfo.profileImageUrl);
+                   return (
+                     <div className="w-32 h-32 rounded-full border-4 border-white shadow-md -mt-24 overflow-hidden mx-auto mb-2 shrink-0 bg-white flex items-center justify-center">
+                       <img 
+                         src={imgDetails.src} 
+                         style={imgDetails.style} 
+                         alt={pInfo.fullName} 
+                         className="w-full h-full" 
+                       />
+                     </div>
+                   );
+                 })()}
+
+                {/* Contact Details */}
+                <div className="space-y-3">
+                  <h4 className="font-sans text-[10px] uppercase tracking-wider font-bold border-b-2 pb-1 text-slate-800" style={{ borderColor: accentColor }}>
+                    Contact
+                  </h4>
+                  <div className="space-y-2 text-[10px] text-slate-600 font-semibold">
+                    {pInfo.phone && <div className="flex items-center gap-1.5"><span>Phone:</span> {pInfo.phone}</div>}
+                    {pInfo.email && <div className="flex items-center gap-1.5 break-all"><span>Email:</span> {pInfo.email}</div>}
+                    {pInfo.address && <div className="flex items-center gap-1.5"><span>Address:</span> {pInfo.address}</div>}
+                    {pInfo.portfolio && (
+                      <div className="flex items-center gap-1.5 truncate">
+                        <span>Web:</span>
+                        <a href={pInfo.portfolio} target="_blank" rel="noreferrer" className="underline">{pInfo.portfolio}</a>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Skills list (Simple comma or item bullets) */}
+                {resumeData.skills?.visible && resumeData.skills?.items?.some((i: any) => i.visible) && (
+                  <div className="space-y-3">
+                    <h4 className="font-sans text-[10px] uppercase tracking-wider font-bold border-b-2 pb-1 text-slate-800" style={{ borderColor: accentColor }}>
+                      Skills
+                    </h4>
+                    <ul className="space-y-1.5 text-[10px] text-slate-600 font-semibold list-disc pl-4">
+                      {resumeData.skills.items.filter((i: any) => i.visible).map((skill: any) => (
+                        <li key={skill.id}>
+                          {skill.name} <span className="font-normal opacity-70">({skill.level})</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                {/* Languages */}
+                {resumeData.languages?.visible && resumeData.languages?.items?.some((l: any) => l.visible) && (
+                  <div className="space-y-3">
+                    <h4 className="font-sans text-[10px] uppercase tracking-wider font-bold border-b-2 pb-1 text-slate-800" style={{ borderColor: accentColor }}>
+                      Languages
+                    </h4>
+                    <ul className="space-y-1.5 text-[10px] text-slate-600 font-semibold list-disc pl-4">
+                      {resumeData.languages.items.filter((l: any) => l.visible).map((l: any) => (
+                        <li key={l.name}>
+                          {l.name} <span className="font-normal opacity-70">({l.level})</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                {/* Other Social handles */}
+                {resumeData.mediaHandles?.visible && resumeData.mediaHandles?.items?.some((h: any) => h.visible && h.url) && (
+                  <div className="space-y-3">
+                    <h4 className="font-sans text-[10px] uppercase tracking-wider font-bold border-b-2 pb-1 text-slate-800" style={{ borderColor: accentColor }}>
+                      Socials
+                    </h4>
+                    <div className="space-y-1.5 text-[10px] text-slate-600">
+                      {resumeData.mediaHandles.items.filter((h: any) => h.visible && h.url).map((h: any) => (
+                        <div key={h.platform} className="truncate flex items-center gap-1">
+                          <strong className="font-semibold">{h.platform}:</strong>
+                          <a href={h.url} target="_blank" rel="noreferrer" className="underline opacity-80">{h.url}</a>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Right column details (White background with vertical timeline) */}
+              <div className="flex-1 p-8 pl-10 relative space-y-6 bg-white">
+                
+                {/* Timeline line */}
+                <div className="absolute left-[26px] top-8 bottom-8 w-[1.5px] bg-slate-200" />
+
+                {sectionOrder.map((section) => {
+                  const secData = resumeData[section];
+                  if (!secData || !secData.visible) return null;
+
+                  // Skip sidebar sections for Professional theme right column
+                  if (["skills", "languages", "mediaHandles"].includes(section)) return null;
+
+                  // Check section content visibility
+                  let hasVisibleItems = false;
+                  if (section === "summary" && secData.content) hasVisibleItems = true;
+                  else if (secData.items && secData.items.some((i: any) => i.visible)) hasVisibleItems = true;
+
+                  if (!hasVisibleItems) return null;
+
+                  return (
+                    <div key={section} className="relative pl-7 space-y-3 print-avoid-break">
+                      
+                      {/* Circular Icon Timeline Node */}
+                      <div
+                        className="absolute left-[-25px] top-[-1px] w-6 h-6 rounded-full bg-white border-2 flex items-center justify-center z-20"
+                        style={{ borderColor: accentColor, color: accentColor }}
+                      >
+                        {section === "summary" && <User size={10} strokeWidth={2.5} />}
+                        {section === "experience" && <Briefcase size={10} strokeWidth={2.5} />}
+                        {section === "education" && <Award size={10} strokeWidth={2.5} />}
+                        {section === "projects" && <GitBranch size={10} strokeWidth={2.5} />}
+                        {section === "testScores" && <Award size={10} strokeWidth={2.5} />}
+                        {section === "certifications" && <Award size={10} strokeWidth={2.5} />}
+                        {section === "achievements" && <Trophy size={10} strokeWidth={2.5} />}
+                        {section === "patents" && <FileText size={10} strokeWidth={2.5} />}
+                      </div>
+
+                      {/* Section Title */}
+                      <h3 className="font-sans font-black text-xs uppercase tracking-wider text-slate-800 leading-none">
+                        {headings[section]}
+                      </h3>
+
+                      {/* Section content */}
+                      {section === "summary" && (
+                        <p className="text-xs text-slate-600 leading-relaxed whitespace-pre-wrap">{secData.content}</p>
+                      )}
+
+                      {section === "experience" && (
+                        <div className="space-y-3">
+                          {secData.items.filter((i: any) => i.visible).map((item: any) => (
+                            <div key={item.id} className="relative space-y-1">
+                              {/* Bullet point centered on timeline */}
+                              <div className="absolute left-[-45px] top-1.5 w-2 h-2 rounded-full border-2 border-white bg-slate-400 z-10" />
+                              
+                              <div className="flex justify-between font-semibold text-xs text-slate-800 leading-snug">
+                                <span>{item.role}</span>
+                                <span className="text-slate-500 font-mono text-[9px]">{item.duration}</span>
+                              </div>
+                              <div className="text-[10px] text-slate-500 font-semibold">{item.company}</div>
+                              <p className="text-xs text-slate-600 mt-1 whitespace-pre-wrap leading-relaxed">{item.responsibilities}</p>
+                              {item.technologies && (
+                                <div className="text-[9px] font-mono text-slate-500">
+                                  <strong>Technologies:</strong> {item.technologies}
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {section === "education" && (
+                        <div className="space-y-3">
+                          {secData.items.filter((i: any) => i.visible).map((item: any) => (
+                            <div key={item.id} className="relative space-y-0.5">
+                              {/* Bullet point centered on timeline */}
+                              <div className="absolute left-[-45px] top-1.5 w-2 h-2 rounded-full border-2 border-white bg-slate-400 z-10" />
+
+                              <div className="flex justify-between font-semibold text-xs text-slate-800">
+                                <span>{item.degree}</span>
+                                <span className="text-slate-500 font-mono text-[9px]">{item.duration}</span>
+                              </div>
+                              <div className="text-[10px] text-slate-500 font-semibold">{item.institution}</div>
+                              {item.grade && <div className="text-[10px] font-mono text-slate-600 font-bold">Grade / CGPA: {item.grade}</div>}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {section === "projects" && (
+                        <div className="space-y-3">
+                          {secData.items.filter((i: any) => i.visible).map((item: any) => (
+                            <div key={item.id} className="relative space-y-1">
+                              {/* Bullet point centered on timeline */}
+                              <div className="absolute left-[-45px] top-1.5 w-2 h-2 rounded-full border-2 border-white bg-slate-400 z-10" />
+
+                              <div className="flex justify-between font-semibold text-xs text-slate-800">
+                                <span>{item.name}</span>
+                                <div className="flex gap-2">
+                                  {item.github && <a href={item.github} className="text-slate-500 underline text-[9px]">GitHub</a>}
+                                  {item.live && <a href={item.live} className="text-slate-500 underline text-[9px]">Demo</a>}
+                                </div>
+                              </div>
+                              <p className="text-xs text-slate-600 leading-relaxed">{item.description}</p>
+                              {item.technologies && (
+                                <div className="text-[9px] font-mono text-slate-500">
+                                  <strong>Technologies Used:</strong> {item.technologies}
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {section === "testScores" && (
+                        <div className="grid grid-cols-2 gap-3">
+                          {secData.items.filter((i: any) => i.visible).map((item: any) => (
+                            <div
+                              key={item.id}
+                              className={`p-2 rounded border text-xs relative ${
+                                item.highlighted
+                                  ? "bg-[#781c1c]/5 border-[#781c1c]/20"
+                                  : "bg-slate-50 border-slate-150"
+                              }`}
+                            >
+                              <strong className="block text-slate-800">{item.title}</strong>
+                              <span className="block font-mono font-bold text-[#781c1c] text-[10px] mt-0.5">{item.score}</span>
+                              {item.institution && <span className="block text-[9px] text-slate-500 mt-0.5">{item.institution}</span>}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {section === "certifications" && (
+                        <div className="space-y-1">
+                          {secData.items.filter((i: any) => i.visible).map((cert: any) => (
+                            <div key={cert.id} className="relative flex justify-between text-xs text-slate-700">
+                              {/* Bullet point centered on timeline */}
+                              <div className="absolute left-[-45px] top-1.5 w-2 h-2 rounded-full border-2 border-white bg-slate-400 z-10" />
+                              <span><strong>{cert.name}</strong> <span className="text-slate-500">by {cert.issuer}</span></span>
+                              <span className="text-slate-400 font-mono text-[9px]">{cert.date}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {section === "achievements" && (
+                        <div className="space-y-1.5 text-xs text-slate-600">
+                          {secData.items.filter((i: any) => i.visible).map((ach: any) => (
+                            <div key={ach.id} className="relative pl-1">
+                              {/* Bullet point centered on timeline */}
+                              <div className="absolute left-[-45px] top-1.5 w-2 h-2 rounded-full border-2 border-white bg-slate-400 z-10" />
+                              <strong>{ach.title}</strong> {ach.date && `(${ach.date})`}
+                              {ach.description && <p className="text-[10px] pl-3 text-slate-500 mt-0.5">{ach.description}</p>}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {section === "patents" && (
+                        <div className="space-y-1.5 text-xs text-slate-650">
+                          {secData.items.filter((i: any) => i.visible).map((pat: any) => (
+                            <div key={pat.id} className="relative pl-1">
+                              {/* Bullet point centered on timeline */}
+                              <div className="absolute left-[-45px] top-1.5 w-2 h-2 rounded-full border-2 border-white bg-slate-400 z-10" />
+                              <strong>{pat.title}</strong> (No: {pat.number})
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
           </div>
-          <script>
-            setTimeout(function() {
-              window.print();
-              setTimeout(function() { window.close(); }, 500);
-            }, 500);
-          </script>
-        </body>
-      </html>
-    `);
-    printWindow.document.close();
+        )}
+
+        {/* RENDER THEME 2: CLASSIC ATS (ONE COLUMN SIMPLIFIED) */}
+        {selectedTheme === "Classic ATS" && (
+          <div className="space-y-6 h-full flex-1">
+            
+            {/* Name and titles */}
+            <div className="text-center space-y-1.5 border-b pb-4 border-black">
+              <h2 className="font-bold text-2xl uppercase tracking-tight text-black leading-none">
+                {pInfo.fullName || "Your Name"}
+              </h2>
+              <p className="text-xs font-semibold text-slate-700">{pInfo.title}</p>
+              <div className="flex flex-wrap justify-center gap-x-3 gap-y-1 text-xs text-slate-600">
+                {pInfo.email && <span>Email: {pInfo.email}</span>}
+                {pInfo.phone && <span>Phone: {pInfo.phone}</span>}
+                {pInfo.address && <span>Address: {pInfo.address}</span>}
+              </div>
+              <div className="flex flex-wrap justify-center gap-x-3 text-[10px] text-slate-500 font-mono">
+                {resumeData.mediaHandles?.items?.filter((h: any) => h.visible && h.url).map((h: any) => (
+                  <span key={h.platform}>{h.platform}: {h.url}</span>
+                ))}
+              </div>
+            </div>
+
+            {sectionOrder.map((section) => {
+              const secData = resumeData[section];
+              if (!secData || !secData.visible) return null;
+
+              // Social handles already printed in header
+              if (section === "mediaHandles") return null;
+
+              if (section === "summary" && secData.content) {
+                return (
+                  <div key={section} className="space-y-1 print-avoid-break">
+                    <h3 className="font-bold text-xs uppercase tracking-wider border-b border-black pb-0.5 text-black">
+                      {headings.summary}
+                    </h3>
+                    <p className="text-xs text-slate-700 leading-relaxed whitespace-pre-wrap">{secData.content}</p>
+                  </div>
+                );
+              }
+
+              if (section === "experience" && secData.items.some((i: any) => i.visible)) {
+                return (
+                  <div key={section} className="space-y-2 print-avoid-break">
+                    <h3 className="font-bold text-xs uppercase tracking-wider border-b border-black pb-0.5 text-black">
+                      {headings.experience}
+                    </h3>
+                    <div className="space-y-3">
+                      {secData.items.filter((i: any) => i.visible).map((item: any) => (
+                        <div key={item.id} className="space-y-0.5">
+                          <div className="flex justify-between font-bold text-xs text-black">
+                            <span>{item.role} — {item.company}</span>
+                            <span>{item.duration}</span>
+                          </div>
+                          <p className="text-xs text-slate-700 whitespace-pre-wrap leading-relaxed">{item.responsibilities}</p>
+                          {item.technologies && (
+                            <div className="text-[9px] font-mono text-slate-500 mt-0.5">
+                              Technologies: {item.technologies}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              }
+
+              if (section === "education" && secData.items.some((i: any) => i.visible)) {
+                return (
+                  <div key={section} className="space-y-2 print-avoid-break">
+                    <h3 className="font-bold text-xs uppercase tracking-wider border-b border-black pb-0.5 text-black">
+                      {headings.education}
+                    </h3>
+                    <div className="space-y-2">
+                      {secData.items.filter((i: any) => i.visible).map((item: any) => (
+                        <div key={item.id} className="flex justify-between text-xs">
+                          <div>
+                            <strong className="text-black">{item.degree}</strong> · {item.institution}
+                            {item.grade && <span className="text-slate-600 block text-[10px]">Result: {item.grade}</span>}
+                          </div>
+                          <span className="font-medium text-slate-600">{item.duration}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              }
+
+              if (section === "projects" && secData.items.some((i: any) => i.visible)) {
+                return (
+                  <div key={section} className="space-y-2 print-avoid-break">
+                    <h3 className="font-bold text-xs uppercase tracking-wider border-b border-black pb-0.5 text-black">
+                      {headings.projects}
+                    </h3>
+                    <div className="space-y-2">
+                      {secData.items.filter((i: any) => i.visible).map((item: any) => (
+                        <div key={item.id} className="space-y-0.5">
+                          <div className="flex justify-between text-xs text-black font-bold">
+                            <span>{item.name}</span>
+                            <span className="font-normal text-slate-500 text-[10px]">{item.github || item.live}</span>
+                          </div>
+                          <p className="text-xs text-slate-700 leading-relaxed">{item.description}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              }
+
+              if (section === "skills" && secData.items.some((i: any) => i.visible)) {
+                const grouped = secData.items.filter((i: any) => i.visible).map((s: any) => s.name).join(", ");
+                return (
+                  <div key={section} className="space-y-1 print-avoid-break">
+                    <h3 className="font-bold text-xs uppercase tracking-wider border-b border-black pb-0.5 text-black">
+                      {headings.skills}
+                    </h3>
+                    <p className="text-xs text-slate-700">{grouped}</p>
+                  </div>
+                );
+              }
+
+              if (section === "testScores" && secData.items.some((i: any) => i.visible)) {
+                return (
+                  <div key={section} className="space-y-2 print-avoid-break">
+                    <h3 className="font-bold text-xs uppercase tracking-wider border-b border-black pb-0.5 text-black">
+                      {headings.testScores}
+                    </h3>
+                    <div className="space-y-1.5 text-xs text-slate-700">
+                      {secData.items.filter((i: any) => i.visible).map((item: any) => (
+                        <div key={item.id} className="flex justify-between">
+                          <span>{item.title} {item.institution ? `(${item.institution})` : ""}</span>
+                          <strong className="text-black font-mono">{item.score}</strong>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              }
+
+              if (section === "certifications" && secData.items.some((i: any) => i.visible)) {
+                return (
+                  <div key={section} className="space-y-1 print-avoid-break">
+                    <h3 className="font-bold text-xs uppercase tracking-wider border-b border-black pb-0.5 text-black">
+                      {headings.certifications}
+                    </h3>
+                    <div className="space-y-1 text-xs text-slate-700">
+                      {secData.items.filter((i: any) => i.visible).map((cert: any) => (
+                        <div key={cert.id} className="flex justify-between">
+                          <span>{cert.name} — {cert.issuer}</span>
+                          <span className="text-slate-500">{cert.date}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              }
+
+              if (section === "achievements" && secData.items.some((i: any) => i.visible)) {
+                return (
+                  <div key={section} className="space-y-1 print-avoid-break">
+                    <h3 className="font-bold text-xs uppercase tracking-wider border-b border-black pb-0.5 text-black">
+                      {headings.achievements}
+                    </h3>
+                    <ul className="list-disc pl-4 text-xs text-slate-700 space-y-0.5">
+                      {secData.items.filter((i: any) => i.visible).map((ach: any) => (
+                        <li key={ach.id}>
+                          <strong>{ach.title}</strong> {ach.date && `(${ach.date})`} {ach.description && `— ${ach.description}`}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                );
+              }
+
+              if (section === "patents" && secData.items.some((i: any) => i.visible)) {
+                return (
+                  <div key={section} className="space-y-1 print-avoid-break">
+                    <h3 className="font-bold text-xs uppercase tracking-wider border-b border-black pb-0.5 text-black">
+                      {headings.patents}
+                    </h3>
+                    <ul className="list-disc pl-4 text-xs text-slate-700 space-y-0.5">
+                      {secData.items.filter((i: any) => i.visible).map((pat: any) => (
+                        <li key={pat.id}>
+                          <strong>{pat.title}</strong> (Patent No: {pat.number})
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                );
+              }
+
+              if (section === "languages" && secData.items.some((i: any) => i.visible)) {
+                const langs = secData.items.filter((i: any) => i.visible).map((l: any) => `${l.name} (${l.level})`).join(", ");
+                return (
+                  <div key={section} className="space-y-1 print-avoid-break">
+                    <h3 className="font-bold text-xs uppercase tracking-wider border-b border-black pb-0.5 text-black">
+                      {headings.languages}
+                    </h3>
+                    <p className="text-xs text-slate-700">{langs}</p>
+                  </div>
+                );
+              }
+
+              return null;
+            })}
+          </div>
+        )}
+
+        {/* RENDER THEME 3: CREATIVE (MODERN ACCENT BANNER) */}
+        {selectedTheme === "Creative" && (
+          <div className="space-y-6 h-full flex-1 text-left">
+            
+            {/* Colorful Top Banner Header */}
+            <div
+              className="p-8 rounded-2xl text-white flex flex-col justify-between gap-3 animate-fade-in"
+              style={{ background: `linear-gradient(135deg, ${accentColor}, #18233c)` }}
+            >
+              <div className="flex justify-between items-start w-full">
+                <div>
+                  <h2 className="font-sans font-black text-2xl tracking-tight leading-tight uppercase text-white">
+                    {pInfo.fullName || "Your Name"}
+                  </h2>
+                  <p className="text-xs font-mono uppercase tracking-wider opacity-85 mt-1 block">
+                    {pInfo.title}
+                  </p>
+                </div>
+
+                {pInfo.showPhoto && pInfo.profileImageUrl && (() => {
+                  const imgDetails = parseImageAdjustments(pInfo.profileImageUrl);
+                  return (
+                    <div className="w-24 h-24 rounded-2xl overflow-hidden border border-white/20 shadow-md shrink-0 bg-white flex items-center justify-center">
+                      <img 
+                        src={imgDetails.src} 
+                        style={imgDetails.style} 
+                        alt={pInfo.fullName} 
+                        className="w-full h-full" 
+                      />
+                    </div>
+                  );
+                })()}
+              </div>
+
+              <div>
+                <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs opacity-75">
+                  {pInfo.email && <span>✉ {pInfo.email}</span>}
+                  {pInfo.phone && <span>📞 {pInfo.phone}</span>}
+                  {pInfo.address && <span>📍 {pInfo.address}</span>}
+                </div>
+
+                {/* Render visible socials in header banner */}
+                {resumeData.mediaHandles?.items?.some((h: any) => h.visible && h.url) && (
+                  <div className="flex flex-wrap gap-x-4 gap-y-1 text-[11px] opacity-90 mt-2 font-medium">
+                    {resumeData.mediaHandles.items.filter((h: any) => h.visible && h.url).map((h: any) => (
+                      <a key={h.platform} href={h.url} target="_blank" rel="noreferrer" className="underline hover:text-white/80 transition">
+                        {h.platform}
+                      </a>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {sectionOrder.map((section) => {
+              const secData = resumeData[section];
+              if (!secData || !secData.visible) return null;
+
+              // Social handles already printed in header banner
+              if (section === "mediaHandles") return null;
+
+              if (section === "summary" && secData.content) {
+                return (
+                  <div key={section} className="space-y-2 print-avoid-break">
+                    <h3 className="font-serif font-black text-sm uppercase tracking-wider border-b pb-1" style={{ color: accentColor, borderColor: `${accentColor}25` }}>
+                      {headings.summary}
+                    </h3>
+                    <p className="text-xs text-slate-600 leading-relaxed whitespace-pre-wrap">{secData.content}</p>
+                  </div>
+                );
+              }
+
+              if (section === "experience" && secData.items.some((i: any) => i.visible)) {
+                return (
+                  <div key={section} className="space-y-3 print-avoid-break">
+                    <h3 className="font-serif font-black text-sm uppercase tracking-wider border-b pb-1" style={{ color: accentColor, borderColor: `${accentColor}25` }}>
+                      {headings.experience}
+                    </h3>
+                    <div className="grid grid-cols-2 gap-4">
+                      {secData.items.filter((i: any) => i.visible).map((item: any) => (
+                        <div key={item.id} className="p-3 bg-slate-50 border border-slate-100 rounded-xl space-y-1">
+                          <div className="flex justify-between font-bold text-xs text-slate-800">
+                            <span>{item.role}</span>
+                            <span className="font-normal text-[10px] text-slate-400">{item.duration}</span>
+                          </div>
+                          <span className="text-[10px] text-[#781c1c] block">{item.company}</span>
+                          <p className="text-[11px] text-slate-550 leading-relaxed whitespace-pre-wrap">{item.responsibilities}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              }
+
+              if (section === "education" && secData.items.some((i: any) => i.visible)) {
+                return (
+                  <div key={section} className="space-y-3 print-avoid-break">
+                    <h3 className="font-serif font-black text-sm uppercase tracking-wider border-b pb-1" style={{ color: accentColor, borderColor: `${accentColor}25` }}>
+                      {headings.education}
+                    </h3>
+                    <div className="space-y-2">
+                      {secData.items.filter((i: any) => i.visible).map((item: any) => (
+                        <div key={item.id} className="flex justify-between text-xs bg-slate-50 border border-slate-100 p-3 rounded-xl">
+                          <div>
+                            <strong className="text-slate-800">{item.degree}</strong>
+                            <span className="block text-[10px] text-slate-400">{item.institution}</span>
+                          </div>
+                          <div className="text-right">
+                            <span className="text-[10px] text-slate-400 block">{item.duration}</span>
+                            {item.grade && <span className="font-bold text-[#781c1c] text-[10px]">{item.grade}</span>}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              }
+
+              if (section === "projects" && secData.items.some((i: any) => i.visible)) {
+                return (
+                  <div key={section} className="space-y-3 print-avoid-break">
+                    <h3 className="font-serif font-black text-sm uppercase tracking-wider border-b pb-1" style={{ color: accentColor, borderColor: `${accentColor}25` }}>
+                      {headings.projects}
+                    </h3>
+                    <div className="grid grid-cols-2 gap-4">
+                      {secData.items.filter((i: any) => i.visible).map((item: any) => (
+                        <div key={item.id} className="p-3 bg-slate-50 border border-slate-100 rounded-xl space-y-1">
+                          <div className="flex justify-between font-bold text-xs text-slate-800">
+                            <span>{item.name}</span>
+                            <div className="flex gap-2">
+                              {item.github && <a href={item.github} className="text-[#781c1c] underline text-[9px]">GitHub</a>}
+                              {item.live && <a href={item.live} className="text-[#781c1c] underline text-[9px]">Live</a>}
+                            </div>
+                          </div>
+                          <p className="text-[11px] text-slate-555 leading-relaxed whitespace-pre-wrap">{item.description}</p>
+                          {item.technologies && (
+                            <div className="text-[9px] font-mono text-slate-400">
+                              {item.technologies}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              }
+
+              if (section === "skills" && secData.items.some((i: any) => i.visible)) {
+                return (
+                  <div key={section} className="space-y-3 print-avoid-break">
+                    <h3 className="font-serif font-black text-sm uppercase tracking-wider border-b pb-1" style={{ color: accentColor, borderColor: `${accentColor}25` }}>
+                      {headings.skills}
+                    </h3>
+                    <div className="grid grid-cols-2 gap-3 text-xs">
+                      {secData.items.filter((i: any) => i.visible).map((skill: any) => (
+                        <div key={skill.id} className="space-y-1">
+                          <div className="flex justify-between text-[11px]">
+                            <span className="font-medium text-slate-700">{skill.name}</span>
+                            <span className="text-[9px] font-mono text-slate-400">{skill.level}</span>
+                          </div>
+                          <div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
+                            <div
+                              className="h-full rounded-full"
+                              style={{
+                                backgroundColor: accentColor,
+                                width: skill.level === "Expert" ? "95%" : skill.level === "Advanced" ? "85%" : skill.level === "Intermediate" ? "65%" : "35%"
+                              }}
+                            ></div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              }
+
+              if (section === "testScores" && secData.items.some((i: any) => i.visible)) {
+                return (
+                  <div key={section} className="space-y-3 print-avoid-break">
+                    <h3 className="font-serif font-black text-sm uppercase tracking-wider border-b pb-1" style={{ color: accentColor, borderColor: `${accentColor}25` }}>
+                      {headings.testScores}
+                    </h3>
+                    <div className="grid grid-cols-2 gap-3">
+                      {secData.items.filter((i: any) => i.visible).map((item: any) => (
+                        <div
+                          key={item.id}
+                          className={`p-2.5 rounded-xl border text-xs flex justify-between items-center relative ${
+                            item.highlighted
+                              ? "bg-[#781c1c]/5 border-[#781c1c]/20"
+                              : "bg-slate-50 border-slate-150"
+                          }`}
+                        >
+                          <div>
+                            <strong className="block text-slate-800">{item.title}</strong>
+                            {item.institution && <span className="text-[9px] text-slate-400">{item.institution}</span>}
+                          </div>
+                          <span className="font-mono font-bold text-white px-2.5 py-1 rounded bg-[#781c1c] text-[10px]">{item.score}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              }
+
+              if (section === "certifications" && secData.items.some((i: any) => i.visible)) {
+                return (
+                  <div key={section} className="space-y-3 print-avoid-break">
+                    <h3 className="font-serif font-black text-sm uppercase tracking-wider border-b pb-1" style={{ color: accentColor, borderColor: `${accentColor}25` }}>
+                      {headings.certifications}
+                    </h3>
+                    <div className="grid grid-cols-2 gap-3">
+                      {secData.items.filter((i: any) => i.visible).map((cert: any) => (
+                        <div key={cert.id} className="p-2.5 bg-slate-50 border border-slate-100 rounded-xl text-xs">
+                          <strong className="block text-slate-800">{cert.name}</strong>
+                          <span className="text-[10px] text-slate-500 block mt-0.5">{cert.issuer} {cert.date && `· ${cert.date}`}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              }
+
+              if (section === "achievements" && secData.items.some((i: any) => i.visible)) {
+                return (
+                  <div key={section} className="space-y-3 print-avoid-break">
+                    <h3 className="font-serif font-black text-sm uppercase tracking-wider border-b pb-1" style={{ color: accentColor, borderColor: `${accentColor}25` }}>
+                      {headings.achievements}
+                    </h3>
+                    <div className="space-y-2">
+                      {secData.items.filter((i: any) => i.visible).map((ach: any) => (
+                        <div key={ach.id} className="bg-slate-50 border border-slate-100 p-3 rounded-xl text-xs text-slate-600">
+                          🏆 <strong>{ach.title}</strong> {ach.date && `(${ach.date})`}
+                          {ach.description && <p className="text-[10px] text-slate-500 mt-1">{ach.description}</p>}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              }
+
+              if (section === "languages" && secData.items.some((i: any) => i.visible)) {
+                return (
+                  <div key={section} className="space-y-3 print-avoid-break">
+                    <h3 className="font-serif font-black text-sm uppercase tracking-wider border-b pb-1" style={{ color: accentColor, borderColor: `${accentColor}25` }}>
+                      {headings.languages}
+                    </h3>
+                    <div className="flex flex-wrap gap-2">
+                      {secData.items.filter((i: any) => i.visible).map((l: any) => (
+                        <span key={l.name} className="px-2.5 py-1 bg-slate-50 border border-slate-100 rounded-lg text-xs font-semibold text-slate-700">
+                          {l.name} <span className="text-[9px] font-normal text-slate-400">({l.level})</span>
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                );
+              }
+
+              if (section === "patents" && secData.items.some((i: any) => i.visible)) {
+                return (
+                  <div key={section} className="space-y-3 print-avoid-break">
+                    <h3 className="font-serif font-black text-sm uppercase tracking-wider border-b pb-1" style={{ color: accentColor, borderColor: `${accentColor}25` }}>
+                      {headings.patents}
+                    </h3>
+                    <div className="space-y-2">
+                      {secData.items.filter((i: any) => i.visible).map((pat: any) => (
+                        <div key={pat.id} className="bg-slate-50 border border-slate-100 p-3 rounded-xl text-xs text-slate-650">
+                          📜 <strong>{pat.title}</strong> (No: {pat.number})
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              }
+
+              return null;
+            })}
+          </div>
+        )}
+      </div>
+    );
   };
 
   if (loading || !resumeData) {
@@ -601,8 +1459,21 @@ export default function ResumeEditorPage() {
             className="flex-1 min-w-[60px] sm:min-w-[80px] bg-slate-900 border border-slate-700 rounded-xl px-2 sm:px-3 py-1.5 text-xs text-white outline-none focus:border-[#781c1c] font-bold"
             placeholder="Resume Name"
           />
-
           <div className="flex gap-1 sm:gap-1.5 shrink-0">
+            <button
+              onClick={() => setShowPreviewModal(true)}
+              className="p-1.5 sm:p-2 rounded-lg bg-slate-700 hover:bg-slate-600 transition text-sky-400 cursor-pointer"
+              title="Fullscreen Preview"
+            >
+              <Eye size={14} />
+            </button>
+            <button
+              onClick={handlePrint}
+              className="p-1.5 sm:p-2 rounded-lg bg-slate-700 hover:bg-slate-600 transition text-indigo-400 cursor-pointer"
+              title="Download PDF"
+            >
+              <Download size={14} />
+            </button>
             <button
               onClick={handleSyncFromPortfolio}
               className="p-1.5 sm:p-2 rounded-lg hover:bg-slate-700 transition text-emerald-400 cursor-pointer"
@@ -856,6 +1727,36 @@ export default function ResumeEditorPage() {
                     type="text"
                     value={pInfo.github}
                     onChange={(e) => updatePersonalInfo("github", e.target.value)}
+                    className="bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-[#781c1c]"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-4">
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[10px] font-mono uppercase tracking-wider text-slate-400">Portfolio Url</label>
+                  <input
+                    type="text"
+                    value={pInfo.portfolio || ""}
+                    onChange={(e) => updatePersonalInfo("portfolio", e.target.value)}
+                    className="bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-[#781c1c]"
+                  />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[10px] font-mono uppercase tracking-wider text-slate-400">Behance Url</label>
+                  <input
+                    type="text"
+                    value={pInfo.behance || ""}
+                    onChange={(e) => updatePersonalInfo("behance", e.target.value)}
+                    className="bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-[#781c1c]"
+                  />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[10px] font-mono uppercase tracking-wider text-slate-400">Instagram Url</label>
+                  <input
+                    type="text"
+                    value={pInfo.instagram || ""}
+                    onChange={(e) => updatePersonalInfo("instagram", e.target.value)}
                     className="bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-[#781c1c]"
                   />
                 </div>
@@ -1337,6 +2238,43 @@ export default function ResumeEditorPage() {
                   </div>
                 )}
               </div>
+
+              {/* Social Media Handles */}
+              <div className="space-y-3">
+                <div className="flex justify-between items-center bg-slate-900 p-2.5 rounded-xl border border-slate-700">
+                  <label className="text-xs cursor-pointer select-none flex items-center gap-2 font-bold text-white">
+                    <input
+                      type="checkbox"
+                      checked={resumeData.mediaHandles?.visible || false}
+                      onChange={(e) => setResumeData({
+                        ...resumeData,
+                        mediaHandles: { ...resumeData.mediaHandles, visible: e.target.checked }
+                      })}
+                      className="w-4 h-4 rounded text-[#781c1c]"
+                    />
+                    Show Socials / Media Handles
+                  </label>
+                </div>
+                {(resumeData.mediaHandles?.visible || false) && (
+                  <div className="space-y-1">
+                    {resumeData.mediaHandles?.items?.map((item: any, idx: number) => (
+                      <div key={item.platform} className="bg-slate-900 border border-slate-700 p-2 rounded-xl flex items-center justify-between text-xs">
+                        <span className="text-white text-xs">{item.platform} ({item.url ? "Set" : "Not set"})</span>
+                        <button
+                          onClick={() => {
+                            const list = [...resumeData.mediaHandles.items];
+                            list[idx].visible = !list[idx].visible;
+                            setResumeData({ ...resumeData, mediaHandles: { ...resumeData.mediaHandles, items: list } });
+                          }}
+                          className={`p-1 hover:bg-slate-855 rounded ${item.visible ? "text-emerald-400" : "text-slate-500"}`}
+                        >
+                          <Eye size={12} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
           )}
 
@@ -1385,756 +2323,80 @@ export default function ResumeEditorPage() {
           
           {/* Zoom Wrapper */}
           <div
-            style={{ transform: `scale(${zoomLevel})`, transformOrigin: "top center" }}
-            className="transition-transform duration-200"
+            style={{
+              width: `${794 * zoomLevel}px`,
+              height: `${1123 * zoomLevel}px`,
+              overflow: "hidden",
+              position: "relative"
+            }}
+            className="transition-all duration-200 shadow-2xl"
           >
-            
-            {/* Standard A4 Styled Document (827px x 1169px) */}
             <div
-              id="resume-preview-container"
-              className={`w-[794px] min-h-[1123px] bg-white text-slate-800 shadow-2xl rounded-sm font-sans flex flex-col justify-between ${
-                selectedTheme === "Professional" ? "p-0" : "p-12"
-              }`}
-              style={{ fontFamily: "'Inter', sans-serif" }}
+              style={{
+                transform: `scale(${zoomLevel})`,
+                transformOrigin: "top left",
+                width: "794px",
+                height: "1123px",
+                position: "absolute",
+                left: 0,
+                top: 0
+              }}
             >
-              {/* RENDER SELECTED THEMES */}
-              {selectedTheme === "Professional" && (
-                <div className="flex flex-col h-full flex-1 text-left">
-                  
-                  {/* Top Header Banner (Richard Sanchez style) */}
-                  <div
-                    className="p-8 text-white relative flex flex-col justify-end shrink-0"
-                    style={{ backgroundColor: accentColor, height: "140px" }}
-                  >
-                    <div className={pInfo.showPhoto && pInfo.profileImageUrl ? "pl-40" : ""}>
-                      <h2 className="font-sans font-black text-2xl tracking-wide uppercase leading-none text-white">
-                        {pInfo.fullName || "Your Name"}
-                      </h2>
-                      <p className="text-[10px] uppercase font-mono tracking-wider font-bold opacity-85 mt-2">
-                        {pInfo.title || "Headline Title"}
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* Split body area */}
-                  <div className="flex flex-1 min-h-0">
-                    
-                    {/* Left column sidebar (light gray tinted background) */}
-                    <div className="w-[240px] bg-slate-100 p-6 flex flex-col gap-6 shrink-0 relative">
-                      
-                      {/* Overlapping profile photo */}
-                      {pInfo.showPhoto && pInfo.profileImageUrl && (
-                        <div className="w-32 h-32 rounded-full border-4 border-white shadow-md -mt-24 overflow-hidden mx-auto mb-2 shrink-0 bg-white">
-                          <img src={pInfo.profileImageUrl} alt={pInfo.fullName} className="w-full h-full object-cover" />
-                        </div>
-                      )}
-
-                      {/* Contact Details */}
-                      <div className="space-y-3">
-                        <h4 className="font-sans text-[10px] uppercase tracking-wider font-bold border-b-2 pb-1 text-slate-800" style={{ borderColor: accentColor }}>
-                          Contact
-                        </h4>
-                        <div className="space-y-2 text-[10px] text-slate-600 font-semibold">
-                          {pInfo.phone && <div className="flex items-center gap-1.5"><span>Phone:</span> {pInfo.phone}</div>}
-                          {pInfo.email && <div className="flex items-center gap-1.5 break-all"><span>Email:</span> {pInfo.email}</div>}
-                          {pInfo.address && <div className="flex items-center gap-1.5"><span>Address:</span> {pInfo.address}</div>}
-                          {pInfo.portfolio && (
-                            <div className="flex items-center gap-1.5 truncate">
-                              <span>Web:</span>
-                              <a href={pInfo.portfolio} target="_blank" rel="noreferrer" className="underline">{pInfo.portfolio}</a>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Skills list (Simple comma or item bullets) */}
-                      {resumeData.skills.visible && resumeData.skills.items.some((i: any) => i.visible) && (
-                        <div className="space-y-3">
-                          <h4 className="font-sans text-[10px] uppercase tracking-wider font-bold border-b-2 pb-1 text-slate-800" style={{ borderColor: accentColor }}>
-                            Skills
-                          </h4>
-                          <ul className="space-y-1.5 text-[10px] text-slate-600 font-semibold list-disc pl-4">
-                            {resumeData.skills.items.filter((i: any) => i.visible).map((skill: any) => (
-                              <li key={skill.id}>
-                                {skill.name} <span className="font-normal opacity-70">({skill.level})</span>
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                      )}
-
-                      {/* Languages */}
-                      {resumeData.languages.visible && resumeData.languages.items.some((l: any) => l.visible) && (
-                        <div className="space-y-3">
-                          <h4 className="font-sans text-[10px] uppercase tracking-wider font-bold border-b-2 pb-1 text-slate-800" style={{ borderColor: accentColor }}>
-                            Languages
-                          </h4>
-                          <ul className="space-y-1.5 text-[10px] text-slate-600 font-semibold list-disc pl-4">
-                            {resumeData.languages.items.filter((l: any) => l.visible).map((l: any) => (
-                              <li key={l.name}>
-                                {l.name} <span className="font-normal opacity-70">({l.level})</span>
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                      )}
-
-                      {/* Other Social handles */}
-                      {resumeData.mediaHandles.visible && resumeData.mediaHandles.items.some((h: any) => h.visible) && (
-                        <div className="space-y-3">
-                          <h4 className="font-sans text-[10px] uppercase tracking-wider font-bold border-b-2 pb-1 text-slate-800" style={{ borderColor: accentColor }}>
-                            Socials
-                          </h4>
-                          <div className="space-y-1.5 text-[10px] text-slate-600">
-                            {resumeData.mediaHandles.items.filter((h: any) => h.visible).map((h: any) => (
-                              <div key={h.platform} className="truncate flex items-center gap-1">
-                                <strong className="font-semibold">{h.platform}:</strong>
-                                <a href={h.url} target="_blank" rel="noreferrer" className="underline opacity-80">{h.url}</a>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Right column details (White background with vertical timeline) */}
-                    <div className="flex-1 p-8 pl-10 relative space-y-6 bg-white">
-                      
-                      {/* Timeline line */}
-                      <div className="absolute left-[26px] top-8 bottom-8 w-[1.5px] bg-slate-200" />
-
-                      {sectionOrder.map((section) => {
-                        const secData = resumeData[section];
-                        if (!secData || !secData.visible) return null;
-
-                        // Check section content visibility
-                        let hasVisibleItems = false;
-                        if (section === "summary" && secData.content) hasVisibleItems = true;
-                        else if (secData.items && secData.items.some((i: any) => i.visible)) hasVisibleItems = true;
-
-                        if (!hasVisibleItems) return null;
-
-                        return (
-                          <div key={section} className="relative pl-7 space-y-3 print-avoid-break">
-                            
-                            {/* Circular Icon Timeline Node */}
-                            <div
-                              className="absolute left-[-25px] top-[-1px] w-6 h-6 rounded-full bg-white border-2 flex items-center justify-center z-20"
-                              style={{ borderColor: accentColor, color: accentColor }}
-                            >
-                              {section === "summary" && <User size={10} strokeWidth={2.5} />}
-                              {section === "experience" && <Briefcase size={10} strokeWidth={2.5} />}
-                              {section === "education" && <Award size={10} strokeWidth={2.5} />}
-                              {section === "projects" && <GitBranch size={10} strokeWidth={2.5} />}
-                              {section === "skills" && <Code size={10} strokeWidth={2.5} />}
-                              {section === "testScores" && <Award size={10} strokeWidth={2.5} />}
-                              {section === "certifications" && <Award size={10} strokeWidth={2.5} />}
-                              {section === "achievements" && <Trophy size={10} strokeWidth={2.5} />}
-                              {section === "languages" && <Globe size={10} strokeWidth={2.5} />}
-                              {section === "patents" && <FileText size={10} strokeWidth={2.5} />}
-                            </div>
-
-                            {/* Section Title */}
-                            <h3 className="font-sans font-black text-xs uppercase tracking-wider text-slate-800 leading-none">
-                              {headings[section]}
-                            </h3>
-
-                            {/* Section content */}
-                            {section === "summary" && (
-                              <p className="text-xs text-slate-600 leading-relaxed whitespace-pre-wrap">{secData.content}</p>
-                            )}
-
-                            {section === "experience" && (
-                              <div className="space-y-3">
-                                {secData.items.filter((i: any) => i.visible).map((item: any) => (
-                                  <div key={item.id} className="relative space-y-1">
-                                    {/* Bullet point on line */}
-                                    <div className="absolute left-[-21px] top-1.5 w-2 h-2 rounded-full border-2 border-white bg-slate-400 z-10" />
-                                    
-                                    <div className="flex justify-between font-semibold text-xs text-slate-800 leading-snug">
-                                      <span>{item.role}</span>
-                                      <span className="text-slate-500 font-mono text-[9px]">{item.duration}</span>
-                                    </div>
-                                    <div className="text-[10px] text-slate-500 font-semibold">{item.company}</div>
-                                    <p className="text-xs text-slate-600 mt-1 whitespace-pre-wrap leading-relaxed">{item.responsibilities}</p>
-                                    {item.technologies && (
-                                      <div className="text-[9px] font-mono text-slate-500">
-                                        <strong>Technologies:</strong> {item.technologies}
-                                      </div>
-                                    )}
-                                  </div>
-                                ))}
-                              </div>
-                            )}
-
-                            {section === "education" && (
-                              <div className="space-y-3">
-                                {secData.items.filter((i: any) => i.visible).map((item: any) => (
-                                  <div key={item.id} className="relative space-y-0.5">
-                                    {/* Bullet point on line */}
-                                    <div className="absolute left-[-21px] top-1.5 w-2 h-2 rounded-full border-2 border-white bg-slate-400 z-10" />
-
-                                    <div className="flex justify-between font-semibold text-xs text-slate-800">
-                                      <span>{item.degree}</span>
-                                      <span className="text-slate-500 font-mono text-[9px]">{item.duration}</span>
-                                    </div>
-                                    <div className="text-[10px] text-slate-500 font-semibold">{item.institution}</div>
-                                    {item.grade && <div className="text-[10px] font-mono text-slate-600 font-bold">Grade / CGPA: {item.grade}</div>}
-                                  </div>
-                                ))}
-                              </div>
-                            )}
-
-                            {section === "projects" && (
-                              <div className="space-y-3">
-                                {secData.items.filter((i: any) => i.visible).map((item: any) => (
-                                  <div key={item.id} className="relative space-y-1">
-                                    {/* Bullet point on line */}
-                                    <div className="absolute left-[-21px] top-1.5 w-2 h-2 rounded-full border-2 border-white bg-slate-400 z-10" />
-
-                                    <div className="flex justify-between font-semibold text-xs text-slate-800">
-                                      <span>{item.name}</span>
-                                      <div className="flex gap-2">
-                                        {item.github && <a href={item.github} className="text-slate-500 underline text-[9px]">GitHub</a>}
-                                        {item.live && <a href={item.live} className="text-slate-500 underline text-[9px]">Demo</a>}
-                                      </div>
-                                    </div>
-                                    <p className="text-xs text-slate-600 leading-relaxed">{item.description}</p>
-                                    {item.technologies && (
-                                      <div className="text-[9px] font-mono text-slate-500">
-                                        <strong>Technologies Used:</strong> {item.technologies}
-                                      </div>
-                                    )}
-                                  </div>
-                                ))}
-                              </div>
-                            )}
-
-                            {section === "testScores" && (
-                              <div className="grid grid-cols-2 gap-3">
-                                {secData.items.filter((i: any) => i.visible).map((item: any) => (
-                                  <div
-                                    key={item.id}
-                                    className={`p-2 rounded border text-xs relative ${
-                                      item.highlighted
-                                        ? "bg-[#781c1c]/5 border-[#781c1c]/20"
-                                        : "bg-slate-50 border-slate-150"
-                                    }`}
-                                  >
-                                    <strong className="block text-slate-800">{item.title}</strong>
-                                    <span className="block font-mono font-bold text-[#781c1c] text-[10px] mt-0.5">{item.score}</span>
-                                    {item.institution && <span className="block text-[9px] text-slate-500 mt-0.5">{item.institution}</span>}
-                                  </div>
-                                ))}
-                              </div>
-                            )}
-
-                            {section === "certifications" && (
-                              <div className="space-y-1">
-                                {secData.items.filter((i: any) => i.visible).map((cert: any) => (
-                                  <div key={cert.id} className="relative flex justify-between text-xs text-slate-700">
-                                    {/* Bullet point on line */}
-                                    <div className="absolute left-[-21px] top-1.5 w-2 h-2 rounded-full border-2 border-white bg-slate-400 z-10" />
-                                    <span><strong>{cert.name}</strong> <span className="text-slate-500">by {cert.issuer}</span></span>
-                                    <span className="text-slate-400 font-mono text-[9px]">{cert.date}</span>
-                                  </div>
-                                ))}
-                              </div>
-                            )}
-
-                            {section === "achievements" && (
-                              <div className="space-y-1.5 text-xs text-slate-600">
-                                {secData.items.filter((i: any) => i.visible).map((ach: any) => (
-                                  <div key={ach.id} className="relative pl-1">
-                                    {/* Bullet point on line */}
-                                    <div className="absolute left-[-21px] top-1.5 w-2 h-2 rounded-full border-2 border-white bg-slate-400 z-10" />
-                                    <strong>{ach.title}</strong> {ach.date && `(${ach.date})`}
-                                    {ach.description && <p className="text-[10px] pl-3 text-slate-500 mt-0.5">{ach.description}</p>}
-                                  </div>
-                                ))}
-                              </div>
-                            )}
-
-                            {section === "patents" && (
-                              <div className="space-y-1.5 text-xs text-slate-650">
-                                {secData.items.filter((i: any) => i.visible).map((pat: any) => (
-                                  <div key={pat.id} className="relative pl-1">
-                                    {/* Bullet point on line */}
-                                    <div className="absolute left-[-21px] top-1.5 w-2 h-2 rounded-full border-2 border-white bg-slate-400 z-10" />
-                                    <strong>{pat.title}</strong> (No: {pat.number})
-                                  </div>
-                                ))}
-                              </div>
-                            )}
-
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* RENDER THEME 2: CLASSIC ATS (ONE COLUMN SIMPLIFIED) */}
-              {selectedTheme === "Classic ATS" && (
-                <div className="space-y-6 h-full flex-1">
-                  
-                  {/* Name and titles */}
-                  <div className="text-center space-y-1.5 border-b pb-4 border-black">
-                    <h2 className="font-bold text-2xl uppercase tracking-tight text-black leading-none">
-                      {pInfo.fullName || "Your Name"}
-                    </h2>
-                    <p className="text-xs font-semibold text-slate-700">{pInfo.title}</p>
-                    <div className="flex flex-wrap justify-center gap-x-3 gap-y-1 text-xs text-slate-600">
-                      {pInfo.email && <span>Email: {pInfo.email}</span>}
-                      {pInfo.phone && <span>Phone: {pInfo.phone}</span>}
-                      {pInfo.address && <span>Address: {pInfo.address}</span>}
-                    </div>
-                    <div className="flex flex-wrap justify-center gap-x-3 text-[10px] text-slate-500 font-mono">
-                      {pInfo.linkedin && <span>LinkedIn: {pInfo.linkedin}</span>}
-                      {pInfo.github && <span>GitHub: {pInfo.github}</span>}
-                      {pInfo.portfolio && <span>Portfolio: {pInfo.portfolio}</span>}
-                    </div>
-                  </div>
-
-                  {sectionOrder.map((section) => {
-                    const secData = resumeData[section];
-                    if (!secData || !secData.visible) return null;
-
-                    if (section === "summary" && secData.content) {
-                      return (
-                        <div key={section} className="space-y-1 print-avoid-break">
-                          <h3 className="font-bold text-xs uppercase tracking-wider border-b border-black pb-0.5 text-black">
-                            {headings.summary}
-                          </h3>
-                          <p className="text-xs text-slate-700 leading-relaxed whitespace-pre-wrap">{secData.content}</p>
-                        </div>
-                      );
-                    }
-
-                    if (section === "experience" && secData.items.some((i: any) => i.visible)) {
-                      return (
-                        <div key={section} className="space-y-2 print-avoid-break">
-                          <h3 className="font-bold text-xs uppercase tracking-wider border-b border-black pb-0.5 text-black">
-                            {headings.experience}
-                          </h3>
-                          <div className="space-y-3">
-                            {secData.items.filter((i: any) => i.visible).map((item: any) => (
-                              <div key={item.id} className="space-y-0.5">
-                                <div className="flex justify-between font-bold text-xs text-black">
-                                  <span>{item.role} — {item.company}</span>
-                                  <span>{item.duration}</span>
-                                </div>
-                                <p className="text-xs text-slate-700 whitespace-pre-wrap leading-relaxed">{item.responsibilities}</p>
-                                {item.technologies && (
-                                  <div className="text-[9px] font-mono text-slate-500 mt-0.5">
-                                    Technologies: {item.technologies}
-                                  </div>
-                                )}
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      );
-                    }
-
-                    if (section === "education" && secData.items.some((i: any) => i.visible)) {
-                      return (
-                        <div key={section} className="space-y-2 print-avoid-break">
-                          <h3 className="font-bold text-xs uppercase tracking-wider border-b border-black pb-0.5 text-black">
-                            {headings.education}
-                          </h3>
-                          <div className="space-y-2">
-                            {secData.items.filter((i: any) => i.visible).map((item: any) => (
-                              <div key={item.id} className="flex justify-between text-xs">
-                                <div>
-                                  <strong className="text-black">{item.degree}</strong> · {item.institution}
-                                  {item.grade && <span className="text-slate-600 block text-[10px]">Result: {item.grade}</span>}
-                                </div>
-                                <span className="font-medium text-slate-600">{item.duration}</span>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      );
-                    }
-
-                    if (section === "projects" && secData.items.some((i: any) => i.visible)) {
-                      return (
-                        <div key={section} className="space-y-2 print-avoid-break">
-                          <h3 className="font-bold text-xs uppercase tracking-wider border-b border-black pb-0.5 text-black">
-                            {headings.projects}
-                          </h3>
-                          <div className="space-y-2">
-                            {secData.items.filter((i: any) => i.visible).map((item: any) => (
-                              <div key={item.id} className="space-y-0.5">
-                                <div className="flex justify-between text-xs text-black font-bold">
-                                  <span>{item.name}</span>
-                                  <span className="font-normal text-slate-500 text-[10px]">{item.github || item.live}</span>
-                                </div>
-                                <p className="text-xs text-slate-700 leading-relaxed">{item.description}</p>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      );
-                    }
-
-                    if (section === "skills" && secData.items.some((i: any) => i.visible)) {
-                      const grouped = secData.items.filter((i: any) => i.visible).map((s: any) => s.name).join(", ");
-                      return (
-                        <div key={section} className="space-y-1 print-avoid-break">
-                          <h3 className="font-bold text-xs uppercase tracking-wider border-b border-black pb-0.5 text-black">
-                            {headings.skills}
-                          </h3>
-                          <p className="text-xs text-slate-700">{grouped}</p>
-                        </div>
-                      );
-                    }
-
-                    if (section === "testScores" && secData.items.some((i: any) => i.visible)) {
-                      return (
-                        <div key={section} className="space-y-2 print-avoid-break">
-                          <h3 className="font-bold text-xs uppercase tracking-wider border-b border-black pb-0.5 text-black">
-                            {headings.testScores}
-                          </h3>
-                          <div className="space-y-1.5 text-xs text-slate-700">
-                            {secData.items.filter((i: any) => i.visible).map((item: any) => (
-                              <div key={item.id} className="flex justify-between">
-                                <span>{item.title} {item.institution ? `(${item.institution})` : ""}</span>
-                                <strong className="text-black font-mono">{item.score}</strong>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      );
-                    }
-
-                    if (section === "certifications" && secData.items.some((i: any) => i.visible)) {
-                      return (
-                        <div key={section} className="space-y-1 print-avoid-break">
-                          <h3 className="font-bold text-xs uppercase tracking-wider border-b border-black pb-0.5 text-black">
-                            {headings.certifications}
-                          </h3>
-                          <div className="space-y-1 text-xs text-slate-700">
-                            {secData.items.filter((i: any) => i.visible).map((cert: any) => (
-                              <div key={cert.id} className="flex justify-between">
-                                <span>{cert.name} — {cert.issuer}</span>
-                                <span className="text-slate-500">{cert.date}</span>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      );
-                    }
-
-                    if (section === "achievements" && secData.items.some((i: any) => i.visible)) {
-                      return (
-                        <div key={section} className="space-y-1 print-avoid-break">
-                          <h3 className="font-bold text-xs uppercase tracking-wider border-b border-black pb-0.5 text-black">
-                            {headings.achievements}
-                          </h3>
-                          <ul className="list-disc pl-4 text-xs text-slate-700 space-y-0.5">
-                            {secData.items.filter((i: any) => i.visible).map((ach: any) => (
-                              <li key={ach.id}>
-                                <strong>{ach.title}</strong> {ach.date && `(${ach.date})`} {ach.description && `— ${ach.description}`}
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                      );
-                    }
-
-                    if (section === "patents" && secData.items.some((i: any) => i.visible)) {
-                      return (
-                        <div key={section} className="space-y-1 print-avoid-break">
-                          <h3 className="font-bold text-xs uppercase tracking-wider border-b border-black pb-0.5 text-black">
-                            {headings.patents}
-                          </h3>
-                          <ul className="list-disc pl-4 text-xs text-slate-700 space-y-0.5">
-                            {secData.items.filter((i: any) => i.visible).map((pat: any) => (
-                              <li key={pat.id}>
-                                <strong>{pat.title}</strong> (Patent No: {pat.number})
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                      );
-                    }
-
-                    if (section === "languages" && secData.items.some((i: any) => i.visible)) {
-                      const langs = secData.items.filter((i: any) => i.visible).map((l: any) => `${l.name} (${l.level})`).join(", ");
-                      return (
-                        <div key={section} className="space-y-1 print-avoid-break">
-                          <h3 className="font-bold text-xs uppercase tracking-wider border-b border-black pb-0.5 text-black">
-                            {headings.languages}
-                          </h3>
-                          <p className="text-xs text-slate-700">{langs}</p>
-                        </div>
-                      );
-                    }
-
-                    return null;
-                  })}
-                </div>
-              )}
-
-              {/* RENDER THEME 3: CREATIVE (MODERN ACCENT BANNER) */}
-              {selectedTheme === "Creative" && (
-                <div className="space-y-6 h-full flex-1 text-left">
-                  
-                  {/* Colorful Top Banner Header */}
-                  <div
-                    className="p-8 rounded-2xl text-white flex justify-between items-center animate-fade-in"
-                    style={{ background: `linear-gradient(135deg, ${accentColor}, #18233c)` }}
-                  >
-                    <div>
-                      <h2 className="font-sans font-black text-2xl tracking-tight leading-tight uppercase text-white">
-                        {pInfo.fullName || "Your Name"}
-                      </h2>
-                      <p className="text-xs font-mono uppercase tracking-wider opacity-85 mt-1 block">
-                        {pInfo.title}
-                      </p>
-                      <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs opacity-75 mt-4">
-                        {pInfo.email && <span>✉ {pInfo.email}</span>}
-                        {pInfo.phone && <span>📞 {pInfo.phone}</span>}
-                        {pInfo.address && <span>📍 {pInfo.address}</span>}
-                      </div>
-                    </div>
-
-                    {pInfo.showPhoto && pInfo.profileImageUrl && (
-                      <div className="w-24 h-24 rounded-2xl overflow-hidden border border-white/20 shadow-md shrink-0 bg-white">
-                        <img src={pInfo.profileImageUrl} alt={pInfo.fullName} className="w-full h-full object-cover" />
-                      </div>
-                    )}
-                  </div>
-
-                  {sectionOrder.map((section) => {
-                    const secData = resumeData[section];
-                    if (!secData || !secData.visible) return null;
-
-                    if (section === "summary" && secData.content) {
-                      return (
-                        <div key={section} className="space-y-2 print-avoid-break">
-                          <h3 className="font-serif font-black text-sm uppercase tracking-wider border-b pb-1" style={{ color: accentColor, borderColor: `${accentColor}25` }}>
-                            {headings.summary}
-                          </h3>
-                          <p className="text-xs text-slate-600 leading-relaxed whitespace-pre-wrap">{secData.content}</p>
-                        </div>
-                      );
-                    }
-
-                    if (section === "experience" && secData.items.some((i: any) => i.visible)) {
-                      return (
-                        <div key={section} className="space-y-3 print-avoid-break">
-                          <h3 className="font-serif font-black text-sm uppercase tracking-wider border-b pb-1" style={{ color: accentColor, borderColor: `${accentColor}25` }}>
-                            {headings.experience}
-                          </h3>
-                          <div className="grid md:grid-cols-2 gap-4">
-                            {secData.items.filter((i: any) => i.visible).map((item: any) => (
-                              <div key={item.id} className="p-3 bg-slate-50 border border-slate-100 rounded-xl space-y-1">
-                                <div className="flex justify-between font-bold text-xs text-slate-800">
-                                  <span>{item.role}</span>
-                                  <span className="font-normal text-[10px] text-slate-400">{item.duration}</span>
-                                </div>
-                                <span className="text-[10px] text-[#781c1c] block">{item.company}</span>
-                                <p className="text-[11px] text-slate-500 leading-normal line-clamp-3">{item.responsibilities}</p>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      );
-                    }
-
-                    if (section === "education" && secData.items.some((i: any) => i.visible)) {
-                      return (
-                        <div key={section} className="space-y-3 print-avoid-break">
-                          <h3 className="font-serif font-black text-sm uppercase tracking-wider border-b pb-1" style={{ color: accentColor, borderColor: `${accentColor}25` }}>
-                            {headings.education}
-                          </h3>
-                          <div className="space-y-2">
-                            {secData.items.filter((i: any) => i.visible).map((item: any) => (
-                              <div key={item.id} className="flex justify-between text-xs bg-slate-50 border border-slate-100 p-3 rounded-xl">
-                                <div>
-                                  <strong className="text-slate-800">{item.degree}</strong>
-                                  <span className="block text-[10px] text-slate-400">{item.institution}</span>
-                                </div>
-                                <div className="text-right">
-                                  <span className="text-[10px] text-slate-400 block">{item.duration}</span>
-                                  {item.grade && <span className="font-bold text-[#781c1c] text-[10px]">{item.grade}</span>}
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      );
-                    }
-
-                    if (section === "projects" && secData.items.some((i: any) => i.visible)) {
-                      return (
-                        <div key={section} className="space-y-3 print-avoid-break">
-                          <h3 className="font-serif font-black text-sm uppercase tracking-wider border-b pb-1" style={{ color: accentColor, borderColor: `${accentColor}25` }}>
-                            {headings.projects}
-                          </h3>
-                          <div className="grid md:grid-cols-2 gap-4">
-                            {secData.items.filter((i: any) => i.visible).map((item: any) => (
-                              <div key={item.id} className="p-3 bg-slate-50 border border-slate-100 rounded-xl space-y-1">
-                                <div className="flex justify-between font-bold text-xs text-slate-800">
-                                  <span>{item.name}</span>
-                                  <div className="flex gap-2">
-                                    {item.github && <a href={item.github} className="text-[#781c1c] underline text-[9px]">GitHub</a>}
-                                    {item.live && <a href={item.live} className="text-[#781c1c] underline text-[9px]">Live</a>}
-                                  </div>
-                                </div>
-                                <p className="text-[11px] text-slate-500 leading-normal line-clamp-3">{item.description}</p>
-                                {item.technologies && (
-                                  <div className="text-[9px] font-mono text-slate-400">
-                                    {item.technologies}
-                                  </div>
-                                )}
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      );
-                    }
-
-                    if (section === "skills" && secData.items.some((i: any) => i.visible)) {
-                      return (
-                        <div key={section} className="space-y-3 print-avoid-break">
-                          <h3 className="font-serif font-black text-sm uppercase tracking-wider border-b pb-1" style={{ color: accentColor, borderColor: `${accentColor}25` }}>
-                            {headings.skills}
-                          </h3>
-                          <div className="grid grid-cols-2 gap-3 text-xs">
-                            {secData.items.filter((i: any) => i.visible).map((skill: any) => (
-                              <div key={skill.id} className="space-y-1">
-                                <div className="flex justify-between text-[11px]">
-                                  <span className="font-medium text-slate-700">{skill.name}</span>
-                                  <span className="text-[9px] font-mono text-slate-400">{skill.level}</span>
-                                </div>
-                                <div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
-                                  <div
-                                    className="h-full rounded-full"
-                                    style={{
-                                      backgroundColor: accentColor,
-                                      width: skill.level === "Expert" ? "95%" : skill.level === "Advanced" ? "85%" : skill.level === "Intermediate" ? "65%" : "35%"
-                                    }}
-                                  ></div>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      );
-                    }
-
-                    if (section === "testScores" && secData.items.some((i: any) => i.visible)) {
-                      return (
-                        <div key={section} className="space-y-3 print-avoid-break">
-                          <h3 className="font-serif font-black text-sm uppercase tracking-wider border-b pb-1" style={{ color: accentColor, borderColor: `${accentColor}25` }}>
-                            {headings.testScores}
-                          </h3>
-                          <div className="grid grid-cols-2 gap-3">
-                            {secData.items.filter((i: any) => i.visible).map((item: any) => (
-                              <div
-                                key={item.id}
-                                className={`p-2.5 rounded-xl border text-xs flex justify-between items-center relative ${
-                                  item.highlighted
-                                    ? "bg-[#781c1c]/5 border-[#781c1c]/20"
-                                    : "bg-slate-50 border-slate-150"
-                                }`}
-                              >
-                                <div>
-                                  <strong className="block text-slate-800">{item.title}</strong>
-                                  {item.institution && <span className="text-[9px] text-slate-400">{item.institution}</span>}
-                                </div>
-                                <span className="font-mono font-bold text-white px-2.5 py-1 rounded bg-[#781c1c] text-[10px]">{item.score}</span>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      );
-                    }
-
-                    if (section === "certifications" && secData.items.some((i: any) => i.visible)) {
-                      return (
-                        <div key={section} className="space-y-3 print-avoid-break">
-                          <h3 className="font-serif font-black text-sm uppercase tracking-wider border-b pb-1" style={{ color: accentColor, borderColor: `${accentColor}25` }}>
-                            {headings.certifications}
-                          </h3>
-                          <div className="grid grid-cols-2 gap-3">
-                            {secData.items.filter((i: any) => i.visible).map((cert: any) => (
-                              <div key={cert.id} className="p-2.5 bg-slate-50 border border-slate-100 rounded-xl text-xs">
-                                <strong className="block text-slate-800">{cert.name}</strong>
-                                <span className="text-[10px] text-slate-500 block mt-0.5">{cert.issuer} {cert.date && `· ${cert.date}`}</span>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      );
-                    }
-
-                    if (section === "achievements" && secData.items.some((i: any) => i.visible)) {
-                      return (
-                        <div key={section} className="space-y-3 print-avoid-break">
-                          <h3 className="font-serif font-black text-sm uppercase tracking-wider border-b pb-1" style={{ color: accentColor, borderColor: `${accentColor}25` }}>
-                            {headings.achievements}
-                          </h3>
-                          <div className="space-y-2">
-                            {secData.items.filter((i: any) => i.visible).map((ach: any) => (
-                              <div key={ach.id} className="bg-slate-50 border border-slate-100 p-3 rounded-xl text-xs text-slate-600">
-                                🏆 <strong>{ach.title}</strong> {ach.date && `(${ach.date})`}
-                                {ach.description && <p className="text-[10px] text-slate-500 mt-1">{ach.description}</p>}
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      );
-                    }
-
-                    if (section === "languages" && secData.items.some((i: any) => i.visible)) {
-                      return (
-                        <div key={section} className="space-y-3 print-avoid-break">
-                          <h3 className="font-serif font-black text-sm uppercase tracking-wider border-b pb-1" style={{ color: accentColor, borderColor: `${accentColor}25` }}>
-                            {headings.languages}
-                          </h3>
-                          <div className="flex flex-wrap gap-2">
-                            {secData.items.filter((i: any) => i.visible).map((l: any) => (
-                              <span key={l.name} className="px-2.5 py-1 bg-slate-50 border border-slate-100 rounded-lg text-xs font-semibold text-slate-700">
-                                {l.name} <span className="text-[9px] font-normal text-slate-400">({l.level})</span>
-                              </span>
-                            ))}
-                          </div>
-                        </div>
-                      );
-                    }
-
-                    if (section === "patents" && secData.items.some((i: any) => i.visible)) {
-                      return (
-                        <div key={section} className="space-y-3 print-avoid-break">
-                          <h3 className="font-serif font-black text-sm uppercase tracking-wider border-b pb-1" style={{ color: accentColor, borderColor: `${accentColor}25` }}>
-                            {headings.patents}
-                          </h3>
-                          <div className="space-y-2">
-                            {secData.items.filter((i: any) => i.visible).map((pat: any) => (
-                              <div key={pat.id} className="bg-slate-50 border border-slate-100 p-3 rounded-xl text-xs text-slate-600">
-                                📜 <strong>{pat.title}</strong> (No: {pat.number})
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      );
-                    }
-
-                    return null;
-                  })}
-                </div>
-              )}
+              {renderResumeDocument(false)}
             </div>
-
           </div>
         </div>
       </div>
+      {showPreviewModal && (
+        <div className="fixed inset-0 z-[100] bg-slate-950/85 backdrop-blur-md flex flex-col items-center justify-center p-4">
+          <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-4xl h-[90vh] flex flex-col overflow-hidden shadow-2xl relative">
+            {/* Modal Header */}
+            <div className="p-4 border-b border-slate-800 flex justify-between items-center bg-slate-900/50 shrink-0">
+              <h3 className="font-bold text-xs uppercase tracking-wider text-slate-400 font-mono">Fullscreen Resume Preview</h3>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={handlePrint}
+                  className="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer"
+                >
+                  <Download size={12} /> Download PDF
+                </button>
+                <button
+                  onClick={() => setShowPreviewModal(false)}
+                  className="bg-slate-800 hover:bg-slate-700 text-white px-4 py-2 rounded-xl text-xs font-bold transition cursor-pointer"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+            {/* Modal Body (Scrollable preview area) */}
+            <div className="flex-1 overflow-auto p-4 sm:p-8 flex justify-center bg-slate-950">
+              <div
+                style={{
+                  width: `${794 * zoomLevel}px`,
+                  height: `${1123 * zoomLevel}px`,
+                  overflow: "hidden",
+                  position: "relative"
+                }}
+                className="transition-all duration-200 shadow-2xl"
+              >
+                <div
+                  style={{
+                    transform: `scale(${zoomLevel})`,
+                    transformOrigin: "top left",
+                    width: "794px",
+                    height: "1123px",
+                    position: "absolute",
+                    left: 0,
+                    top: 0
+                  }}
+                >
+                  {renderResumeDocument(true)}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

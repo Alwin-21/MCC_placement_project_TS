@@ -47,8 +47,8 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const userPayload = getUserFromRequest(request);
-    if (!userPayload || (userPayload.role !== "Admin" && userPayload.role !== "Moderator")) {
-      return NextResponse.json("Unauthorized", { status: 401 });
+    if (!userPayload || userPayload.role !== "Admin") {
+      return NextResponse.json("Forbidden", { status: 403 });
     }
 
     const body = await request.json();

@@ -1,8 +1,18 @@
 import axios from "axios";
 import { mapKeysToCamelCase, fixUrlsInObject } from "@/utils/mapper";
 
+const getBaseURL = () => {
+  if (process.env.NEXT_PUBLIC_API_URL) {
+    return process.env.NEXT_PUBLIC_API_URL;
+  }
+  if (typeof window !== "undefined") {
+    return `${window.location.origin}/api`;
+  }
+  return "http://localhost:3001/api";
+};
+
 const api = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_URL || "http://localhost:5203/api",
+  baseURL: getBaseURL(),
 });
 
 // Automatically inject JWT token into all requests if present in localStorage

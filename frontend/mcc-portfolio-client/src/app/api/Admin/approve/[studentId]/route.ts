@@ -8,8 +8,8 @@ export async function POST(
 ) {
   try {
     const userPayload = getUserFromRequest(request);
-    if (!userPayload || (userPayload.role !== "Admin" && userPayload.role !== "Moderator")) {
-      return NextResponse.json("Unauthorized", { status: 401 });
+    if (!userPayload || userPayload.role !== "Admin") {
+      return NextResponse.json("Forbidden", { status: 403 });
     }
 
     const { studentId: studentIdStr } = await params;
