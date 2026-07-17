@@ -1081,7 +1081,7 @@ function PortfolioPageContent() {
       <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
         
         {/* TOP BAR */}
-        <header className="h-16 bg-white border-b border-[#781c1c]/10 flex items-center justify-between px-6 z-[49] select-none shadow-xs shrink-0">
+        <header className="min-h-[4rem] py-2 bg-white border-b border-[#781c1c]/10 flex items-center justify-between px-6 z-[49] select-none shadow-xs shrink-0">
           <div className="flex items-center gap-3">
             {/* Hamburger Button for mobile */}
             <button
@@ -1095,7 +1095,12 @@ function PortfolioPageContent() {
               <span className="text-[9px] uppercase font-mono font-black tracking-widest text-[#781c1c] block mb-1 whitespace-nowrap">
                 Madras Christian College
               </span>
-              <h1 className="text-sm font-extrabold text-[#18233c] tracking-tight leading-none font-serif">{getBreadcrumbTitle()}</h1>
+              <h1 
+                style={{ fontSize: "14px", lineHeight: "1.2" }}
+                className="text-sm font-extrabold text-[#18233c] tracking-tight font-serif"
+              >
+                {getBreadcrumbTitle()}
+              </h1>
               <div className="text-[10px] text-slate-400 font-bold mt-1 uppercase tracking-wider font-mono">
                 Home <span className="mx-1 text-slate-300">&gt;</span> {getBreadcrumbTitle()}
               </div>

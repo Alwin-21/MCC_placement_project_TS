@@ -556,18 +556,32 @@ export default function ResumeEditorPage() {
     if (!el) return;
     try {
       setDownloading(true);
+
+      // Ensure all web fonts are fully loaded before rendering the canvas
+      if (typeof document !== "undefined" && document.fonts) {
+        await document.fonts.ready;
+      }
+
       // Dynamically import to avoid SSR issues
-      const html2canvas = (await import("html2canvas")).default;
+      const html2canvas = (await import("html2canvas-pro")).default;
       const { jsPDF } = await import("jspdf");
 
       const canvas = await html2canvas(el, {
         scale: 2,           // 2x for crisp quality
         useCORS: true,
-        allowTaint: true,
+        allowTaint: false,
         backgroundColor: "#ffffff",
         width: 794,
         height: 1123,
-        logging: false
+        logging: false,
+        onclone: (clonedDoc) => {
+          // Sync active fonts to the cloned document context to prevent character squishing/overlapping fallback metrics
+          if (typeof document !== "undefined" && document.fonts && clonedDoc.fonts) {
+            document.fonts.forEach((font) => {
+              clonedDoc.fonts.add(font);
+            });
+          }
+        }
       });
 
       const imgData = canvas.toDataURL("image/jpeg", 0.97);
@@ -578,6 +592,7 @@ export default function ResumeEditorPage() {
     } catch (err) {
       console.error("PDF generation failed:", err);
       alert("Could not generate PDF. Please try again.");
+    } finally {
       setDownloading(false);
     }
   };
