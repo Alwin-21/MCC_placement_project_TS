@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/utils/db";
-import { getUserFromRequest } from "@/utils/auth";
+import { getUserFromRequest, hasModulePermission } from "@/utils/auth";
 
 export async function GET(request: Request) {
   try {
     const userPayload = getUserFromRequest(request);
-    if (!userPayload || (userPayload.role !== "Admin" && userPayload.role !== "Moderator")) {
+    if (!userPayload || !hasModulePermission(userPayload, "notifications", "read")) {
       return NextResponse.json("Unauthorized", { status: 401 });
     }
 
@@ -37,8 +37,8 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const userPayload = getUserFromRequest(request);
-    if (!userPayload || (userPayload.role !== "Admin" && userPayload.role !== "Moderator")) {
-      return NextResponse.json("Unauthorized", { status: 401 });
+    if (!userPayload || !hasModulePermission(userPayload, "notifications", "write")) {
+      return NextResponse.json("Forbidden", { status: 403 });
     }
 
     const body = await request.json();

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/utils/db";
-import { getUserFromRequest } from "@/utils/auth";
+import { getUserFromRequest, hasModulePermission } from "@/utils/auth";
 
 export async function DELETE(
   request: Request,
@@ -8,8 +8,8 @@ export async function DELETE(
 ) {
   try {
     const userPayload = getUserFromRequest(request);
-    if (!userPayload || (userPayload.role !== "Admin" && userPayload.role !== "Moderator")) {
-      return NextResponse.json("Unauthorized", { status: 401 });
+    if (!userPayload || !hasModulePermission(userPayload, "notifications", "write")) {
+      return NextResponse.json("Forbidden", { status: 403 });
     }
 
     const { id: idStr } = await params;

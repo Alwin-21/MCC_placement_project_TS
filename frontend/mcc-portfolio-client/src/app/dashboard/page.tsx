@@ -1332,27 +1332,14 @@ Report Generated: ${new Date().toLocaleDateString()}
     }`}>
       
       {/* SIDEBAR NAVIGATION */}
-      <div className={`w-72 border-r backdrop-blur-xl sticky top-0 h-screen flex-col transition-colors duration-300 shrink-0 hidden md:flex ${
-        themeMode === "dark" ? "bg-[#09090d] border-white/5 text-white" : "bg-[#18233c] border-[#781c1c]/10 text-white shadow-xl"
-      }`}>
-        <div className="p-6 border-b border-white/10 flex items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center shrink-0 border border-white/20 shadow-md overflow-hidden p-0.5">
-              <img src="/mcc-crest.png" className="w-full h-full object-contain" alt="MCC Crest" />
-            </div>
-            <div>
-              <span className="font-serif font-black text-xs tracking-tight text-white block leading-none">
-                MADRAS CHRISTIAN
-              </span>
-              <span className="font-serif font-black text-xs tracking-tight text-white block mt-0.5 leading-none">
-                COLLEGE
-              </span>
-              <span className="text-[7px] uppercase font-mono tracking-widest text-[#d4af37] block font-extrabold mt-1 leading-none">
-                Autonomous
-              </span>
-          </div>
+      <div className="w-72 border-r backdrop-blur-xl sticky top-0 h-screen flex-col transition-colors duration-300 shrink-0 hidden md:flex mcc-sidebar">
+        <div className="p-6 border-b border-slate-200 flex items-center justify-center">
+          <img 
+            src="/mcc-logo.jpg" 
+            className="w-full max-w-[280px] h-auto object-contain rounded-lg transition-transform duration-200 hover:scale-[1.02]" 
+            alt="Madras Christian College Logo" 
+          />
         </div>
-      </div>
 
         {/* 13 SECTIONS LINKS */}
         <div className="flex-1 overflow-y-auto p-4 space-y-1 scrollbar-thin">
@@ -1471,22 +1458,14 @@ Report Generated: ${new Date().toLocaleDateString()}
       {/* MOBILE DRAWER SIDEBAR OVERLAY */}
       {showMobileNav && (
         <div className="fixed inset-0 z-50 flex md:hidden bg-black/60 backdrop-blur-xs select-none">
-          <div className={`w-72 flex flex-col p-5 animate-slideIn h-screen border-r ${
-            themeMode === "dark" ? "bg-[#09090d] border-white/5 text-white" : "bg-[#18233c] border-[#781c1c]/10 text-white shadow-xl"
-          }`}>
-            <div className="flex justify-between items-center pb-4 border-b border-white/10">
-              <div className="flex items-center gap-2.5">
-                <div className="w-9 h-9 rounded-full bg-white flex items-center justify-center border border-white/20 shadow-sm overflow-hidden shrink-0 p-0.5">
-                  <img src="/mcc-crest.png" className="w-full h-full object-contain" alt="MCC Crest" />
-                </div>
-                <div>
-                  <span className="font-serif font-black text-[10px] tracking-tight text-white block leading-none">
-                    MADRAS CHRISTIAN
-                  </span>
-                  <span className="font-serif font-black text-[10px] tracking-tight text-white block mt-0.5 leading-none">
-                    COLLEGE
-                  </span>
-                </div>
+          <div className="w-72 flex flex-col p-5 animate-slideIn h-screen border-r mcc-sidebar">
+            <div className="flex justify-between items-center pb-4 border-b border-gray-250">
+              <div className="flex items-center justify-start py-1">
+                <img 
+                  src="/mcc-logo.jpg" 
+                  className="w-full max-w-[190px] h-auto object-contain rounded-lg" 
+                  alt="Madras Christian College Logo" 
+                />
               </div>
               <button onClick={() => setShowMobileNav(false)} className="text-slate-400 hover:text-white cursor-pointer p-1">
                 <X size={18} />
@@ -1611,12 +1590,13 @@ Report Generated: ${new Date().toLocaleDateString()}
         
         {/* MOBILE TOP HEADER BAR */}
         <div className="sticky top-0 z-[49] md:hidden flex items-center justify-between p-4 bg-white/90 dark:bg-[#09090d]/90 backdrop-blur-md border-b border-slate-200 dark:border-white/5 select-none shadow-md shrink-0">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2.5">
             <button
               onClick={() => setShowMobileNav(true)}
-              className="p-2 rounded-lg text-slate-500 hover:bg-slate-100 dark:hover:bg-white/5 transition cursor-pointer"
+              className="p-2 rounded-xl bg-[#781c1c] hover:bg-[#5f1515] transition cursor-pointer flex items-center justify-center shrink-0"
+              style={{ color: '#ffffff' }}
             >
-              <Menu size={20} />
+              <Menu size={18} style={{ color: '#ffffff' }} />
             </button>
             <span className="font-serif font-black text-[#18233c] dark:text-white tracking-tight text-xs uppercase">
               Dashboard Menu
@@ -1628,7 +1608,7 @@ Report Generated: ${new Date().toLocaleDateString()}
         <div className="flex-1 overflow-y-auto px-4 md:px-10 py-6 md:py-8 space-y-10">
 
         {/* BANNER SHOWCASE */}
-        <div className="relative rounded-3xl overflow-hidden h-36 md:h-44 bg-[#18233c] text-white flex items-end p-6 md:p-8 border border-amber-600/20 shadow-md mb-4">
+        <div className="relative rounded-3xl overflow-hidden h-36 md:h-44 bg-[#18233c] text-white flex items-end p-6 md:p-8 border border-amber-600/20 shadow-md mb-4 mcc-welcome-banner">
           <div className="absolute inset-0 z-0">
             <img 
               src="/mcc-facade.jpg" 
@@ -1638,13 +1618,22 @@ Report Generated: ${new Date().toLocaleDateString()}
             <div className="absolute inset-0 bg-gradient-to-t from-[#18233c] via-[#18233c]/40 to-transparent" />
           </div>
           <div className="relative z-10 space-y-1 w-full text-left">
-            <span className="text-[9px] uppercase font-mono font-black tracking-widest text-amber-400 bg-[#781c1c] px-3 py-1 rounded-full border border-amber-500/20 inline-block">
+            <span 
+              style={{ color: '#ffffff' }}
+              className="text-[9.5px] uppercase font-mono font-black tracking-widest bg-[#781c1c] px-3.5 py-1.5 rounded-full border border-amber-500/20 inline-block"
+            >
               {user?.stream || "General"} Stream · {user?.department || "Unassigned"}
             </span>
-            <h1 className="font-serif text-xl md:text-3xl font-black text-white mt-2 leading-tight">
+            <h1 
+              style={{ color: '#ffffff' }}
+              className="font-serif text-xl md:text-3xl font-black mt-2 leading-tight"
+            >
               Welcome back, {fullName || user?.fullName || "Student Scholar"}
             </h1>
-            <p className="text-xs text-slate-300">
+            <p 
+              style={{ color: 'rgba(255, 255, 255, 0.85)' }}
+              className="text-xs"
+            >
               Manage your academic records, certifications, and portfolio pages.
             </p>
           </div>
@@ -1653,7 +1642,7 @@ Report Generated: ${new Date().toLocaleDateString()}
         {/* HEADER BAR */}
         <div className="flex justify-between items-center pb-6 border-b border-white/10">
           <div>
-            <span className="text-[10px] uppercase font-mono font-black tracking-widest text-[#781c1c] block mb-1">Student Placement Directory</span>
+            <span className="text-[10px] uppercase font-mono font-black tracking-widest text-[#781c1c] block mb-1 whitespace-nowrap">Madras Christian College</span>
             <h2 className="font-serif text-3xl font-extrabold tracking-tight text-[#18233c]">Student Dashboard</h2>
             <p className={`text-xs mt-1 ${themeMode === "dark" ? "text-gray-400" : "text-slate-500"}`}>
               Configure and showcase your portfolio variables according to MCC standards.
@@ -1706,7 +1695,7 @@ Report Generated: ${new Date().toLocaleDateString()}
         {/* ==========================================
             SECTION 1: HEADER SETTINGS
             ========================================== */}
-        <div id="header-section" className={`border rounded-3xl p-8 transition duration-300 ${
+        <div id="header-section" className={`border rounded-3xl p-8 transition duration-300 -mt-6 md:-mt-8 ${
           themeMode === "dark" ? "bg-white/5 border-white/10" : "bg-white border-slate-200 shadow-sm"
         }`}>
           <h3 className="font-serif text-2xl font-black mb-4 flex items-center gap-2 text-[#18233c] border-b border-[#781c1c]/10 pb-3">

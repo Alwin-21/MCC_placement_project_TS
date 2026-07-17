@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/utils/db";
-import { getUserFromRequest } from "@/utils/auth";
+import { getUserFromRequest, hasModulePermission } from "@/utils/auth";
 
 export async function PUT(
   request: Request,
@@ -8,7 +8,7 @@ export async function PUT(
 ) {
   try {
     const userPayload = getUserFromRequest(request);
-    if (!userPayload || userPayload.role !== "Admin") {
+    if (!userPayload || !hasModulePermission(userPayload, "students", "write")) {
       return NextResponse.json("Forbidden", { status: 403 });
     }
 
@@ -76,7 +76,7 @@ export async function DELETE(
 ) {
   try {
     const userPayload = getUserFromRequest(request);
-    if (!userPayload || userPayload.role !== "Admin") {
+    if (!userPayload || !hasModulePermission(userPayload, "students", "write")) {
       return NextResponse.json("Forbidden", { status: 403 });
     }
 

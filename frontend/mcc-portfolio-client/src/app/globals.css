@@ -1,21 +1,108 @@
-@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap');
+/* ─── Font Imports ─────────────────────────────────────────────────────── */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
 @import "tailwindcss";
 
+/* ─── Base Reset ───────────────────────────────────────────────────────── */
 html,
 body {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
   scroll-behavior: smooth;
+  font-size: 16px; /* natural browser default */
 }
 
 body {
   background: #fcfaf6;
-  color: #2c2c2c;
-  font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  color: #1e293b;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-/* Responsive form inputs utility */
+/* ─── Typography: Inter for all UI elements ────────────────────────────── */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body,
+button,
+input,
+select,
+textarea,
+span,
+p,
+a,
+div,
+td,
+th,
+label,
+li,
+nav {
+  font-family: 'Inter', 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont,
+    'Segoe UI', Roboto, Helvetica, Arial, sans-serif !important;
+}
+
+/* ─── Typography: Times New Roman for headings only ───────────────────── */
+h1, h2, h3, h4, h5, h6 {
+  font-family: 'Times New Roman', Times, Baskerville, Georgia, serif !important;
+  color: #111827;
+  line-height: 1.25;
+}
+
+/* Sensible heading scale */
+h1 { font-size: 2rem; }
+h2 { font-size: 1.65rem; }
+h3 { font-size: 1.375rem; }
+h4 { font-size: 1.125rem; }
+h5 { font-size: 1rem; }
+h6 { font-size: 0.875rem; }
+
+/* Responsive heading scale for smaller screens */
+@media (max-width: 768px) {
+  h1 { font-size: 1.6rem; }
+  h2 { font-size: 1.35rem; }
+  h3 { font-size: 1.15rem; }
+  h4 { font-size: 1rem; }
+}
+
+/* ─── Gray-to-black overrides (keep text readable everywhere) ──────────── */
+.text-gray-300,
+.text-gray-400,
+.text-gray-500,
+.text-gray-600,
+.text-gray-700,
+.text-gray-800,
+.text-slate-300,
+.text-slate-350,
+.text-slate-400,
+.text-slate-450,
+.text-slate-455,
+.text-slate-500,
+.text-slate-600,
+.text-slate-650,
+.text-slate-700,
+.text-slate-800,
+.text-zinc-300,
+.text-zinc-400,
+.text-neutral-400,
+.text-neutral-500,
+.text-neutral-600 {
+  color: #1e293b !important; /* dark navy instead of harsh gray or pure black */
+}
+
+/* ─── Placeholders stay gray ───────────────────────────────────────────── */
+::placeholder,
+input::placeholder,
+textarea::placeholder {
+  color: #94a3b8 !important;
+  opacity: 1 !important;
+  -webkit-text-fill-color: #94a3b8 !important;
+  font-family: 'Inter', sans-serif !important;
+}
+
+/* ─── Form inputs sizing ───────────────────────────────────────────────── */
 input[type="text"],
 input[type="email"],
 input[type="number"],
@@ -25,8 +112,165 @@ select,
 textarea {
   width: 100%;
   box-sizing: border-box;
+  font-size: 0.9375rem; /* 15px — comfortable, not huge */
 }
 
-.font-display {
-  font-family: 'Space Grotesk', sans-serif;
+/* ─── Sidebar — white background, black text, sharp icons ─────────────── */
+.mcc-sidebar,
+aside.mcc-sidebar,
+div.mcc-sidebar {
+  background-color: #ffffff !important;
+  background: #ffffff !important;
+  color: #111827 !important;
+  border-right: 1px solid #e2e8f0 !important;
 }
+
+.mcc-sidebar span,
+.mcc-sidebar p,
+.mcc-sidebar div,
+.mcc-sidebar h4,
+.mcc-sidebar button,
+.mcc-sidebar a,
+.mcc-sidebar select,
+.mcc-sidebar input {
+  color: #111827 !important;
+  font-family: 'Inter', sans-serif !important;
+}
+
+/* Sidebar nav buttons */
+.mcc-sidebar nav button,
+.mcc-sidebar button.w-full,
+.mcc-sidebar nav button span,
+.mcc-sidebar button.w-full span {
+  background-color: transparent !important;
+  color: #374151 !important;
+  font-size: 0.9rem !important;
+  font-weight: 500 !important;
+  transition: all 0.2s ease-in-out !important;
+}
+
+/* Active tab — solid maroon fill matching the reference design */
+.mcc-sidebar nav button.mcc-active-tab,
+.mcc-sidebar button.mcc-active-tab {
+  background-color: #781c1c !important;
+  color: #ffffff !important;
+  font-weight: 700 !important;
+  border-left: none !important;
+  border-radius: 8px !important;
+}
+
+.mcc-sidebar nav button.mcc-active-tab span,
+.mcc-sidebar button.mcc-active-tab span {
+  color: #ffffff !important;
+}
+
+/* Hover state */
+.mcc-sidebar nav button:hover:not(.mcc-active-tab),
+.mcc-sidebar button.w-full:hover:not(.mcc-active-tab) {
+  background-color: #f1f5f9 !important;
+  color: #111827 !important;
+}
+
+/* Sidebar icons */
+.mcc-sidebar svg,
+.mcc-sidebar nav button svg,
+.mcc-sidebar button.w-full svg {
+  color: #374151 !important;
+  stroke: #374151 !important;
+  stroke-width: 2px !important;
+  width: 18px !important;
+  height: 18px !important;
+  transition: all 0.2s ease !important;
+  flex-shrink: 0;
+}
+
+.mcc-sidebar nav button.mcc-active-tab svg,
+.mcc-sidebar button.mcc-active-tab svg {
+  color: #ffffff !important;
+  stroke: #ffffff !important;
+  stroke-width: 2px !important;
+}
+
+/* Sign out / danger button */
+.mcc-sidebar button[class*="bg-rose-500"],
+.mcc-sidebar button.bg-rose-500\/10 {
+  background-color: #fef2f2 !important;
+  color: #dc2626 !important;
+  border: 1px solid #fca5a5 !important;
+}
+.mcc-sidebar button[class*="bg-rose-500"]:hover,
+.mcc-sidebar button.bg-rose-500\/10:hover {
+  background-color: #fee2e2 !important;
+}
+
+/* SA / role badges */
+.mcc-sidebar span[class*="bg-violet-500"],
+.mcc-sidebar span[class*="bg-amber-500"] {
+  background-color: #f1f5f9 !important;
+  color: #475569 !important;
+  border: 1px solid #cbd5e1 !important;
+}
+.mcc-sidebar div[class*="bg-violet-500"],
+.mcc-sidebar div[class*="bg-blue-500"],
+.mcc-sidebar div.font-mono.font-bold {
+  background-color: #f8fafc !important;
+  color: #1e293b !important;
+  border: 1px solid #e2e8f0 !important;
+}
+
+/* ─── Access Control panel — solid black text ──────────────────────────── */
+.mcc-access-control,
+.mcc-access-control span,
+.mcc-access-control p,
+.mcc-access-control div,
+.mcc-access-control h3,
+.mcc-access-control h4,
+.mcc-access-control h5,
+.mcc-access-control h6,
+.mcc-access-control td,
+.mcc-access-control th,
+.mcc-access-control label,
+.mcc-access-control button,
+.mcc-access-control input {
+  color: #111827 !important;
+}
+
+.mcc-access-control h3,
+.mcc-access-control h4 {
+  font-family: 'Times New Roman', Times, serif !important;
+  font-weight: 700 !important;
+}
+
+/* Badges inside access control */
+.mcc-access-control span[class*="bg-rose-500"],
+.mcc-access-control span[class*="bg-emerald-500"],
+.mcc-access-control span[class*="bg-amber-500"],
+.mcc-access-control span[class*="bg-gray-500"],
+.mcc-access-control span[class*="bg-violet-500"] {
+  color: #111827 !important;
+  font-weight: 700 !important;
+}
+
+/* ─── Mobile responsiveness utilities ──────────────────────────────────── */
+@media (max-width: 640px) {
+  body {
+    font-size: 15px;
+  }
+  input[type="text"],
+  input[type="email"],
+  input[type="number"],
+  input[type="date"],
+  input[type="password"],
+  select,
+  textarea {
+    font-size: 1rem; /* prevents iOS zoom on focus */
+  }
+}
+
+/* ─── Dashboard & Admin Welcome Banner Override ────────────────────────── */
+.mcc-welcome-banner span,
+.mcc-welcome-banner h1,
+.mcc-welcome-banner p {
+  color: #ffffff !important;
+}
+

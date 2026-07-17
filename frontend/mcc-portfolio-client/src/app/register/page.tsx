@@ -118,7 +118,7 @@ export default function RegisterPage() {
     <div className="min-h-screen flex bg-[#fcfaf6] text-[#2c2c2c] font-sans">
       
       {/* LEFT PANEL: CAMPUS ARCHWAY SHOWCASE (Hidden on Mobile) */}
-      <div className="hidden lg:flex lg:w-5/12 relative bg-[#18233c] text-white p-12 flex-col justify-between overflow-hidden">
+      <div className="hidden lg:flex lg:w-5/12 relative bg-[#18233c] text-white p-12 flex-col justify-center overflow-hidden">
         <div className="absolute inset-0 z-0">
           <img 
             src="/mcc-entrance-gate.jpg" 
@@ -128,26 +128,17 @@ export default function RegisterPage() {
           <div className="absolute inset-0 bg-gradient-to-t from-[#18233c] via-[#18233c]/60 to-transparent" />
         </div>
 
-        <div className="relative z-10 flex items-center gap-3">
-          <div className="w-12 h-12 rounded-full bg-white flex items-center justify-center shadow-md overflow-hidden shrink-0 p-0.5 border border-white/20">
-            <img src="/mcc-crest.png" className="w-full h-full object-contain" alt="MCC Crest" />
-          </div>
-          <div>
-            <span className="font-serif font-black text-sm tracking-wider block uppercase">Madras Christian College</span>
-            <span className="text-[8px] uppercase tracking-widest text-amber-400 block font-bold">Autonomous placement platform</span>
-          </div>
-        </div>
-
-        <div className="relative z-10 max-w-sm mb-8">
-          <h2 className="font-serif text-3xl font-extrabold text-white leading-tight mb-4">
-            Join the Verified Registry
+        {/* MCC Info: main content */}
+        <div className="relative z-10 max-w-sm">
+          <h2 style={{ fontFamily: "'Times New Roman', Georgia, serif", color: "#ffffff", fontSize: "2rem", fontWeight: 800, lineHeight: 1.25, marginBottom: "16px" }}>
+            Join the Verified Student Registry.
           </h2>
-          <p className="text-xs text-slate-355 leading-relaxed">
+          <p style={{ fontFamily: "'Times New Roman', Georgia, serif", color: "#ffffff", fontSize: "1rem", lineHeight: 1.7, opacity: 0.9 }}>
             Create an official student resume profile. Showcase academic records, projects, research papers, languages, patents, test scores, and handles directly to verifying administrators.
           </p>
         </div>
 
-        <div className="relative z-10 text-[10px] font-mono text-slate-400 uppercase tracking-widest">
+        <div className="absolute bottom-12 left-12 z-10 text-[10px] font-mono text-slate-400 uppercase tracking-widest">
           Established 1837 · Chennai, India
         </div>
       </div>

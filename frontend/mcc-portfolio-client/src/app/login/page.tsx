@@ -129,7 +129,7 @@ export default function LoginPage() {
     <div className="min-h-screen flex bg-[#fcfaf6] text-[#2c2c2c] font-sans">
       
       {/* LEFT PANEL: CAMPUS IMAGERY SHOWCASE (Hidden on Mobile) */}
-      <div className="hidden lg:flex lg:w-7/12 relative bg-[#18233c] text-white p-12 flex-col justify-between overflow-hidden">
+      <div className="hidden lg:flex lg:w-7/12 relative bg-[#18233c] text-white p-12 flex-col justify-center overflow-hidden">
         <div className="absolute inset-0 z-0">
           <img 
             src="/mcc-facade.jpg" 
@@ -139,26 +139,17 @@ export default function LoginPage() {
           <div className="absolute inset-0 bg-gradient-to-t from-[#18233c] via-[#18233c]/60 to-transparent" />
         </div>
 
-        <div className="relative z-10 flex items-center gap-3">
-          <div className="w-12 h-12 rounded-full bg-white flex items-center justify-center shadow-md overflow-hidden shrink-0 p-0.5 border border-white/20">
-            <img src="/mcc-crest.png" className="w-full h-full object-contain" alt="MCC Crest" />
-          </div>
-          <div>
-            <span className="font-serif font-black text-sm tracking-wider block uppercase">Madras Christian College</span>
-            <span className="text-[8px] uppercase tracking-widest text-amber-400 block font-bold">Autonomous placement directory</span>
-          </div>
-        </div>
-
-        <div className="relative z-10 max-w-lg mb-8">
-          <h2 className="font-serif text-3xl md:text-4xl font-extrabold text-white leading-tight mb-4">
-            Showcase your academic & professional milestone.
+        {/* MCC Info: main content */}
+        <div className="relative z-10 max-w-lg">
+          <h2 style={{ fontFamily: "'Times New Roman', Georgia, serif", color: "#ffffff", fontSize: "2rem", fontWeight: 800, lineHeight: 1.25, marginBottom: "16px" }}>
+            Showcase your academic &amp; professional milestone.
           </h2>
-          <p className="text-sm text-slate-350 leading-relaxed">
+          <p style={{ fontFamily: "'Times New Roman', Georgia, serif", color: "#ffffff", fontSize: "1rem", lineHeight: 1.7, opacity: 0.9 }}>
             Create verified portfolios, publish publications, coordinate live demo links, and get AI-powered career feedback customized for MCC students.
           </p>
         </div>
 
-        <div className="relative z-10 text-[10px] font-mono text-slate-400 uppercase tracking-widest">
+        <div className="absolute bottom-12 left-12 z-10 text-[10px] font-mono text-slate-400 uppercase tracking-widest">
           Established 1837 · Chennai, India
         </div>
       </div>

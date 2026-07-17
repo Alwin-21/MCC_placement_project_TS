@@ -1,56 +1,83 @@
 import { NextResponse } from "next/server";
-import { generateToken } from "@/utils/auth";
+import { generateToken, hashPassword, verifyPassword } from "@/utils/auth";
+import { prisma } from "@/utils/db";
+
+const SUPER_ADMIN_EMAIL = "admin@mcc.com";
+const SUPER_ADMIN_PASSWORD = "tech@111418";
 
 export async function POST(request: Request) {
   try {
     const body = await request.json();
     const { email, password } = body;
 
-    const superAdminEmail = "admin@mcc.com";
-    const superAdminPassword = "admin123";
+    if (!email || !password) {
+      return NextResponse.json({ message: "Email and password are required." }, { status: 400 });
+    }
 
-    const staffEmail = "staff@mcc.com";
-    const staffPassword = "staff123";
-
-    if (email === superAdminEmail && password === superAdminPassword) {
+    // ── Super Admin (hardcoded) ──────────────────────────────────────
+    if (email.toLowerCase() === SUPER_ADMIN_EMAIL && password === SUPER_ADMIN_PASSWORD) {
       const adminUser = {
         Id: 999,
-        FullName: "Administrator",
-        Email: superAdminEmail,
-        Role: 2, // Admin
+        FullName: "Super Administrator",
+        Email: SUPER_ADMIN_EMAIL,
+        Role: 2, // Super Admin
+        adminPermissions: "all",
       };
 
       const token = generateToken(adminUser);
 
       return NextResponse.json({
-        token: token,
+        token,
         user: {
           fullName: adminUser.FullName,
           email: adminUser.Email,
           role: "Admin",
-        },
-      });
-    } else if (email === staffEmail && password === staffPassword) {
-      const staffUser = {
-        Id: 998,
-        FullName: "Staff Administrator",
-        Email: staffEmail,
-        Role: 3, // Moderator / Normal Admin
-      };
-
-      const token = generateToken(staffUser);
-
-      return NextResponse.json({
-        token: token,
-        user: {
-          fullName: staffUser.FullName,
-          email: staffUser.Email,
-          role: "Moderator",
+          adminPermissions: "all",
         },
       });
     }
 
-    return NextResponse.json({ message: "Invalid Admin Credentials" }, { status: 401 });
+    // ── Sub-Admin (DB lookup, Role = 3) ──────────────────────────────
+    const subAdmin = await prisma.users.findFirst({
+      where: {
+        OR: [
+          { Email: { equals: email, mode: "insensitive" } },
+          { Username: { equals: email, mode: "insensitive" } },
+        ],
+        Role: 3,
+      },
+    });
+
+    if (!subAdmin) {
+      return NextResponse.json({ message: "Invalid Admin Credentials" }, { status: 401 });
+    }
+
+    if (!subAdmin.IsActive) {
+      return NextResponse.json({ message: "Your admin account has been deactivated." }, { status: 401 });
+    }
+
+    const isValid = subAdmin.PasswordHash === password || verifyPassword(password, subAdmin.PasswordHash);
+    if (!isValid) {
+      return NextResponse.json({ message: "Invalid Admin Credentials" }, { status: 401 });
+    }
+
+    const token = generateToken({
+      Id: subAdmin.Id,
+      FullName: subAdmin.FullName,
+      Email: subAdmin.Email,
+      Role: subAdmin.Role,
+      adminPermissions: subAdmin.AdminPermissions || "",
+    });
+
+    return NextResponse.json({
+      token,
+      user: {
+        fullName: subAdmin.FullName,
+        email: subAdmin.Email,
+        role: "Moderator",
+        adminPermissions: subAdmin.AdminPermissions || "",
+      },
+    });
   } catch (err: any) {
     console.error("Admin Login Error:", err);
     return NextResponse.json({ message: "Internal server error" }, { status: 500 });

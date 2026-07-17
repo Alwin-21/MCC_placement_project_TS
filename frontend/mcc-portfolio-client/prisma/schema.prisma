@@ -325,6 +325,7 @@ model Users {
   IsTemporaryPassword Boolean               @default(false)
   Username            String                @default("")
   IsActive            Boolean               @default(false)
+  AdminPermissions    String                @default("")
   AcademicRecords     AcademicRecords[]
   Achievements        Achievements[]
   Certifications      Certifications[]

@@ -42,6 +42,7 @@ export default function ResumeEditorPage() {
   // Core loading states
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [downloading, setDownloading] = useState(false);
   const [showSyncModal, setShowSyncModal] = useState(false);
   const [mobileTab, setMobileTab] = useState<"edit" | "preview">("edit");
   const [showPreviewModal, setShowPreviewModal] = useState(false);
@@ -547,367 +548,237 @@ export default function ResumeEditorPage() {
     });
   };
 
-  // Print function matching preview exactly (Optimized inline print to prevent mobile popup-blocker issues)
-  const handlePrint = () => {
-    const printContent = document.getElementById("resume-preview-container");
-    if (!printContent) return;
+  // ─── Pixel-perfect PDF download using html2canvas + jsPDF ───────────────
+  // Renders the exact same DOM element shown in preview into a canvas,
+  // then packs it into an A4 PDF — preview === download, always.
+  const handleDownloadPDF = async () => {
+    const el = document.getElementById("resume-preview-container");
+    if (!el) return;
+    try {
+      setDownloading(true);
+      // Dynamically import to avoid SSR issues
+      const html2canvas = (await import("html2canvas")).default;
+      const { jsPDF } = await import("jspdf");
 
-    // Create a style element for print page styling
-    const styleEl = document.createElement("style");
-    styleEl.innerHTML = `
-      @media print {
-        html, body {
-          height: auto !important;
-          overflow: visible !important;
-          margin: 0 !important;
-          padding: 0 !important;
-          -webkit-print-color-adjust: exact !important;
-          print-color-adjust: exact !important;
-        }
-        body > *:not(#print-temp-container) {
-          display: none !important;
-        }
-        #print-temp-container {
-          display: block !important;
-          width: 794px !important;
-          height: 1123px !important;
-          margin: 0 auto !important;
-          padding: 0 !important;
-          background: white !important;
-          color: black !important;
-          position: absolute !important;
-          left: 0 !important;
-          top: 0 !important;
-        }
-        @page {
-          size: A4;
-          margin: 0;
-        }
-        .print-avoid-break {
-          page-break-inside: avoid;
-        }
-      }
-      #print-temp-container {
-        display: none;
-      }
-    `;
-    document.head.appendChild(styleEl);
+      const canvas = await html2canvas(el, {
+        scale: 2,           // 2x for crisp quality
+        useCORS: true,
+        allowTaint: true,
+        backgroundColor: "#ffffff",
+        width: 794,
+        height: 1123,
+        logging: false
+      });
 
-    // Create temporary container
-    const tempContainer = document.createElement("div");
-    tempContainer.id = "print-temp-container";
-    tempContainer.innerHTML = printContent.innerHTML;
-    tempContainer.className = printContent.className;
-    
-    // Reset background and box-shadow for paper print
-    tempContainer.style.boxShadow = "none";
-    tempContainer.style.border = "none";
-    tempContainer.style.backgroundColor = "white";
-
-    document.body.appendChild(tempContainer);
-
-    // Short timeout to let layout settle, then print
-    setTimeout(() => {
-      window.print();
-      // Cleanup
-      if (document.body.contains(tempContainer)) {
-        document.body.removeChild(tempContainer);
-      }
-      if (document.head.contains(styleEl)) {
-        document.head.removeChild(styleEl);
-      }
-    }, 150);
+      const imgData = canvas.toDataURL("image/jpeg", 0.97);
+      const pdf = new jsPDF({ orientation: "portrait", unit: "px", format: [794, 1123] });
+      pdf.addImage(imgData, "JPEG", 0, 0, 794, 1123);
+      const safeName = (resumeTitle || "resume").replace(/[^a-z0-9_\-]/gi, "_");
+      pdf.save(`${safeName}.pdf`);
+    } catch (err) {
+      console.error("PDF generation failed:", err);
+      alert("Could not generate PDF. Please try again.");
+      setDownloading(false);
+    }
   };
+
+  // Keep legacy handlePrint as alias for backward compatibility
+  const handlePrint = handleDownloadPDF;
 
   const renderResumeDocument = (isModal = false) => {
     const pInfo = resumeData.personalInfo;
     return (
       <div
         id={isModal ? "resume-preview-container-modal" : "resume-preview-container"}
-        className={`w-[794px] min-h-[1123px] bg-white text-slate-800 shadow-2xl rounded-sm font-sans flex flex-col justify-between ${
-          selectedTheme === "Professional" ? "p-0" : "p-12"
-        }`}
-        style={{ fontFamily: "'Inter', sans-serif" }}
+        style={{ width: "794px", minHeight: "1123px", backgroundColor: "#fff", fontFamily: "'Inter','Helvetica Neue',Arial,sans-serif", display: "flex", flexDirection: "column" }}
       >
-        {/* RENDER SELECTED THEMES */}
+        {/* ══════════════════════════════════════════════════
+            TEMPLATE 1: PROFESSIONAL  (split column)
+        ══════════════════════════════════════════════════ */}
         {selectedTheme === "Professional" && (
-          <div className="flex flex-col h-full flex-1 text-left">
-            
-            {/* Top Header Banner (Richard Sanchez style) */}
-            <div
-              className="p-8 text-white relative flex flex-col justify-end shrink-0"
-              style={{ backgroundColor: accentColor, height: "140px" }}
-            >
-              <div className={pInfo.showPhoto && pInfo.profileImageUrl ? "pl-40" : ""}>
-                <h2 className="font-sans font-black text-2xl tracking-wide uppercase leading-none text-white">
+          <div style={{ display: "flex", flexDirection: "column", flex: 1 }}>
+
+            {/* Header banner */}
+            <div style={{ backgroundColor: accentColor, padding: "22px 28px 18px 28px", display: "flex", justifyContent: "space-between", alignItems: "flex-end", flexShrink: 0 }}>
+              <div style={{ paddingLeft: pInfo.showPhoto && pInfo.profileImageUrl ? "110px" : "0" }}>
+                <div style={{ fontSize: "22px", fontWeight: 900, letterSpacing: "2px", textTransform: "uppercase", color: "#fff", lineHeight: 1.1 }}>
                   {pInfo.fullName || "Your Name"}
-                </h2>
-                <p className="text-[10px] uppercase font-mono tracking-wider font-bold opacity-85 mt-2">
-                  {pInfo.title || "Headline Title"}
-                </p>
+                </div>
+                <div style={{ fontSize: "9.5px", fontFamily: "monospace", letterSpacing: "2px", textTransform: "uppercase", color: "rgba(255,255,255,0.7)", marginTop: "6px" }}>
+                  {pInfo.title || "Professional Title"}
+                </div>
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "2px", fontSize: "9px", color: "rgba(255,255,255,0.65)", fontFamily: "monospace" }}>
+                {pInfo.email && <span>{pInfo.email}</span>}
+                {pInfo.phone && <span>{pInfo.phone}</span>}
+                {pInfo.address && <span>{pInfo.address}</span>}
               </div>
             </div>
 
-            {/* Split body area */}
-            <div className="flex flex-1 min-h-0">
-              
-              {/* Left column sidebar (light gray tinted background) */}
-              <div className="w-[240px] bg-slate-100 p-6 flex flex-col gap-6 shrink-0 relative">
-                
-                {/* Overlapping profile photo */}
-                 {pInfo.showPhoto && pInfo.profileImageUrl && (() => {
-                   const imgDetails = parseImageAdjustments(pInfo.profileImageUrl);
-                   return (
-                     <div className="w-32 h-32 rounded-full border-4 border-white shadow-md -mt-24 overflow-hidden mx-auto mb-2 shrink-0 bg-white flex items-center justify-center">
-                       <img 
-                         src={imgDetails.src} 
-                         style={imgDetails.style} 
-                         alt={pInfo.fullName} 
-                         className="w-full h-full" 
-                       />
-                     </div>
-                   );
-                 })()}
+            {/* Body */}
+            <div style={{ display: "flex", flex: 1 }}>
 
-                {/* Contact Details */}
-                <div className="space-y-3">
-                  <h4 className="font-sans text-[10px] uppercase tracking-wider font-bold border-b-2 pb-1 text-slate-800" style={{ borderColor: accentColor }}>
-                    Contact
-                  </h4>
-                  <div className="space-y-2 text-[10px] text-slate-600 font-semibold">
-                    {pInfo.phone && <div className="flex items-center gap-1.5"><span>Phone:</span> {pInfo.phone}</div>}
-                    {pInfo.email && <div className="flex items-center gap-1.5 break-all"><span>Email:</span> {pInfo.email}</div>}
-                    {pInfo.address && <div className="flex items-center gap-1.5"><span>Address:</span> {pInfo.address}</div>}
-                    {pInfo.portfolio && (
-                      <div className="flex items-center gap-1.5 truncate">
-                        <span>Web:</span>
-                        <a href={pInfo.portfolio} target="_blank" rel="noreferrer" className="underline">{pInfo.portfolio}</a>
+              {/* ── Sidebar ── */}
+              <div style={{ width: "210px", backgroundColor: "#f1f5f9", flexShrink: 0, display: "flex", flexDirection: "column" }}>
+
+                {/* Photo */}
+                {pInfo.showPhoto && pInfo.profileImageUrl && (() => {
+                  const img = parseImageAdjustments(pInfo.profileImageUrl);
+                  return (
+                    <div style={{ display: "flex", justifyContent: "center", padding: "18px 0 12px", background: accentColor + "18" }}>
+                      <div style={{ width: "90px", height: "90px", borderRadius: "50%", overflow: "hidden", border: `3px solid ${accentColor}`, boxShadow: "0 3px 12px rgba(0,0,0,0.18)", background: "#fff" }}>
+                        <img src={img.src} style={{ ...img.style, width: "100%", height: "100%" }} alt={pInfo.fullName} />
                       </div>
-                    )}
-                  </div>
-                </div>
+                    </div>
+                  );
+                })()}
 
-                {/* Skills list (Simple comma or item bullets) */}
-                {resumeData.skills?.visible && resumeData.skills?.items?.some((i: any) => i.visible) && (
-                  <div className="space-y-3">
-                    <h4 className="font-sans text-[10px] uppercase tracking-wider font-bold border-b-2 pb-1 text-slate-800" style={{ borderColor: accentColor }}>
-                      Skills
-                    </h4>
-                    <ul className="space-y-1.5 text-[10px] text-slate-600 font-semibold list-disc pl-4">
-                      {resumeData.skills.items.filter((i: any) => i.visible).map((skill: any) => (
-                        <li key={skill.id}>
-                          {skill.name} <span className="font-normal opacity-70">({skill.level})</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-
-                {/* Languages */}
-                {resumeData.languages?.visible && resumeData.languages?.items?.some((l: any) => l.visible) && (
-                  <div className="space-y-3">
-                    <h4 className="font-sans text-[10px] uppercase tracking-wider font-bold border-b-2 pb-1 text-slate-800" style={{ borderColor: accentColor }}>
-                      Languages
-                    </h4>
-                    <ul className="space-y-1.5 text-[10px] text-slate-600 font-semibold list-disc pl-4">
-                      {resumeData.languages.items.filter((l: any) => l.visible).map((l: any) => (
-                        <li key={l.name}>
-                          {l.name} <span className="font-normal opacity-70">({l.level})</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-
-                {/* Other Social handles */}
-                {resumeData.mediaHandles?.visible && resumeData.mediaHandles?.items?.some((h: any) => h.visible && h.url) && (
-                  <div className="space-y-3">
-                    <h4 className="font-sans text-[10px] uppercase tracking-wider font-bold border-b-2 pb-1 text-slate-800" style={{ borderColor: accentColor }}>
-                      Socials
-                    </h4>
-                    <div className="space-y-1.5 text-[10px] text-slate-600">
-                      {resumeData.mediaHandles.items.filter((h: any) => h.visible && h.url).map((h: any) => (
-                        <div key={h.platform} className="truncate flex items-center gap-1">
-                          <strong className="font-semibold">{h.platform}:</strong>
-                          <a href={h.url} target="_blank" rel="noreferrer" className="underline opacity-80">{h.url}</a>
+                <div style={{ padding: "18px 14px", display: "flex", flexDirection: "column", gap: "16px" }}>
+                  {/* Skills */}
+                  {resumeData.skills?.visible && resumeData.skills?.items?.some((i: any) => i.visible) && (
+                    <div>
+                      <div style={{ fontSize: "8.5px", fontWeight: 800, textTransform: "uppercase", letterSpacing: "1.5px", color: accentColor, borderBottom: `2px solid ${accentColor}`, paddingBottom: "3px", marginBottom: "7px" }}>Skills</div>
+                      {resumeData.skills.items.filter((i: any) => i.visible).map((s: any) => (
+                        <div key={s.id} style={{ fontSize: "9.5px", color: "#374151", fontWeight: 600, marginBottom: "3px" }}>
+                          {s.name} <span style={{ fontSize: "8px", color: "#9ca3af", fontWeight: 400 }}>({s.level})</span>
                         </div>
                       ))}
                     </div>
-                  </div>
-                )}
+                  )}
+
+                  {/* Languages */}
+                  {resumeData.languages?.visible && resumeData.languages?.items?.some((l: any) => l.visible) && (
+                    <div>
+                      <div style={{ fontSize: "8.5px", fontWeight: 800, textTransform: "uppercase", letterSpacing: "1.5px", color: accentColor, borderBottom: `2px solid ${accentColor}`, paddingBottom: "3px", marginBottom: "7px" }}>Languages</div>
+                      {resumeData.languages.items.filter((l: any) => l.visible).map((l: any) => (
+                        <div key={l.name} style={{ fontSize: "9.5px", color: "#374151", fontWeight: 600, marginBottom: "3px" }}>
+                          {l.name} <span style={{ fontSize: "8px", color: "#9ca3af", fontWeight: 400 }}>({l.level})</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Socials */}
+                  {resumeData.mediaHandles?.visible && resumeData.mediaHandles?.items?.some((h: any) => h.visible && h.url) && (
+                    <div>
+                      <div style={{ fontSize: "8.5px", fontWeight: 800, textTransform: "uppercase", letterSpacing: "1.5px", color: accentColor, borderBottom: `2px solid ${accentColor}`, paddingBottom: "3px", marginBottom: "7px" }}>Socials</div>
+                      {resumeData.mediaHandles.items.filter((h: any) => h.visible && h.url).map((h: any) => (
+                        <div key={h.platform} style={{ fontSize: "8.5px", color: "#374151", wordBreak: "break-all", marginBottom: "4px" }}>
+                          <span style={{ fontWeight: 700, color: accentColor }}>{h.platform}:</span> {h.url}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
 
-              {/* Right column details (White background with vertical timeline) */}
-              <div className="flex-1 p-8 pl-10 relative space-y-6 bg-white">
-                
-                {/* Timeline line */}
-                <div className="absolute left-[26px] top-8 bottom-8 w-[1.5px] bg-slate-200" />
-
+              {/* ── Main content ── */}
+              <div style={{ flex: 1, padding: "22px 26px", display: "flex", flexDirection: "column", gap: "18px", background: "#fff" }}>
                 {sectionOrder.map((section) => {
                   const secData = resumeData[section];
                   if (!secData || !secData.visible) return null;
-
-                  // Skip sidebar sections for Professional theme right column
                   if (["skills", "languages", "mediaHandles"].includes(section)) return null;
-
-                  // Check section content visibility
-                  let hasVisibleItems = false;
-                  if (section === "summary" && secData.content) hasVisibleItems = true;
-                  else if (secData.items && secData.items.some((i: any) => i.visible)) hasVisibleItems = true;
-
-                  if (!hasVisibleItems) return null;
+                  const hasContent = section === "summary" ? !!secData.content : secData.items?.some((i: any) => i.visible);
+                  if (!hasContent) return null;
 
                   return (
-                    <div key={section} className="relative pl-7 space-y-3 print-avoid-break">
-                      
-                      {/* Circular Icon Timeline Node */}
-                      <div
-                        className="absolute left-[-25px] top-[-1px] w-6 h-6 rounded-full bg-white border-2 flex items-center justify-center z-20"
-                        style={{ borderColor: accentColor, color: accentColor }}
-                      >
-                        {section === "summary" && <User size={10} strokeWidth={2.5} />}
-                        {section === "experience" && <Briefcase size={10} strokeWidth={2.5} />}
-                        {section === "education" && <Award size={10} strokeWidth={2.5} />}
-                        {section === "projects" && <GitBranch size={10} strokeWidth={2.5} />}
-                        {section === "testScores" && <Award size={10} strokeWidth={2.5} />}
-                        {section === "certifications" && <Award size={10} strokeWidth={2.5} />}
-                        {section === "achievements" && <Trophy size={10} strokeWidth={2.5} />}
-                        {section === "patents" && <FileText size={10} strokeWidth={2.5} />}
+                    <div key={section} className="print-avoid-break">
+                      {/* Heading row */}
+                      <div style={{ display: "flex", alignItems: "center", gap: "7px", marginBottom: "7px" }}>
+                        <div style={{ width: "3px", height: "13px", backgroundColor: accentColor, borderRadius: "2px", flexShrink: 0 }} />
+                        <div style={{ fontSize: "9.5px", fontWeight: 800, textTransform: "uppercase", letterSpacing: "1.5px", color: "#1e293b" }}>{headings[section]}</div>
+                        <div style={{ flex: 1, height: "1px", backgroundColor: "#e2e8f0" }} />
                       </div>
 
-                      {/* Section Title */}
-                      <h3 className="font-sans font-black text-xs uppercase tracking-wider text-slate-800 leading-none">
-                        {headings[section]}
-                      </h3>
-
-                      {/* Section content */}
                       {section === "summary" && (
-                        <p className="text-xs text-slate-600 leading-relaxed whitespace-pre-wrap">{secData.content}</p>
+                        <p style={{ fontSize: "10px", color: "#475569", lineHeight: 1.7, whiteSpace: "pre-wrap", margin: 0 }}>{secData.content}</p>
                       )}
-
                       {section === "experience" && (
-                        <div className="space-y-3">
+                        <div style={{ display: "flex", flexDirection: "column", gap: "11px" }}>
                           {secData.items.filter((i: any) => i.visible).map((item: any) => (
-                            <div key={item.id} className="relative space-y-1">
-                              {/* Bullet point centered on timeline */}
-                              <div className="absolute left-[-45px] top-1.5 w-2 h-2 rounded-full border-2 border-white bg-slate-400 z-10" />
-                              
-                              <div className="flex justify-between font-semibold text-xs text-slate-800 leading-snug">
-                                <span>{item.role}</span>
-                                <span className="text-slate-500 font-mono text-[9px]">{item.duration}</span>
+                            <div key={item.id}>
+                              <div style={{ display: "flex", justifyContent: "space-between" }}>
+                                <span style={{ fontSize: "10.5px", fontWeight: 700, color: "#1e293b" }}>{item.role}</span>
+                                <span style={{ fontSize: "8.5px", fontFamily: "monospace", color: "#94a3b8" }}>{item.duration}</span>
                               </div>
-                              <div className="text-[10px] text-slate-500 font-semibold">{item.company}</div>
-                              <p className="text-xs text-slate-600 mt-1 whitespace-pre-wrap leading-relaxed">{item.responsibilities}</p>
-                              {item.technologies && (
-                                <div className="text-[9px] font-mono text-slate-500">
-                                  <strong>Technologies:</strong> {item.technologies}
-                                </div>
-                              )}
+                              <div style={{ fontSize: "9.5px", color: accentColor, fontWeight: 600, marginTop: "1px" }}>{item.company}</div>
+                              <p style={{ fontSize: "9.5px", color: "#475569", lineHeight: 1.65, marginTop: "3px", whiteSpace: "pre-wrap" }}>{item.responsibilities}</p>
+                              {item.technologies && <div style={{ fontSize: "8.5px", fontFamily: "monospace", color: "#94a3b8", marginTop: "2px" }}>Stack: {item.technologies}</div>}
                             </div>
                           ))}
                         </div>
                       )}
-
                       {section === "education" && (
-                        <div className="space-y-3">
+                        <div style={{ display: "flex", flexDirection: "column", gap: "7px" }}>
                           {secData.items.filter((i: any) => i.visible).map((item: any) => (
-                            <div key={item.id} className="relative space-y-0.5">
-                              {/* Bullet point centered on timeline */}
-                              <div className="absolute left-[-45px] top-1.5 w-2 h-2 rounded-full border-2 border-white bg-slate-400 z-10" />
-
-                              <div className="flex justify-between font-semibold text-xs text-slate-800">
-                                <span>{item.degree}</span>
-                                <span className="text-slate-500 font-mono text-[9px]">{item.duration}</span>
+                            <div key={item.id} style={{ display: "flex", justifyContent: "space-between" }}>
+                              <div>
+                                <div style={{ fontSize: "10.5px", fontWeight: 700, color: "#1e293b" }}>{item.degree}</div>
+                                <div style={{ fontSize: "9.5px", color: "#64748b" }}>{item.institution}</div>
+                                {item.grade && <div style={{ fontSize: "8.5px", fontFamily: "monospace", color: accentColor, fontWeight: 700 }}>CGPA: {item.grade}</div>}
                               </div>
-                              <div className="text-[10px] text-slate-500 font-semibold">{item.institution}</div>
-                              {item.grade && <div className="text-[10px] font-mono text-slate-600 font-bold">Grade / CGPA: {item.grade}</div>}
+                              <span style={{ fontSize: "8.5px", fontFamily: "monospace", color: "#94a3b8", whiteSpace: "nowrap" }}>{item.duration}</span>
                             </div>
                           ))}
                         </div>
                       )}
-
                       {section === "projects" && (
-                        <div className="space-y-3">
+                        <div style={{ display: "flex", flexDirection: "column", gap: "9px" }}>
                           {secData.items.filter((i: any) => i.visible).map((item: any) => (
-                            <div key={item.id} className="relative space-y-1">
-                              {/* Bullet point centered on timeline */}
-                              <div className="absolute left-[-45px] top-1.5 w-2 h-2 rounded-full border-2 border-white bg-slate-400 z-10" />
-
-                              <div className="flex justify-between font-semibold text-xs text-slate-800">
-                                <span>{item.name}</span>
-                                <div className="flex gap-2">
-                                  {item.github && <a href={item.github} className="text-slate-500 underline text-[9px]">GitHub</a>}
-                                  {item.live && <a href={item.live} className="text-slate-500 underline text-[9px]">Demo</a>}
+                            <div key={item.id}>
+                              <div style={{ display: "flex", justifyContent: "space-between" }}>
+                                <span style={{ fontSize: "10.5px", fontWeight: 700, color: "#1e293b" }}>{item.name}</span>
+                                <div style={{ display: "flex", gap: "8px" }}>
+                                  {item.github && <span style={{ fontSize: "8.5px", color: accentColor }}>GitHub</span>}
+                                  {item.live && <span style={{ fontSize: "8.5px", color: accentColor }}>Demo</span>}
                                 </div>
                               </div>
-                              <p className="text-xs text-slate-600 leading-relaxed">{item.description}</p>
-                              {item.technologies && (
-                                <div className="text-[9px] font-mono text-slate-500">
-                                  <strong>Technologies Used:</strong> {item.technologies}
-                                </div>
-                              )}
+                              <p style={{ fontSize: "9.5px", color: "#475569", lineHeight: 1.6, marginTop: "2px" }}>{item.description}</p>
+                              {item.technologies && <div style={{ fontSize: "8.5px", fontFamily: "monospace", color: "#94a3b8", marginTop: "2px" }}>{item.technologies}</div>}
                             </div>
                           ))}
                         </div>
                       )}
-
-                      {section === "testScores" && (
-                        <div className="grid grid-cols-2 gap-3">
-                          {secData.items.filter((i: any) => i.visible).map((item: any) => (
-                            <div
-                              key={item.id}
-                              className={`p-2 rounded border text-xs relative ${
-                                item.highlighted
-                                  ? "bg-[#781c1c]/5 border-[#781c1c]/20"
-                                  : "bg-slate-50 border-slate-150"
-                              }`}
-                            >
-                              <strong className="block text-slate-800">{item.title}</strong>
-                              <span className="block font-mono font-bold text-[#781c1c] text-[10px] mt-0.5">{item.score}</span>
-                              {item.institution && <span className="block text-[9px] text-slate-500 mt-0.5">{item.institution}</span>}
-                            </div>
-                          ))}
-                        </div>
-                      )}
-
                       {section === "certifications" && (
-                        <div className="space-y-1">
+                        <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
                           {secData.items.filter((i: any) => i.visible).map((cert: any) => (
-                            <div key={cert.id} className="relative flex justify-between text-xs text-slate-700">
-                              {/* Bullet point centered on timeline */}
-                              <div className="absolute left-[-45px] top-1.5 w-2 h-2 rounded-full border-2 border-white bg-slate-400 z-10" />
-                              <span><strong>{cert.name}</strong> <span className="text-slate-500">by {cert.issuer}</span></span>
-                              <span className="text-slate-400 font-mono text-[9px]">{cert.date}</span>
+                            <div key={cert.id} style={{ display: "flex", justifyContent: "space-between", fontSize: "9.5px" }}>
+                              <span><strong style={{ color: "#1e293b" }}>{cert.name}</strong> <span style={{ color: "#64748b" }}>— {cert.issuer}</span></span>
+                              <span style={{ fontSize: "8.5px", fontFamily: "monospace", color: "#94a3b8" }}>{cert.date}</span>
                             </div>
                           ))}
                         </div>
                       )}
-
                       {section === "achievements" && (
-                        <div className="space-y-1.5 text-xs text-slate-600">
+                        <div style={{ display: "flex", flexDirection: "column", gap: "5px" }}>
                           {secData.items.filter((i: any) => i.visible).map((ach: any) => (
-                            <div key={ach.id} className="relative pl-1">
-                              {/* Bullet point centered on timeline */}
-                              <div className="absolute left-[-45px] top-1.5 w-2 h-2 rounded-full border-2 border-white bg-slate-400 z-10" />
-                              <strong>{ach.title}</strong> {ach.date && `(${ach.date})`}
-                              {ach.description && <p className="text-[10px] pl-3 text-slate-500 mt-0.5">{ach.description}</p>}
+                            <div key={ach.id} style={{ fontSize: "9.5px", color: "#475569" }}>
+                              <strong style={{ color: "#1e293b" }}>{ach.title}</strong>{ach.date && ` (${ach.date})`}
+                              {ach.description && <div style={{ fontSize: "8.5px", color: "#94a3b8", marginTop: "1px" }}>{ach.description}</div>}
                             </div>
                           ))}
                         </div>
                       )}
-
+                      {section === "testScores" && (
+                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "7px" }}>
+                          {secData.items.filter((i: any) => i.visible).map((item: any) => (
+                            <div key={item.id} style={{ padding: "7px 9px", borderRadius: "7px", border: `1px solid ${accentColor}20`, background: `${accentColor}07` }}>
+                              <div style={{ fontSize: "9.5px", fontWeight: 700, color: "#1e293b" }}>{item.title}</div>
+                              <div style={{ fontSize: "11px", fontFamily: "monospace", fontWeight: 800, color: accentColor, marginTop: "1px" }}>{item.score}</div>
+                              {item.institution && <div style={{ fontSize: "8.5px", color: "#94a3b8" }}>{item.institution}</div>}
+                            </div>
+                          ))}
+                        </div>
+                      )}
                       {section === "patents" && (
-                        <div className="space-y-1.5 text-xs text-slate-650">
+                        <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
                           {secData.items.filter((i: any) => i.visible).map((pat: any) => (
-                            <div key={pat.id} className="relative pl-1">
-                              {/* Bullet point centered on timeline */}
-                              <div className="absolute left-[-45px] top-1.5 w-2 h-2 rounded-full border-2 border-white bg-slate-400 z-10" />
-                              <strong>{pat.title}</strong> (No: {pat.number})
+                            <div key={pat.id} style={{ fontSize: "9.5px", color: "#475569" }}>
+                              <strong style={{ color: "#1e293b" }}>{pat.title}</strong> — Patent No: {pat.number}
                             </div>
                           ))}
                         </div>
                       )}
-
                     </div>
                   );
                 })}
@@ -916,488 +787,645 @@ export default function ResumeEditorPage() {
           </div>
         )}
 
-        {/* RENDER THEME 2: CLASSIC ATS (ONE COLUMN SIMPLIFIED) */}
+        {/* ═══════════════════════════════════════════════════════════
+            TEMPLATE 2: CLASSIC ATS (Ultra Clean, 1-Column, Highly Readable)
+        ══════════════════════════════════════════════════════════════ */}
         {selectedTheme === "Classic ATS" && (
-          <div className="space-y-6 h-full flex-1">
+          <div style={{ padding: "40px 48px", display: "flex", flexDirection: "column", gap: "14px", flex: 1, textAlign: "left" }}>
             
-            {/* Name and titles */}
-            <div className="text-center space-y-1.5 border-b pb-4 border-black">
-              <h2 className="font-bold text-2xl uppercase tracking-tight text-black leading-none">
+            {/* Header info */}
+            <div style={{ textAlign: "center", display: "flex", flexDirection: "column", gap: "4px" }}>
+              <h2 style={{ fontFamily: "Georgia, serif", fontSize: "22px", fontWeight: "bold", textTransform: "uppercase", letterSpacing: "1px", color: "#000", margin: 0 }}>
                 {pInfo.fullName || "Your Name"}
               </h2>
-              <p className="text-xs font-semibold text-slate-700">{pInfo.title}</p>
-              <div className="flex flex-wrap justify-center gap-x-3 gap-y-1 text-xs text-slate-600">
-                {pInfo.email && <span>Email: {pInfo.email}</span>}
-                {pInfo.phone && <span>Phone: {pInfo.phone}</span>}
-                {pInfo.address && <span>Address: {pInfo.address}</span>}
+              <div style={{ fontSize: "10px", fontWeight: "bold", textTransform: "uppercase", letterSpacing: "1px", color: "#334155" }}>
+                {pInfo.title}
               </div>
-              <div className="flex flex-wrap justify-center gap-x-3 text-[10px] text-slate-500 font-mono">
-                {resumeData.mediaHandles?.items?.filter((h: any) => h.visible && h.url).map((h: any) => (
-                  <span key={h.platform}>{h.platform}: {h.url}</span>
-                ))}
+              <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", gap: "6px 12px", fontSize: "9.5px", color: "#475569" }}>
+                {pInfo.email && <span>{pInfo.email}</span>}
+                {pInfo.phone && <span>{pInfo.phone}</span>}
+                {pInfo.address && <span>{pInfo.address}</span>}
               </div>
+              {resumeData.mediaHandles?.visible && resumeData.mediaHandles?.items?.some((h: any) => h.visible && h.url) && (
+                <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", gap: "5px 10px", fontSize: "9px", fontFamily: "monospace", color: "#64748b" }}>
+                  {resumeData.mediaHandles.items.filter((h: any) => h.visible && h.url).map((h: any) => (
+                    <span key={h.platform}>{h.platform}: {h.url}</span>
+                  ))}
+                </div>
+              )}
             </div>
 
             {sectionOrder.map((section) => {
               const secData = resumeData[section];
               if (!secData || !secData.visible) return null;
-
-              // Social handles already printed in header
               if (section === "mediaHandles") return null;
 
-              if (section === "summary" && secData.content) {
-                return (
-                  <div key={section} className="space-y-1 print-avoid-break">
-                    <h3 className="font-bold text-xs uppercase tracking-wider border-b border-black pb-0.5 text-black">
-                      {headings.summary}
-                    </h3>
-                    <p className="text-xs text-slate-700 leading-relaxed whitespace-pre-wrap">{secData.content}</p>
-                  </div>
-                );
-              }
+              const hasContent = section === "summary" ? !!secData.content : secData.items?.some((i: any) => i.visible);
+              if (!hasContent) return null;
 
-              if (section === "experience" && secData.items.some((i: any) => i.visible)) {
-                return (
-                  <div key={section} className="space-y-2 print-avoid-break">
-                    <h3 className="font-bold text-xs uppercase tracking-wider border-b border-black pb-0.5 text-black">
-                      {headings.experience}
-                    </h3>
-                    <div className="space-y-3">
+              return (
+                <div key={section} className="print-avoid-break" style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+                  {/* ATS standard border-bottom heading */}
+                  <h3 style={{ fontSize: "10.5px", fontWeight: "bold", textTransform: "uppercase", letterSpacing: "1.2px", borderBottom: "1.5px solid #0f172a", paddingBottom: "2px", color: "#0f172a", margin: "5px 0 2px 0", textAlign: "left" }}>
+                    {headings[section]}
+                  </h3>
+
+                  {section === "summary" && (
+                    <p style={{ fontSize: "10px", color: "#334155", lineHeight: 1.55, margin: 0, textAlign: "justify" }}>
+                      {secData.content}
+                    </p>
+                  )}
+
+                  {section === "experience" && (
+                    <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
                       {secData.items.filter((i: any) => i.visible).map((item: any) => (
-                        <div key={item.id} className="space-y-0.5">
-                          <div className="flex justify-between font-bold text-xs text-black">
-                            <span>{item.role} — {item.company}</span>
-                            <span>{item.duration}</span>
+                        <div key={item.id} style={{ display: "flex", flexDirection: "column", gap: "1px" }}>
+                          <div style={{ display: "flex", justifyContent: "space-between", fontWeight: "bold", fontSize: "10.5px", color: "#000" }}>
+                            <span>{item.role}</span>
+                            <span style={{ fontSize: "9px", fontWeight: "normal", fontFamily: "monospace", color: "#475569" }}>{item.duration}</span>
                           </div>
-                          <p className="text-xs text-slate-700 whitespace-pre-wrap leading-relaxed">{item.responsibilities}</p>
+                          <div style={{ fontSize: "9.5px", fontWeight: "650", color: "#475569", fontStyle: "italic" }}>
+                            {item.company}
+                          </div>
+                          <p style={{ fontSize: "9.5px", color: "#334155", lineHeight: 1.45, margin: "2px 0 0 0", whiteSpace: "pre-wrap" }}>
+                            {item.responsibilities}
+                          </p>
                           {item.technologies && (
-                            <div className="text-[9px] font-mono text-slate-500 mt-0.5">
+                            <div style={{ fontSize: "8.5px", fontFamily: "monospace", color: "#64748b", marginTop: "2px" }}>
+                              Key Stack: {item.technologies}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {section === "education" && (
+                    <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                      {secData.items.filter((i: any) => i.visible).map((item: any) => (
+                        <div key={item.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", fontSize: "10px" }}>
+                          <div style={{ display: "flex", flexDirection: "column" }}>
+                            <span style={{ fontWeight: "bold", color: "#000" }}>{item.degree}</span>
+                            <span style={{ color: "#475569" }}>{item.institution}</span>
+                            {item.grade && <span style={{ fontSize: "9px", fontFamily: "monospace", color: "#0f172a", fontWeight: "bold", marginTop: "1px" }}>GPA / Grade: {item.grade}</span>}
+                          </div>
+                          <span style={{ fontSize: "9px", fontFamily: "monospace", color: "#475569" }}>{item.duration}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {section === "projects" && (
+                    <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                      {secData.items.filter((i: any) => i.visible).map((item: any) => (
+                        <div key={item.id} style={{ display: "flex", flexDirection: "column", gap: "1px" }}>
+                          <div style={{ display: "flex", justifyContent: "space-between", fontWeight: "bold", fontSize: "10px", color: "#000" }}>
+                            <span>{item.name}</span>
+                            <span style={{ fontSize: "8.5px", fontWeight: "normal", fontFamily: "monospace", color: "#64748b" }}>{item.github || item.live}</span>
+                          </div>
+                          <p style={{ fontSize: "9.5px", color: "#334155", lineHeight: 1.45, margin: 0 }}>
+                            {item.description}
+                          </p>
+                          {item.technologies && (
+                            <div style={{ fontSize: "8.5px", fontFamily: "monospace", color: "#64748b", marginTop: "1px" }}>
                               Technologies: {item.technologies}
                             </div>
                           )}
                         </div>
                       ))}
                     </div>
-                  </div>
-                );
-              }
+                  )}
 
-              if (section === "education" && secData.items.some((i: any) => i.visible)) {
-                return (
-                  <div key={section} className="space-y-2 print-avoid-break">
-                    <h3 className="font-bold text-xs uppercase tracking-wider border-b border-black pb-0.5 text-black">
-                      {headings.education}
-                    </h3>
-                    <div className="space-y-2">
+                  {section === "skills" && (
+                    <div style={{ fontSize: "9.5px", color: "#334155", lineHeight: 1.5 }}>
+                      {secData.items.filter((i: any) => i.visible).map((s: any) => (
+                        <span key={s.id} style={{ marginRight: "10px", display: "inline-block" }}>
+                          <strong>{s.name}</strong> <span style={{ color: "#64748b", fontSize: "8px" }}>({s.level})</span>
+                        </span>
+                      ))}
+                    </div>
+                  )}
+
+                  {section === "testScores" && (
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "6px" }}>
                       {secData.items.filter((i: any) => i.visible).map((item: any) => (
-                        <div key={item.id} className="flex justify-between text-xs">
-                          <div>
-                            <strong className="text-black">{item.degree}</strong> · {item.institution}
-                            {item.grade && <span className="text-slate-600 block text-[10px]">Result: {item.grade}</span>}
-                          </div>
-                          <span className="font-medium text-slate-600">{item.duration}</span>
+                        <div key={item.id} style={{ padding: "5px 7px", border: "1px solid #cbd5e1", borderRadius: "4px" }}>
+                          <div style={{ fontSize: "9px", fontWeight: "bold", color: "#000" }}>{item.title}</div>
+                          <div style={{ fontSize: "10px", fontFamily: "monospace", fontWeight: "bold", color: "#0f172a", marginTop: "1px" }}>{item.score}</div>
+                          {item.institution && <div style={{ fontSize: "8px", color: "#64748b" }}>{item.institution}</div>}
                         </div>
                       ))}
                     </div>
-                  </div>
-                );
-              }
+                  )}
 
-              if (section === "projects" && secData.items.some((i: any) => i.visible)) {
-                return (
-                  <div key={section} className="space-y-2 print-avoid-break">
-                    <h3 className="font-bold text-xs uppercase tracking-wider border-b border-black pb-0.5 text-black">
-                      {headings.projects}
-                    </h3>
-                    <div className="space-y-2">
-                      {secData.items.filter((i: any) => i.visible).map((item: any) => (
-                        <div key={item.id} className="space-y-0.5">
-                          <div className="flex justify-between text-xs text-black font-bold">
-                            <span>{item.name}</span>
-                            <span className="font-normal text-slate-500 text-[10px]">{item.github || item.live}</span>
-                          </div>
-                          <p className="text-xs text-slate-700 leading-relaxed">{item.description}</p>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                );
-              }
-
-              if (section === "skills" && secData.items.some((i: any) => i.visible)) {
-                const grouped = secData.items.filter((i: any) => i.visible).map((s: any) => s.name).join(", ");
-                return (
-                  <div key={section} className="space-y-1 print-avoid-break">
-                    <h3 className="font-bold text-xs uppercase tracking-wider border-b border-black pb-0.5 text-black">
-                      {headings.skills}
-                    </h3>
-                    <p className="text-xs text-slate-700">{grouped}</p>
-                  </div>
-                );
-              }
-
-              if (section === "testScores" && secData.items.some((i: any) => i.visible)) {
-                return (
-                  <div key={section} className="space-y-2 print-avoid-break">
-                    <h3 className="font-bold text-xs uppercase tracking-wider border-b border-black pb-0.5 text-black">
-                      {headings.testScores}
-                    </h3>
-                    <div className="space-y-1.5 text-xs text-slate-700">
-                      {secData.items.filter((i: any) => i.visible).map((item: any) => (
-                        <div key={item.id} className="flex justify-between">
-                          <span>{item.title} {item.institution ? `(${item.institution})` : ""}</span>
-                          <strong className="text-black font-mono">{item.score}</strong>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                );
-              }
-
-              if (section === "certifications" && secData.items.some((i: any) => i.visible)) {
-                return (
-                  <div key={section} className="space-y-1 print-avoid-break">
-                    <h3 className="font-bold text-xs uppercase tracking-wider border-b border-black pb-0.5 text-black">
-                      {headings.certifications}
-                    </h3>
-                    <div className="space-y-1 text-xs text-slate-700">
+                  {section === "certifications" && (
+                    <div style={{ display: "flex", flexDirection: "column", gap: "3px" }}>
                       {secData.items.filter((i: any) => i.visible).map((cert: any) => (
-                        <div key={cert.id} className="flex justify-between">
-                          <span>{cert.name} — {cert.issuer}</span>
-                          <span className="text-slate-500">{cert.date}</span>
+                        <div key={cert.id} style={{ display: "flex", justifyContent: "space-between", fontSize: "9.5px", color: "#334155" }}>
+                          <span><strong>{cert.name}</strong> <span style={{ color: "#64748b" }}>— {cert.issuer}</span></span>
+                          <span style={{ fontSize: "8.5px", fontFamily: "monospace", color: "#64748b" }}>{cert.date}</span>
                         </div>
                       ))}
                     </div>
-                  </div>
-                );
-              }
+                  )}
 
-              if (section === "achievements" && secData.items.some((i: any) => i.visible)) {
-                return (
-                  <div key={section} className="space-y-1 print-avoid-break">
-                    <h3 className="font-bold text-xs uppercase tracking-wider border-b border-black pb-0.5 text-black">
-                      {headings.achievements}
-                    </h3>
-                    <ul className="list-disc pl-4 text-xs text-slate-700 space-y-0.5">
+                  {section === "achievements" && (
+                    <ul style={{ listStyleType: "disc", paddingLeft: "15px", margin: 0, fontSize: "9.5px", color: "#334155" }}>
                       {secData.items.filter((i: any) => i.visible).map((ach: any) => (
-                        <li key={ach.id}>
+                        <li key={ach.id} style={{ marginBottom: "2px" }}>
                           <strong>{ach.title}</strong> {ach.date && `(${ach.date})`} {ach.description && `— ${ach.description}`}
                         </li>
                       ))}
                     </ul>
-                  </div>
-                );
-              }
+                  )}
 
-              if (section === "patents" && secData.items.some((i: any) => i.visible)) {
-                return (
-                  <div key={section} className="space-y-1 print-avoid-break">
-                    <h3 className="font-bold text-xs uppercase tracking-wider border-b border-black pb-0.5 text-black">
-                      {headings.patents}
-                    </h3>
-                    <ul className="list-disc pl-4 text-xs text-slate-700 space-y-0.5">
+                  {section === "patents" && (
+                    <ul style={{ listStyleType: "square", paddingLeft: "15px", margin: 0, fontSize: "9.5px", color: "#334155" }}>
                       {secData.items.filter((i: any) => i.visible).map((pat: any) => (
-                        <li key={pat.id}>
-                          <strong>{pat.title}</strong> (Patent No: {pat.number})
+                        <li key={pat.id} style={{ marginBottom: "2px" }}>
+                          <strong>{pat.title}</strong> — Patent No: {pat.number}
                         </li>
                       ))}
                     </ul>
-                  </div>
-                );
-              }
+                  )}
 
-              if (section === "languages" && secData.items.some((i: any) => i.visible)) {
-                const langs = secData.items.filter((i: any) => i.visible).map((l: any) => `${l.name} (${l.level})`).join(", ");
-                return (
-                  <div key={section} className="space-y-1 print-avoid-break">
-                    <h3 className="font-bold text-xs uppercase tracking-wider border-b border-black pb-0.5 text-black">
-                      {headings.languages}
-                    </h3>
-                    <p className="text-xs text-slate-700">{langs}</p>
-                  </div>
-                );
-              }
-
-              return null;
+                  {section === "languages" && (
+                    <div style={{ fontSize: "9.5px", color: "#334155" }}>
+                      {secData.items.filter((i: any) => i.visible).map((l: any, idx: number, arr: any[]) => (
+                        <span key={l.name}>
+                          {l.name} ({l.level}){idx < arr.length - 1 ? ", " : ""}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
             })}
           </div>
         )}
 
-        {/* RENDER THEME 3: CREATIVE (MODERN ACCENT BANNER) */}
+        {/* ═══════════════════════════════════════════════════════════
+            TEMPLATE 3: CREATIVE (Glassmorphism Header, Premium Tag Cloud)
+        ══════════════════════════════════════════════════════════════ */}
         {selectedTheme === "Creative" && (
-          <div className="space-y-6 h-full flex-1 text-left">
+          <div style={{ padding: "26px", display: "flex", flexDirection: "column", gap: "16px", flex: 1, textAlign: "left" }}>
             
-            {/* Colorful Top Banner Header */}
+            {/* Elegant Colorful Header Banner */}
             <div
-              className="p-8 rounded-2xl text-white flex flex-col justify-between gap-3 animate-fade-in"
-              style={{ background: `linear-gradient(135deg, ${accentColor}, #18233c)` }}
+              style={{
+                background: `linear-gradient(135deg, ${accentColor}, #0f172a)`,
+                borderRadius: "14px",
+                padding: "20px",
+                color: "#fff",
+                display: "flex",
+                flexDirection: "column",
+                gap: "10px",
+                boxShadow: "0 6px 20px -4px rgba(0,0,0,0.1)"
+              }}
             >
-              <div className="flex justify-between items-start w-full">
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
                 <div>
-                  <h2 className="font-sans font-black text-2xl tracking-tight leading-tight uppercase text-white">
+                  <h2 style={{ fontSize: "22px", fontWeight: 900, textTransform: "uppercase", letterSpacing: "1.5px", color: "#fff", margin: 0 }}>
                     {pInfo.fullName || "Your Name"}
                   </h2>
-                  <p className="text-xs font-mono uppercase tracking-wider opacity-85 mt-1 block">
-                    {pInfo.title}
+                  <p style={{ fontSize: "10px", fontFamily: "monospace", textTransform: "uppercase", letterSpacing: "2px", color: "rgba(255,255,255,0.8)", marginTop: "4px", margin: 0 }}>
+                    {pInfo.title || "Creative Professional"}
                   </p>
                 </div>
 
                 {pInfo.showPhoto && pInfo.profileImageUrl && (() => {
-                  const imgDetails = parseImageAdjustments(pInfo.profileImageUrl);
+                  const img = parseImageAdjustments(pInfo.profileImageUrl);
                   return (
-                    <div className="w-24 h-24 rounded-2xl overflow-hidden border border-white/20 shadow-md shrink-0 bg-white flex items-center justify-center">
-                      <img 
-                        src={imgDetails.src} 
-                        style={imgDetails.style} 
-                        alt={pInfo.fullName} 
-                        className="w-full h-full" 
-                      />
+                    <div style={{ width: "70px", height: "70px", borderRadius: "10px", overflow: "hidden", border: "2px solid rgba(255,255,255,0.25)", boxShadow: "0 4px 10px rgba(0,0,0,0.2)", background: "#fff", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                      <img src={img.src} style={{ ...img.style, width: "100%", height: "100%" }} alt={pInfo.fullName} />
                     </div>
                   );
                 })()}
               </div>
 
-              <div>
-                <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs opacity-75">
-                  {pInfo.email && <span>✉ {pInfo.email}</span>}
-                  {pInfo.phone && <span>📞 {pInfo.phone}</span>}
-                  {pInfo.address && <span>📍 {pInfo.address}</span>}
-                </div>
+              <div style={{ height: "1px", background: "rgba(255,255,255,0.15)" }} />
 
-                {/* Render visible socials in header banner */}
-                {resumeData.mediaHandles?.items?.some((h: any) => h.visible && h.url) && (
-                  <div className="flex flex-wrap gap-x-4 gap-y-1 text-[11px] opacity-90 mt-2 font-medium">
-                    {resumeData.mediaHandles.items.filter((h: any) => h.visible && h.url).map((h: any) => (
-                      <a key={h.platform} href={h.url} target="_blank" rel="noreferrer" className="underline hover:text-white/80 transition">
-                        {h.platform}
-                      </a>
-                    ))}
-                  </div>
-                )}
+              <div style={{ display: "flex", flexWrap: "wrap", gap: "5px 12px", fontSize: "9.5px", color: "rgba(255,255,255,0.85)" }}>
+                {pInfo.email && <span style={{ background: "rgba(255,255,255,0.08)", padding: "2px 6px", borderRadius: "5px" }}>✉ {pInfo.email}</span>}
+                {pInfo.phone && <span style={{ background: "rgba(255,255,255,0.08)", padding: "2px 6px", borderRadius: "5px" }}>📞 {pInfo.phone}</span>}
+                {pInfo.address && <span style={{ background: "rgba(255,255,255,0.08)", padding: "2px 6px", borderRadius: "5px" }}>📍 {pInfo.address}</span>}
               </div>
+
+              {resumeData.mediaHandles?.visible && resumeData.mediaHandles?.items?.some((h: any) => h.visible && h.url) && (
+                <div style={{ display: "flex", flexWrap: "wrap", gap: "5px 10px", fontSize: "8.5px" }}>
+                  {resumeData.mediaHandles.items.filter((h: any) => h.visible && h.url).map((h: any) => (
+                    <span key={h.platform} style={{ color: "rgba(255,255,255,0.9)", background: "rgba(255,255,255,0.12)", padding: "2px 6px", borderRadius: "4px", fontWeight: "bold" }}>
+                      {h.platform}
+                    </span>
+                  ))}
+                </div>
+              )}
             </div>
 
+            {/* Content Sections */}
             {sectionOrder.map((section) => {
               const secData = resumeData[section];
               if (!secData || !secData.visible) return null;
-
-              // Social handles already printed in header banner
               if (section === "mediaHandles") return null;
 
-              if (section === "summary" && secData.content) {
-                return (
-                  <div key={section} className="space-y-2 print-avoid-break">
-                    <h3 className="font-serif font-black text-sm uppercase tracking-wider border-b pb-1" style={{ color: accentColor, borderColor: `${accentColor}25` }}>
-                      {headings.summary}
-                    </h3>
-                    <p className="text-xs text-slate-600 leading-relaxed whitespace-pre-wrap">{secData.content}</p>
-                  </div>
-                );
-              }
+              const hasContent = section === "summary" ? !!secData.content : secData.items?.some((i: any) => i.visible);
+              if (!hasContent) return null;
 
-              if (section === "experience" && secData.items.some((i: any) => i.visible)) {
-                return (
-                  <div key={section} className="space-y-3 print-avoid-break">
-                    <h3 className="font-serif font-black text-sm uppercase tracking-wider border-b pb-1" style={{ color: accentColor, borderColor: `${accentColor}25` }}>
-                      {headings.experience}
+              return (
+                <div key={section} className="print-avoid-break" style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                  
+                  {/* Heading Accent styling */}
+                  <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                    <div style={{ width: "3.5px", height: "13px", backgroundColor: accentColor, borderRadius: "2px" }} />
+                    <h3 style={{ fontSize: "10px", fontWeight: 900, textTransform: "uppercase", letterSpacing: "1.2px", color: accentColor, margin: 0 }}>
+                      {headings[section]}
                     </h3>
-                    <div className="grid grid-cols-2 gap-4">
-                      {secData.items.filter((i: any) => i.visible).map((item: any) => (
-                        <div key={item.id} className="p-3 bg-slate-50 border border-slate-100 rounded-xl space-y-1">
-                          <div className="flex justify-between font-bold text-xs text-slate-800">
-                            <span>{item.role}</span>
-                            <span className="font-normal text-[10px] text-slate-400">{item.duration}</span>
-                          </div>
-                          <span className="text-[10px] text-[#781c1c] block">{item.company}</span>
-                          <p className="text-[11px] text-slate-550 leading-relaxed whitespace-pre-wrap">{item.responsibilities}</p>
-                        </div>
-                      ))}
-                    </div>
+                    <div style={{ flex: 1, height: "1px", backgroundColor: `${accentColor}15` }} />
                   </div>
-                );
-              }
 
-              if (section === "education" && secData.items.some((i: any) => i.visible)) {
-                return (
-                  <div key={section} className="space-y-3 print-avoid-break">
-                    <h3 className="font-serif font-black text-sm uppercase tracking-wider border-b pb-1" style={{ color: accentColor, borderColor: `${accentColor}25` }}>
-                      {headings.education}
-                    </h3>
-                    <div className="space-y-2">
-                      {secData.items.filter((i: any) => i.visible).map((item: any) => (
-                        <div key={item.id} className="flex justify-between text-xs bg-slate-50 border border-slate-100 p-3 rounded-xl">
-                          <div>
-                            <strong className="text-slate-800">{item.degree}</strong>
-                            <span className="block text-[10px] text-slate-400">{item.institution}</span>
-                          </div>
-                          <div className="text-right">
-                            <span className="text-[10px] text-slate-400 block">{item.duration}</span>
-                            {item.grade && <span className="font-bold text-[#781c1c] text-[10px]">{item.grade}</span>}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                );
-              }
+                  {section === "summary" && (
+                    <p style={{ fontSize: "9.5px", color: "#475569", lineHeight: 1.6, margin: 0, paddingLeft: "10px" }}>
+                      {secData.content}
+                    </p>
+                  )}
 
-              if (section === "projects" && secData.items.some((i: any) => i.visible)) {
-                return (
-                  <div key={section} className="space-y-3 print-avoid-break">
-                    <h3 className="font-serif font-black text-sm uppercase tracking-wider border-b pb-1" style={{ color: accentColor, borderColor: `${accentColor}25` }}>
-                      {headings.projects}
-                    </h3>
-                    <div className="grid grid-cols-2 gap-4">
+                  {section === "experience" && (
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
                       {secData.items.filter((i: any) => i.visible).map((item: any) => (
-                        <div key={item.id} className="p-3 bg-slate-50 border border-slate-100 rounded-xl space-y-1">
-                          <div className="flex justify-between font-bold text-xs text-slate-800">
-                            <span>{item.name}</span>
-                            <div className="flex gap-2">
-                              {item.github && <a href={item.github} className="text-[#781c1c] underline text-[9px]">GitHub</a>}
-                              {item.live && <a href={item.live} className="text-[#781c1c] underline text-[9px]">Live</a>}
-                            </div>
+                        <div key={item.id} style={{ padding: "8px 10px", border: "1px solid #f1f5f9", backgroundColor: "#f8fafc", borderRadius: "8px", display: "flex", flexDirection: "column", gap: "1px", boxShadow: "0 1px 2px rgba(0,0,0,0.01)" }}>
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                            <span style={{ fontSize: "9.5px", fontWeight: "bold", color: "#0f172a" }}>{item.role}</span>
+                            <span style={{ fontSize: "8px", fontFamily: "monospace", color: "#94a3b8" }}>{item.duration}</span>
                           </div>
-                          <p className="text-[11px] text-slate-555 leading-relaxed whitespace-pre-wrap">{item.description}</p>
+                          <span style={{ fontSize: "9px", fontWeight: "700", color: accentColor }}>{item.company}</span>
+                          <p style={{ fontSize: "9px", color: "#475569", lineHeight: 1.4, margin: "3px 0 0 0", whiteSpace: "pre-wrap" }}>
+                            {item.responsibilities}
+                          </p>
                           {item.technologies && (
-                            <div className="text-[9px] font-mono text-slate-400">
+                            <div style={{ fontSize: "8px", fontFamily: "monospace", color: "#94a3b8", marginTop: "3px" }}>
                               {item.technologies}
                             </div>
                           )}
                         </div>
                       ))}
                     </div>
-                  </div>
-                );
-              }
+                  )}
 
-              if (section === "skills" && secData.items.some((i: any) => i.visible)) {
-                return (
-                  <div key={section} className="space-y-3 print-avoid-break">
-                    <h3 className="font-serif font-black text-sm uppercase tracking-wider border-b pb-1" style={{ color: accentColor, borderColor: `${accentColor}25` }}>
-                      {headings.skills}
-                    </h3>
-                    <div className="grid grid-cols-2 gap-3 text-xs">
-                      {secData.items.filter((i: any) => i.visible).map((skill: any) => (
-                        <div key={skill.id} className="space-y-1">
-                          <div className="flex justify-between text-[11px]">
-                            <span className="font-medium text-slate-700">{skill.name}</span>
-                            <span className="text-[9px] font-mono text-slate-400">{skill.level}</span>
-                          </div>
-                          <div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
-                            <div
-                              className="h-full rounded-full"
-                              style={{
-                                backgroundColor: accentColor,
-                                width: skill.level === "Expert" ? "95%" : skill.level === "Advanced" ? "85%" : skill.level === "Intermediate" ? "65%" : "35%"
-                              }}
-                            ></div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                );
-              }
-
-              if (section === "testScores" && secData.items.some((i: any) => i.visible)) {
-                return (
-                  <div key={section} className="space-y-3 print-avoid-break">
-                    <h3 className="font-serif font-black text-sm uppercase tracking-wider border-b pb-1" style={{ color: accentColor, borderColor: `${accentColor}25` }}>
-                      {headings.testScores}
-                    </h3>
-                    <div className="grid grid-cols-2 gap-3">
+                  {section === "education" && (
+                    <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
                       {secData.items.filter((i: any) => i.visible).map((item: any) => (
-                        <div
-                          key={item.id}
-                          className={`p-2.5 rounded-xl border text-xs flex justify-between items-center relative ${
-                            item.highlighted
-                              ? "bg-[#781c1c]/5 border-[#781c1c]/20"
-                              : "bg-slate-50 border-slate-150"
-                          }`}
-                        >
+                        <div key={item.id} style={{ padding: "8px 10px", border: "1px solid #f1f5f9", backgroundColor: "#f8fafc", borderRadius: "8px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                           <div>
-                            <strong className="block text-slate-800">{item.title}</strong>
-                            {item.institution && <span className="text-[9px] text-slate-400">{item.institution}</span>}
+                            <strong style={{ fontSize: "9.5px", color: "#0f172a", display: "block" }}>{item.degree}</strong>
+                            <span style={{ fontSize: "9px", color: "#64748b" }}>{item.institution}</span>
                           </div>
-                          <span className="font-mono font-bold text-white px-2.5 py-1 rounded bg-[#781c1c] text-[10px]">{item.score}</span>
+                          <div style={{ textAlign: "right" }}>
+                            <span style={{ fontSize: "8px", fontFamily: "monospace", color: "#94a3b8", display: "block" }}>{item.duration}</span>
+                            {item.grade && <span style={{ fontSize: "9px", fontWeight: "bold", color: accentColor }}>GPA: {item.grade}</span>}
+                          </div>
                         </div>
                       ))}
                     </div>
-                  </div>
-                );
-              }
+                  )}
 
-              if (section === "certifications" && secData.items.some((i: any) => i.visible)) {
-                return (
-                  <div key={section} className="space-y-3 print-avoid-break">
-                    <h3 className="font-serif font-black text-sm uppercase tracking-wider border-b pb-1" style={{ color: accentColor, borderColor: `${accentColor}25` }}>
-                      {headings.certifications}
-                    </h3>
-                    <div className="grid grid-cols-2 gap-3">
+                  {section === "projects" && (
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
+                      {secData.items.filter((i: any) => i.visible).map((item: any) => (
+                        <div key={item.id} style={{ padding: "8px 10px", border: "1px solid #f1f5f9", backgroundColor: "#f8fafc", borderRadius: "8px", display: "flex", flexDirection: "column", gap: "1px" }}>
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                            <strong style={{ fontSize: "9.5px", color: "#0f172a" }}>{item.name}</strong>
+                            <div style={{ display: "flex", gap: "5px" }}>
+                              {item.github && <span style={{ fontSize: "8px", color: accentColor }}>Repo</span>}
+                              {item.live && <span style={{ fontSize: "8px", color: accentColor }}>Live</span>}
+                            </div>
+                          </div>
+                          <p style={{ fontSize: "9px", color: "#475569", lineHeight: 1.35, margin: "2px 0 0 0" }}>
+                            {item.description}
+                          </p>
+                          {item.technologies && (
+                            <div style={{ fontSize: "8px", fontFamily: "monospace", color: "#64748b", marginTop: "3px" }}>
+                              {item.technologies}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {section === "skills" && (
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: "5px", paddingLeft: "10px" }}>
+                      {secData.items.filter((i: any) => i.visible).map((skill: any) => {
+                        const isHigh = skill.level === "Expert" || skill.level === "Advanced";
+                        return (
+                          <span
+                            key={skill.id}
+                            style={{
+                              fontSize: "8.5px",
+                              fontWeight: "bold",
+                              padding: "3px 7px",
+                              borderRadius: "6px",
+                              backgroundColor: isHigh ? `${accentColor}15` : "#f1f5f9",
+                              color: isHigh ? accentColor : "#475569",
+                              border: `1px solid ${isHigh ? `${accentColor}25` : "#e2e8f0"}`
+                            }}
+                          >
+                            {skill.name} <span style={{ fontWeight: "normal", fontSize: "7px", opacity: 0.65 }}>· {skill.level}</span>
+                          </span>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  {section === "testScores" && (
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "6px" }}>
+                      {secData.items.filter((i: any) => i.visible).map((item: any) => (
+                        <div key={item.id} style={{ padding: "6px 8px", border: "1px solid #f1f5f9", backgroundColor: "#f8fafc", borderRadius: "8px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                          <div>
+                            <strong style={{ fontSize: "9px", color: "#0f172a", display: "block" }}>{item.title}</strong>
+                            {item.institution && <span style={{ fontSize: "8px", color: "#94a3b8" }}>{item.institution}</span>}
+                          </div>
+                          <span style={{ fontSize: "9.5px", fontWeight: "bold", color: "#fff", backgroundColor: accentColor, padding: "2px 6px", borderRadius: "4px", fontFamily: "monospace" }}>{item.score}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {section === "certifications" && (
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "6px" }}>
                       {secData.items.filter((i: any) => i.visible).map((cert: any) => (
-                        <div key={cert.id} className="p-2.5 bg-slate-50 border border-slate-100 rounded-xl text-xs">
-                          <strong className="block text-slate-800">{cert.name}</strong>
-                          <span className="text-[10px] text-slate-500 block mt-0.5">{cert.issuer} {cert.date && `· ${cert.date}`}</span>
+                        <div key={cert.id} style={{ padding: "6px 8px", border: "1px solid #f1f5f9", backgroundColor: "#f8fafc", borderRadius: "8px", fontSize: "9px" }}>
+                          <strong style={{ color: "#0f172a", display: "block" }}>{cert.name}</strong>
+                          <span style={{ color: "#64748b" }}>{cert.issuer} {cert.date && `· ${cert.date}`}</span>
                         </div>
                       ))}
                     </div>
-                  </div>
-                );
-              }
+                  )}
 
-              if (section === "achievements" && secData.items.some((i: any) => i.visible)) {
-                return (
-                  <div key={section} className="space-y-3 print-avoid-break">
-                    <h3 className="font-serif font-black text-sm uppercase tracking-wider border-b pb-1" style={{ color: accentColor, borderColor: `${accentColor}25` }}>
-                      {headings.achievements}
-                    </h3>
-                    <div className="space-y-2">
+                  {section === "achievements" && (
+                    <div style={{ display: "flex", flexDirection: "column", gap: "5px", paddingLeft: "10px" }}>
                       {secData.items.filter((i: any) => i.visible).map((ach: any) => (
-                        <div key={ach.id} className="bg-slate-50 border border-slate-100 p-3 rounded-xl text-xs text-slate-600">
-                          🏆 <strong>{ach.title}</strong> {ach.date && `(${ach.date})`}
-                          {ach.description && <p className="text-[10px] text-slate-500 mt-1">{ach.description}</p>}
+                        <div key={ach.id} style={{ fontSize: "9px", color: "#475569", borderLeft: `2px solid ${accentColor}40`, paddingLeft: "6px" }}>
+                          <strong style={{ color: "#0f172a" }}>{ach.title}</strong> {ach.date && `(${ach.date})`}
+                          {ach.description && <div style={{ fontSize: "8px", color: "#64748b", marginTop: "1px" }}>{ach.description}</div>}
                         </div>
                       ))}
                     </div>
-                  </div>
-                );
-              }
+                  )}
 
-              if (section === "languages" && secData.items.some((i: any) => i.visible)) {
-                return (
-                  <div key={section} className="space-y-3 print-avoid-break">
-                    <h3 className="font-serif font-black text-sm uppercase tracking-wider border-b pb-1" style={{ color: accentColor, borderColor: `${accentColor}25` }}>
-                      {headings.languages}
-                    </h3>
-                    <div className="flex flex-wrap gap-2">
+                  {section === "languages" && (
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: "5px", paddingLeft: "10px" }}>
                       {secData.items.filter((i: any) => i.visible).map((l: any) => (
-                        <span key={l.name} className="px-2.5 py-1 bg-slate-50 border border-slate-100 rounded-lg text-xs font-semibold text-slate-700">
-                          {l.name} <span className="text-[9px] font-normal text-slate-400">({l.level})</span>
+                        <span key={l.name} style={{ fontSize: "9px", padding: "2px 6px", backgroundColor: "#f1f5f9", borderRadius: "5px", color: "#475569" }}>
+                          {l.name} <span style={{ fontSize: "7px", opacity: 0.65 }}>({l.level})</span>
                         </span>
                       ))}
                     </div>
-                  </div>
-                );
-              }
+                  )}
 
-              if (section === "patents" && secData.items.some((i: any) => i.visible)) {
-                return (
-                  <div key={section} className="space-y-3 print-avoid-break">
-                    <h3 className="font-serif font-black text-sm uppercase tracking-wider border-b pb-1" style={{ color: accentColor, borderColor: `${accentColor}25` }}>
-                      {headings.patents}
-                    </h3>
-                    <div className="space-y-2">
+                  {section === "patents" && (
+                    <div style={{ display: "flex", flexDirection: "column", gap: "5px", paddingLeft: "10px" }}>
                       {secData.items.filter((i: any) => i.visible).map((pat: any) => (
-                        <div key={pat.id} className="bg-slate-50 border border-slate-100 p-3 rounded-xl text-xs text-slate-650">
+                        <div key={pat.id} style={{ fontSize: "9px", color: "#475569" }}>
                           📜 <strong>{pat.title}</strong> (No: {pat.number})
                         </div>
                       ))}
                     </div>
-                  </div>
-                );
-              }
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
 
-              return null;
+        {/* ═══════════════════════════════════════════════════════════
+            TEMPLATE 3: CREATIVE (Glassmorphism Header, Premium Tag Cloud)
+        ══════════════════════════════════════════════════════════════ */}
+        {selectedTheme === 'Creative' && (
+          <div style={{ padding: '26px', display: 'flex', flexDirection: 'column', gap: '16px', flex: 1, textAlign: 'left' }}>
+            
+            {/* Elegant Colorful Header Banner */}
+            <div
+              style={{
+                background: `linear-gradient(135deg, ${accentColor}, #0f172a)`,
+                borderRadius: '14px',
+                padding: '20px',
+                color: '#fff',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '10px',
+                boxShadow: '0 6px 20px -4px rgba(0,0,0,0.1)'
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+                <div>
+                  <h2 style={{ fontSize: '22px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '1.5px', color: '#fff', margin: 0 }}>
+                    {pInfo.fullName || 'Your Name'}
+                  </h2>
+                  <p style={{ fontSize: '10px', fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '2px', color: 'rgba(255,255,255,0.8)', marginTop: '4px', margin: 0 }}>
+                    {pInfo.title || 'Creative Professional'}
+                  </p>
+                </div>
+
+                {pInfo.showPhoto && pInfo.profileImageUrl && (() => {
+                  const img = parseImageAdjustments(pInfo.profileImageUrl);
+                  return (
+                    <div style={{ width: '70px', height: '70px', borderRadius: '10px', overflow: 'hidden', border: '2px solid rgba(255,255,255,0.25)', boxShadow: '0 4px 10px rgba(0,0,0,0.2)', background: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <img src={img.src} style={{ ...img.style, width: '100%', height: '100%' }} alt={pInfo.fullName} />
+                    </div>
+                  );
+                })()}
+              </div>
+
+              <div style={{ height: '1px', background: 'rgba(255,255,255,0.15)' }} />
+
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px 12px', fontSize: '9.5px', color: 'rgba(255,255,255,0.85)' }}>
+                {pInfo.email && <span style={{ background: 'rgba(255,255,255,0.08)', padding: '2px 6px', borderRadius: '5px' }}>✉ {pInfo.email}</span>}
+                {pInfo.phone && <span style={{ background: 'rgba(255,255,255,0.08)', padding: '2px 6px', borderRadius: '5px' }}>📞 {pInfo.phone}</span>}
+                {pInfo.address && <span style={{ background: 'rgba(255,255,255,0.08)', padding: '2px 6px', borderRadius: '5px' }}>📍 {pInfo.address}</span>}
+              </div>
+
+              {resumeData.mediaHandles?.visible && resumeData.mediaHandles?.items?.some((h: any) => h.visible && h.url) && (
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px 10px', fontSize: '8.5px' }}>
+                  {resumeData.mediaHandles.items.filter((h: any) => h.visible && h.url).map((h: any) => (
+                    <span key={h.platform} style={{ color: 'rgba(255,255,255,0.9)', background: 'rgba(255,255,255,0.12)', padding: '2px 6px', borderRadius: '4px', fontWeight: 'bold' }}>
+                      {h.platform}
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Content Sections */}
+            {sectionOrder.map((section) => {
+              const secData = resumeData[section];
+              if (!secData || !secData.visible) return null;
+              if (section === 'mediaHandles') return null;
+
+              const hasContent = section === 'summary' ? !!secData.content : secData.items?.some((i: any) => i.visible);
+              if (!hasContent) return null;
+
+              return (
+                <div key={section} className="print-avoid-break" style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  
+                  {/* Heading Accent styling */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <div style={{ width: '3.5px', height: '13px', backgroundColor: accentColor, borderRadius: '2px' }} />
+                    <h3 style={{ fontSize: '10px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '1.2px', color: accentColor, margin: 0 }}>
+                      {headings[section]}
+                    </h3>
+                    <div style={{ flex: 1, height: '1px', backgroundColor: `${accentColor}15` }} />
+                  </div>
+
+                  {section === 'summary' && (
+                    <p style={{ fontSize: '9.5px', color: '#475569', lineHeight: 1.6, margin: 0, paddingLeft: '10px' }}>
+                      {secData.content}
+                    </p>
+                  )}
+
+                  {section === 'experience' && (
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                      {secData.items.filter((i: any) => i.visible).map((item: any) => (
+                        <div key={item.id} style={{ padding: '8px 10px', border: '1px solid #f1f5f9', backgroundColor: '#f8fafc', borderRadius: '8px', display: 'flex', flexDirection: 'column', gap: '1px', boxShadow: '0 1px 2px rgba(0,0,0,0.01)' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                            <span style={{ fontSize: '9.5px', fontWeight: 'bold', color: '#0f172a' }}>{item.role}</span>
+                            <span style={{ fontSize: '8px', fontFamily: 'monospace', color: '#94a3b8' }}>{item.duration}</span>
+                          </div>
+                          <span style={{ fontSize: '9px', fontWeight: '700', color: accentColor }}>{item.company}</span>
+                          <p style={{ fontSize: '9px', color: '#475569', lineHeight: 1.4, margin: '3px 0 0 0', whiteSpace: 'pre-wrap' }}>
+                            {item.responsibilities}
+                          </p>
+                          {item.technologies && (
+                            <div style={{ fontSize: '8px', fontFamily: 'monospace', color: '#94a3b8', marginTop: '3px' }}>
+                              {item.technologies}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {section === 'education' && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                      {secData.items.filter((i: any) => i.visible).map((item: any) => (
+                        <div key={item.id} style={{ padding: '8px 10px', border: '1px solid #f1f5f9', backgroundColor: '#f8fafc', borderRadius: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <div>
+                            <strong style={{ fontSize: '9.5px', color: '#0f172a', display: 'block' }}>{item.degree}</strong>
+                            <span style={{ fontSize: '9px', color: '#64748b' }}>{item.institution}</span>
+                          </div>
+                          <div style={{ textAlign: 'right' }}>
+                            <span style={{ fontSize: '8px', fontFamily: 'monospace', color: '#94a3b8', display: 'block' }}>{item.duration}</span>
+                            {item.grade && <span style={{ fontSize: '9px', fontWeight: 'bold', color: accentColor }}>GPA: {item.grade}</span>}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {section === 'projects' && (
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                      {secData.items.filter((i: any) => i.visible).map((item: any) => (
+                        <div key={item.id} style={{ padding: '8px 10px', border: '1px solid #f1f5f9', backgroundColor: '#f8fafc', borderRadius: '8px', display: 'flex', flexDirection: 'column', gap: '1px' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <strong style={{ fontSize: '9.5px', color: '#0f172a' }}>{item.name}</strong>
+                            <div style={{ display: 'flex', gap: '5px' }}>
+                              {item.github && <span style={{ fontSize: '8px', color: accentColor }}>Repo</span>}
+                              {item.live && <span style={{ fontSize: '8px', color: accentColor }}>Live</span>}
+                            </div>
+                          </div>
+                          <p style={{ fontSize: '9px', color: '#475569', lineHeight: 1.35, margin: '2px 0 0 0' }}>
+                            {item.description}
+                          </p>
+                          {item.technologies && (
+                            <div style={{ fontSize: '8px', fontFamily: 'monospace', color: '#64748b', marginTop: '3px' }}>
+                              {item.technologies}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {section === 'skills' && (
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px', paddingLeft: '10px' }}>
+                      {secData.items.filter((i: any) => i.visible).map((skill: any) => {
+                        const isHigh = skill.level === 'Expert' || skill.level === 'Advanced';
+                        return (
+                          <span
+                            key={skill.id}
+                            style={{
+                              fontSize: '8.5px',
+                              fontWeight: 'bold',
+                              padding: '3px 7px',
+                              borderRadius: '6px',
+                              backgroundColor: isHigh ? `${accentColor}15` : '#f1f5f9',
+                              color: isHigh ? accentColor : '#475569',
+                              border: `1px solid ${isHigh ? `${accentColor}25` : '#e2e8f0'}`
+                            }}
+                          >
+                            {skill.name} <span style={{ fontWeight: 'normal', fontSize: '7px', opacity: 0.65 }}>· {skill.level}</span>
+                          </span>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  {section === 'testScores' && (
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px' }}>
+                      {secData.items.filter((i: any) => i.visible).map((item: any) => (
+                        <div key={item.id} style={{ padding: '6px 8px', border: '1px solid #f1f5f9', backgroundColor: '#f8fafc', borderRadius: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <div>
+                            <strong style={{ fontSize: '9px', color: '#0f172a', display: 'block' }}>{item.title}</strong>
+                            {item.institution && <span style={{ fontSize: '8px', color: '#94a3b8' }}>{item.institution}</span>}
+                          </div>
+                          <span style={{ fontSize: '9.5px', fontWeight: 'bold', color: '#fff', backgroundColor: accentColor, padding: '2px 6px', borderRadius: '4px', fontFamily: 'monospace' }}>{item.score}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {section === 'certifications' && (
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px' }}>
+                      {secData.items.filter((i: any) => i.visible).map((cert: any) => (
+                        <div key={cert.id} style={{ padding: '6px 8px', border: '1px solid #f1f5f9', backgroundColor: '#f8fafc', borderRadius: '8px', fontSize: '9px' }}>
+                          <strong style={{ color: '#0f172a', display: 'block' }}>{cert.name}</strong>
+                          <span style={{ color: '#64748b' }}>{cert.issuer} {cert.date && `· ${cert.date}`}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {section === 'achievements' && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '5px', paddingLeft: '10px' }}>
+                      {secData.items.filter((i: any) => i.visible).map((ach: any) => (
+                        <div key={ach.id} style={{ fontSize: '9px', color: '#475569', borderLeft: `2px solid ${accentColor}40`, paddingLeft: '6px' }}>
+                          <strong style={{ color: '#0f172a' }}>{ach.title}</strong> {ach.date && `(${ach.date})`}
+                          {ach.description && <div style={{ fontSize: '8px', color: '#64748b', marginTop: '1px' }}>{ach.description}</div>}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {section === 'languages' && (
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px', paddingLeft: '10px' }}>
+                      {secData.items.filter((i: any) => i.visible).map((l: any) => (
+                        <span key={l.name} style={{ fontSize: '9px', padding: '2px 6px', backgroundColor: '#f1f5f9', borderRadius: '5px', color: '#475569' }}>
+                          {l.name} <span style={{ fontSize: '7px', opacity: 0.65 }}>({l.level})</span>
+                        </span>
+                      ))}
+                    </div>
+                  )}
+
+                  {section === 'patents' && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '5px', paddingLeft: '10px' }}>
+                      {secData.items.filter((i: any) => i.visible).map((pat: any) => (
+                        <div key={pat.id} style={{ fontSize: '9px', color: '#475569' }}>
+                          📜 <strong>{pat.title}</strong> (No: {pat.number})
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
             })}
           </div>
         )}
@@ -1468,11 +1496,12 @@ export default function ResumeEditorPage() {
               <Eye size={14} />
             </button>
             <button
-              onClick={handlePrint}
-              className="p-1.5 sm:p-2 rounded-lg bg-slate-700 hover:bg-slate-600 transition text-indigo-400 cursor-pointer"
-              title="Download PDF"
+              onClick={handleDownloadPDF}
+              disabled={downloading}
+              className="p-1.5 sm:p-2 rounded-lg bg-slate-700 hover:bg-slate-600 transition text-indigo-400 cursor-pointer disabled:opacity-50"
+              title={downloading ? "Generating PDF..." : "Download PDF"}
             >
-              <Download size={14} />
+              {downloading ? <span className="text-[9px] font-mono">...</span> : <Download size={14} />}
             </button>
             <button
               onClick={handleSyncFromPortfolio}
@@ -2355,10 +2384,11 @@ export default function ResumeEditorPage() {
               <h3 className="font-bold text-xs uppercase tracking-wider text-slate-400 font-mono">Fullscreen Resume Preview</h3>
               <div className="flex items-center gap-2">
                 <button
-                  onClick={handlePrint}
-                  className="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer"
+                  onClick={handleDownloadPDF}
+                  disabled={downloading}
+                  className="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer disabled:opacity-60"
                 >
-                  <Download size={12} /> Download PDF
+                  <Download size={12} /> {downloading ? "Generating..." : "Download PDF"}
                 </button>
                 <button
                   onClick={() => setShowPreviewModal(false)}

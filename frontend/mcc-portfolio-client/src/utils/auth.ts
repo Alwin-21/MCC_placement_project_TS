@@ -20,15 +20,16 @@ export interface TokenPayload {
   "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name": string;
   "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress": string;
   "http://schemas.microsoft.com/ws/2008/06/identity/claims/role": string;
+  adminPermissions?: string;
   iss?: string;
   aud?: string;
 }
 
-export function generateToken(user: { Id: number; FullName: string; Email: string; Role: number }): string {
+export function generateToken(user: { Id: number; FullName: string; Email: string; Role: number; adminPermissions?: string }): string {
   const roleName = user.Role === UserRole.Admin ? "Admin" : user.Role === UserRole.Moderator ? "Moderator" : "Student";
   const userIdStr = user.Id.toString();
 
-  const payload: Partial<TokenPayload> = {
+  const payload: Partial<TokenPayload> & { adminPermissions?: string } = {
     nameid: userIdStr,
     unique_name: user.FullName,
     email: user.Email,
@@ -38,6 +39,10 @@ export function generateToken(user: { Id: number; FullName: string; Email: strin
     "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress": user.Email,
     "http://schemas.microsoft.com/ws/2008/06/identity/claims/role": roleName,
   };
+
+  if (user.adminPermissions !== undefined) {
+    payload.adminPermissions = user.adminPermissions;
+  }
 
   return jwt.sign(payload, JWT_SECRET, {
     issuer: JWT_ISSUER,
@@ -73,4 +78,32 @@ export function getUserFromRequest(req: Request): TokenPayload | null {
   }
   const token = authHeader.substring(7);
   return verifyToken(token);
+}
+
+export function hasModulePermission(
+  payload: TokenPayload,
+  moduleId: string,
+  level: "read" | "write"
+): boolean {
+  if (payload.role === "Admin") return true; // Super Admin always has full access
+  if (payload.role !== "Moderator") return false;
+  if (!payload.adminPermissions) return false;
+  try {
+    const perms = JSON.parse(payload.adminPermissions);
+    if (Array.isArray(perms)) {
+      // Legacy arrays represent write access implicitly
+      return perms.includes(moduleId);
+    }
+    if (typeof perms === "object") {
+      const userLvl = perms[moduleId];
+      if (level === "write") {
+        return userLvl === "write";
+      } else {
+        return userLvl === "read" || userLvl === "write";
+      }
+    }
+  } catch {
+    return false;
+  }
+  return false;
 }

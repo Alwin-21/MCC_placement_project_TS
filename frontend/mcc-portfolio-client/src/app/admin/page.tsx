@@ -36,7 +36,12 @@ import {
   Sun,
   Moon,
   Menu,
-  X
+  X,
+  UserCog,
+  Key,
+  ToggleLeft,
+  ToggleRight,
+  Lock
 } from "lucide-react";
 import api from "@/services/api";
 import { useTheme } from "@/hooks/useTheme";
@@ -49,7 +54,8 @@ type ActiveTab =
   | "reports" 
   | "notifications"
   | "audit-logs"
-  | "backup-restore";
+  | "backup-restore"
+  | "rbac";
 
 export default function AdminPage() {
   const router = useRouter();
@@ -70,9 +76,39 @@ export default function AdminPage() {
   // Security & System States
   const [auditLogs, setAuditLogs] = useState<any[]>([]);
   const [adminRole, setAdminRole] = useState<string>("Admin");
+  const isSuperAdmin = adminRole === "Admin" || adminRole === "2";
   const isReadOnly = adminRole === "Moderator" || adminRole === "3";
+  // adminPermissions: object map of moduleId -> "read" | "write" | undefined
+  const [adminPermissions, setAdminPermissions] = useState<Record<string, string>>({});
   const [backingUp, setBackingUp] = useState(false);
   const [restoringBackup, setRestoringBackup] = useState(false);
+
+  // ── Permission helpers ──────────────────────────────────────────────
+  // Super Admin always has full write access. Sub-admins check their map.
+  const canRead  = (mod: string): boolean => isSuperAdmin || (adminPermissions[mod] === "read" || adminPermissions[mod] === "write");
+  const canWrite = (mod: string): boolean => isSuperAdmin || adminPermissions[mod] === "write";
+
+  // RBAC – Sub-Admin Management States
+  const [admins, setAdmins] = useState<any[]>([]);
+  const [rbacForm, setRbacForm] = useState({
+    fullName: "",
+    email: "",
+    username: "",
+    password: "",
+    permissions: {} as Record<string, string>,   // { students: "write", analytics: "read" }
+  });
+  const [editingAdmin, setEditingAdmin] = useState<any>(null);
+  const [rbacLoading, setRbacLoading] = useState(false);
+  const [rbacNewPassword, setRbacNewPassword] = useState("");
+
+  const ALL_PERMISSIONS = [
+    { id: "overview",       label: "Dashboard Overview",   alwaysRead: true  },
+    { id: "students",       label: "Student Directory",    alwaysRead: false },
+    { id: "institution",   label: "Institution Details",  alwaysRead: false },
+    { id: "analytics",     label: "Department Analytics", alwaysRead: true  },
+    { id: "reports",       label: "Analytics & Export",   alwaysRead: false },
+    { id: "notifications", label: "Notification Manager", alwaysRead: false },
+  ];
 
   const [searchQuery, setSearchQuery] = useState("");
   const [filter, setFilter] = useState<"all" | "pending" | "approved">("all");
@@ -112,8 +148,8 @@ export default function AdminPage() {
     department: ""
   });
 
-  const getAdminRoleFromToken = (token: string | null): string | null => {
-    if (!token) return null;
+  const decodeToken = (token: string | null): { role: string | null; adminPermissions: Record<string, string> } => {
+    if (!token) return { role: null, adminPermissions: {} };
     try {
       const base64Url = token.split(".")[1];
       const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
@@ -124,11 +160,30 @@ export default function AdminPage() {
           .join("")
       );
       const payload = JSON.parse(jsonPayload);
-      return payload.role || payload["http://schemas.microsoft.com/wfx/2008/06/identity/claims/role"] || payload["http://schemas.microsoft.com/ws/2008/06/identity/claims/role"] || null;
+      const role = payload.role || payload["http://schemas.microsoft.com/ws/2008/06/identity/claims/role"] || null;
+      let perms: Record<string, string> = {};
+      if (payload.adminPermissions === "all") {
+        // Super admin – handled by isSuperAdmin; leave perms empty
+        perms = {};
+      } else if (payload.adminPermissions) {
+        try {
+          const parsed = JSON.parse(payload.adminPermissions);
+          // Support both new object format {students:"write"} and legacy array ["students"]
+          if (Array.isArray(parsed)) {
+            parsed.forEach((p: string) => { perms[p] = "write"; });
+          } else if (typeof parsed === "object") {
+            perms = parsed;
+          }
+        } catch { perms = {}; }
+      }
+      return { role, adminPermissions: perms };
     } catch (e) {
-      return null;
+      return { role: null, adminPermissions: {} };
     }
   };
+
+  // Legacy alias used by loadAllData
+  const getAdminRoleFromToken = (token: string | null): string | null => decodeToken(token).role;
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -137,17 +192,14 @@ export default function AdminPage() {
         router.push("/admin/login");
         return;
       }
-      const role = getAdminRoleFromToken(adminToken);
-      if (role) {
-        setAdminRole(role);
-      }
+      const { role, adminPermissions: perms } = decodeToken(adminToken);
+      if (role) setAdminRole(role);
+      if (Object.keys(perms).length > 0) setAdminPermissions(perms);
       const savedTheme = localStorage.getItem("adminThemeMode") as "light" | "dark";
       if (savedTheme) {
-        // Migrate old key to shared key on first visit
         localStorage.setItem("mcc-theme", savedTheme);
         localStorage.removeItem("adminThemeMode");
       }
-      // Theme is now handled by the shared useTheme hook (mcc-theme key)
     }
     loadAllData();
   }, []);
@@ -161,11 +213,12 @@ export default function AdminPage() {
       let currentRole = "Admin";
       if (typeof window !== "undefined") {
         const adminToken = localStorage.getItem("adminToken");
-        const dec = getAdminRoleFromToken(adminToken);
+        const { role: dec, adminPermissions: perms } = decodeToken(adminToken);
         if (dec) {
           currentRole = dec;
           setAdminRole(dec);
         }
+        if (Object.keys(perms).length > 0) setAdminPermissions(perms);
       }
 
       const promises = [
@@ -180,6 +233,7 @@ export default function AdminPage() {
 
       if (currentRole === "Admin" || currentRole === "1") {
         promises.push(fetchAuditLogs());
+        promises.push(fetchAdmins());
       }
 
       await Promise.all(promises);
@@ -260,6 +314,151 @@ export default function AdminPage() {
     } catch (err) {
       console.error("Audit logs fetch failed", err);
     }
+  };
+
+  const fetchAdmins = async () => {
+    try {
+      const res = await api.get("/Admin/admins");
+      setAdmins(res.data);
+    } catch (err) {
+      console.error("Admins fetch failed", err);
+    }
+  };
+
+  // ==========================================
+  // RBAC — SUB-ADMIN CRUD HANDLERS
+  // ==========================================
+
+  const handleCreateAdmin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!rbacForm.fullName.trim() || !rbacForm.email.trim() || !rbacForm.username.trim() || !rbacForm.password.trim()) {
+      alert("Full name, email, username and password are all required.");
+      return;
+    }
+    if (Object.keys(rbacForm.permissions).length === 0) {
+      alert("Please assign at least one module permission.");
+      return;
+    }
+    setRbacLoading(true);
+    try {
+      await api.post("/Admin/admins", rbacForm);
+      alert("Admin account created successfully.");
+      setRbacForm({ fullName: "", email: "", username: "", password: "", permissions: {} });
+      fetchAdmins();
+    } catch (err: any) {
+      alert(`Failed to create admin: ${err.response?.data?.message || err.message}`);
+    } finally {
+      setRbacLoading(false);
+    }
+  };
+
+  const handleUpdateAdminPermissions = async (adminId: number, permissions: Record<string, string>) => {
+    setRbacLoading(true);
+    try {
+      await api.put(`/Admin/admins/${adminId}`, { permissions });
+      alert("Permissions updated successfully.");
+      setEditingAdmin(null);
+      fetchAdmins();
+    } catch (err: any) {
+      alert(`Failed to update permissions: ${err.response?.data?.message || err.message}`);
+    } finally {
+      setRbacLoading(false);
+    }
+  };
+
+  const handleResetAdminPassword = async (adminId: number) => {
+    if (!rbacNewPassword.trim() || rbacNewPassword.length < 6) {
+      alert("Password must be at least 6 characters.");
+      return;
+    }
+    setRbacLoading(true);
+    try {
+      await api.put(`/Admin/admins/${adminId}`, { password: rbacNewPassword });
+      alert("Admin password reset successfully.");
+      setRbacNewPassword("");
+    } catch (err: any) {
+      alert(`Failed to reset password: ${err.response?.data?.message || err.message}`);
+    } finally {
+      setRbacLoading(false);
+    }
+  };
+
+  const handleToggleAdminActive = async (adminId: number, currentActive: boolean) => {
+    setRbacLoading(true);
+    try {
+      await api.put(`/Admin/admins/${adminId}`, { isActive: !currentActive });
+      alert(`Admin account ${!currentActive ? "activated" : "deactivated"} successfully.`);
+      fetchAdmins();
+    } catch (err: any) {
+      alert(`Failed to toggle account: ${err.response?.data?.message || err.message}`);
+    } finally {
+      setRbacLoading(false);
+    }
+  };
+
+  const handleDeleteAdmin = async (adminId: number, name: string) => {
+    if (!confirm(`Permanently delete admin account for "${name}"? This cannot be undone.`)) return;
+    setRbacLoading(true);
+    try {
+      await api.delete(`/Admin/admins/${adminId}`);
+      alert("Admin account deleted.");
+      if (editingAdmin?.id === adminId) setEditingAdmin(null);
+      fetchAdmins();
+    } catch (err: any) {
+      alert(`Failed to delete admin: ${err.response?.data?.message || err.message}`);
+    } finally {
+      setRbacLoading(false);
+    }
+  };
+
+  // Cycle form permission: none → read → write → none (skip write if alwaysRead)
+  const cyclePermissionInForm = (permId: string, alwaysRead: boolean) => {
+    setRbacForm(prev => {
+      const current = prev.permissions[permId];
+      const next = alwaysRead
+        ? current === "read" ? undefined : "read"
+        : current === undefined ? "read" : current === "read" ? "write" : undefined;
+      const updated = { ...prev.permissions };
+      if (next === undefined) delete updated[permId]; else updated[permId] = next;
+      return { ...prev, permissions: updated };
+    });
+  };
+
+  // Cycle edit permission for existing admin
+  const cycleEditPermission = (permId: string, alwaysRead: boolean) => {
+    if (!editingAdmin) return;
+    const current: Record<string, string> = (() => {
+      try {
+        const parsed = JSON.parse(editingAdmin.adminPermissions || "{}");
+        // Legacy array support
+        if (Array.isArray(parsed)) {
+          const obj: Record<string, string> = {};
+          parsed.forEach((p: string) => { obj[p] = "write"; });
+          return obj;
+        }
+        return parsed;
+      } catch { return {}; }
+    })();
+    const currentLevel = current[permId];
+    const next = alwaysRead
+      ? currentLevel === "read" ? undefined : "read"
+      : currentLevel === undefined ? "read" : currentLevel === "read" ? "write" : undefined;
+    const updated = { ...current };
+    if (next === undefined) delete updated[permId]; else updated[permId] = next;
+    setEditingAdmin({ ...editingAdmin, adminPermissions: JSON.stringify(updated) });
+  };
+
+  // Helper to get edit permissions as object
+  const getEditPerms = (): Record<string, string> => {
+    try {
+      const parsed = JSON.parse(editingAdmin?.adminPermissions || "{}");
+      if (Array.isArray(parsed)) {
+        const obj: Record<string, string> = {};
+        parsed.forEach((p: string) => { obj[p] = "write"; });
+        return obj;
+      }
+      return parsed;
+    } catch { return {}; }
   };
 
   const handleDownloadBackup = async () => {
@@ -681,49 +880,39 @@ export default function AdminPage() {
       {/* ==========================================
           SIDEBAR NAVIGATION
           ========================================== */}
-      <div className={`w-72 border-r relative z-20 flex-col justify-between shrink-0 h-screen sticky top-0 transition-colors duration-300 hidden md:flex ${
-        themeMode === "dark" ? "bg-[#09090d]/90 border-white/5 text-white" : "bg-[#18233c] border-[#781c1c]/10 text-white shadow-xl"
-      }`}>
+      <div className={`w-72 border-r relative z-20 flex-col justify-between shrink-0 h-screen sticky top-0 transition-colors duration-300 hidden md:flex mcc-sidebar`}>
         <div>
           {/* Logo & Console Title */}
-          <div className={`p-6 border-b flex items-center gap-3 ${
-            themeMode === "dark" ? "border-white/5" : "border-amber-600/20"
-          }`}>
-            <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center shrink-0 border border-white/20 shadow-md overflow-hidden p-0.5">
-              <img src="/mcc-crest.png" className="w-full h-full object-contain" alt="MCC Crest" />
-            </div>
-            <div>
-              <span className="font-serif font-black text-xs tracking-tight text-white block leading-none">
-                MADRAS CHRISTIAN
-              </span>
-              <span className="font-serif font-black text-xs tracking-tight text-white block mt-0.5 leading-none">
-                COLLEGE
-              </span>
-              <span className="text-[7px] uppercase font-mono tracking-widest text-[#d4af37] block font-extrabold mt-1 leading-none">
-                Admin Console
-              </span>
-            </div>
+          <div className="p-6 border-b border-slate-200 flex items-center justify-center">
+            <img 
+              src="/mcc-logo.jpg" 
+              className="w-full max-w-[280px] h-auto object-contain rounded-lg transition-transform duration-200 hover:scale-[1.02]" 
+              alt="Madras Christian College Logo" 
+            />
           </div>
 
           {/* Navigation Items */}
-          <nav className="p-4 space-y-1.5">
-            {[
-              { id: "overview", label: "Dashboard Overview", icon: Activity },
-              { id: "students", label: "Student Directory", icon: Users },
-              { id: "institution", label: "Institution Details", icon: Building },
-              { id: "analytics", label: "Department Analytics", icon: BarChart2 },
-              { id: "reports", label: "Analytics & Export", icon: FileText },
-              { id: "notifications", label: "Notification Manager", icon: Bell },
-              { id: "audit-logs", label: "Security Audit Logs", icon: Shield },
-              { id: "backup-restore", label: "System Backup/Restore", icon: Settings }
-            ].filter((tab) => {
-              if (adminRole === "Moderator" || adminRole === "3") {
-                return !["audit-logs", "backup-restore"].includes(tab.id);
-              }
-              return true;
+          <nav className="p-4 space-y-1.5 overflow-y-auto flex-1">
+            {([
+              { id: "overview",       label: "Dashboard Overview",  icon: Activity,  superOnly: false },
+              { id: "students",       label: "Student Directory",    icon: Users,     superOnly: false },
+              { id: "institution",   label: "Institution Details",  icon: Building,  superOnly: false },
+              { id: "analytics",     label: "Department Analytics", icon: BarChart2, superOnly: false },
+              { id: "reports",       label: "Analytics & Export",   icon: FileText,  superOnly: false },
+              { id: "notifications", label: "Notification Manager", icon: Bell,      superOnly: false },
+              { id: "audit-logs",    label: "Security Audit Logs",  icon: Shield,    superOnly: true  },
+              { id: "backup-restore",label: "System Backup/Restore",icon: Settings,  superOnly: true  },
+              { id: "rbac",          label: "Access Control",       icon: UserCog,   superOnly: true  },
+            ] as const).filter((tab) => {
+              if (isSuperAdmin) return true;
+              // Sub-admins: only show what they can at least read
+              if (tab.superOnly) return false;
+              return canRead(tab.id);
             }).map((tab) => {
               const Icon = tab.icon;
               const isActive = activeTab === tab.id;
+              const isRbac = tab.id === "rbac";
+              const readOnly = !isSuperAdmin && !canWrite(tab.id);
               return (
                 <button
                   key={tab.id}
@@ -731,16 +920,24 @@ export default function AdminPage() {
                   onClick={() => setActiveTab(tab.id as ActiveTab)}
                   className={`w-full flex items-center gap-3.5 px-4 py-3 rounded-xl text-xs font-semibold tracking-wide transition-all duration-200 ${
                     isActive
-                      ? themeMode === "dark"
-                        ? "bg-white text-black shadow-lg shadow-white/5 font-bold"
-                        : "bg-white text-[#18233c] shadow-lg shadow-white/5 font-bold"
-                      : themeMode === "dark"
-                        ? "text-slate-400 hover:text-white hover:bg-white/5"
-                        : "text-slate-300 hover:text-white hover:bg-white/10"
+                      ? "mcc-active-tab font-bold"
+                      : isRbac
+                        ? themeMode === "dark"
+                          ? "text-violet-400 hover:text-violet-200 hover:bg-violet-500/10 border border-violet-500/20"
+                          : "text-violet-300 hover:text-white hover:bg-violet-500/20 border border-violet-400/30"
+                        : themeMode === "dark"
+                          ? "text-slate-400 hover:text-white hover:bg-white/5"
+                          : "text-slate-305 hover:text-white hover:bg-white/10"
                   }`}
                 >
-                  <Icon size={16} className={isActive ? (themeMode === "dark" ? "text-black" : "text-[#18233c]") : "text-slate-400"} />
+                  <Icon size={16} className={isActive ? (themeMode === "dark" ? "text-black" : "text-[#18233c]") : isRbac && !isActive ? "text-violet-400" : "text-slate-400"} />
                   {tab.label}
+                  {!isSuperAdmin && readOnly && !isActive && (
+                    <span className="ml-auto text-[8px] bg-amber-500/20 text-amber-300 px-1.5 py-0.5 rounded font-mono font-bold" title="Read-only access">R</span>
+                  )}
+                  {isRbac && !isActive && (
+                    <span className="ml-auto text-[8px] bg-violet-500/20 text-violet-300 px-1.5 py-0.5 rounded font-mono font-bold">SA</span>
+                  )}
                 </button>
               );
             })}
@@ -751,8 +948,15 @@ export default function AdminPage() {
         <div className={`p-4 border-t space-y-3 ${
           themeMode === "dark" ? "border-white/5" : "border-[#781c1c]/10"
         }`}>
-
-
+          {/* Role Badge */}
+          <div className={`px-3 py-2 rounded-xl text-[10px] font-mono font-bold flex items-center gap-2 ${
+            isSuperAdmin
+              ? "bg-violet-500/10 text-violet-300 border border-violet-500/20"
+              : "bg-blue-500/10 text-blue-300 border border-blue-500/20"
+          }`}>
+            <Shield size={11} />
+            {isSuperAdmin ? "Super Administrator" : "Sub-Admin"}
+          </div>
           <Link
             href="/"
             className={`flex items-center justify-between text-[11px] transition px-2 ${
@@ -778,23 +982,15 @@ export default function AdminPage() {
       {/* MOBILE DRAWER SIDEBAR OVERLAY */}
       {showMobileNav && (
         <div className="fixed inset-0 z-50 flex md:hidden bg-black/60 backdrop-blur-xs select-none">
-          <div className={`w-72 flex flex-col justify-between p-5 animate-slideIn h-screen border-r ${
-            themeMode === "dark" ? "bg-[#09090d] border-white/5 text-white" : "bg-[#18233c] border-[#781c1c]/10 text-white"
-          }`}>
+          <div className="w-72 flex flex-col justify-between p-5 animate-slideIn h-screen border-r mcc-sidebar">
             <div>
-              <div className="flex justify-between items-center pb-4 border-b border-white/10">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-9 h-9 rounded-full bg-white flex items-center justify-center border border-white/20 shadow-sm overflow-hidden shrink-0 p-0.5">
-                    <img src="/mcc-crest.png" className="w-full h-full object-contain" alt="MCC Crest" />
-                  </div>
-                  <div>
-                    <span className="font-serif font-black text-[10px] tracking-tight text-white block leading-none">
-                      MADRAS CHRISTIAN
-                    </span>
-                    <span className="font-serif font-black text-[10px] tracking-tight text-white block mt-0.5 leading-none">
-                      COLLEGE
-                    </span>
-                  </div>
+              <div className="flex justify-between items-center pb-4 border-b border-gray-250">
+                <div className="flex items-center justify-start py-1">
+                  <img 
+                    src="/mcc-logo.jpg" 
+                    className="w-full max-w-[190px] h-auto object-contain rounded-lg" 
+                    alt="Madras Christian College Logo" 
+                  />
                 </div>
                 <button onClick={() => setShowMobileNav(false)} className="text-slate-400 hover:text-white cursor-pointer p-1">
                   <X size={18} />
@@ -802,20 +998,20 @@ export default function AdminPage() {
               </div>
               
               <nav className="py-4 space-y-1.5 overflow-y-auto max-h-[60vh] scrollbar-thin">
-                {[
-                  { id: "overview", label: "Dashboard Overview", icon: Activity },
-                  { id: "students", label: "Student Directory", icon: Users },
-                  { id: "institution", label: "Institution Details", icon: Building },
-                  { id: "analytics", label: "Department Analytics", icon: BarChart2 },
-                  { id: "reports", label: "Analytics & Export", icon: FileText },
-                  { id: "notifications", label: "Notification Manager", icon: Bell },
-                  { id: "audit-logs", label: "Security Audit Logs", icon: Shield },
-                  { id: "backup-restore", label: "System Backup/Restore", icon: Settings }
-                ].filter((tab) => {
-                  if (adminRole === "Moderator" || adminRole === "3") {
-                    return !["audit-logs", "backup-restore"].includes(tab.id);
-                  }
-                  return true;
+                {([
+                  { id: "overview",       label: "Dashboard Overview",  icon: Activity,  superOnly: false },
+                  { id: "students",       label: "Student Directory",    icon: Users,     superOnly: false },
+                  { id: "institution",   label: "Institution Details",  icon: Building,  superOnly: false },
+                  { id: "analytics",     label: "Department Analytics", icon: BarChart2, superOnly: false },
+                  { id: "reports",       label: "Analytics & Export",   icon: FileText,  superOnly: false },
+                  { id: "notifications", label: "Notification Manager", icon: Bell,      superOnly: false },
+                  { id: "audit-logs",    label: "Security Audit Logs",  icon: Shield,    superOnly: true  },
+                  { id: "backup-restore",label: "System Backup/Restore",icon: Settings,  superOnly: true  },
+                  { id: "rbac",          label: "Access Control",       icon: UserCog,   superOnly: true  },
+                ] as const).filter((tab) => {
+                  if (isSuperAdmin) return true;
+                  if (tab.superOnly) return false;
+                  return canRead(tab.id);
                 }).map((tab) => {
                   const Icon = tab.icon;
                   const isActive = activeTab === tab.id;
@@ -828,8 +1024,10 @@ export default function AdminPage() {
                       }}
                       className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold transition ${
                         isActive
-                          ? "bg-[#781c1c] text-white shadow"
-                          : "hover:bg-white/5 text-slate-350 hover:text-white"
+                          ? "mcc-active-tab font-bold"
+                          : tab.id === "rbac"
+                            ? "text-violet-350 hover:bg-violet-500/10 border border-violet-400/20"
+                            : "hover:bg-white/5 text-slate-350 hover:text-white"
                       }`}
                     >
                       <Icon size={14} />
@@ -864,12 +1062,13 @@ export default function AdminPage() {
         
         {/* MOBILE TOP HEADER BAR */}
         <div className="md:hidden flex items-center justify-between p-4 bg-white dark:bg-[#09090d] border border-slate-200 dark:border-white/5 rounded-2xl select-none mb-6 shadow-xs">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2.5">
             <button
               onClick={() => setShowMobileNav(true)}
-              className="p-2 rounded-lg text-slate-500 hover:bg-slate-100 dark:hover:bg-white/5 transition cursor-pointer"
+              className="p-2 rounded-xl bg-[#781c1c] hover:bg-[#5f1515] transition cursor-pointer flex items-center justify-center shrink-0"
+              style={{ color: '#ffffff' }}
             >
-              <Menu size={20} />
+              <Menu size={18} style={{ color: '#ffffff' }} />
             </button>
             <span className="font-serif font-black text-[#18233c] dark:text-white tracking-tight text-xs uppercase">
               Admin Console
@@ -878,7 +1077,7 @@ export default function AdminPage() {
         </div>
 
         {/* BANNER SHOWCASE */}
-        <div className="relative rounded-3xl overflow-hidden h-44 bg-[#18233c] text-white flex items-end p-8 border border-amber-600/20 shadow-md mb-8">
+        <div className="relative rounded-3xl overflow-hidden h-44 bg-[#18233c] text-white flex items-end p-8 border border-amber-600/20 shadow-md mb-8 mcc-welcome-banner">
           <div className="absolute inset-0 z-0">
             <img 
               src="/mcc-main-gate.jpg" 
@@ -888,13 +1087,22 @@ export default function AdminPage() {
             <div className="absolute inset-0 bg-gradient-to-t from-[#18233c] via-[#18233c]/50 to-transparent" />
           </div>
           <div className="relative z-10 space-y-1 w-full text-left">
-            <span className="text-[9px] uppercase font-mono font-black tracking-widest text-amber-400 bg-[#781c1c] px-3 py-1 rounded-full border border-amber-500/20 inline-block">
+            <span 
+              style={{ color: '#ffffff' }}
+              className="text-[9.5px] uppercase font-mono font-black tracking-widest bg-[#781c1c] px-3.5 py-1.5 rounded-full border border-amber-500/20 inline-block"
+            >
               Super Admin Console
             </span>
-            <h1 className="font-serif text-2xl md:text-3xl font-black text-white mt-2">
-              Placement & Portfolio Administration
+            <h1 
+              style={{ color: '#ffffff' }}
+              className="font-serif text-2xl md:text-3xl font-black mt-2"
+            >
+              Placement &amp; Portfolio Administration
             </h1>
-            <p className="text-xs text-slate-300">
+            <p 
+              style={{ color: 'rgba(255, 255, 255, 0.85)' }}
+              className="text-xs"
+            >
               Review and approve student directories, customize templates, and examine security audit logs.
             </p>
           </div>
@@ -905,7 +1113,7 @@ export default function AdminPage() {
           themeMode === "dark" ? "border-white/5" : "border-slate-200"
         }`}>
           <div>
-            <span className="text-[10px] uppercase font-mono tracking-widest text-[#818cf8] font-bold">
+            <span className="text-[10px] uppercase font-mono tracking-widest text-[#818cf8] font-bold whitespace-nowrap">
               Madras Christian College
             </span>
             <h2 className={`text-2xl md:text-3xl font-black tracking-tight mt-0.5 capitalize ${
@@ -1082,7 +1290,7 @@ export default function AdminPage() {
                     }`}
                   />
                 </div>
-                {!isReadOnly && (
+                {canWrite("students") && (
                   <button
                     onClick={() => {
                       setStudentForm({
@@ -1242,7 +1450,7 @@ export default function AdminPage() {
                       >
                         Portfolio
                       </Link>
-                      {!isReadOnly && (
+                      {canWrite("students") && (
                         <button
                           onClick={() => handleDeleteStudent(student.id, student.fullName)}
                           className="p-2 rounded-lg bg-rose-500/10 border border-rose-500/10 hover:bg-rose-500/20 text-rose-400 transition"
@@ -1289,9 +1497,9 @@ export default function AdminPage() {
                       type="text"
                       value={institution.name}
                       onChange={(e) => setInstitution({ ...institution, name: e.target.value })}
-                      disabled={isReadOnly}
+                      disabled={!canWrite("institution")}
                       className={`w-full border rounded-xl px-4 py-3 text-xs outline-none focus:border-[#781c1c] transition ${
-                        isReadOnly ? "opacity-75 cursor-not-allowed bg-slate-100/50" : ""
+                        !canWrite("institution") ? "opacity-75 cursor-not-allowed bg-slate-100/50" : ""
                       } ${
                         themeMode === "dark" ? "bg-[#121217] border-white/5 text-white" : "bg-white border-slate-200 text-slate-900"
                       }`}
@@ -1303,9 +1511,9 @@ export default function AdminPage() {
                       type="text"
                       value={institution.code}
                       onChange={(e) => setInstitution({ ...institution, code: e.target.value })}
-                      disabled={isReadOnly}
+                      disabled={!canWrite("institution")}
                       className={`w-full border rounded-xl px-4 py-3 text-xs outline-none focus:border-[#781c1c] transition ${
-                        isReadOnly ? "opacity-75 cursor-not-allowed bg-slate-100/50" : ""
+                        !canWrite("institution") ? "opacity-75 cursor-not-allowed bg-slate-100/50" : ""
                       } ${
                         themeMode === "dark" ? "bg-[#121217] border-white/5 text-white" : "bg-white border-slate-200 text-slate-900"
                       }`}
@@ -1319,9 +1527,9 @@ export default function AdminPage() {
                     rows={4}
                     value={institution.description}
                     onChange={(e) => setInstitution({ ...institution, description: e.target.value })}
-                    disabled={isReadOnly}
+                    disabled={!canWrite("institution")}
                     className={`w-full border rounded-xl px-4 py-3 text-xs outline-none focus:border-[#781c1c] transition resize-none ${
-                      isReadOnly ? "opacity-75 cursor-not-allowed bg-slate-100/50" : ""
+                      !canWrite("institution") ? "opacity-75 cursor-not-allowed bg-slate-100/50" : ""
                     } ${
                       themeMode === "dark" ? "bg-[#121217] border-white/5 text-white" : "bg-white border-slate-200 text-slate-900"
                     }`}
@@ -1335,9 +1543,9 @@ export default function AdminPage() {
                       type="email"
                       value={institution.contactEmail}
                       onChange={(e) => setInstitution({ ...institution, contactEmail: e.target.value })}
-                      disabled={isReadOnly}
+                      disabled={!canWrite("institution")}
                       className={`w-full border rounded-xl px-4 py-3 text-xs outline-none focus:border-[#781c1c] transition ${
-                        isReadOnly ? "opacity-75 cursor-not-allowed bg-slate-100/50" : ""
+                        !canWrite("institution") ? "opacity-75 cursor-not-allowed bg-slate-100/50" : ""
                       } ${
                         themeMode === "dark" ? "bg-[#121217] border-white/5 text-white" : "bg-white border-slate-200 text-slate-900"
                       }`}
@@ -1349,9 +1557,9 @@ export default function AdminPage() {
                       type="text"
                       value={institution.contactPhone}
                       onChange={(e) => setInstitution({ ...institution, contactPhone: e.target.value })}
-                      disabled={isReadOnly}
+                      disabled={!canWrite("institution")}
                       className={`w-full border rounded-xl px-4 py-3 text-xs outline-none focus:border-[#781c1c] transition ${
-                        isReadOnly ? "opacity-75 cursor-not-allowed bg-slate-100/50" : ""
+                        !canWrite("institution") ? "opacity-75 cursor-not-allowed bg-slate-100/50" : ""
                       } ${
                         themeMode === "dark" ? "bg-[#121217] border-white/5 text-white" : "bg-white border-slate-200 text-slate-900"
                       }`}
@@ -1366,9 +1574,9 @@ export default function AdminPage() {
                       type="text"
                       value={institution.website}
                       onChange={(e) => setInstitution({ ...institution, website: e.target.value })}
-                      disabled={isReadOnly}
+                      disabled={!canWrite("institution")}
                       className={`w-full border rounded-xl px-4 py-3 text-xs outline-none focus:border-[#781c1c] transition ${
-                        isReadOnly ? "opacity-75 cursor-not-allowed bg-slate-100/50" : ""
+                        !canWrite("institution") ? "opacity-75 cursor-not-allowed bg-slate-100/50" : ""
                       } ${
                         themeMode === "dark" ? "bg-[#121217] border-white/5 text-white" : "bg-white border-slate-200 text-slate-900"
                       }`}
@@ -1380,9 +1588,9 @@ export default function AdminPage() {
                       type="text"
                       value={institution.logoUrl}
                       onChange={(e) => setInstitution({ ...institution, logoUrl: e.target.value })}
-                      disabled={isReadOnly}
+                      disabled={!canWrite("institution")}
                       className={`w-full border rounded-xl px-4 py-3 text-xs outline-none focus:border-[#781c1c] transition ${
-                        isReadOnly ? "opacity-75 cursor-not-allowed bg-slate-100/50" : ""
+                        !canWrite("institution") ? "opacity-75 cursor-not-allowed bg-slate-100/50" : ""
                       } ${
                         themeMode === "dark" ? "bg-[#121217] border-white/5 text-white" : "bg-white border-slate-200 text-slate-900"
                       }`}
@@ -1396,16 +1604,16 @@ export default function AdminPage() {
                     type="text"
                     value={institution.address}
                     onChange={(e) => setInstitution({ ...institution, address: e.target.value })}
-                    disabled={isReadOnly}
+                    disabled={!canWrite("institution")}
                     className={`w-full border rounded-xl px-4 py-3 text-xs outline-none focus:border-[#781c1c] transition ${
-                      isReadOnly ? "opacity-75 cursor-not-allowed bg-slate-100/50" : ""
+                      !canWrite("institution") ? "opacity-75 cursor-not-allowed bg-slate-100/50" : ""
                     } ${
                       themeMode === "dark" ? "bg-[#121217] border-white/5 text-white" : "bg-white border-slate-200 text-slate-900"
                     }`}
                   />
                 </div>
 
-                {!isReadOnly && (
+                {canWrite("institution") && (
                   <button
                     type="submit"
                     className="px-6 py-3 rounded-xl bg-[#781c1c] hover:bg-[#5f1515] text-white text-xs font-bold transition shadow-lg shadow-[#781c1c]/10"
@@ -1425,7 +1633,7 @@ export default function AdminPage() {
                 <p className="text-gray-400 text-xs mt-1">Manage standard list of active streams inside the portal.</p>
               </div>
 
-              {!isReadOnly && (
+              {canWrite("institution") && (
                 <form onSubmit={handleAddDepartment} className="flex gap-2">
                   <input
                     type="text"
@@ -1457,7 +1665,7 @@ export default function AdminPage() {
                       }`}
                     >
                       <span className={`text-xs font-semibold ${themeMode === "dark" ? "text-white" : "text-slate-700"}`}>{dept}</span>
-                      {!isReadOnly && (
+                      {canWrite("institution") && (
                         <button
                           onClick={() => handleDeleteDepartment(dept)}
                           className="text-rose-400 p-1 hover:bg-rose-500/10 rounded transition"
@@ -1777,95 +1985,35 @@ export default function AdminPage() {
         {activeTab === "notifications" && (
           <div className="grid lg:grid-cols-3 gap-8">
             {/* Left: Dispatch Announcement Form */}
-            <div className={`lg:col-span-2 border rounded-3xl p-6 shadow-xl space-y-6 transition-colors duration-300 ${
-              themeMode === "dark" ? "bg-[#0b0b0f] border-white/5" : "bg-white border-slate-200"
-            }`}>
-              <div>
-                <h3 className={`text-lg font-bold ${themeMode === "dark" ? "text-white" : "text-slate-900"}`}>Create Announcement / Alert</h3>
-                <p className="text-gray-400 text-xs mt-1">Publish a global broadcast message or send an alert directly to a specific student.</p>
-              </div>
+            {canWrite("notifications") ? (
+              <div className={`lg:col-span-2 border rounded-3xl p-6 shadow-xl space-y-6 transition-colors duration-300 ${
+                themeMode === "dark" ? "bg-[#0b0b0f] border-white/5" : "bg-white border-slate-200"
+              }`}>
+                <div>
+                  <h3 className={`text-lg font-bold ${themeMode === "dark" ? "text-white" : "text-slate-900"}`}>Create Announcement / Alert</h3>
+                  <p className="text-gray-400 text-xs mt-1">Publish a global broadcast message or send an alert directly to a specific student.</p>
+                </div>
 
-              <form onSubmit={handleSendNotification} className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="text-[10px] uppercase font-mono tracking-wider font-bold text-gray-400 block mb-2">Recipient Target</label>
-                    <select
-                      value={notifForm.recipientType}
-                      onChange={(e) => setNotifForm({ ...notifForm, recipientType: e.target.value })}
-                      className={`w-full border rounded-xl px-4 py-3 text-xs outline-none focus:border-[#781c1c] transition ${
-                        themeMode === "dark" ? "bg-[#121217] border-white/5 text-white" : "bg-white border-slate-200 text-slate-900"
-                      }`}
-                    >
-                      <option value="Broadcast">All Students (Global Broadcast)</option>
-                      <option value="Department">Filter by Department</option>
-                      <option value="Individual">Specific Student</option>
-                    </select>
-                  </div>
-
-                  {notifForm.recipientType === "Broadcast" && (
+                <form onSubmit={handleSendNotification} className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label className="text-[10px] uppercase font-mono tracking-wider font-bold text-gray-400 block mb-2">Alert Severity</label>
+                      <label className="text-[10px] uppercase font-mono tracking-wider font-bold text-gray-400 block mb-2">Recipient Target</label>
                       <select
-                        value={notifForm.type}
-                        onChange={(e) => setNotifForm({ ...notifForm, type: e.target.value })}
+                        value={notifForm.recipientType}
+                        onChange={(e) => setNotifForm({ ...notifForm, recipientType: e.target.value })}
                         className={`w-full border rounded-xl px-4 py-3 text-xs outline-none focus:border-[#781c1c] transition ${
                           themeMode === "dark" ? "bg-[#121217] border-white/5 text-white" : "bg-white border-slate-200 text-slate-900"
                         }`}
                       >
-                        <option value="Broadcast">Broadcast Announcement</option>
-                        <option value="Info">Information Message</option>
-                        <option value="Warning">Warning Alert</option>
-                        <option value="Alert">Urgent Notice</option>
+                        <option value="Broadcast">All Students (Global Broadcast)</option>
+                        <option value="Department">Filter by Department</option>
+                        <option value="Individual">Specific Student</option>
                       </select>
                     </div>
-                  )}
 
-                  {notifForm.recipientType === "Department" && (
-                    <div>
-                      <label className="text-[10px] uppercase font-mono tracking-wider font-bold text-gray-400 block mb-2">Target Department</label>
-                      <select
-                        value={notifForm.department}
-                        onChange={(e) => setNotifForm({ ...notifForm, department: e.target.value })}
-                        className={`w-full border rounded-xl px-4 py-3 text-xs outline-none focus:border-[#781c1c] transition ${
-                          themeMode === "dark" ? "bg-[#121217] border-white/5 text-white" : "bg-white border-slate-200 text-slate-900"
-                        }`}
-                      >
-                        <option value="">-- Choose Department --</option>
-                        {institution?.departments
-                          ?.split(";")
-                          .filter((d: string) => d.trim().length > 0)
-                          .map((dept: string, idx: number) => (
-                            <option key={idx} value={dept}>
-                              {dept}
-                            </option>
-                          ))}
-                      </select>
-                    </div>
-                  )}
-
-                  {notifForm.recipientType === "Individual" && (
-                    <div className="grid grid-cols-2 gap-2 col-span-2 sm:col-span-1">
+                    {notifForm.recipientType === "Broadcast" && (
                       <div>
-                        <label className="text-[10px] uppercase font-mono tracking-wider font-bold text-gray-400 block mb-2">Target Student</label>
-                        <select
-                          value={notifForm.userId}
-                          onChange={(e) => setNotifForm({ ...notifForm, userId: Number(e.target.value) })}
-                          className={`w-full border rounded-xl px-4 py-3 text-xs outline-none focus:border-[#781c1c] transition ${
-                            themeMode === "dark" ? "bg-[#121217] border-white/5 text-white" : "bg-white border-slate-200 text-slate-900"
-                          }`}
-                        >
-                          <option value={0}>-- Select Student --</option>
-                          {students
-                            .filter(s => s.role !== "Admin")
-                            .map(s => (
-                              <option key={s.id} value={s.id}>
-                                {s.fullName} ({s.registerNumber || s.email})
-                              </option>
-                            ))}
-                        </select>
-                      </div>
-                      <div>
-                        <label className="text-[10px] uppercase font-mono tracking-wider font-bold text-gray-400 block mb-2">Severity</label>
+                        <label className="text-[10px] uppercase font-mono tracking-wider font-bold text-gray-400 block mb-2">Alert Severity</label>
                         <select
                           value={notifForm.type}
                           onChange={(e) => setNotifForm({ ...notifForm, type: e.target.value })}
@@ -1873,49 +2021,121 @@ export default function AdminPage() {
                             themeMode === "dark" ? "bg-[#121217] border-white/5 text-white" : "bg-white border-slate-200 text-slate-900"
                           }`}
                         >
-                          <option value="Info">Info</option>
-                          <option value="Warning">Warning</option>
-                          <option value="Alert">Urgent</option>
+                          <option value="Broadcast">Broadcast Announcement</option>
+                          <option value="Info">Information Message</option>
+                          <option value="Warning">Warning Alert</option>
+                          <option value="Alert">Urgent Notice</option>
                         </select>
                       </div>
-                    </div>
-                  )}
-                </div>
+                    )}
 
-                <div>
-                  <label className="text-[10px] uppercase font-mono tracking-wider font-bold text-gray-400 block mb-2">Notification Title</label>
-                  <input
-                    type="text"
-                    placeholder="E.g., Submission Deadline Extended"
-                    value={notifForm.title}
-                    onChange={(e) => setNotifForm({ ...notifForm, title: e.target.value })}
-                    className={`w-full border rounded-xl px-4 py-3 text-xs outline-none focus:border-[#781c1c] transition ${
-                      themeMode === "dark" ? "bg-[#121217] border-white/5 text-white" : "bg-white border-slate-200 text-slate-900"
-                    }`}
-                  />
-                </div>
+                    {notifForm.recipientType === "Department" && (
+                      <div>
+                        <label className="text-[10px] uppercase font-mono tracking-wider font-bold text-gray-400 block mb-2">Target Department</label>
+                        <select
+                          value={notifForm.department}
+                          onChange={(e) => setNotifForm({ ...notifForm, department: e.target.value })}
+                          className={`w-full border rounded-xl px-4 py-3 text-xs outline-none focus:border-[#781c1c] transition ${
+                            themeMode === "dark" ? "bg-[#121217] border-white/5 text-white" : "bg-white border-slate-200 text-slate-900"
+                          }`}
+                        >
+                          <option value="">-- Choose Department --</option>
+                          {institution?.departments
+                            ?.split(";")
+                            .filter((d: string) => d.trim().length > 0)
+                            .map((dept: string, idx: number) => (
+                              <option key={idx} value={dept}>
+                                {dept}
+                              </option>
+                            ))}
+                        </select>
+                      </div>
+                    )}
 
-                <div>
-                  <label className="text-[10px] uppercase font-mono tracking-wider font-bold text-gray-400 block mb-2">Message Body</label>
-                  <textarea
-                    rows={4}
-                    placeholder="Enter announcement description..."
-                    value={notifForm.message}
-                    onChange={(e) => setNotifForm({ ...notifForm, message: e.target.value })}
-                    className={`w-full border rounded-xl px-4 py-3 text-xs outline-none focus:border-[#781c1c] transition resize-none ${
-                      themeMode === "dark" ? "bg-[#121217] border-white/5 text-white" : "bg-white border-slate-200 text-slate-900"
-                    }`}
-                  />
-                </div>
+                    {notifForm.recipientType === "Individual" && (
+                      <div className="grid grid-cols-2 gap-2 col-span-2 sm:col-span-1">
+                        <div>
+                          <label className="text-[10px] uppercase font-mono tracking-wider font-bold text-gray-400 block mb-2">Target Student</label>
+                          <select
+                            value={notifForm.userId}
+                            onChange={(e) => setNotifForm({ ...notifForm, userId: Number(e.target.value) })}
+                            className={`w-full border rounded-xl px-4 py-3 text-xs outline-none focus:border-[#781c1c] transition ${
+                              themeMode === "dark" ? "bg-[#121217] border-white/5 text-white" : "bg-white border-slate-200 text-slate-900"
+                            }`}
+                          >
+                            <option value={0}>-- Select Student --</option>
+                            {students
+                              .filter(s => s.role !== "Admin")
+                              .map(s => (
+                                <option key={s.id} value={s.id}>
+                                  {s.fullName} ({s.registerNumber || s.email})
+                                </option>
+                              ))}
+                          </select>
+                        </div>
+                        <div>
+                          <label className="text-[10px] uppercase font-mono tracking-wider font-bold text-gray-400 block mb-2">Severity</label>
+                          <select
+                            value={notifForm.type}
+                            onChange={(e) => setNotifForm({ ...notifForm, type: e.target.value })}
+                            className={`w-full border rounded-xl px-4 py-3 text-xs outline-none focus:border-[#781c1c] transition ${
+                              themeMode === "dark" ? "bg-[#121217] border-white/5 text-white" : "bg-white border-slate-200 text-slate-900"
+                            }`}
+                          >
+                            <option value="Info">Info</option>
+                            <option value="Warning">Warning</option>
+                            <option value="Alert">Urgent</option>
+                          </select>
+                        </div>
+                      </div>
+                    )}
+                  </div>
 
-                <button
-                  type="submit"
-                  className="px-6 py-3 rounded-xl bg-[#781c1c] hover:bg-[#5f1515] text-white text-xs font-bold transition"
-                >
-                  Send Announcement
-                </button>
-              </form>
-            </div>
+                  <div>
+                    <label className="text-[10px] uppercase font-mono tracking-wider font-bold text-gray-400 block mb-2">Notification Title</label>
+                    <input
+                      type="text"
+                      placeholder="E.g., Submission Deadline Extended"
+                      value={notifForm.title}
+                      onChange={(e) => setNotifForm({ ...notifForm, title: e.target.value })}
+                      className={`w-full border rounded-xl px-4 py-3 text-xs outline-none focus:border-[#781c1c] transition ${
+                        themeMode === "dark" ? "bg-[#121217] border-white/5 text-white" : "bg-white border-slate-200 text-slate-900"
+                      }`}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] uppercase font-mono tracking-wider font-bold text-gray-400 block mb-2">Message Body</label>
+                    <textarea
+                      rows={4}
+                      placeholder="Enter announcement description..."
+                      value={notifForm.message}
+                      onChange={(e) => setNotifForm({ ...notifForm, message: e.target.value })}
+                      className={`w-full border rounded-xl px-4 py-3 text-xs outline-none focus:border-[#781c1c] transition resize-none ${
+                        themeMode === "dark" ? "bg-[#121217] border-white/5 text-white" : "bg-white border-slate-200 text-slate-900"
+                      }`}
+                    />
+                  </div>
+
+                  <button
+                    type="submit"
+                    className="px-6 py-3 rounded-xl bg-[#781c1c] hover:bg-[#5f1515] text-white text-xs font-bold transition"
+                  >
+                    Send Announcement
+                  </button>
+                </form>
+              </div>
+            ) : (
+              <div className={`lg:col-span-2 border border-dashed rounded-3xl p-8 flex flex-col items-center justify-center text-center ${
+                themeMode === "dark" ? "bg-[#0b0b0f] border-white/5" : "bg-white border-slate-250"
+              }`}>
+                <Lock size={32} className="text-gray-500 mb-3" />
+                <h4 className={`text-sm font-bold mb-1.5 ${themeMode === "dark" ? "text-white" : "text-slate-800"}`}>Send Access Restricted</h4>
+                <p className="text-gray-400 text-xs max-w-sm leading-relaxed">
+                  You have read-only access to notifications. You can browse dispatch history but cannot broadcast new announcements.
+                </p>
+              </div>
+            )}
 
             {/* Right: Sent Logs */}
             <div className={`border rounded-3xl p-6 shadow-xl space-y-6 transition-colors duration-300 ${
@@ -1937,13 +2157,15 @@ export default function AdminPage() {
                     >
                       <div className="flex justify-between items-start mb-2">
                         <span className="text-[10px] font-bold uppercase text-[#818cf8]">{notif.type}</span>
-                        <button
-                          onClick={() => handleDeleteNotification(notif.id)}
-                          className="text-rose-400 hover:bg-rose-500/10 p-1 rounded transition opacity-0 group-hover:opacity-100"
-                          title="Delete message"
-                        >
-                          <Trash2 size={12} />
-                        </button>
+                        {canWrite("notifications") && (
+                          <button
+                            onClick={() => handleDeleteNotification(notif.id)}
+                            className="text-rose-400 hover:bg-rose-500/10 p-1 rounded transition opacity-0 group-hover:opacity-100 cursor-pointer"
+                            title="Delete message"
+                          >
+                            <Trash2 size={12} />
+                          </button>
+                        )}
                       </div>
                       <h5 className={`text-xs font-bold leading-tight mb-1 ${themeMode === "dark" ? "text-white" : "text-slate-800"}`}>{notif.title}</h5>
                       <p className="text-gray-400 text-[11px] leading-relaxed mb-3">{notif.message}</p>
@@ -2092,6 +2314,371 @@ export default function AdminPage() {
                 >
                   {restoringBackup ? "Restoring Database..." : "Select Backup JSON & Restore"}
                 </label>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ==========================================
+            TAB: ACCESS CONTROL (RBAC) — SUPER ADMIN ONLY
+            ========================================== */}
+        {activeTab === "rbac" && isSuperAdmin && (
+          <div className="space-y-8 mcc-access-control">
+
+            {/* Header */}
+            <div className={`border rounded-3xl p-6 ${themeMode === "dark" ? "bg-[#0b0b0f] border-white/5" : "bg-white border-slate-200"}`}>
+              <div className="flex items-center gap-3 mb-2">
+                <div className="w-10 h-10 rounded-xl bg-violet-500/10 border border-violet-500/20 flex items-center justify-center">
+                  <UserCog size={20} className="text-violet-400" />
+                </div>
+                <div>
+                  <h3 className={`text-lg font-bold ${themeMode === "dark" ? "text-white" : "text-slate-900"}`}>Access Control & Admin Management</h3>
+                  <p className="text-xs text-gray-400">Create sub-admin accounts and assign module-level permissions. Sub-admins only see what you grant them.</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="grid lg:grid-cols-2 gap-8">
+
+              {/* ── LEFT: Create New Admin ── */}
+              <div className={`border rounded-3xl p-6 space-y-5 ${themeMode === "dark" ? "bg-[#0b0b0f] border-white/5" : "bg-white border-slate-200"}`}>
+                <div className="flex items-center gap-2 mb-1">
+                  <Plus size={16} className="text-violet-400" />
+                  <h4 className={`text-sm font-bold ${themeMode === "dark" ? "text-white" : "text-slate-900"}`}>Create New Admin Account</h4>
+                </div>
+
+                <form onSubmit={handleCreateAdmin} className="space-y-4">
+                  {/* Full Name */}
+                  <div>
+                    <label className={`text-[10px] uppercase font-mono font-bold tracking-wider block mb-1.5 ${themeMode === "dark" ? "text-gray-400" : "text-slate-500"}`}>Full Name</label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="e.g. Dr. Priya Rajan"
+                      value={rbacForm.fullName}
+                      onChange={e => setRbacForm(prev => ({ ...prev, fullName: e.target.value }))}
+                      className={`w-full border rounded-xl px-4 py-2.5 text-xs outline-none focus:border-violet-500 transition ${themeMode === "dark" ? "bg-[#121217] border-white/5 text-white placeholder-gray-600" : "bg-slate-50 border-slate-200 text-slate-900 placeholder-slate-400"}`}
+                    />
+                  </div>
+
+                  {/* Username */}
+                  <div>
+                    <label className={`text-[10px] uppercase font-mono font-bold tracking-wider block mb-1.5 ${themeMode === "dark" ? "text-gray-400" : "text-slate-500"}`}>Username (for login)</label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="e.g. priya.admin"
+                      value={rbacForm.username}
+                      onChange={e => setRbacForm(prev => ({ ...prev, username: e.target.value.toLowerCase().replace(/\s/g, "") }))}
+                      className={`w-full border rounded-xl px-4 py-2.5 text-xs outline-none focus:border-violet-500 transition font-mono ${themeMode === "dark" ? "bg-[#121217] border-white/5 text-white placeholder-gray-600" : "bg-slate-50 border-slate-200 text-slate-900 placeholder-slate-400"}`}
+                    />
+                  </div>
+
+                  {/* Email */}
+                  <div>
+                    <label className={`text-[10px] uppercase font-mono font-bold tracking-wider block mb-1.5 ${themeMode === "dark" ? "text-gray-400" : "text-slate-500"}`}>Email Address</label>
+                    <input
+                      type="email"
+                      required
+                      placeholder="e.g. priya@mcc.edu.in"
+                      value={rbacForm.email}
+                      onChange={e => setRbacForm(prev => ({ ...prev, email: e.target.value }))}
+                      className={`w-full border rounded-xl px-4 py-2.5 text-xs outline-none focus:border-violet-500 transition ${themeMode === "dark" ? "bg-[#121217] border-white/5 text-white placeholder-gray-600" : "bg-slate-50 border-slate-200 text-slate-900 placeholder-slate-400"}`}
+                    />
+                  </div>
+
+                  {/* Password */}
+                  <div>
+                    <label className={`text-[10px] uppercase font-mono font-bold tracking-wider block mb-1.5 ${themeMode === "dark" ? "text-gray-400" : "text-slate-500"}`}>Password</label>
+                    <input
+                      type="password"
+                      required
+                      placeholder="Min 6 characters"
+                      value={rbacForm.password}
+                      onChange={e => setRbacForm(prev => ({ ...prev, password: e.target.value }))}
+                      className={`w-full border rounded-xl px-4 py-2.5 text-xs outline-none focus:border-violet-500 transition ${themeMode === "dark" ? "bg-[#121217] border-white/5 text-white placeholder-gray-600" : "bg-slate-50 border-slate-200 text-slate-900 placeholder-slate-400"}`}
+                    />
+                  </div>
+
+                  {/* Module Permissions */}
+                  <div>
+                    <div className="flex items-center justify-between mb-3">
+                      <label className={`text-[10px] uppercase font-mono font-bold tracking-wider ${themeMode === "dark" ? "text-gray-400" : "text-slate-500"}`}>
+                        Module Access Permissions
+                      </label>
+                      <div className="flex items-center gap-2 text-[9px] font-mono">
+                        <span className="bg-gray-500/15 text-gray-400 px-1.5 py-0.5 rounded">None</span>
+                        <span className="bg-amber-500/15 text-amber-300 px-1.5 py-0.5 rounded">Read</span>
+                        <span className="bg-emerald-500/15 text-emerald-300 px-1.5 py-0.5 rounded">Write</span>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-1 gap-2">
+                      {ALL_PERMISSIONS.map(perm => {
+                        const level = rbacForm.permissions[perm.id]; // undefined | "read" | "write"
+                        return (
+                          <button
+                            key={perm.id}
+                            type="button"
+                            onClick={() => cyclePermissionInForm(perm.id, perm.alwaysRead)}
+                            className={`flex items-center gap-3 px-4 py-2.5 rounded-xl border text-xs font-semibold transition text-left ${
+                              level === "write"
+                                ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-300"
+                                : level === "read"
+                                  ? "bg-amber-500/10 border-amber-500/30 text-amber-300"
+                                  : themeMode === "dark"
+                                    ? "border-white/5 text-gray-500 hover:border-white/15"
+                                    : "border-slate-200 text-slate-400 hover:border-slate-300"
+                            }`}
+                          >
+                            {/* 3-state indicator */}
+                            <div className={`w-6 h-6 rounded-lg flex items-center justify-center text-[9px] font-black shrink-0 transition ${
+                              level === "write"
+                                ? "bg-emerald-500 text-white"
+                                : level === "read"
+                                  ? "bg-amber-500 text-white"
+                                  : themeMode === "dark" ? "bg-white/5 text-gray-600" : "bg-slate-100 text-slate-300"
+                            }`}>
+                              {level === "write" ? "W" : level === "read" ? "R" : "—"}
+                            </div>
+                            <span className="flex-1">{perm.label}</span>
+                            {perm.alwaysRead && (
+                              <span className="text-[9px] bg-slate-500/15 text-slate-400 px-1.5 py-0.5 rounded font-mono">view only</span>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    {Object.keys(rbacForm.permissions).length > 0 && (
+                      <div className="flex gap-2 mt-2 flex-wrap">
+                        {Object.entries(rbacForm.permissions).map(([mod, lvl]) => (
+                          <span key={mod} className={`text-[9px] px-2 py-0.5 rounded-full font-mono font-bold border ${
+                            lvl === "write"
+                              ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
+                              : "bg-amber-500/10 text-amber-400 border-amber-500/20"
+                          }`}>
+                            {mod} [{lvl === "write" ? "R+W" : "R"}]
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={rbacLoading}
+                    className="w-full py-3 rounded-xl bg-violet-600 hover:bg-violet-700 text-white text-xs font-bold transition disabled:opacity-50"
+                  >
+                    {rbacLoading ? "Creating Admin..." : "Create Admin Account"}
+                  </button>
+                </form>
+              </div>
+
+              {/* ── RIGHT: Existing Admins List ── */}
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <h4 className={`text-sm font-bold flex items-center gap-2 ${themeMode === "dark" ? "text-white" : "text-slate-900"}`}>
+                    <Users size={15} className="text-violet-400" />
+                    Existing Admin Accounts
+                    <span className="text-[10px] bg-violet-500/15 text-violet-300 px-2 py-0.5 rounded-full font-mono">{admins.length}</span>
+                  </h4>
+                  <button onClick={fetchAdmins} className="text-[10px] text-gray-400 hover:text-white transition font-mono">↺ Refresh</button>
+                </div>
+
+                {admins.length === 0 ? (
+                  <div className={`border rounded-2xl p-8 text-center ${themeMode === "dark" ? "border-white/5 bg-[#0b0b0f]" : "border-slate-200 bg-slate-50"}`}>
+                    <UserCog size={32} className="text-gray-600 mx-auto mb-3" />
+                    <p className="text-gray-500 text-xs">No admin accounts created yet.</p>
+                    <p className="text-gray-600 text-[10px] mt-1">Use the form to create your first sub-admin.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {admins.map((admin: any) => {
+                      const isEditing = editingAdmin?.id === admin.id;
+                      const permsObj: Record<string, string> = (() => {
+                        try {
+                          const p = JSON.parse(admin.adminPermissions || "{}");
+                          if (Array.isArray(p)) {
+                            const o: Record<string, string> = {};
+                            p.forEach((x: string) => { o[x] = "write"; });
+                            return o;
+                          }
+                          return p;
+                        } catch { return {}; }
+                      })();
+
+                      return (
+                        <div key={admin.id} className={`border rounded-2xl p-4 space-y-3 transition ${themeMode === "dark" ? "bg-[#0b0b0f] border-white/5" : "bg-white border-slate-200"}`}>
+                          {/* Admin Header */}
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-2 flex-wrap mb-1">
+                                <div className={`font-bold text-sm truncate ${themeMode === "dark" ? "text-white" : "text-slate-900"}`}>{admin.fullName}</div>
+                                {admin.isActive ? (
+                                  <span className="text-[8px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2 py-0.5 rounded-full font-mono font-bold">ACTIVE</span>
+                                ) : (
+                                  <span className="text-[8px] bg-rose-500/10 text-rose-450 border border-rose-500/20 px-2 py-0.5 rounded-full font-mono font-bold">INACTIVE</span>
+                                )}
+                              </div>
+                              <div className="text-[10px] text-gray-400 font-mono truncate">{admin.username} · {admin.email}</div>
+                              
+                              {/* Display Credentials */}
+                              <div className={`mt-3 p-2.5 rounded-xl border text-[11px] font-sans flex flex-col gap-1.5 ${
+                                themeMode === "dark" ? "bg-white/[0.02] border-white/5" : "bg-slate-50 border-slate-100"
+                              }`}>
+                                <div className="flex items-center justify-between">
+                                  <span className={themeMode === "dark" ? "text-gray-400" : "text-slate-500"}>Username:</span>
+                                  <span className={`font-mono font-bold ${themeMode === "dark" ? "text-violet-400" : "text-violet-600"}`}>{admin.username}</span>
+                                </div>
+                                <div className="flex items-center justify-between">
+                                  <span className={themeMode === "dark" ? "text-gray-400" : "text-slate-500"}>Password:</span>
+                                  {(() => {
+                                    const isHashed = admin.passwordHash && (
+                                      admin.passwordHash.startsWith("$2a$") ||
+                                      admin.passwordHash.startsWith("$2b$") ||
+                                      admin.passwordHash.startsWith("$2y$")
+                                    );
+                                    return (
+                                      <span className={`font-mono font-bold ${
+                                        isHashed
+                                          ? "text-gray-400 italic font-normal"
+                                          : (themeMode === "dark" ? "text-violet-400" : "text-violet-600")
+                                      }`}>
+                                        {isHashed ? "•••••• (Legacy Hash)" : (admin.passwordHash || "—")}
+                                      </span>
+                                    );
+                                  })()}
+                                </div>
+                              </div>
+
+                              {/* Display Permissions */}
+                              <div className={`mt-3 p-3 rounded-xl border space-y-2 text-[11px] ${
+                                themeMode === "dark" ? "bg-white/[0.01] border-white/5" : "bg-slate-50 border-slate-150"
+                              }`}>
+                                <div className={`font-mono text-[9px] uppercase tracking-wider mb-2 font-bold ${
+                                  themeMode === "dark" ? "text-gray-400" : "text-slate-500"
+                                }`}>Module Permissions:</div>
+                                <div className="grid grid-cols-1 gap-1.5">
+                                  {ALL_PERMISSIONS.map(perm => {
+                                    const level = permsObj[perm.id]; // undefined | "read" | "write"
+                                    return (
+                                      <div key={perm.id} className="flex items-center gap-1.5 justify-between">
+                                        <span className={themeMode === "dark" ? "text-gray-300" : "text-slate-700"}>{perm.label}:</span>
+                                        <span className={`px-2 py-0.5 rounded text-[9px] font-bold ${
+                                          level === "write"
+                                            ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
+                                            : level === "read"
+                                              ? "bg-amber-500/10 text-amber-400 border border-amber-500/20"
+                                              : "bg-gray-500/5 text-gray-400 border border-gray-500/10"
+                                        }`}>
+                                          {level === "write" ? "Read & Write" : level === "read" ? "Read-Only" : "No Access"}
+                                        </span>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            </div>
+                            <div className="flex gap-1.5 shrink-0">
+                              <button
+                                onClick={() => setEditingAdmin(isEditing ? null : admin)}
+                                className={`p-1.5 rounded-lg transition text-xs ${isEditing ? "bg-violet-500/20 text-violet-300" : themeMode === "dark" ? "text-gray-400 hover:text-white hover:bg-white/5" : "text-slate-400 hover:text-slate-700 hover:bg-slate-100"}`}
+                                title="Edit permissions"
+                              >
+                                <Edit2 size={13} />
+                              </button>
+                              <button
+                                onClick={() => handleToggleAdminActive(admin.id, admin.isActive)}
+                                className={`p-1.5 rounded-lg transition ${admin.isActive ? "text-amber-400 hover:bg-amber-500/10" : "text-emerald-400 hover:bg-emerald-500/10"}`}
+                                title={admin.isActive ? "Deactivate" : "Activate"}
+                              >
+                                {admin.isActive ? <ToggleRight size={14} /> : <ToggleLeft size={14} />}
+                              </button>
+                              <button
+                                onClick={() => handleDeleteAdmin(admin.id, admin.fullName)}
+                                className="p-1.5 rounded-lg text-rose-400 hover:bg-rose-500/10 transition"
+                                title="Delete admin"
+                              >
+                                <Trash2 size={13} />
+                              </button>
+                            </div>
+                          </div>
+
+                          {/* Edit Panel */}
+                          {isEditing && (
+                            <div className={`border-t pt-3 space-y-3 ${themeMode === "dark" ? "border-white/5" : "border-slate-100"}`}>
+                              <p className={`text-[10px] uppercase font-mono font-bold tracking-wider mb-1 ${themeMode === "dark" ? "text-gray-500" : "text-slate-400"}`}>Edit Module Access</p>
+                              <p className={`text-[9px] mb-3 ${themeMode === "dark" ? "text-gray-600" : "text-slate-400"}`}>Click to cycle: <span className="text-gray-400">None</span> → <span className="text-amber-400">Read</span> → <span className="text-emerald-400">Write</span></p>
+                              <div className="grid grid-cols-1 gap-1.5">
+                                {ALL_PERMISSIONS.map(perm => {
+                                  const editPerms = getEditPerms();
+                                  const level = editPerms[perm.id];
+                                  return (
+                                    <button
+                                      key={perm.id}
+                                      type="button"
+                                      onClick={() => cycleEditPermission(perm.id, perm.alwaysRead)}
+                                      className={`flex items-center gap-3 px-3 py-2.5 rounded-xl border text-xs font-semibold transition text-left ${
+                                        level === "write"
+                                          ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-300"
+                                          : level === "read"
+                                            ? "bg-amber-500/10 border-amber-500/30 text-amber-300"
+                                            : themeMode === "dark"
+                                              ? "border-white/5 text-gray-500 hover:border-white/15"
+                                              : "border-slate-200 text-slate-400 hover:border-slate-300"
+                                      }`}
+                                    >
+                                      <div className={`w-6 h-6 rounded-lg flex items-center justify-center text-[9px] font-black shrink-0 transition ${
+                                        level === "write"
+                                          ? "bg-emerald-500 text-white"
+                                          : level === "read"
+                                            ? "bg-amber-500 text-white"
+                                            : themeMode === "dark" ? "bg-white/5 text-gray-600" : "bg-slate-100 text-slate-300"
+                                      }`}>
+                                        {level === "write" ? "W" : level === "read" ? "R" : "—"}
+                                      </div>
+                                      <span className="flex-1">{perm.label}</span>
+                                      {perm.alwaysRead && (
+                                        <span className="text-[9px] bg-slate-500/15 text-slate-400 px-1.5 py-0.5 rounded font-mono">view only</span>
+                                      )}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                              <button
+                                onClick={() => handleUpdateAdminPermissions(admin.id, getEditPerms())}
+                                disabled={rbacLoading}
+                                className="w-full py-2 rounded-xl bg-violet-600 hover:bg-violet-700 text-white text-xs font-bold transition disabled:opacity-50"
+                              >
+                                {rbacLoading ? "Saving..." : "Save Permissions"}
+                              </button>
+
+                              {/* Reset Password */}
+                              <div className={`border-t pt-3 ${themeMode === "dark" ? "border-white/5" : "border-slate-100"}`}>
+                                <p className={`text-[10px] uppercase font-mono font-bold tracking-wider mb-2 ${themeMode === "dark" ? "text-gray-500" : "text-slate-400"}`}>Reset Password</p>
+                                <div className="flex gap-2">
+                                  <input
+                                    type="password"
+                                    placeholder="New password (min 6 chars)"
+                                    value={rbacNewPassword}
+                                    onChange={e => setRbacNewPassword(e.target.value)}
+                                    className={`flex-1 border rounded-xl px-3 py-2 text-xs outline-none focus:border-violet-500 transition ${themeMode === "dark" ? "bg-[#121217] border-white/5 text-white placeholder-gray-600" : "bg-slate-50 border-slate-200 text-slate-900 placeholder-slate-400"}`}
+                                  />
+                                  <button
+                                    onClick={() => handleResetAdminPassword(admin.id)}
+                                    disabled={rbacLoading}
+                                    className="px-3 py-2 rounded-xl bg-[#18233c] hover:bg-[#1f2d4f] text-white text-xs font-bold transition disabled:opacity-50 flex items-center gap-1.5"
+                                  >
+                                    <Key size={11} /> Reset
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -2351,10 +2938,10 @@ export default function AdminPage() {
                 <h4 className={`text-xs uppercase font-mono font-bold tracking-widest ${themeMode === "dark" ? "text-gray-400" : "text-slate-500"}`}>Account Controls</h4>
                 <div className="grid grid-cols-2 gap-3">
                   <button
-                    onClick={() => !isReadOnly && toggleApproval(selectedStudent.id, selectedStudent.isApproved)}
-                    disabled={manageLoading || isReadOnly}
+                    onClick={() => canWrite("students") && toggleApproval(selectedStudent.id, selectedStudent.isApproved)}
+                    disabled={manageLoading || !canWrite("students")}
                     className={`py-3 rounded-xl text-xs font-bold transition flex items-center justify-center gap-2 ${
-                      isReadOnly
+                      !canWrite("students")
                         ? "bg-slate-500/10 text-slate-500 cursor-not-allowed border border-slate-500/15"
                         : selectedStudent.isApproved
                         ? "bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20"
@@ -2365,10 +2952,10 @@ export default function AdminPage() {
                     {selectedStudent.isApproved ? "Revoke Portfolio" : "Approve Portfolio"}
                   </button>
                   <button
-                    onClick={() => !isReadOnly && handleToggleActive(selectedStudent.id, selectedStudent.isActive !== false)}
-                    disabled={manageLoading || isReadOnly}
+                    onClick={() => canWrite("students") && handleToggleActive(selectedStudent.id, selectedStudent.isActive !== false)}
+                    disabled={manageLoading || !canWrite("students")}
                     className={`py-3 rounded-xl text-xs font-bold transition flex items-center justify-center gap-2 ${
-                      isReadOnly
+                      !canWrite("students")
                         ? "bg-slate-500/10 text-slate-500 cursor-not-allowed border border-slate-500/15"
                         : selectedStudent.isActive !== false
                         ? "bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/20"
@@ -2382,7 +2969,7 @@ export default function AdminPage() {
               </div>
 
               {/* ── RESET PASSWORD ── */}
-              {!isReadOnly && (
+              {canWrite("students") && (
                 <div className={`border rounded-2xl p-5 space-y-3 ${themeMode === "dark" ? "border-white/5 bg-white/[0.02]" : "border-slate-200 bg-slate-50"}`}>
                   <h4 className={`text-xs uppercase font-mono font-bold tracking-widest ${themeMode === "dark" ? "text-gray-400" : "text-slate-500"}`}>Reset Password</h4>
                   <div className="flex gap-3">
@@ -2410,7 +2997,7 @@ export default function AdminPage() {
               )}
 
               {/* ── ACTIVITY TIMELINE ── */}
-              {!isReadOnly && (
+              {canRead("students") && (
                 <div className={`border rounded-2xl p-5 space-y-3 ${themeMode === "dark" ? "border-white/5 bg-white/[0.02]" : "border-slate-200 bg-slate-50"}`}>
                   <h4 className={`text-xs uppercase font-mono font-bold tracking-widest ${themeMode === "dark" ? "text-gray-400" : "text-slate-500"}`}>
                     Activity Timeline

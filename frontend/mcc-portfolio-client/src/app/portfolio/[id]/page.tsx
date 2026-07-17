@@ -923,23 +923,19 @@ function PortfolioPageContent() {
     <div className="h-screen overflow-hidden bg-[#fcfaf6] text-[#2c2c2c] flex font-sans selection:bg-[#781c1c]/20 selection:text-[#781c1c]">
       
       {/* LEFT SIDEBAR (DESKTOP) */}
-      <aside className={`bg-[#18233c] text-slate-300 flex flex-col transition-all duration-300 shrink-0 select-none hidden md:flex border-r border-[#781c1c]/15 ${
-        isSidebarCollapsed ? "w-16" : "w-64"
+      <aside className={`bg-[#18233c] text-slate-300 flex flex-col transition-all duration-300 shrink-0 select-none hidden md:flex border-r border-[#781c1c]/15 mcc-sidebar ${
+        isSidebarCollapsed ? "w-16" : "w-72"
       }`}>
         {/* Sidebar Brand Header - MCC Navy / Gold details with Logo */}
-        <div className="h-16 border-b border-slate-700/50 flex items-center gap-2.5 px-4 shrink-0">
-          {!isSidebarCollapsed && (
-            <div className="flex items-center gap-2 select-none overflow-hidden">
-              <div className="w-9 h-9 rounded-full bg-white flex items-center justify-center shrink-0 border border-[#d4af37]/30 shadow-sm overflow-hidden p-0.5">
-                <img src="/mcc-crest.png" className="w-full h-full object-contain" alt="MCC Crest" />
-              </div>
-              <span className="font-serif font-black text-white tracking-tight text-[10px] uppercase leading-tight">
-                <span className="text-[#d4af37] font-serif block">MADRAS</span> CHRISTIAN COLLEGE
-              </span>
-            </div>
-          )}
-          {isSidebarCollapsed && (
-            <div className="w-9 h-9 rounded-full bg-white flex items-center justify-center mx-auto border border-[#d4af37]/30 shadow-sm overflow-hidden p-0.5" title="Madras Christian College">
+        <div className="border-b border-slate-205 flex items-center justify-center p-3 shrink-0">
+          {!isSidebarCollapsed ? (
+            <img 
+              src="/mcc-logo.jpg" 
+              className="w-full max-w-[230px] h-auto object-contain rounded-lg transition-transform duration-200 hover:scale-[1.02]" 
+              alt="Madras Christian College Logo" 
+            />
+          ) : (
+            <div className="w-9 h-9 rounded-full bg-white flex items-center justify-center mx-auto border border-slate-300 shadow-sm overflow-hidden p-0.5" title="Madras Christian College">
               <img src="/mcc-crest.png" className="w-full h-full object-contain" alt="MCC Crest" />
             </div>
           )}
@@ -988,7 +984,7 @@ function PortfolioPageContent() {
                 onClick={() => setCurrentView(item.id)}
                 className={`w-full flex items-center transition-all duration-150 px-3 py-2 rounded-lg text-xs font-bold text-left ${
                   isActive
-                    ? "bg-[#781c1c] text-white border-l-4 border-[#d4af37] pl-2 shadow-xs"
+                    ? "mcc-active-tab font-bold"
                     : "hover:bg-slate-800/30 hover:text-white"
                 } ${isSidebarCollapsed ? "justify-center pl-3" : ""}`}
                 title={item.label}
@@ -1014,24 +1010,25 @@ function PortfolioPageContent() {
       {/* MOBILE DRAWER SIDEBAR OVERLAY */}
       {showMobileNav && (
         <div className="fixed inset-0 z-50 flex md:hidden bg-[#18233c]/60 backdrop-blur-xs">
-          <div className="w-64 bg-[#18233c] text-slate-300 flex flex-col p-4 animate-slideIn">
-            <div className="flex justify-between items-center pb-4 border-b border-slate-700/40">
-              <span className="font-serif font-black text-white tracking-widest text-xs uppercase flex items-center gap-2">
-                <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center border border-[#d4af37]/30 shadow-sm overflow-hidden shrink-0 p-0.5">
-                  <img src="/mcc-crest.png" className="w-full h-full object-contain" alt="MCC Crest" />
-                </div>
-                <span className="text-[#d4af37]">MCC</span> PORTFOLIO
-              </span>
-              <button onClick={() => setShowMobileNav(false)} className="text-slate-400 hover:text-white">
+          <div className="w-72 flex flex-col p-4 animate-slideIn mcc-sidebar">
+            <div className="flex justify-between items-center pb-4 border-b border-gray-250">
+              <div className="flex items-center justify-start py-1">
+                <img 
+                  src="/mcc-logo.jpg" 
+                  className="w-full max-w-[190px] h-auto object-contain rounded-lg" 
+                  alt="Madras Christian College Logo" 
+                />
+              </div>
+              <button onClick={() => setShowMobileNav(false)} className="text-slate-400 hover:text-white cursor-pointer">
                 <X size={18} />
               </button>
             </div>
 
-            <div className="flex items-center gap-3 py-4 border-b border-slate-700/30">
+            <div className="flex items-center gap-3 py-4 border-b border-slate-200">
               {(profile?.profileImageUrl || user?.profileImageUrl) && !imgError ? (() => {
                 const imgDetails = parseImageAdjustments(profile?.profileImageUrl || user?.profileImageUrl);
                 return (
-                  <div className="w-8 h-8 rounded-full border border-[#d4af37]/40 overflow-hidden flex items-center justify-center shrink-0">
+                  <div className="w-8 h-8 rounded-full border border-slate-300 overflow-hidden flex items-center justify-center shrink-0">
                     <img 
                       src={imgDetails.src} 
                       onError={() => setImgError(true)}
@@ -1046,7 +1043,7 @@ function PortfolioPageContent() {
                   {initials}
                 </div>
               )}
-              <h4 className="text-[11px] font-bold text-white truncate max-w-[130px] flex items-center gap-1.5">
+              <h4 className="text-[11px] font-bold text-black truncate max-w-[130px] flex items-center gap-1.5">
                 {user.fullName}
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block animate-pulse" />
               </h4>
@@ -1065,8 +1062,8 @@ function PortfolioPageContent() {
                     }}
                     className={`w-full flex items-center px-3 py-2 rounded-lg text-xs font-bold text-left ${
                       isActive
-                        ? "bg-[#781c1c] text-white border-l-4 border-[#d4af37] pl-2"
-                        : "text-slate-300 hover:bg-slate-800/30 hover:text-white"
+                        ? "mcc-active-tab font-bold"
+                        : "text-slate-600 hover:bg-slate-100"
                     }`}
                   >
                     <Icon size={14} className={isActive ? "text-[#d4af37]" : ""} />
@@ -1095,6 +1092,9 @@ function PortfolioPageContent() {
             </button>
 
             <div>
+              <span className="text-[9px] uppercase font-mono font-black tracking-widest text-[#781c1c] block mb-1 whitespace-nowrap">
+                Madras Christian College
+              </span>
               <h1 className="text-sm font-extrabold text-[#18233c] tracking-tight leading-none font-serif">{getBreadcrumbTitle()}</h1>
               <div className="text-[10px] text-slate-400 font-bold mt-1 uppercase tracking-wider font-mono">
                 Home <span className="mx-1 text-slate-300">&gt;</span> {getBreadcrumbTitle()}
