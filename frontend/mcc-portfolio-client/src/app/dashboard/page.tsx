@@ -1752,7 +1752,11 @@ Report Generated: ${new Date().toLocaleDateString()}
                       <button
                         type="button"
                         onClick={openPhotoAdjustModal}
-                        className="p-2 bg-slate-800 dark:bg-white/5 hover:bg-slate-700 dark:hover:bg-white/10 rounded-xl text-white text-[10px] font-semibold flex items-center gap-1 cursor-pointer transition border border-white/5"
+                        className={`p-2 rounded-xl text-[10px] font-semibold flex items-center gap-1.5 cursor-pointer transition border ${
+                          themeMode === "dark"
+                            ? "bg-white/10 hover:bg-white/20 text-white border-white/15"
+                            : "bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-300"
+                        }`}
                         title="Adjust Photo position / zoom / rotation"
                       >
                         <Sliders size={12} /> Adjust
