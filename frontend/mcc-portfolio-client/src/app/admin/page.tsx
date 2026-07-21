@@ -885,19 +885,18 @@ export default function AdminPage() {
       {/* ==========================================
           SIDEBAR NAVIGATION
           ========================================== */}
-      <div className={`w-72 border-r relative z-20 flex-col justify-between shrink-0 h-screen sticky top-0 transition-colors duration-300 hidden md:flex mcc-sidebar`}>
-        <div>
-          {/* Logo & Console Title */}
-          <div className="p-6 border-b border-slate-200 flex items-center justify-center">
-            <img 
-              src="/mcc-logo.jpg" 
-              className="w-full max-w-[280px] h-auto object-contain rounded-lg transition-transform duration-200 hover:scale-[1.02]" 
-              alt="Madras Christian College Logo" 
-            />
-          </div>
+      <div className={`w-72 border-r relative z-20 flex flex-col justify-between shrink-0 h-screen sticky top-0 transition-colors duration-300 hidden md:flex mcc-sidebar`}>
+        {/* Logo & Console Title */}
+        <div className="p-6 border-b border-slate-200 flex items-center justify-center shrink-0">
+          <img 
+            src="/mcc-logo.jpg" 
+            className="w-full max-w-[280px] h-auto object-contain rounded-lg transition-transform duration-200 hover:scale-[1.02]" 
+            alt="Madras Christian College Logo" 
+          />
+        </div>
 
-          {/* Navigation Items */}
-          <nav className="p-4 space-y-1.5 overflow-y-auto flex-1">
+        {/* Navigation Items */}
+        <nav className="p-4 space-y-1.5 overflow-y-auto flex-1">
             {([
               { id: "overview",       label: "Dashboard Overview",  icon: Activity,  superOnly: false },
               { id: "students",       label: "Student Directory",    icon: Users,     superOnly: false },
@@ -947,10 +946,9 @@ export default function AdminPage() {
               );
             })}
           </nav>
-        </div>
 
         {/* User Quick Controls */}
-        <div className={`p-4 border-t space-y-3 ${
+        <div className={`p-4 border-t space-y-3 shrink-0 ${
           themeMode === "dark" ? "border-white/5" : "border-[#781c1c]/10"
         }`}>
           {/* Role Badge */}
@@ -988,21 +986,22 @@ export default function AdminPage() {
       {showMobileNav && (
         <div className="fixed inset-0 z-50 flex md:hidden bg-black/60 backdrop-blur-xs select-none">
           <div className="w-72 flex flex-col justify-between p-5 animate-slideIn h-screen border-r mcc-sidebar">
-            <div>
-              <div className="flex justify-between items-center pb-4 border-b border-gray-250">
-                <div className="flex items-center justify-start py-1">
-                  <img 
-                    src="/mcc-logo.jpg" 
-                    className="w-full max-w-[190px] h-auto object-contain rounded-lg" 
-                    alt="Madras Christian College Logo" 
-                  />
-                </div>
-                <button onClick={() => setShowMobileNav(false)} className="text-slate-400 hover:text-white cursor-pointer p-1">
-                  <X size={18} />
-                </button>
+            {/* Header */}
+            <div className="flex justify-between items-center pb-4 border-b border-gray-250 shrink-0">
+              <div className="flex items-center justify-start py-1">
+                <img 
+                  src="/mcc-logo.jpg" 
+                  className="w-full max-w-[190px] h-auto object-contain rounded-lg" 
+                  alt="Madras Christian College Logo" 
+                />
               </div>
-              
-              <nav className="py-4 space-y-1.5 overflow-y-auto max-h-[60vh] scrollbar-thin">
+              <button onClick={() => setShowMobileNav(false)} className="text-slate-400 hover:text-white cursor-pointer p-1">
+                <X size={18} />
+              </button>
+            </div>
+            
+            {/* Navigation Items */}
+            <nav className="py-4 space-y-1.5 overflow-y-auto flex-1 scrollbar-thin">
                 {([
                   { id: "overview",       label: "Dashboard Overview",  icon: Activity,  superOnly: false },
                   { id: "students",       label: "Student Directory",    icon: Users,     superOnly: false },
@@ -1041,9 +1040,8 @@ export default function AdminPage() {
                   );
                 })}
               </nav>
-            </div>
             
-            <div className="pt-4 border-t border-white/10 space-y-3">
+            <div className="pt-4 border-t border-white/10 space-y-3 shrink-0">
               <button
                 onClick={() => {
                   localStorage.removeItem("adminToken");

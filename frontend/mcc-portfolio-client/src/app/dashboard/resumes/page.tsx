@@ -146,60 +146,52 @@ export default function ResumesDashboardPage() {
     <div className={`flex h-screen h-[100dvh] overflow-hidden ${themeMode === "dark" ? "bg-[#09090d] text-white" : "bg-slate-50 text-slate-900"}`}>
       
       {/* DESKTOP SIDEBAR */}
-      <div className={`hidden md:flex flex-col w-72 shrink-0 border-r select-none ${
-        themeMode === "dark" ? "bg-[#09090d] border-white/5" : "bg-[#18233c] border-[#781c1c]/10 text-white shadow-xl"
-      }`}>
-        {/* Brand Crest */}
-        <div className="flex items-center gap-2.5 p-6 border-b border-white/10">
-          <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center border border-white/20 shadow-sm overflow-hidden p-0.5">
-            <img src="/mcc-crest.png" className="w-full h-full object-contain" alt="MCC Crest" />
-          </div>
-          <div>
-            <span className="font-serif font-black text-xs tracking-tight text-white block leading-none">
-              MADRAS CHRISTIAN
-            </span>
-            <span className="font-serif font-black text-xs tracking-tight text-white block mt-0.5 leading-none">
-              COLLEGE
-            </span>
-          </div>
+      <div className={`hidden md:flex flex-col w-72 shrink-0 border-r select-none mcc-sidebar`}>
+        {/* Logo & Console Title */}
+        <div className="p-6 border-b border-slate-200 flex items-center justify-center shrink-0">
+          <img 
+            src="/mcc-logo.jpg" 
+            className="w-full max-w-[280px] h-auto object-contain rounded-lg transition-transform duration-200 hover:scale-[1.02]" 
+            alt="Madras Christian College Logo" 
+          />
         </div>
 
         {/* Navigation Sidebar List */}
-        <div className="flex-1 py-6 overflow-y-auto px-4 space-y-1.5 scrollbar-thin">
-          <button onClick={() => navigateToDashboardSection("header-section")} className="w-full flex items-center gap-3 transition px-4 py-2.5 rounded-xl text-sm font-medium text-left text-slate-300 hover:text-white hover:bg-white/5 cursor-pointer">
+        <nav className="flex-1 py-6 overflow-y-auto px-4 space-y-1.5 scrollbar-thin">
+          <button onClick={() => navigateToDashboardSection("header-section")} className="w-full flex items-center gap-3 transition px-4 py-2.5 rounded-xl text-sm font-medium text-left cursor-pointer">
             <User size={16} className="text-[#781c1c]" /> Header Section
           </button>
-          <button onClick={() => navigateToDashboardSection("about-section")} className="w-full flex items-center gap-3 transition px-4 py-2.5 rounded-xl text-sm font-medium text-left text-slate-300 hover:text-white hover:bg-white/5 cursor-pointer">
+          <button onClick={() => navigateToDashboardSection("about-section")} className="w-full flex items-center gap-3 transition px-4 py-2.5 rounded-xl text-sm font-medium text-left cursor-pointer">
             <FileText size={16} className="text-[#781c1c]" /> About Section
           </button>
-          <button onClick={() => navigateToDashboardSection("experience-section")} className="w-full flex items-center gap-3 transition px-4 py-2.5 rounded-xl text-sm font-medium text-left text-slate-300 hover:text-white hover:bg-white/5 cursor-pointer">
+          <button onClick={() => navigateToDashboardSection("experience-section")} className="w-full flex items-center gap-3 transition px-4 py-2.5 rounded-xl text-sm font-medium text-left cursor-pointer">
             <Briefcase size={16} className="text-[#781c1c]" /> Experience
           </button>
-          <button onClick={() => navigateToDashboardSection("academic-section")} className="w-full flex items-center gap-3 transition px-4 py-2.5 rounded-xl text-sm font-medium text-left text-slate-300 hover:text-white hover:bg-white/5 cursor-pointer">
+          <button onClick={() => navigateToDashboardSection("academic-section")} className="w-full flex items-center gap-3 transition px-4 py-2.5 rounded-xl text-sm font-medium text-left cursor-pointer">
             <Award size={16} className="text-[#781c1c]" /> Academic Details
           </button>
-          <button onClick={() => navigateToDashboardSection("achievements-section")} className="w-full flex items-center gap-3 transition px-4 py-2.5 rounded-xl text-sm font-medium text-left text-slate-300 hover:text-white hover:bg-white/5 cursor-pointer">
+          <button onClick={() => navigateToDashboardSection("achievements-section")} className="w-full flex items-center gap-3 transition px-4 py-2.5 rounded-xl text-sm font-medium text-left cursor-pointer">
             <Trophy size={16} className="text-[#781c1c]" /> Achievements
           </button>
-          <button onClick={() => navigateToDashboardSection("projects-research-section")} className="w-full flex items-center gap-3 transition px-4 py-2.5 rounded-xl text-sm font-medium text-left text-slate-300 hover:text-white hover:bg-white/5 cursor-pointer">
+          <button onClick={() => navigateToDashboardSection("projects-research-section")} className="w-full flex items-center gap-3 transition px-4 py-2.5 rounded-xl text-sm font-medium text-left cursor-pointer">
             <GitBranch size={16} className="text-[#781c1c]" /> Projects & Research
           </button>
-          <button onClick={() => navigateToDashboardSection("skills-section")} className="w-full flex items-center gap-3 transition px-4 py-2.5 rounded-xl text-sm font-medium text-left text-slate-300 hover:text-white hover:bg-white/5 cursor-pointer">
+          <button onClick={() => navigateToDashboardSection("skills-section")} className="w-full flex items-center gap-3 transition px-4 py-2.5 rounded-xl text-sm font-medium text-left cursor-pointer">
             <Code size={16} className="text-[#781c1c]" /> Skills
           </button>
 
           <div className="pt-4 border-t border-white/5 space-y-1">
             <button
               onClick={() => router.push("/dashboard/resumes")}
-              className={`w-full flex items-center gap-3 transition px-4 py-2.5 rounded-xl text-sm font-semibold text-left bg-white/10 text-white cursor-pointer`}
+              className={`w-full flex items-center gap-3 transition px-4 py-2.5 rounded-xl text-sm font-medium text-left cursor-pointer`}
             >
               <Sparkles size={16} className="text-emerald-400" /> Resume Builder
             </button>
-            <button onClick={() => router.push("/dashboard")} className="w-full flex items-center gap-3 transition px-4 py-2.5 rounded-xl text-sm font-medium text-left text-slate-300 hover:text-white hover:bg-white/5 cursor-pointer">
-              <Eye size={16} className="text-emerald-400" /> Back to Dashboard
+            <button onClick={() => router.push("/dashboard")} className="w-full flex items-center gap-3 transition px-4 py-2.5 rounded-xl text-sm font-semibold text-left mcc-active-tab cursor-pointer">
+              <Eye size={16} /> Back to Dashboard
             </button>
           </div>
-        </div>
+        </nav>
 
         <div className="p-4 border-t border-white/10">
           <button
@@ -214,22 +206,14 @@ export default function ResumesDashboardPage() {
       {/* MOBILE DRAWER SIDEBAR OVERLAY */}
       {showMobileNav && (
         <div className="fixed inset-0 z-50 flex md:hidden bg-black/60 backdrop-blur-xs select-none">
-          <div className={`w-72 flex flex-col p-5 animate-slideIn h-screen border-r ${
-            themeMode === "dark" ? "bg-[#09090d] border-white/5 text-white" : "bg-[#18233c] border-[#781c1c]/10 text-white shadow-xl"
-          }`}>
-            <div className="flex justify-between items-center pb-4 border-b border-white/10">
-              <div className="flex items-center gap-2.5">
-                <div className="w-9 h-9 rounded-full bg-white flex items-center justify-center border border-white/20 shadow-sm overflow-hidden shrink-0 p-0.5">
-                  <img src="/mcc-crest.png" className="w-full h-full object-contain" alt="MCC Crest" />
-                </div>
-                <div>
-                  <span className="font-serif font-black text-[10px] tracking-tight text-white block leading-none">
-                    MADRAS CHRISTIAN
-                  </span>
-                  <span className="font-serif font-black text-[10px] tracking-tight text-white block mt-0.5 leading-none">
-                    COLLEGE
-                  </span>
-                </div>
+          <div className="w-72 flex flex-col p-5 animate-slideIn h-screen border-r mcc-sidebar">
+            <div className="flex justify-between items-center pb-4 border-b border-gray-250 shrink-0">
+              <div className="flex items-center justify-start py-1">
+                <img 
+                  src="/mcc-logo.jpg" 
+                  className="w-full max-w-[190px] h-auto object-contain rounded-lg" 
+                  alt="Madras Christian College Logo" 
+                />
               </div>
               <button onClick={() => setShowMobileNav(false)} className="text-slate-400 hover:text-white cursor-pointer p-1">
                 <X size={18} />
@@ -237,28 +221,37 @@ export default function ResumesDashboardPage() {
             </div>
             
             <nav className="flex-1 py-4 space-y-1 overflow-y-auto scrollbar-thin">
-              <button onClick={() => { navigateToDashboardSection("header-section"); setShowMobileNav(false); }} className="w-full flex items-center gap-3 transition px-4 py-2.5 rounded-xl text-sm font-medium text-left text-slate-300 hover:text-white cursor-pointer">
+              <button onClick={() => { navigateToDashboardSection("header-section"); setShowMobileNav(false); }} className="w-full flex items-center gap-3 transition px-4 py-2.5 rounded-xl text-sm font-medium text-left cursor-pointer">
                 <User size={16} className="text-[#781c1c]" /> Header Section
               </button>
-              <button onClick={() => { navigateToDashboardSection("about-section"); setShowMobileNav(false); }} className="w-full flex items-center gap-3 transition px-4 py-2.5 rounded-xl text-sm font-medium text-left text-slate-300 hover:text-white cursor-pointer">
+              <button onClick={() => { navigateToDashboardSection("about-section"); setShowMobileNav(false); }} className="w-full flex items-center gap-3 transition px-4 py-2.5 rounded-xl text-sm font-medium text-left cursor-pointer">
                 <FileText size={16} className="text-[#781c1c]" /> About Section
               </button>
-              <button onClick={() => { navigateToDashboardSection("experience-section"); setShowMobileNav(false); }} className="w-full flex items-center gap-3 transition px-4 py-2.5 rounded-xl text-sm font-medium text-left text-slate-300 hover:text-white cursor-pointer">
+              <button onClick={() => { navigateToDashboardSection("experience-section"); setShowMobileNav(false); }} className="w-full flex items-center gap-3 transition px-4 py-2.5 rounded-xl text-sm font-medium text-left cursor-pointer">
                 <Briefcase size={16} className="text-[#781c1c]" /> Experience
               </button>
-              <button onClick={() => { navigateToDashboardSection("academic-section"); setShowMobileNav(false); }} className="w-full flex items-center gap-3 transition px-4 py-2.5 rounded-xl text-sm font-medium text-left text-slate-300 hover:text-white cursor-pointer">
+              <button onClick={() => { navigateToDashboardSection("academic-section"); setShowMobileNav(false); }} className="w-full flex items-center gap-3 transition px-4 py-2.5 rounded-xl text-sm font-medium text-left cursor-pointer">
                 <Award size={16} className="text-[#781c1c]" /> Academic Details
+              </button>
+              <button onClick={() => { navigateToDashboardSection("achievements-section"); setShowMobileNav(false); }} className="w-full flex items-center gap-3 transition px-4 py-2.5 rounded-xl text-sm font-medium text-left cursor-pointer">
+                <Trophy size={16} className="text-[#781c1c]" /> Achievements
+              </button>
+              <button onClick={() => { navigateToDashboardSection("projects-research-section"); setShowMobileNav(false); }} className="w-full flex items-center gap-3 transition px-4 py-2.5 rounded-xl text-sm font-medium text-left cursor-pointer">
+                <GitBranch size={16} className="text-[#781c1c]" /> Projects & Research
+              </button>
+              <button onClick={() => { navigateToDashboardSection("skills-section"); setShowMobileNav(false); }} className="w-full flex items-center gap-3 transition px-4 py-2.5 rounded-xl text-sm font-medium text-left cursor-pointer">
+                <Code size={16} className="text-[#781c1c]" /> Skills
               </button>
               
               <div className="pt-4 border-t border-white/5 space-y-1">
                 <button
                   onClick={() => { router.push("/dashboard/resumes"); setShowMobileNav(false); }}
-                  className="w-full flex items-center gap-3 transition px-4 py-2.5 rounded-xl text-sm font-semibold text-left bg-white/10 text-white cursor-pointer"
+                  className="w-full flex items-center gap-3 transition px-4 py-2.5 rounded-xl text-sm font-medium text-left cursor-pointer"
                 >
                   <Sparkles size={16} className="text-emerald-400" /> Resume Builder
                 </button>
-                <button onClick={() => { router.push("/dashboard"); setShowMobileNav(false); }} className="w-full flex items-center gap-3 transition px-4 py-2.5 rounded-xl text-sm font-medium text-left text-slate-300 hover:text-white cursor-pointer">
-                  <Eye size={16} className="text-emerald-400" /> Back to Dashboard
+                <button onClick={() => { router.push("/dashboard"); setShowMobileNav(false); }} className="w-full flex items-center gap-3 transition px-4 py-2.5 rounded-xl text-sm font-semibold text-left mcc-active-tab cursor-pointer">
+                  <Eye size={16} /> Back to Dashboard
                 </button>
               </div>
             </nav>
@@ -276,7 +269,7 @@ export default function ResumesDashboardPage() {
       <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
         
         {/* MOBILE TOP BAR */}
-        <div className="sticky top-0 z-[49] md:hidden flex items-center justify-between p-4 bg-white/90 dark:bg-[#09090d]/90 backdrop-blur-md border-b border-slate-200 dark:border-white/5 select-none shadow-md shrink-0">
+        <div className="sticky top-0 z-[49] md:hidden flex items-center justify-between p-4 bg-white dark:bg-[#09090d] border-b border-slate-200 dark:border-white/5 select-none shadow-md shrink-0">
           <div className="flex items-center gap-2">
             <button
               onClick={() => setShowMobileNav(true)}
@@ -284,17 +277,16 @@ export default function ResumesDashboardPage() {
             >
               <Menu size={20} />
             </button>
-            <span className="font-serif font-black text-[#18233c] dark:text-white tracking-tight text-xs uppercase">
+            <span style={{ color: themeMode === "dark" ? "#ffffff" : "#18233c" }} className="font-serif font-black tracking-tight text-xs uppercase">
               Resume Dashboard
             </span>
           </div>
         </div>
 
         {/* DESKTOP TOP BAR */}
-        <div className="hidden md:flex items-center justify-between p-6 border-b border-slate-200 dark:border-white/5 bg-white/50 dark:bg-[#09090d]/50 backdrop-blur-md shrink-0">
+        <div className="hidden md:flex items-center justify-between p-6 border-b border-slate-200 dark:border-white/5 bg-white dark:bg-[#09090d] shrink-0">
           <div>
-            <h1 className="text-2xl font-serif font-black text-[#18233c] dark:text-white">Resume Builder Dashboard</h1>
-            <p className="text-xs opacity-60 mt-1">Design and manage multiple professional resumes generated from your portfolio.</p>
+            <h1 style={{ color: themeMode === "dark" ? "#ffffff" : "#18233c" }} className="text-2xl font-serif font-black">Resume Builder Dashboard</h1>
           </div>
 
           <div className="flex items-center gap-3">
