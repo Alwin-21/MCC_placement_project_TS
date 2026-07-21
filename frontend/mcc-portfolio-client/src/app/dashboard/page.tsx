@@ -2379,7 +2379,9 @@ Report Generated: ${new Date().toLocaleDateString()}
               }`}>
                 <div className="flex justify-between items-start gap-4">
                   <div>
-                    <h4 className="font-bold text-base">{rec.degree} in {rec.fieldOfStudy}</h4>
+                    <h4 className="font-bold text-base">
+                      {rec.fieldOfStudy?.trim() ? `${rec.degree} in ${rec.fieldOfStudy}` : rec.degree}
+                    </h4>
                     <p className="text-xs opacity-75 mt-1">{rec.institution}</p>
                     <p className="text-[10px] opacity-50 mt-1 font-semibold">Duration: {rec.startYear} - {rec.endYear} · Grade: {rec.grade || "N/A"}</p>
                   </div>
