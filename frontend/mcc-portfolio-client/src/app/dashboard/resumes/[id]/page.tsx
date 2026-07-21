@@ -1408,13 +1408,13 @@ export default function ResumeEditorPage() {
         </div>
 
         {/* Tab Headers */}
-        <div className="flex border-b border-slate-200 dark:border-slate-700 text-[10px] uppercase font-mono tracking-wider font-bold shrink-0 overflow-x-auto bg-white dark:bg-slate-800 scrollbar-none whitespace-nowrap">
+        <div className="flex border-b border-slate-700 text-[10px] uppercase font-mono tracking-wider font-bold shrink-0 overflow-x-auto bg-slate-900 scrollbar-none whitespace-nowrap">
           {["theme", "profile", "summary", "experience", "education", "projects", "skills", "others"].map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
               className={`px-4 py-3 text-center border-b-2 cursor-pointer transition shrink-0 ${
-                activeTab === tab ? "border-[#781c1c] text-[#781c1c]" : "border-transparent text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white"
+                activeTab === tab ? "border-[#781c1c] text-white" : "border-transparent text-slate-300 hover:text-white"
               }`}
             >
               {tab}
