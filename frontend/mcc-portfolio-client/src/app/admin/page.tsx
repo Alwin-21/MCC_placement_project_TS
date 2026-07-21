@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
+  Eye,
+  EyeOff,
   Users,
   Code,
   Award,
@@ -121,6 +123,7 @@ export default function AdminPage() {
   const [isManageModalOpen, setIsManageModalOpen] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState<any>(null);
   const [resetPasswordValue, setResetPasswordValue] = useState("");
+  const [showResetPassword, setShowResetPassword] = useState(false);
   const [streamFilter, setStreamFilter] = useState("all");
   const [deptFilter, setDeptFilter] = useState("all");
   const [manageLoading, setManageLoading] = useState(false);
@@ -596,6 +599,7 @@ export default function AdminPage() {
   const openManageModal = (student: any) => {
     setSelectedStudent(student);
     setResetPasswordValue("");
+    setShowResetPassword(false);
     setIsManageModalOpen(true);
   };
 
@@ -632,6 +636,7 @@ export default function AdminPage() {
       await api.post(`/Admin/students/${studentId}/reset-password`, { password: resetPasswordValue });
       alert("Password reset successfully.");
       setResetPasswordValue("");
+      setShowResetPassword(false);
     } catch (err: any) {
       alert(`Failed to reset password: ${err.response?.data || err.message}`);
     } finally {
@@ -2924,6 +2929,9 @@ export default function AdminPage() {
                   {selectedStudent.isActive !== false ? "✓ Account Active" : "✗ Account Disabled"}
                 </span>
                 <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-[10px] font-bold bg-white/10 text-white/80">
+                  👤 {selectedStudent.username || "—"}
+                </span>
+                <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-[10px] font-bold bg-white/10 text-white/80">
                   ✉️ {selectedStudent.email}
                 </span>
               </div>
@@ -2971,19 +2979,30 @@ export default function AdminPage() {
                 <div className={`border rounded-2xl p-5 space-y-3 ${themeMode === "dark" ? "border-white/5 bg-white/[0.02]" : "border-slate-200 bg-slate-50"}`}>
                   <h4 className={`text-xs uppercase font-mono font-bold tracking-widest ${themeMode === "dark" ? "text-gray-400" : "text-slate-500"}`}>Reset Password</h4>
                   <div className="flex gap-3">
-                    <input
-                      type="password"
-                      placeholder="Enter new password (min 6 chars)"
-                      value={resetPasswordValue}
-                      onChange={(e) => setResetPasswordValue(e.target.value)}
-                      className={`flex-1 border rounded-xl px-4 py-2.5 text-xs outline-none focus:border-[#781c1c] ${
-                        themeMode === "dark" ? "bg-[#121217] border-white/5 text-white placeholder-gray-600" : "bg-white border-slate-200 text-slate-900 placeholder-slate-400"
-                      }`}
-                    />
+                    <div className="relative flex-1">
+                      <input
+                        type={showResetPassword ? "text" : "password"}
+                        placeholder="Enter new password (min 6 chars)"
+                        value={resetPasswordValue}
+                        onChange={(e) => setResetPasswordValue(e.target.value)}
+                        className={`w-full border rounded-xl pl-4 pr-10 py-2.5 text-xs outline-none focus:border-[#781c1c] ${
+                          themeMode === "dark" ? "bg-[#121217] border-white/5 text-white placeholder-gray-600" : "bg-white border-slate-200 text-slate-900 placeholder-slate-400"
+                        }`}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowResetPassword(!showResetPassword)}
+                        className={`absolute right-3 top-1/2 -translate-y-1/2 transition ${
+                          themeMode === "dark" ? "text-gray-400 hover:text-white" : "text-slate-400 hover:text-slate-600"
+                        }`}
+                      >
+                        {showResetPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                      </button>
+                    </div>
                     <button
                       onClick={() => handleAdminResetPassword(selectedStudent.id)}
                       disabled={manageLoading || !resetPasswordValue}
-                      className="px-4 py-2.5 rounded-xl bg-[#781c1c] hover:bg-[#5f1515] text-white text-xs font-bold transition disabled:opacity-40"
+                      className="px-4 py-2.5 rounded-xl bg-[#781c1c] hover:bg-[#5f1515] text-white text-xs font-bold transition disabled:opacity-40 shrink-0"
                     >
                       Reset
                     </button>
