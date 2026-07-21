@@ -1357,10 +1357,10 @@ export default function ResumeEditorPage() {
       <div className={`resume-editor-sidebar w-full md:w-[480px] md:shrink-0 flex flex-col border-r border-slate-700 bg-slate-800 h-full ${mobileTab === "edit" ? "flex" : "hidden md:flex"}`}>
         
         {/* Editor Top Bar */}
-        <div className="p-3 sm:p-4 border-b border-slate-700 flex items-center justify-between shrink-0 gap-1.5 sm:gap-2">
+        <div className="p-3 sm:p-4 border-b border-slate-200 dark:border-slate-700 bg-white dark:bg-[#09090d] flex items-center justify-between shrink-0 gap-1.5 sm:gap-2">
           <button
             onClick={() => router.push("/dashboard/resumes")}
-            className="p-1.5 sm:p-2 rounded-lg hover:bg-slate-700 transition text-slate-300 hover:text-white cursor-pointer shrink-0"
+            className="p-1.5 sm:p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white cursor-pointer shrink-0"
             title="Back to Dashboard"
           >
             <ArrowLeft size={16} />
@@ -1370,13 +1370,13 @@ export default function ResumeEditorPage() {
             type="text"
             value={resumeTitle}
             onChange={(e) => setResumeTitle(e.target.value)}
-            className="flex-1 min-w-[60px] sm:min-w-[80px] bg-slate-900 border border-slate-700 rounded-xl px-2 sm:px-3 py-1.5 text-xs text-white outline-none focus:border-[#781c1c] font-bold"
+            className="flex-1 min-w-[60px] sm:min-w-[80px] bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-2 sm:px-3 py-1.5 text-xs text-slate-800 dark:text-white outline-none focus:border-[#781c1c] font-bold"
             placeholder="Resume Name"
           />
           <div className="flex gap-1 sm:gap-1.5 shrink-0">
             <button
               onClick={() => setShowPreviewModal(true)}
-              className="p-1.5 sm:p-2 rounded-lg bg-slate-700 hover:bg-slate-600 transition text-sky-400 cursor-pointer"
+              className="p-1.5 sm:p-2 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 transition text-sky-600 dark:text-sky-400 cursor-pointer"
               title="Fullscreen Preview"
             >
               <Eye size={14} />
@@ -1384,14 +1384,14 @@ export default function ResumeEditorPage() {
             <button
               onClick={handleDownloadPDF}
               disabled={downloading}
-              className="p-1.5 sm:p-2 rounded-lg bg-slate-700 hover:bg-slate-600 transition text-indigo-400 cursor-pointer disabled:opacity-50"
+              className="p-1.5 sm:p-2 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 transition text-indigo-600 dark:text-indigo-400 cursor-pointer disabled:opacity-50"
               title={downloading ? "Generating PDF..." : "Download PDF"}
             >
               {downloading ? <span className="text-[9px] font-mono">...</span> : <Download size={14} />}
             </button>
             <button
               onClick={handleSyncFromPortfolio}
-              className="p-1.5 sm:p-2 rounded-lg hover:bg-slate-700 transition text-emerald-400 cursor-pointer"
+              className="p-1.5 sm:p-2 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 transition text-emerald-600 dark:text-emerald-400 cursor-pointer"
               title="Sync latest from Portfolio"
             >
               <RefreshCw size={14} />
@@ -1408,13 +1408,13 @@ export default function ResumeEditorPage() {
         </div>
 
         {/* Tab Headers */}
-        <div className="flex border-b border-slate-700 text-[10px] uppercase font-mono tracking-wider font-bold shrink-0 overflow-x-auto bg-slate-800 scrollbar-none whitespace-nowrap">
+        <div className="flex border-b border-slate-200 dark:border-slate-700 text-[10px] uppercase font-mono tracking-wider font-bold shrink-0 overflow-x-auto bg-white dark:bg-slate-800 scrollbar-none whitespace-nowrap">
           {["theme", "profile", "summary", "experience", "education", "projects", "skills", "others"].map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
               className={`px-4 py-3 text-center border-b-2 cursor-pointer transition shrink-0 ${
-                activeTab === tab ? "border-[#781c1c] text-[#781c1c]" : "border-transparent text-slate-400 hover:text-white"
+                activeTab === tab ? "border-[#781c1c] text-[#781c1c]" : "border-transparent text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white"
               }`}
             >
               {tab}
