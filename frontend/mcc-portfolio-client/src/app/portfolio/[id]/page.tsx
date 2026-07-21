@@ -252,7 +252,7 @@ function PortfolioPageContent() {
   const timelineMilestones = [
     ...academicRecords.map((rec) => ({
       date: `${rec.startYear} - ${rec.endYear}`,
-      title: `${rec.degree} in ${rec.fieldOfStudy}`,
+      title: rec.fieldOfStudy?.trim() ? `${rec.degree} in ${rec.fieldOfStudy}` : rec.degree,
       subtitle: rec.institution,
       type: "education"
     })),
@@ -575,7 +575,9 @@ function PortfolioPageContent() {
                 {academicRecords.map((rec) => (
                   <div key={rec.id} className="relative pl-5 border-l-2 border-[#781c1c]/20 last:border-transparent pb-1">
                     <span className="absolute -left-[6px] top-1.5 w-2.5 h-2.5 rounded-full bg-[#781c1c]" />
-                    <h4 className="text-xs font-bold text-slate-855 leading-snug">{rec.degree} in {rec.fieldOfStudy}</h4>
+                    <h4 className="text-xs font-bold text-slate-855 leading-snug">
+                      {rec.fieldOfStudy?.trim() ? `${rec.degree} in ${rec.fieldOfStudy}` : rec.degree}
+                    </h4>
                     <p className="text-[10px] text-slate-500 font-bold mt-0.5">{rec.institution}</p>
                     <p className="text-[9px] text-slate-400 font-semibold mt-0.5">
                       Duration: {rec.startYear} - {rec.endYear} · Grade: {rec.grade || "N/A"}
