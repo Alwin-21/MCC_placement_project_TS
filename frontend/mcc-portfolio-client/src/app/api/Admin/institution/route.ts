@@ -9,9 +9,21 @@ export async function GET(request: Request) {
       return NextResponse.json("Unauthorized", { status: 401 });
     }
 
-    const inst = await prisma.institutionDetails.findFirst();
+    let inst = await prisma.institutionDetails.findFirst();
     if (!inst) {
-      return NextResponse.json("Institution details not found.", { status: 404 });
+      inst = await prisma.institutionDetails.create({
+        data: {
+          Name: "Madras Christian College",
+          Code: "MCC",
+          Description: "Madras Christian College (MCC) is a liberal arts and sciences college in Chennai, India.",
+          Address: "East Tambaram, Chennai - 600 059, Tamil Nadu, India",
+          ContactEmail: "info@mcc.edu.in",
+          ContactPhone: "+91-44-22390675",
+          Website: "https://mcc.edu.in",
+          LogoUrl: "/mcc-logo.png",
+          Departments: "English;Tamil;Languages;History;Political Science;Public Administration;Economics;Philosophy;Commerce;Social Work;Mathematics;Statistics;Physics;Chemistry;Botany;Zoology;Journalism;Business Administration;Communication;Geography;Tourism Studies;Microbiology;Computer Application (BCA);Computer Science (B.Sc);Computer Science (MCA);Visual Communication;Physical Education, Health Education and Sports;Psychology;Data Science;Physical Education"
+        }
+      });
     }
 
     return NextResponse.json(inst);

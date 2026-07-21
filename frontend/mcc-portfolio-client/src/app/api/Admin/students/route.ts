@@ -22,6 +22,7 @@ export async function GET(request: Request) {
         id: user.Id,
         fullName: user.FullName,
         email: user.Email,
+        username: user.Username,
         department: user.Department,
         stream: user.Stream,
         registerNumber: user.RegisterNumber,
