@@ -9,9 +9,21 @@ export async function GET(request: Request) {
       return NextResponse.json("Unauthorized", { status: 401 });
     }
 
-    const inst = await prisma.institutionDetails.findFirst();
+    let inst = await prisma.institutionDetails.findFirst();
     if (!inst) {
-      return NextResponse.json("Institution details not found.", { status: 404 });
+      inst = await prisma.institutionDetails.create({
+        data: {
+          Name: "Madras Christian College",
+          Code: "MCC",
+          Description: "A premier institution of higher education in South India.",
+          Address: "Tambaram, Chennai, Tamil Nadu 600059",
+          ContactEmail: "info@mcc.edu.in",
+          ContactPhone: "044 2239 0675",
+          Website: "https://mcc.edu.in",
+          LogoUrl: "/assets/mcc_logo.png",
+          Departments: "Computer Science;Computer Applications (BCA);Information Technology;Mathematics;Physics;Chemistry;Commerce;Business Administration (BBA);English;Economics"
+        }
+      });
     }
 
     return NextResponse.json(inst);
