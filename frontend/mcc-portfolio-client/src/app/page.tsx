@@ -41,14 +41,14 @@ export default function HomePage() {
       {/* ── HEADER ─────────────────────────────────────────────────── */}
       <header className="bg-white border-b border-slate-200 sticky top-0 z-50 shadow-sm">
         <div
-          className="px-4 sm:px-8 md:px-10 flex items-center gap-3 sm:gap-4 py-3 sm:py-4"
+          className="px-4 sm:px-8 md:px-10 flex items-center gap-3 sm:gap-4 py-1"
         >
           {/* MCC logo — image already contains the college name, no duplicate text */}
           <Link href="/" className="flex items-center gap-3 shrink-0 group">
             <img
               src="/mcc-logo.jpg"
               alt="Madras Christian College"
-              className="h-[72px] sm:h-[96px] md:h-[120px] w-auto object-contain rounded-sm"
+              className="h-[40px] sm:h-[48px] md:h-[56px] w-auto object-contain rounded-sm"
             />
           </Link>
 
