@@ -9,6 +9,8 @@ export default function HomePage() {
     "/mcc-building.jpg",
     "/mcc-facade.jpg",
     "/mcc-entrance-gate.jpg",
+    "/mcc-lake.jpg",
+    "/mcc-pathway.jpg",
   ];
 
   const [activeSlide, setActiveSlide] = useState(0);

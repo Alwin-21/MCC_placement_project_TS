@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, User, Mail, Key, ShieldAlert, BookOpen } from "lucide-react";
+import { ArrowLeft, User, Mail, Key, ShieldAlert, BookOpen, Eye, EyeOff } from "lucide-react";
 import api from "@/services/api";
 
 export default function RegisterPage() {
@@ -31,6 +31,7 @@ export default function RegisterPage() {
   const [course, setCourse] = useState("");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [emailRegMismatch, setEmailRegMismatch] = useState(false);
@@ -310,13 +311,20 @@ export default function RegisterPage() {
                   <div className="relative">
                     <Key className="absolute left-4 top-3.5 text-slate-400" size={16} />
                     <input
-                      type="password"
+                      type={showPassword ? "text" : "password"}
                       required
                       placeholder="Enter secure password"
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
-                      className="w-full bg-slate-50 border border-slate-200 focus:border-[#781c1c] text-slate-800 placeholder-slate-400 text-xs px-11 py-3.5 rounded-xl outline-none focus:ring-1 focus:ring-[#781c1c]/10 transition"
+                      className="w-full bg-slate-50 border border-slate-200 focus:border-[#781c1c] text-slate-800 placeholder-slate-400 text-xs px-11 py-3.5 rounded-xl outline-none focus:ring-1 focus:ring-[#781c1c]/10 transition pr-12"
                     />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-4 top-3.5 text-slate-400 hover:text-slate-600 transition cursor-pointer"
+                    >
+                      {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                    </button>
                   </div>
                 </div>
 

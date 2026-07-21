@@ -283,24 +283,46 @@ export default function ResumesDashboardPage() {
           </div>
         </div>
 
-        {/* DESKTOP TOP BAR */}
-        <div className="hidden md:flex items-center justify-between p-6 border-b border-slate-200 dark:border-white/5 bg-white dark:bg-[#09090d] shrink-0">
-          <div>
-            <h1 style={{ color: themeMode === "dark" ? "#ffffff" : "#18233c" }} className="text-2xl font-serif font-black">Resume Builder Dashboard</h1>
-          </div>
-
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => setShowCreateModal(true)}
-              className="bg-[#781c1c] hover:bg-[#5f1515] text-white px-5 py-2.5 rounded-xl font-bold text-xs transition flex items-center gap-2 shadow-sm shadow-[#781c1c]/10 cursor-pointer"
-            >
-              <Plus size={16} /> Create Resume
-            </button>
-          </div>
-        </div>
-
         {/* MAIN BODY AREA */}
         <div className="flex-1 overflow-y-auto p-6 md:p-8">
+          
+          {/* BANNER SHOWCASE */}
+          <div className="relative rounded-3xl overflow-hidden h-36 md:h-44 bg-[#18233c] text-white flex items-end p-6 md:p-8 border border-amber-600/20 shadow-md mb-8 mcc-welcome-banner">
+            <div className="absolute inset-0 z-0">
+              <img 
+                src="/mcc-facade.jpg" 
+                alt="MCC Quadrangle" 
+                className="w-full h-full object-cover opacity-35 filter brightness-90 contrast-110"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-[#18233c] via-[#18233c]/40 to-transparent" />
+            </div>
+            <div className="relative z-10 flex justify-between items-end w-full text-left">
+              <div className="space-y-1">
+                <span 
+                  style={{ color: '#ffffff' }}
+                  className="text-[9.5px] uppercase font-mono font-black tracking-widest bg-[#781c1c] px-3.5 py-1.5 rounded-full border border-amber-500/20 inline-block"
+                >
+                  Resume Module
+                </span>
+                <h1 
+                  style={{ color: '#ffffff' }}
+                  className="font-serif text-xl md:text-3xl font-black mt-2 leading-tight"
+                >
+                  Resume Builder Dashboard
+                </h1>
+              </div>
+
+              <div className="hidden md:block shrink-0 pb-1">
+                <button
+                  onClick={() => setShowCreateModal(true)}
+                  className="bg-[#781c1c] hover:bg-[#5f1515] text-white px-5 py-2.5 rounded-xl font-bold text-xs transition flex items-center gap-2 shadow-sm shadow-[#781c1c]/10 cursor-pointer"
+                >
+                  <Plus size={16} /> Create Resume
+                </button>
+              </div>
+            </div>
+          </div>
+
           {/* Mobile Create Button Row */}
           <div className="md:hidden mb-6 flex justify-end">
             <button
