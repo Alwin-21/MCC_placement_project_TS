@@ -18,7 +18,10 @@ async function main() {
   });
 
   if (existingUser) {
-    console.log("Demo student already exists. Deleting to re-seed clean details...");
+    console.log("Demo student already exists. Cleaning up notifications and re-seeding clean details...");
+    await prisma.notifications.deleteMany({
+      where: { UserId: existingUser.Id }
+    });
     await prisma.users.delete({
       where: { Id: existingUser.Id }
     });
@@ -64,12 +67,13 @@ async function main() {
       CurrentLocation: "Tambaram, Chennai, India",
       Languages: "English (Fluent), Tamil (Native)",
       TestScores: "GRE: 320; TOEFL: 110",
+      Course: "B.Sc. Computer Science",
       YearOfStudy: "3rd Year",
       IsApproved: true // Pre-approved for instant recruiting testing
     }
   });
 
-  // 4. Create Academic Records (Mark sheets: 10th, 12th, UG)
+  // 4. Create Academic Records (Courses & Mark sheets: UG, Specialized Course, 12th, 10th)
   await prisma.academicRecords.createMany({
     data: [
       {
@@ -81,6 +85,16 @@ async function main() {
         StartYear: 2023,
         EndYear: 2026,
         AttachmentUrl: "/assets/demo_ug_marksheet.pdf"
+      },
+      {
+        UserId: user.Id,
+        Degree: "Advanced Full-Stack Engineering & System Design Course",
+        Institution: "MCC Center for Continuing Education",
+        FieldOfStudy: "Full-Stack Development & Cloud Architecture",
+        Grade: "Distinction (92%)",
+        StartYear: 2023,
+        EndYear: 2024,
+        AttachmentUrl: "/assets/demo_course_certificate.pdf"
       },
       {
         UserId: user.Id,

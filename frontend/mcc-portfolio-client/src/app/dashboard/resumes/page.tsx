@@ -25,7 +25,9 @@ import {
   X,
   Copy,
   Calendar,
-  AlertCircle
+  AlertCircle,
+  ArrowLeft,
+  LayoutDashboard
 } from "lucide-react";
 import api from "@/services/api";
 import { useTheme } from "@/hooks/useTheme";
@@ -179,7 +181,7 @@ export default function ResumesDashboardPage() {
             onClick={() => router.push("/dashboard")}
             className="w-full flex items-center gap-3 transition px-4 py-2.5 rounded-xl text-sm font-semibold text-left mcc-active-tab cursor-pointer"
           >
-            <Eye size={16} /> Back to Dashboard
+            <ArrowLeft size={16} /> Back to Dashboard
           </button>
         </nav>
 
@@ -247,7 +249,7 @@ export default function ResumesDashboardPage() {
                 }}
                 className="w-full flex items-center gap-3 transition px-4 py-2.5 rounded-xl text-sm font-semibold text-left mcc-active-tab cursor-pointer"
               >
-                <Eye size={16} /> Back to Dashboard
+                <ArrowLeft size={16} /> Back to Dashboard
               </button>
             </nav>
             <div className="pt-4 border-t border-white/10 space-y-2">
@@ -275,15 +277,16 @@ export default function ResumesDashboardPage() {
       <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
         
         {/* MOBILE TOP BAR */}
-        <div className="sticky top-0 z-[49] md:hidden flex items-center justify-between p-4 bg-white dark:bg-[#09090d] border-b border-slate-200 dark:border-white/5 select-none shadow-md shrink-0">
-          <div className="flex items-center gap-2">
+        <div className="sticky top-0 z-[49] md:hidden flex items-center justify-between p-4 bg-white/90 dark:bg-[#09090d]/90 backdrop-blur-md border-b border-slate-200 dark:border-white/5 select-none shadow-md shrink-0">
+          <div className="flex items-center gap-2.5">
             <button
               onClick={() => setShowMobileNav(true)}
-              className="p-2 rounded-lg text-slate-500 hover:bg-slate-100 dark:hover:bg-white/5 transition cursor-pointer"
+              className="p-2 rounded-xl bg-[#781c1c] hover:bg-[#5f1515] transition cursor-pointer flex items-center justify-center shrink-0"
+              style={{ color: '#ffffff' }}
             >
-              <Menu size={20} />
+              <Menu size={18} style={{ color: '#ffffff' }} />
             </button>
-            <span style={{ color: themeMode === "dark" ? "#ffffff" : "#18233c" }} className="font-serif font-black tracking-tight text-xs uppercase">
+            <span className="font-serif font-black text-[#18233c] dark:text-white tracking-tight text-xs uppercase">
               Resume Dashboard
             </span>
           </div>
@@ -302,7 +305,7 @@ export default function ResumesDashboardPage() {
         <div className="flex-1 overflow-y-auto p-6 md:p-8">
           
           {/* BANNER SHOWCASE */}
-          <div className="relative rounded-3xl overflow-hidden h-36 md:h-44 bg-[#18233c] text-white flex items-end p-6 md:p-8 border border-amber-600/20 shadow-md mb-8 mcc-welcome-banner">
+          <div className="relative rounded-2xl sm:rounded-3xl overflow-hidden min-h-[140px] sm:min-h-[160px] md:h-44 bg-[#18233c] text-white flex items-end p-4 sm:p-6 md:p-8 border border-amber-600/20 shadow-md mb-6 md:mb-8 mcc-welcome-banner">
             <div className="absolute inset-0 z-0">
               <img 
                 src="/mcc-facade.jpg" 
@@ -315,16 +318,22 @@ export default function ResumesDashboardPage() {
               <div className="space-y-1">
                 <span 
                   style={{ color: '#ffffff' }}
-                  className="text-[9.5px] uppercase font-mono font-black tracking-widest bg-[#781c1c] px-3.5 py-1.5 rounded-full border border-amber-500/20 inline-block"
+                  className="text-[9px] sm:text-[9.5px] uppercase font-mono font-black tracking-wider sm:tracking-widest bg-[#781c1c] px-2.5 sm:px-3.5 py-1 sm:py-1.5 rounded-full border border-amber-500/20 inline-block"
                 >
                   Resume Module
                 </span>
                 <h1 
                   style={{ color: '#ffffff' }}
-                  className="font-serif text-xl md:text-3xl font-black mt-2 leading-tight"
+                  className="font-serif text-lg sm:text-2xl md:text-3xl font-black mt-1.5 sm:mt-2 leading-tight break-words"
                 >
                   Resume Builder Dashboard
                 </h1>
+                <p 
+                  style={{ color: 'rgba(255, 255, 255, 0.85)' }}
+                  className="text-[11px] sm:text-xs leading-normal"
+                >
+                  Build, edit, duplicate, and export professional ATS-friendly resumes.
+                </p>
               </div>
 
               <div className="hidden md:block shrink-0 pb-1">

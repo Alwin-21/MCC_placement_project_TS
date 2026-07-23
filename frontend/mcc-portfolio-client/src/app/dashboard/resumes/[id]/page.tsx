@@ -52,7 +52,7 @@ export default function ResumeEditorPage() {
   useEffect(() => {
     const handleResize = () => {
       if (window.innerWidth < 768) {
-        const calculatedZoom = (window.innerWidth - 32) / 800;
+        const calculatedZoom = (window.innerWidth - 24) / 794;
         setZoomLevel(Math.max(0.35, Math.min(1.0, calculatedZoom)));
       } else {
         setZoomLevel(0.9);
@@ -554,7 +554,10 @@ export default function ResumeEditorPage() {
   // Renders the exact same DOM element shown in preview into a canvas,
   // then packs it into an A4 PDF — preview === download, always.
   const handleDownloadPDF = async () => {
-    const el = document.getElementById("resume-preview-container");
+    let el = document.getElementById("resume-preview-container");
+    if (!el) {
+      el = document.getElementById("resume-preview-container-modal");
+    }
     if (!el) return;
     
     const originalZoom = zoomLevel;
@@ -582,6 +585,18 @@ export default function ResumeEditorPage() {
         backgroundColor: "#ffffff",
         logging: false,
         onclone: (clonedDoc) => {
+          // Unhide all ancestor containers of the cloned element so html2canvas renders it cleanly on mobile even if the editor panel is on "edit" tab
+          const clonedEl = clonedDoc.getElementById("resume-preview-container") || clonedDoc.getElementById("resume-preview-container-modal");
+          if (clonedEl) {
+            let curr: HTMLElement | null = clonedEl;
+            while (curr && curr !== clonedDoc.body) {
+              curr.style.display = "block";
+              curr.style.visibility = "visible";
+              curr.style.opacity = "1";
+              curr = curr.parentElement;
+            }
+          }
+
           // Import Google Fonts to ensure they load inside the rendering iframe
           const link = clonedDoc.createElement("link");
           link.rel = "stylesheet";
@@ -666,6 +681,7 @@ export default function ResumeEditorPage() {
     return (
       <div
         id={isModal ? "resume-preview-container-modal" : "resume-preview-container"}
+        className="resume-document-light"
         style={{
           width: "794px",
           minHeight: "1123px",
@@ -1298,7 +1314,7 @@ export default function ResumeEditorPage() {
   const pInfo = resumeData.personalInfo;
 
   return (
-    <div className={`flex flex-col md:flex-row h-screen overflow-hidden ${themeMode === "dark" ? "bg-[#09090d] text-white" : "bg-slate-900 text-slate-100"} relative`}>
+    <div className="flex flex-col md:flex-row h-screen overflow-hidden bg-[#09090d] text-white relative">
       <style dangerouslySetInnerHTML={{ __html: `
         /* Editor sidebar legibility & high contrast overrides */
         .resume-editor-sidebar label {
@@ -1333,6 +1349,89 @@ export default function ResumeEditorPage() {
         .preview-top-bar strong {
           color: #ffffff !important;
         }
+
+        /* Ensure Resume Document is ALWAYS rendered in light mode regardless of global theme mode */
+        #resume-preview-container,
+        #resume-preview-container-modal,
+        .resume-document-light,
+        html.dark #resume-preview-container,
+        html.dark #resume-preview-container-modal,
+        html.dark .resume-document-light {
+          background-color: #ffffff !important;
+          color: #0f172a !important;
+        }
+
+        #resume-preview-container h1,
+        #resume-preview-container h2,
+        #resume-preview-container h3,
+        #resume-preview-container h4,
+        #resume-preview-container h5,
+        #resume-preview-container h6,
+        #resume-preview-container-modal h1,
+        #resume-preview-container-modal h2,
+        #resume-preview-container-modal h3,
+        #resume-preview-container-modal h4,
+        #resume-preview-container-modal h5,
+        #resume-preview-container-modal h6,
+        .resume-document-light h1,
+        .resume-document-light h2,
+        .resume-document-light h3,
+        .resume-document-light h4,
+        .resume-document-light h5,
+        .resume-document-light h6,
+        html.dark #resume-preview-container h1,
+        html.dark #resume-preview-container h2,
+        html.dark #resume-preview-container h3,
+        html.dark #resume-preview-container h4,
+        html.dark #resume-preview-container h5,
+        html.dark #resume-preview-container h6,
+        html.dark #resume-preview-container-modal h1,
+        html.dark #resume-preview-container-modal h2,
+        html.dark #resume-preview-container-modal h3,
+        html.dark #resume-preview-container-modal h4,
+        html.dark #resume-preview-container-modal h5,
+        html.dark #resume-preview-container-modal h6,
+        html.dark .resume-document-light h1,
+        html.dark .resume-document-light h2,
+        html.dark .resume-document-light h3,
+        html.dark .resume-document-light h4,
+        html.dark .resume-document-light h5,
+        html.dark .resume-document-light h6 {
+          color: inherit !important;
+        }
+
+        #resume-preview-container p,
+        #resume-preview-container span,
+        #resume-preview-container div,
+        #resume-preview-container li,
+        #resume-preview-container a,
+        #resume-preview-container-modal p,
+        #resume-preview-container-modal span,
+        #resume-preview-container-modal div,
+        #resume-preview-container-modal li,
+        #resume-preview-container-modal a,
+        .resume-document-light p,
+        .resume-document-light span,
+        .resume-document-light div,
+        .resume-document-light li,
+        .resume-document-light a,
+        html.dark #resume-preview-container p,
+        html.dark #resume-preview-container span,
+        html.dark #resume-preview-container div,
+        html.dark #resume-preview-container li,
+        html.dark #resume-preview-container a,
+        html.dark #resume-preview-container-modal p,
+        html.dark #resume-preview-container-modal span,
+        html.dark #resume-preview-container-modal div,
+        html.dark #resume-preview-container-modal li,
+        html.dark #resume-preview-container-modal a,
+        html.dark .resume-document-light p,
+        html.dark .resume-document-light span,
+        html.dark .resume-document-light div,
+        html.dark .resume-document-light li,
+        html.dark .resume-document-light a {
+          color: inherit;
+        }
       `}} />
       
       {/* Mobile Top View Switcher (Fixed floating toggle bar) */}
@@ -1359,10 +1458,10 @@ export default function ResumeEditorPage() {
       <div className={`resume-editor-sidebar w-full md:w-[480px] md:shrink-0 flex flex-col border-r border-slate-700 bg-slate-800 h-full ${mobileTab === "edit" ? "flex" : "hidden md:flex"}`}>
         
         {/* Editor Top Bar */}
-        <div className="p-3 sm:p-4 border-b border-slate-200 dark:border-slate-700 bg-white dark:bg-[#09090d] flex items-center justify-between shrink-0 gap-1.5 sm:gap-2">
+        <div className="p-3 sm:p-4 border-b border-slate-700 bg-[#09090d] flex items-center justify-between shrink-0 gap-1.5 sm:gap-2">
           <button
             onClick={() => router.push("/dashboard/resumes")}
-            className="p-1.5 sm:p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white cursor-pointer shrink-0"
+            className="p-1.5 sm:p-2 rounded-lg hover:bg-slate-800 transition text-slate-300 hover:text-white cursor-pointer shrink-0"
             title="Back to Dashboard"
           >
             <ArrowLeft size={16} />
@@ -1372,22 +1471,13 @@ export default function ResumeEditorPage() {
             type="text"
             value={resumeTitle}
             onChange={(e) => setResumeTitle(e.target.value)}
-            className="flex-1 min-w-[60px] sm:min-w-[80px] bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-2 sm:px-3 py-1.5 text-xs text-slate-800 dark:text-white outline-none focus:border-[#781c1c] font-bold"
+            className="flex-1 min-w-[60px] sm:min-w-[80px] bg-slate-900 border border-slate-700 rounded-xl px-2 sm:px-3 py-1.5 text-xs text-white outline-none focus:border-[#781c1c] font-bold"
             placeholder="Resume Name"
           />
           <div className="flex gap-1 sm:gap-1.5 shrink-0">
             <button
-              onClick={toggleThemeMode}
-              className={`p-1.5 sm:p-2 rounded-lg transition cursor-pointer ${
-                themeMode === "dark" ? "bg-white/10 hover:bg-white/20 text-yellow-300" : "bg-slate-100 hover:bg-slate-200 text-slate-700"
-              }`}
-              title="Toggle Theme"
-            >
-              {themeMode === "dark" ? <Sun size={14} /> : <Moon size={14} />}
-            </button>
-            <button
               onClick={() => setShowPreviewModal(true)}
-              className="p-1.5 sm:p-2 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 transition text-sky-600 dark:text-sky-400 cursor-pointer"
+              className="p-1.5 sm:p-2 rounded-lg bg-slate-800 hover:bg-slate-700 transition text-sky-400 cursor-pointer"
               title="Fullscreen Preview"
             >
               <Eye size={14} />
@@ -1395,7 +1485,7 @@ export default function ResumeEditorPage() {
             <button
               onClick={handleDownloadPDF}
               disabled={downloading}
-              className="p-1.5 sm:p-2 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 transition text-indigo-600 dark:text-indigo-400 cursor-pointer disabled:opacity-50"
+              className="p-1.5 sm:p-2 rounded-lg bg-slate-800 hover:bg-slate-700 transition text-indigo-400 cursor-pointer disabled:opacity-50"
               title={downloading ? "Generating PDF..." : "Download PDF"}
             >
               {downloading ? <span className="text-[9px] font-mono">...</span> : <Download size={14} />}
@@ -2246,7 +2336,7 @@ export default function ResumeEditorPage() {
         </div>
 
         {/* Live Preview Area Container */}
-        <div className="flex-1 overflow-auto p-8 flex justify-center bg-slate-950">
+        <div className="flex-1 overflow-auto p-2 sm:p-8 flex justify-center bg-slate-950">
           
           {/* Zoom Wrapper */}
           <div
@@ -2298,7 +2388,7 @@ export default function ResumeEditorPage() {
               </div>
             </div>
             {/* Modal Body (Scrollable preview area) */}
-            <div className="flex-1 overflow-auto p-4 sm:p-8 flex justify-center bg-slate-950">
+            <div className="flex-1 overflow-auto p-2 sm:p-8 flex justify-center bg-slate-950">
               <div
                 style={{
                   width: `${794 * zoomLevel}px`,
