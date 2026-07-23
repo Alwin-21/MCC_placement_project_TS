@@ -28,7 +28,9 @@ import {
   ZoomIn,
   ZoomOut,
   Maximize2,
-  Download
+  Download,
+  Sun,
+  Moon
 } from "lucide-react";
 import api from "@/services/api";
 import { useTheme } from "@/hooks/useTheme";
@@ -37,7 +39,7 @@ import { parseImageAdjustments } from "@/utils/image";
 export default function ResumeEditorPage() {
   const { id } = useParams();
   const router = useRouter();
-  const [themeMode] = useTheme();
+  const [themeMode, toggleThemeMode] = useTheme();
 
   // Core loading states
   const [loading, setLoading] = useState(true);
@@ -1374,6 +1376,15 @@ export default function ResumeEditorPage() {
             placeholder="Resume Name"
           />
           <div className="flex gap-1 sm:gap-1.5 shrink-0">
+            <button
+              onClick={toggleThemeMode}
+              className={`p-1.5 sm:p-2 rounded-lg transition cursor-pointer ${
+                themeMode === "dark" ? "bg-white/10 hover:bg-white/20 text-yellow-300" : "bg-slate-100 hover:bg-slate-200 text-slate-700"
+              }`}
+              title="Toggle Theme"
+            >
+              {themeMode === "dark" ? <Sun size={14} /> : <Moon size={14} />}
+            </button>
             <button
               onClick={() => setShowPreviewModal(true)}
               className="p-1.5 sm:p-2 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 transition text-sky-600 dark:text-sky-400 cursor-pointer"
