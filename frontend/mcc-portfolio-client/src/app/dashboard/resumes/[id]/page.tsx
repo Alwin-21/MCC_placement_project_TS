@@ -595,41 +595,49 @@ export default function ResumeEditorPage() {
         }
       });
 
-      // Segment the canvas into standard A4 segments (794x1123 px) to prevent stretching/compression
-      const sliceWidth = 794 * 2;
-      const sliceHeight = 1123 * 2;
-      const totalPages = Math.ceil(canvas.height / sliceHeight);
+      // Standard A4 dimensions: 794 x 1123 px
+      const scaleFactor = canvas.width / 794;
+      const singlePageCanvasHeight = 1123 * scaleFactor;
 
       const pdf = new jsPDF({ orientation: "portrait", unit: "px", format: [794, 1123] });
 
-      for (let i = 0; i < totalPages; i++) {
-        if (i > 0) {
-          pdf.addPage([794, 1123], "portrait");
-        }
-
-        const sourceY = i * sliceHeight;
-        const currentSliceHeight = Math.min(sliceHeight, canvas.height - sourceY);
-
-        // Slice canvas segment
+      // If content fits within ~1.25 pages, fit perfectly onto 1 single A4 page to eliminate splitting lines and duplicate text
+      if (canvas.height <= singlePageCanvasHeight * 1.25) {
         const pageCanvas = document.createElement("canvas");
-        pageCanvas.width = sliceWidth;
-        pageCanvas.height = sliceHeight;
+        pageCanvas.width = canvas.width;
+        pageCanvas.height = Math.max(canvas.height, singlePageCanvasHeight);
         const pageCtx = pageCanvas.getContext("2d");
-
         if (pageCtx) {
-          // Fill background with white in case of short content/padding gaps
           pageCtx.fillStyle = "#ffffff";
-          pageCtx.fillRect(0, 0, sliceWidth, sliceHeight);
-
-          pageCtx.drawImage(
-            canvas,
-            0, sourceY, sliceWidth, currentSliceHeight,
-            0, 0, sliceWidth, currentSliceHeight
-          );
+          pageCtx.fillRect(0, 0, pageCanvas.width, pageCanvas.height);
+          pageCtx.drawImage(canvas, 0, 0);
         }
-
         const pageImgData = pageCanvas.toDataURL("image/jpeg", 0.95);
         pdf.addImage(pageImgData, "JPEG", 0, 0, 794, 1123, undefined, "FAST");
+      } else {
+        // Multi-page slicing for longer resumes
+        const totalPages = Math.ceil(canvas.height / singlePageCanvasHeight);
+        for (let i = 0; i < totalPages; i++) {
+          if (i > 0) pdf.addPage([794, 1123], "portrait");
+          const sourceY = i * singlePageCanvasHeight;
+          const currentSliceHeight = Math.min(singlePageCanvasHeight, canvas.height - sourceY);
+
+          const pageCanvas = document.createElement("canvas");
+          pageCanvas.width = canvas.width;
+          pageCanvas.height = singlePageCanvasHeight;
+          const pageCtx = pageCanvas.getContext("2d");
+          if (pageCtx) {
+            pageCtx.fillStyle = "#ffffff";
+            pageCtx.fillRect(0, 0, pageCanvas.width, singlePageCanvasHeight);
+            pageCtx.drawImage(
+              canvas,
+              0, sourceY, canvas.width, currentSliceHeight,
+              0, 0, canvas.width, currentSliceHeight
+            );
+          }
+          const pageImgData = pageCanvas.toDataURL("image/jpeg", 0.95);
+          pdf.addImage(pageImgData, "JPEG", 0, 0, 794, 1123, undefined, "FAST");
+        }
       }
 
       const safeName = (resumeTitle || "resume").replace(/[^a-z0-9_\-]/gi, "_");
