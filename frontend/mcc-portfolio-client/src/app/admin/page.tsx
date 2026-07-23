@@ -1123,7 +1123,7 @@ export default function AdminPage() {
         </div>
 
         {/* BANNER SHOWCASE */}
-        <div className="relative rounded-3xl overflow-hidden h-44 bg-[#18233c] text-white flex items-end p-8 border border-amber-600/20 shadow-md mb-8 mcc-welcome-banner">
+        <div className="relative rounded-2xl sm:rounded-3xl overflow-hidden min-h-[140px] sm:min-h-[160px] md:h-44 bg-[#18233c] text-white flex items-end p-4 sm:p-6 md:p-8 border border-amber-600/20 shadow-md mb-6 md:mb-8 mcc-welcome-banner">
           <div className="absolute inset-0 z-0">
             <img 
               src="/mcc-main-gate.jpg" 
@@ -1135,19 +1135,19 @@ export default function AdminPage() {
           <div className="relative z-10 space-y-1 w-full text-left">
             <span 
               style={{ color: '#ffffff' }}
-              className="text-[9.5px] uppercase font-mono font-black tracking-widest bg-[#781c1c] px-3.5 py-1.5 rounded-full border border-amber-500/20 inline-block"
+              className="text-[9px] sm:text-[9.5px] uppercase font-mono font-black tracking-wider sm:tracking-widest bg-[#781c1c] px-2.5 sm:px-3.5 py-1 sm:py-1.5 rounded-full border border-amber-500/20 inline-block max-w-full truncate"
             >
               Super Admin Console
             </span>
             <h1 
               style={{ color: '#ffffff' }}
-              className="font-serif text-2xl md:text-3xl font-black mt-2"
+              className="font-serif text-lg sm:text-2xl md:text-3xl font-black mt-1.5 sm:mt-2 leading-tight break-words"
             >
               Placement &amp; Portfolio Administration
             </h1>
             <p 
               style={{ color: 'rgba(255, 255, 255, 0.85)' }}
-              className="text-xs"
+              className="text-[11px] sm:text-xs leading-normal"
             >
               Review and approve student directories, customize templates, and examine security audit logs.
             </p>

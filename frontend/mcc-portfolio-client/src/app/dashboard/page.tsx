@@ -32,7 +32,8 @@ import {
   Menu,
   X,
   Copy,
-  Sliders
+  Sliders,
+  Upload
 } from "lucide-react";
 import api from "@/services/api";
 import { useTheme } from "@/hooks/useTheme";
@@ -1639,7 +1640,7 @@ Report Generated: ${new Date().toLocaleDateString()}
         <div className="flex-1 overflow-y-auto px-4 md:px-10 py-6 md:py-8 space-y-10">
 
         {/* BANNER SHOWCASE */}
-        <div className="relative rounded-3xl overflow-hidden h-36 md:h-44 bg-[#18233c] text-white flex items-end p-6 md:p-8 border border-amber-600/20 shadow-md mb-4 mcc-welcome-banner">
+        <div className="relative rounded-2xl sm:rounded-3xl overflow-hidden min-h-[140px] sm:min-h-[160px] md:h-44 bg-[#18233c] text-white flex items-end p-4 sm:p-6 md:p-8 border border-amber-600/20 shadow-md mb-4 mcc-welcome-banner">
           <div className="absolute inset-0 z-0">
             <img 
               src="/mcc-facade.jpg" 
@@ -1651,19 +1652,19 @@ Report Generated: ${new Date().toLocaleDateString()}
           <div className="relative z-10 space-y-1 w-full text-left">
             <span 
               style={{ color: '#ffffff' }}
-              className="text-[9.5px] uppercase font-mono font-black tracking-widest bg-[#781c1c] px-3.5 py-1.5 rounded-full border border-amber-500/20 inline-block"
+              className="text-[9px] sm:text-[9.5px] uppercase font-mono font-black tracking-wider sm:tracking-widest bg-[#781c1c] px-2.5 sm:px-3.5 py-1 sm:py-1.5 rounded-full border border-amber-500/20 inline-block max-w-full truncate"
             >
               {user?.stream || "General"} Stream · {user?.department || "Unassigned"}
             </span>
             <h1 
               style={{ color: '#ffffff' }}
-              className="font-serif text-xl md:text-3xl font-black mt-2 leading-tight"
+              className="font-serif text-lg sm:text-2xl md:text-3xl font-black mt-1.5 sm:mt-2 leading-tight break-words"
             >
               Welcome back, {fullName || user?.fullName || "Student Scholar"}
             </h1>
             <p 
               style={{ color: 'rgba(255, 255, 255, 0.85)' }}
-              className="text-xs"
+              className="text-[11px] sm:text-xs leading-normal"
             >
               Manage your academic records, certifications, and portfolio pages.
             </p>
@@ -1735,11 +1736,19 @@ Report Generated: ${new Date().toLocaleDateString()}
 
           <div className="grid md:grid-cols-2 gap-6">
             {/* Profile Photo upload */}
-            <div className={`border rounded-2xl p-5 flex flex-col justify-center gap-2 transition ${
+            <div className={`border rounded-2xl p-4 sm:p-5 flex flex-col justify-between gap-3 transition ${
               themeMode === "dark" ? "bg-white/[0.02] border-white/10" : "bg-slate-50 border-slate-200"
             }`}>
-              <label className="text-[10px] uppercase font-mono tracking-wider font-bold text-slate-500 mb-1.5">Profile Photo (JPG / PNG)</label>
-              <div className="flex items-center gap-4 mt-2">
+              <div>
+                <label className="text-[10px] uppercase font-mono tracking-wider font-bold text-slate-500 block mb-1">
+                  Profile Photo (JPG / PNG)
+                </label>
+                <p className="text-[11px] text-slate-400 font-medium leading-tight">
+                  Upload an official headshot photo for your portfolio and resume pages.
+                </p>
+              </div>
+
+              <div className="flex flex-col sm:flex-row sm:items-center gap-3 mt-1">
                 <input
                   type="file"
                   accept="image/*"
@@ -1749,16 +1758,18 @@ Report Generated: ${new Date().toLocaleDateString()}
                 />
                 <label
                   htmlFor="profile-image-upload"
-                  className="bg-[#781c1c] hover:bg-[#5f1515] px-5 py-2.5 rounded-xl cursor-pointer text-xs font-bold transition text-white"
+                  className="bg-[#781c1c] hover:bg-[#5f1515] px-4 py-2.5 rounded-xl cursor-pointer text-xs font-bold transition text-white text-center shrink-0 flex items-center justify-center gap-2 shadow-xs"
                 >
+                  <Upload size={14} />
                   {uploadingField === "Profile Image" ? "Uploading..." : "Upload Photo"}
                 </label>
+
                 {profileImageUrl && (() => {
                   const imgDetails = parseImageAdjustments(profileImageUrl);
                   return (
-                    <div className="flex items-center gap-3 flex-wrap">
+                    <div className="flex items-center gap-2.5 flex-wrap">
                       <div 
-                        className="w-10 h-10 rounded-full border border-[#781c1c] overflow-hidden flex items-center justify-center cursor-pointer"
+                        className="w-10 h-10 rounded-full border-2 border-[#781c1c] overflow-hidden flex items-center justify-center cursor-pointer shrink-0 shadow-xs"
                         onClick={() => setShowPhotoPreviewModal(true)}
                         title="Click to view full preview"
                       >
@@ -1772,22 +1783,22 @@ Report Generated: ${new Date().toLocaleDateString()}
                       <button
                         type="button"
                         onClick={openPhotoAdjustModal}
-                        className={`p-2 rounded-xl text-[10px] font-semibold flex items-center gap-1.5 cursor-pointer transition border ${
+                        className={`px-3 py-2 rounded-xl text-[11px] font-semibold flex items-center gap-1.5 cursor-pointer transition border ${
                           themeMode === "dark"
                             ? "bg-white/10 hover:bg-white/20 text-white border-white/15"
-                            : "bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-300"
+                            : "bg-white hover:bg-slate-100 text-slate-700 border-slate-300 shadow-2xs"
                         }`}
                         title="Adjust Photo position / zoom / rotation"
                       >
-                        <Sliders size={12} /> Adjust
+                        <Sliders size={13} /> Adjust
                       </button>
                       <button
                         type="button"
                         onClick={() => setProfileImageUrl("")}
-                        className="p-2 bg-red-950/40 border border-red-500/20 hover:bg-red-950/70 rounded-xl text-red-400 text-[10px] font-semibold flex items-center gap-1 cursor-pointer transition"
+                        className="px-3 py-2 bg-red-950/40 border border-red-500/20 hover:bg-red-950/70 rounded-xl text-red-400 text-[11px] font-semibold flex items-center gap-1 cursor-pointer transition"
                         title="Delete profile image"
                       >
-                        <Trash2 size={12} /> Delete
+                        <Trash2 size={13} /> Delete
                       </button>
                     </div>
                   );

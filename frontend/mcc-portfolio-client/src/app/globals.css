@@ -384,3 +384,104 @@ html.dark .mcc-access-control input {
 .mcc-welcome-banner p {
   color: #ffffff !important;
 }
+
+@media (max-width: 640px) {
+  .mcc-welcome-banner {
+    min-height: 130px !important;
+    height: auto !important;
+    padding: 1rem 1.25rem !important;
+    border-radius: 1.25rem !important;
+  }
+  .mcc-welcome-banner h1 {
+    font-size: 1.25rem !important;
+    line-height: 1.3 !important;
+  }
+  .mcc-welcome-banner p {
+    font-size: 0.725rem !important;
+    line-height: 1.4 !important;
+  }
+}
+
+/* ─── Resume Document — Always Light Theme Alone ───────────────────────── */
+#resume-preview-container,
+#resume-preview-container-modal,
+.resume-document-light,
+html.dark #resume-preview-container,
+html.dark #resume-preview-container-modal,
+html.dark .resume-document-light {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+}
+
+#resume-preview-container h1,
+#resume-preview-container h2,
+#resume-preview-container h3,
+#resume-preview-container h4,
+#resume-preview-container h5,
+#resume-preview-container h6,
+#resume-preview-container-modal h1,
+#resume-preview-container-modal h2,
+#resume-preview-container-modal h3,
+#resume-preview-container-modal h4,
+#resume-preview-container-modal h5,
+#resume-preview-container-modal h6,
+.resume-document-light h1,
+.resume-document-light h2,
+.resume-document-light h3,
+.resume-document-light h4,
+.resume-document-light h5,
+.resume-document-light h6,
+html.dark #resume-preview-container h1,
+html.dark #resume-preview-container h2,
+html.dark #resume-preview-container h3,
+html.dark #resume-preview-container h4,
+html.dark #resume-preview-container h5,
+html.dark #resume-preview-container h6,
+html.dark #resume-preview-container-modal h1,
+html.dark #resume-preview-container-modal h2,
+html.dark #resume-preview-container-modal h3,
+html.dark #resume-preview-container-modal h4,
+html.dark #resume-preview-container-modal h5,
+html.dark #resume-preview-container-modal h6,
+html.dark .resume-document-light h1,
+html.dark .resume-document-light h2,
+html.dark .resume-document-light h3,
+html.dark .resume-document-light h4,
+html.dark .resume-document-light h5,
+html.dark .resume-document-light h6 {
+  color: inherit !important;
+}
+
+#resume-preview-container p,
+#resume-preview-container span,
+#resume-preview-container div,
+#resume-preview-container li,
+#resume-preview-container a,
+#resume-preview-container-modal p,
+#resume-preview-container-modal span,
+#resume-preview-container-modal div,
+#resume-preview-container-modal li,
+#resume-preview-container-modal a,
+.resume-document-light p,
+.resume-document-light span,
+.resume-document-light div,
+.resume-document-light li,
+.resume-document-light a,
+html.dark #resume-preview-container p,
+html.dark #resume-preview-container span,
+html.dark #resume-preview-container div,
+html.dark #resume-preview-container li,
+html.dark #resume-preview-container a,
+html.dark #resume-preview-container-modal p,
+html.dark #resume-preview-container-modal span,
+html.dark #resume-preview-container-modal div,
+html.dark #resume-preview-container-modal li,
+html.dark #resume-preview-container-modal a,
+html.dark .resume-document-light p,
+html.dark .resume-document-light span,
+html.dark .resume-document-light div,
+html.dark .resume-document-light li,
+html.dark .resume-document-light a {
+  color: inherit;
+}
+
