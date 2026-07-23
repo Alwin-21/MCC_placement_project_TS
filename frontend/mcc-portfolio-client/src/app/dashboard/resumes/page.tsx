@@ -150,7 +150,7 @@ export default function ResumesDashboardPage() {
         {/* Logo & Console Title */}
         <div className="p-6 border-b border-slate-200 flex items-center justify-center shrink-0">
           <img 
-            src="/mcc-logo.jpg" 
+            src={themeMode === "dark" ? "/mcc-logo-dark.png" : "/mcc-logo.jpg"} 
             className="w-full max-w-[280px] h-auto object-contain rounded-lg transition-transform duration-200 hover:scale-[1.02]" 
             alt="Madras Christian College Logo" 
           />
@@ -158,47 +158,48 @@ export default function ResumesDashboardPage() {
 
         {/* Navigation Sidebar List */}
         <nav className="flex-1 py-6 overflow-y-auto px-4 space-y-1.5 scrollbar-thin">
-          <button onClick={() => navigateToDashboardSection("header-section")} className="w-full flex items-center gap-3 transition px-4 py-2.5 rounded-xl text-sm font-medium text-left cursor-pointer">
-            <User size={16} className="text-[#781c1c]" /> Header Section
+          <button
+            onClick={() => {
+              if (user?.fullName) {
+                const slug = user.registerNumber || user.fullName.replace(/\s+/g, "").toLowerCase();
+                window.open(`/student/${slug}`, "_blank");
+              } else if (user?.id) {
+                window.open(`/portfolio/${user.id}`, "_blank");
+              } else {
+                alert("Portfolio details not ready yet.");
+              }
+            }}
+            className={`w-full flex items-center gap-3 transition px-4 py-2.5 rounded-xl text-sm font-medium text-left cursor-pointer ${
+              themeMode === "dark" ? "hover:bg-white/5 text-slate-300 hover:text-white" : "hover:bg-slate-100 text-slate-700"
+            }`}
+          >
+            <Eye size={16} className="text-emerald-400" /> View Portfolio
           </button>
-          <button onClick={() => navigateToDashboardSection("about-section")} className="w-full flex items-center gap-3 transition px-4 py-2.5 rounded-xl text-sm font-medium text-left cursor-pointer">
-            <FileText size={16} className="text-[#781c1c]" /> About Section
+          <button
+            onClick={() => router.push("/dashboard")}
+            className="w-full flex items-center gap-3 transition px-4 py-2.5 rounded-xl text-sm font-semibold text-left mcc-active-tab cursor-pointer"
+          >
+            <Eye size={16} /> Back to Dashboard
           </button>
-          <button onClick={() => navigateToDashboardSection("experience-section")} className="w-full flex items-center gap-3 transition px-4 py-2.5 rounded-xl text-sm font-medium text-left cursor-pointer">
-            <Briefcase size={16} className="text-[#781c1c]" /> Experience
-          </button>
-          <button onClick={() => navigateToDashboardSection("academic-section")} className="w-full flex items-center gap-3 transition px-4 py-2.5 rounded-xl text-sm font-medium text-left cursor-pointer">
-            <Award size={16} className="text-[#781c1c]" /> Academic Details
-          </button>
-          <button onClick={() => navigateToDashboardSection("achievements-section")} className="w-full flex items-center gap-3 transition px-4 py-2.5 rounded-xl text-sm font-medium text-left cursor-pointer">
-            <Trophy size={16} className="text-[#781c1c]" /> Achievements
-          </button>
-          <button onClick={() => navigateToDashboardSection("projects-research-section")} className="w-full flex items-center gap-3 transition px-4 py-2.5 rounded-xl text-sm font-medium text-left cursor-pointer">
-            <GitBranch size={16} className="text-[#781c1c]" /> Projects & Research
-          </button>
-          <button onClick={() => navigateToDashboardSection("skills-section")} className="w-full flex items-center gap-3 transition px-4 py-2.5 rounded-xl text-sm font-medium text-left cursor-pointer">
-            <Code size={16} className="text-[#781c1c]" /> Skills
-          </button>
-
-          <div className="pt-4 border-t border-white/5 space-y-1">
-            <button
-              onClick={() => router.push("/dashboard/resumes")}
-              className={`w-full flex items-center gap-3 transition px-4 py-2.5 rounded-xl text-sm font-medium text-left cursor-pointer`}
-            >
-              <Sparkles size={16} className="text-emerald-400" /> Resume Builder
-            </button>
-            <button onClick={() => router.push("/dashboard")} className="w-full flex items-center gap-3 transition px-4 py-2.5 rounded-xl text-sm font-semibold text-left mcc-active-tab cursor-pointer">
-              <Eye size={16} /> Back to Dashboard
-            </button>
-          </div>
         </nav>
 
-        <div className="p-4 border-t border-white/10">
+        <div className="p-4 border-t border-white/10 space-y-2">
+          <button
+            onClick={toggleThemeMode}
+            className={`w-full flex items-center justify-center gap-2.5 py-2.5 rounded-xl text-xs font-bold transition cursor-pointer ${
+              themeMode === "dark"
+                ? "bg-white/10 hover:bg-white/20 text-yellow-300 border border-white/10"
+                : "bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200"
+            }`}
+          >
+            {themeMode === "dark" ? <Sun size={15} /> : <Moon size={15} />}
+            <span>{themeMode === "dark" ? "Light Mode" : "Dark Mode"}</span>
+          </button>
           <button
             onClick={handleLogout}
-            className="w-full flex items-center justify-center gap-3 bg-red-500/10 hover:bg-red-500/20 text-red-400 py-3 rounded-xl text-sm font-semibold transition cursor-pointer"
+            className="w-full flex items-center justify-center gap-3 bg-red-500/10 hover:bg-red-500/20 text-red-400 py-2.5 rounded-xl text-xs font-semibold transition cursor-pointer"
           >
-            <LogOut size={16} /> Log Out
+            <LogOut size={15} /> Log Out
           </button>
         </div>
       </div>
@@ -210,7 +211,7 @@ export default function ResumesDashboardPage() {
             <div className="flex justify-between items-center pb-4 border-b border-gray-250 shrink-0">
               <div className="flex items-center justify-start py-1">
                 <img 
-                  src="/mcc-logo.jpg" 
+                  src={themeMode === "dark" ? "/mcc-logo-dark.png" : "/mcc-logo.jpg"} 
                   className="w-full max-w-[190px] h-auto object-contain rounded-lg" 
                   alt="Madras Christian College Logo" 
                 />
@@ -220,44 +221,49 @@ export default function ResumesDashboardPage() {
               </button>
             </div>
             
-            <nav className="flex-1 py-4 space-y-1 overflow-y-auto scrollbar-thin">
-              <button onClick={() => { navigateToDashboardSection("header-section"); setShowMobileNav(false); }} className="w-full flex items-center gap-3 transition px-4 py-2.5 rounded-xl text-sm font-medium text-left cursor-pointer">
-                <User size={16} className="text-[#781c1c]" /> Header Section
+            <nav className="flex-1 py-4 space-y-1.5 overflow-y-auto scrollbar-thin">
+              <button
+                onClick={() => {
+                  setShowMobileNav(false);
+                  if (user?.fullName) {
+                    const slug = user.registerNumber || user.fullName.replace(/\s+/g, "").toLowerCase();
+                    window.open(`/student/${slug}`, "_blank");
+                  } else if (user?.id) {
+                    window.open(`/portfolio/${user.id}`, "_blank");
+                  } else {
+                    alert("Portfolio details not ready yet.");
+                  }
+                }}
+                className={`w-full flex items-center gap-3 transition px-4 py-2.5 rounded-xl text-sm font-medium text-left cursor-pointer ${
+                  themeMode === "dark" ? "hover:bg-white/5 text-slate-300 hover:text-white" : "hover:bg-slate-100 text-slate-700"
+                }`}
+              >
+                <Eye size={16} className="text-emerald-400" /> View Portfolio
               </button>
-              <button onClick={() => { navigateToDashboardSection("about-section"); setShowMobileNav(false); }} className="w-full flex items-center gap-3 transition px-4 py-2.5 rounded-xl text-sm font-medium text-left cursor-pointer">
-                <FileText size={16} className="text-[#781c1c]" /> About Section
+              <button
+                onClick={() => {
+                  setShowMobileNav(false);
+                  router.push("/dashboard");
+                }}
+                className="w-full flex items-center gap-3 transition px-4 py-2.5 rounded-xl text-sm font-semibold text-left mcc-active-tab cursor-pointer"
+              >
+                <Eye size={16} /> Back to Dashboard
               </button>
-              <button onClick={() => { navigateToDashboardSection("experience-section"); setShowMobileNav(false); }} className="w-full flex items-center gap-3 transition px-4 py-2.5 rounded-xl text-sm font-medium text-left cursor-pointer">
-                <Briefcase size={16} className="text-[#781c1c]" /> Experience
-              </button>
-              <button onClick={() => { navigateToDashboardSection("academic-section"); setShowMobileNav(false); }} className="w-full flex items-center gap-3 transition px-4 py-2.5 rounded-xl text-sm font-medium text-left cursor-pointer">
-                <Award size={16} className="text-[#781c1c]" /> Academic Details
-              </button>
-              <button onClick={() => { navigateToDashboardSection("achievements-section"); setShowMobileNav(false); }} className="w-full flex items-center gap-3 transition px-4 py-2.5 rounded-xl text-sm font-medium text-left cursor-pointer">
-                <Trophy size={16} className="text-[#781c1c]" /> Achievements
-              </button>
-              <button onClick={() => { navigateToDashboardSection("projects-research-section"); setShowMobileNav(false); }} className="w-full flex items-center gap-3 transition px-4 py-2.5 rounded-xl text-sm font-medium text-left cursor-pointer">
-                <GitBranch size={16} className="text-[#781c1c]" /> Projects & Research
-              </button>
-              <button onClick={() => { navigateToDashboardSection("skills-section"); setShowMobileNav(false); }} className="w-full flex items-center gap-3 transition px-4 py-2.5 rounded-xl text-sm font-medium text-left cursor-pointer">
-                <Code size={16} className="text-[#781c1c]" /> Skills
-              </button>
-              
-              <div className="pt-4 border-t border-white/5 space-y-1">
-                <button
-                  onClick={() => { router.push("/dashboard/resumes"); setShowMobileNav(false); }}
-                  className="w-full flex items-center gap-3 transition px-4 py-2.5 rounded-xl text-sm font-medium text-left cursor-pointer"
-                >
-                  <Sparkles size={16} className="text-emerald-400" /> Resume Builder
-                </button>
-                <button onClick={() => { router.push("/dashboard"); setShowMobileNav(false); }} className="w-full flex items-center gap-3 transition px-4 py-2.5 rounded-xl text-sm font-semibold text-left mcc-active-tab cursor-pointer">
-                  <Eye size={16} /> Back to Dashboard
-                </button>
-              </div>
             </nav>
-            <div className="pt-4 border-t border-white/10">
-              <button onClick={handleLogout} className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium text-left hover:bg-red-500/10 text-red-400 cursor-pointer">
-                <LogOut size={16} /> Log Out
+            <div className="pt-4 border-t border-white/10 space-y-2">
+              <button
+                onClick={toggleThemeMode}
+                className={`w-full flex items-center justify-center gap-2.5 py-2.5 rounded-xl text-xs font-bold transition cursor-pointer ${
+                  themeMode === "dark"
+                    ? "bg-white/10 hover:bg-white/20 text-yellow-300 border border-white/10"
+                    : "bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200"
+                }`}
+              >
+                {themeMode === "dark" ? <Sun size={15} /> : <Moon size={15} />}
+                <span>{themeMode === "dark" ? "Light Mode" : "Dark Mode"}</span>
+              </button>
+              <button onClick={handleLogout} className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-medium bg-red-500/10 hover:bg-red-500/20 text-red-400 cursor-pointer">
+                <LogOut size={15} /> Log Out
               </button>
             </div>
           </div>
@@ -281,6 +287,15 @@ export default function ResumesDashboardPage() {
               Resume Dashboard
             </span>
           </div>
+          <button
+            onClick={toggleThemeMode}
+            aria-label="Toggle theme"
+            className={`w-8 h-8 rounded-full flex items-center justify-center transition-all duration-200 cursor-pointer ${
+              themeMode === "dark" ? "bg-white/10 text-yellow-300" : "bg-slate-100 text-slate-600"
+            }`}
+          >
+            {themeMode === "dark" ? <Sun size={15} /> : <Moon size={15} />}
+          </button>
         </div>
 
         {/* MAIN BODY AREA */}

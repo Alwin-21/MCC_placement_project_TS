@@ -139,6 +139,19 @@ function PortfolioPageContent() {
   const [currentTime, setCurrentTime] = useState<string>("");
   const [previewResumeUrl, setPreviewResumeUrl] = useState<string | null>(null);
 
+  // Force Light Mode on Student Public Portfolio
+  useEffect(() => {
+    if (typeof document !== "undefined") {
+      document.documentElement.classList.remove("dark");
+    }
+    return () => {
+      const savedTheme = localStorage.getItem("mcc-theme");
+      if (savedTheme === "dark" && typeof document !== "undefined") {
+        document.documentElement.classList.add("dark");
+      }
+    };
+  }, []);
+
   useEffect(() => {
     fetchPortfolio();
   }, [id, username]);
