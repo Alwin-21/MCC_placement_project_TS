@@ -105,6 +105,9 @@ export default function ResumeEditorPage() {
     "mediaHandles"
   ]);
 
+  // Font size level ("Small", "Medium", "Large", "XL")
+  const [fontSizeLevel, setFontSizeLevel] = useState<string>("Medium");
+
   // Alert lists
   const [missingSheets, setMissingSheets] = useState<string[]>([]);
 
@@ -159,9 +162,37 @@ export default function ResumeEditorPage() {
             }
           });
         }
+        // Clean up legacy testScores so academic marksheets don't duplicate under Test Scores section
+        if (parsed.testScores?.items) {
+          parsed.testScores.items = parsed.testScores.items.filter((item: any) => {
+            const title = (item.title || item.degree || "").toLowerCase();
+            const isAcademic = title.includes("marksheet") || title.includes("10th") || title.includes("12th") || title.includes("b.sc") || title.includes("bachelor") || title.includes("course");
+            return !isAcademic;
+          });
+        }
+
+        // Auto-sync education section with full portfolio academic records (UG, Course, 12th, 10th)
+        if (parsed.education) {
+          if (!parsed.education.items) parsed.education.items = [];
+          portfolio.academicRecords.forEach((rec: any) => {
+            const exists = parsed.education.items.some((item: any) => item.id === rec.id || item.degree === rec.degree);
+            if (!exists) {
+              parsed.education.items.push({
+                id: rec.id,
+                degree: rec.degree,
+                institution: rec.institution,
+                duration: `${rec.startYear} - ${rec.endYear}`,
+                grade: rec.grade,
+                visible: true
+              });
+            }
+          });
+        }
+
         setResumeData(parsed);
         if (parsed.headings) setHeadings(parsed.headings);
         if (parsed.sectionOrder) setSectionOrder(parsed.sectionOrder);
+        if (parsed.fontSizeLevel) setFontSizeLevel(parsed.fontSizeLevel);
       } else {
         // First-time initialization from portfolio
         const initialized = initializeResumeFromPortfolio(portfolio);
@@ -171,8 +202,7 @@ export default function ResumeEditorPage() {
       // Check missing required marksheets
       checkRequiredMarksheets(portfolio.academicRecords);
     } catch (err) {
-      console.error(err);
-      alert("Failed to load resume details.");
+      console.error("Failed loading resume:", err);
     } finally {
       setLoading(false);
     }
@@ -382,7 +412,8 @@ export default function ResumeEditorPage() {
         resumeDataJson: JSON.stringify({
           ...resumeData,
           headings,
-          sectionOrder
+          sectionOrder,
+          fontSizeLevel
         })
       };
 
@@ -522,8 +553,7 @@ export default function ResumeEditorPage() {
   };
 
   // ─── Pixel-perfect PDF download using html2canvas + jsPDF ───────────────
-  // Renders the exact same DOM element shown in preview into a canvas,
-  // then packs it into an A4 PDF — preview === download, always.
+  // Captures exact .resume-page-sheet A4 elements into PDF — preview === download, always.
   const handleDownloadPDF = async () => {
     let el = document.getElementById("resume-preview-container");
     if (!el) {
@@ -537,107 +567,50 @@ export default function ResumeEditorPage() {
 
       // Temporarily set zoom level to 1 to avoid layout scaling artifacts
       setZoomLevel(1);
-      // Wait for layout updates to compile and render at 100% scale
       await new Promise((resolve) => setTimeout(resolve, 300));
 
-      // Ensure all web fonts are fully loaded before rendering the canvas
       if (typeof document !== "undefined" && document.fonts) {
         await document.fonts.ready;
       }
 
-      // Dynamically import to avoid SSR issues
       const html2canvas = (await import("html2canvas-pro")).default;
       const { jsPDF } = await import("jspdf");
 
-      const canvas = await html2canvas(el, {
-        scale: 2,           // 2x for crisp quality
-        useCORS: true,
-        allowTaint: false,
-        backgroundColor: "#ffffff",
-        logging: false,
-        onclone: (clonedDoc) => {
-          // Unhide all ancestor containers of the cloned element so html2canvas renders it cleanly on mobile even if the editor panel is on "edit" tab
-          const clonedEl = clonedDoc.getElementById("resume-preview-container") || clonedDoc.getElementById("resume-preview-container-modal");
-          if (clonedEl) {
-            let curr: HTMLElement | null = clonedEl;
-            while (curr && curr !== clonedDoc.body) {
-              curr.style.display = "block";
-              curr.style.visibility = "visible";
-              curr.style.opacity = "1";
-              curr = curr.parentElement;
-            }
-          }
-
-          // Import Google Fonts to ensure they load inside the rendering iframe
-          const link = clonedDoc.createElement("link");
-          link.rel = "stylesheet";
-          link.href = "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Georgia:wght@400;700&display=swap";
-          clonedDoc.head.appendChild(link);
-
-          // Sync active fonts to the cloned document context to prevent character squishing
-          if (typeof document !== "undefined" && document.fonts && clonedDoc.fonts) {
-            document.fonts.forEach((font) => {
-              clonedDoc.fonts.add(font);
-            });
-          }
-
-          // Inject styling to normalize spacing and prevent character overlapping/squishing
-          const style = clonedDoc.createElement("style");
-          style.innerHTML = `
-            * {
-              -webkit-font-smoothing: antialiased;
-              -moz-osx-font-smoothing: grayscale;
-              text-rendering: optimizeLegibility;
-              letter-spacing: normal !important;
-            }
-          `;
-          clonedDoc.head.appendChild(style);
-        }
-      });
-
-      // Standard A4 dimensions: 794 x 1123 px
-      const scaleFactor = canvas.width / 794;
-      const singlePageCanvasHeight = 1123 * scaleFactor;
+      let pageSheets = Array.from(el.querySelectorAll(".resume-page-sheet"));
+      if (pageSheets.length === 0) {
+        pageSheets = [el];
+      }
 
       const pdf = new jsPDF({ orientation: "portrait", unit: "px", format: [794, 1123] });
 
-      // If content fits within ~1.25 pages, fit perfectly onto 1 single A4 page to eliminate splitting lines and duplicate text
-      if (canvas.height <= singlePageCanvasHeight * 1.25) {
-        const pageCanvas = document.createElement("canvas");
-        pageCanvas.width = canvas.width;
-        pageCanvas.height = Math.max(canvas.height, singlePageCanvasHeight);
-        const pageCtx = pageCanvas.getContext("2d");
-        if (pageCtx) {
-          pageCtx.fillStyle = "#ffffff";
-          pageCtx.fillRect(0, 0, pageCanvas.width, pageCanvas.height);
-          pageCtx.drawImage(canvas, 0, 0);
+      for (let i = 0; i < pageSheets.length; i++) {
+        if (i > 0) {
+          pdf.addPage([794, 1123], "portrait");
         }
+
+        const sheetEl = pageSheets[i] as HTMLElement;
+        const pageCanvas = await html2canvas(sheetEl, {
+          scale: 2,           // 2x for crisp print quality
+          useCORS: true,
+          allowTaint: false,
+          backgroundColor: "#ffffff",
+          logging: false,
+          onclone: (clonedDoc) => {
+            const style = clonedDoc.createElement("style");
+            style.innerHTML = `
+              * {
+                -webkit-font-smoothing: antialiased;
+                -moz-osx-font-smoothing: grayscale;
+                text-rendering: optimizeLegibility;
+                letter-spacing: normal !important;
+              }
+            `;
+            clonedDoc.head.appendChild(style);
+          }
+        });
+
         const pageImgData = pageCanvas.toDataURL("image/jpeg", 0.95);
         pdf.addImage(pageImgData, "JPEG", 0, 0, 794, 1123, undefined, "FAST");
-      } else {
-        // Multi-page slicing for longer resumes
-        const totalPages = Math.ceil(canvas.height / singlePageCanvasHeight);
-        for (let i = 0; i < totalPages; i++) {
-          if (i > 0) pdf.addPage([794, 1123], "portrait");
-          const sourceY = i * singlePageCanvasHeight;
-          const currentSliceHeight = Math.min(singlePageCanvasHeight, canvas.height - sourceY);
-
-          const pageCanvas = document.createElement("canvas");
-          pageCanvas.width = canvas.width;
-          pageCanvas.height = singlePageCanvasHeight;
-          const pageCtx = pageCanvas.getContext("2d");
-          if (pageCtx) {
-            pageCtx.fillStyle = "#ffffff";
-            pageCtx.fillRect(0, 0, pageCanvas.width, singlePageCanvasHeight);
-            pageCtx.drawImage(
-              canvas,
-              0, sourceY, canvas.width, currentSliceHeight,
-              0, 0, canvas.width, currentSliceHeight
-            );
-          }
-          const pageImgData = pageCanvas.toDataURL("image/jpeg", 0.95);
-          pdf.addImage(pageImgData, "JPEG", 0, 0, 794, 1123, undefined, "FAST");
-        }
       }
 
       const safeName = (resumeTitle || "resume").replace(/[^a-z0-9_\-]/gi, "_");
@@ -646,637 +619,809 @@ export default function ResumeEditorPage() {
       console.error("PDF generation failed:", err);
       alert("Could not generate PDF. Please try again.");
     } finally {
-      // Revert the editor zoom back to user settings
       setZoomLevel(originalZoom);
       setDownloading(false);
     }
   };
 
-  // Keep legacy handlePrint as alias for backward compatibility
-  const handlePrint = handleDownloadPDF;
-
   const renderResumeDocument = (isModal = false) => {
     const pInfo = resumeData.personalInfo;
-    return (
-      <div
-        id={isModal ? "resume-preview-container-modal" : "resume-preview-container"}
-        className="resume-document-light"
-        style={{
-          width: "794px",
-          minHeight: "1123px",
-          backgroundColor: "#fff",
-          fontFamily: "'Inter','Helvetica Neue',Arial,sans-serif",
-          display: "flex",
-          flexDirection: "column",
-          WebkitFontSmoothing: "antialiased",
-          MozOsxFontSmoothing: "grayscale",
-          textRendering: "optimizeLegibility"
-        }}
-      >
-        {/* ══════════════════════════════════════════════════
-            TEMPLATE 1: PROFESSIONAL (Split 2-Column Banner)
-        ══════════════════════════════════════════════════ */}
-        {selectedTheme === "Professional" && (
-          <div style={{ display: "flex", flexDirection: "column", flex: 1 }}>
 
-            {/* Header banner */}
-            <div style={{ backgroundColor: accentColor, padding: "24px 32px 20px 32px", display: "flex", justifyContent: "space-between", alignItems: "flex-end", flexShrink: 0 }}>
-              <div style={{ paddingLeft: pInfo.showPhoto && pInfo.profileImageUrl ? "110px" : "0" }}>
-                <div style={{ fontSize: "25px", fontWeight: 900, letterSpacing: "1.5px", textTransform: "uppercase", color: "#ffffff", lineHeight: 1.1 }}>
-                  {pInfo.fullName || "Your Name"}
+    // Font Scaling configuration based on user selected fontSizeLevel
+    const getFontConfig = () => {
+      switch (fontSizeLevel) {
+        case "Small":
+          return {
+            bodyFont: "9.5px",
+            smallFont: "8.5px",
+            headingFont: "11.5px",
+            titleFont: "23px",
+            lineHeight: 1.45,
+            gap: "6px",
+            cardPadding: "8px 12px",
+            sectionGap: "10px"
+          };
+        case "Large":
+          return {
+            bodyFont: "11.5px",
+            smallFont: "10px",
+            headingFont: "13.5px",
+            titleFont: "28px",
+            lineHeight: 1.65,
+            gap: "10px",
+            cardPadding: "12px 16px",
+            sectionGap: "18px"
+          };
+        case "XL":
+          return {
+            bodyFont: "12.5px",
+            smallFont: "11px",
+            headingFont: "14.5px",
+            titleFont: "30px",
+            lineHeight: 1.7,
+            gap: "12px",
+            cardPadding: "14px 18px",
+            sectionGap: "20px"
+          };
+        case "Medium":
+        default:
+          return {
+            bodyFont: "10.5px",
+            smallFont: "9.5px",
+            headingFont: "12.5px",
+            titleFont: "26px",
+            lineHeight: 1.55,
+            gap: "8px",
+            cardPadding: "10px 14px",
+            sectionGap: "14px"
+          };
+      }
+    };
+
+    const fontCfg = getFontConfig();
+
+    // Helper to dynamically partition active sections into Page 1 and Page 2 in user's sectionOrder
+    const getPartitionedSections = (filterSidebar: boolean = false) => {
+      const activeSections = sectionOrder.filter((secKey) => {
+        const secData = resumeData[secKey];
+        if (!secData || !secData.visible) return false;
+        if (secKey === "mediaHandles") return false;
+        if (filterSidebar && ["skills", "languages"].includes(secKey)) return false;
+        const hasContent = secKey === "summary" ? !!secData.content : secData.items?.some((i: any) => i.visible);
+        return hasContent;
+      });
+
+      const p1Sections: string[] = [];
+      const p2Sections: string[] = [];
+      let accumHeight = 0;
+      const p1Budget = fontSizeLevel === "Small" ? 760 : fontSizeLevel === "Large" ? 660 : fontSizeLevel === "XL" ? 620 : 720;
+
+      activeSections.forEach((secKey) => {
+        const secData = resumeData[secKey];
+        const items = secData.items?.filter((i: any) => i.visible) || [];
+        let secHeight = 60 + items.length * 50;
+
+        if (secKey === "summary") secHeight = 70;
+        if (secKey === "experience") secHeight = 40 + items.length * 90;
+        if (secKey === "education") secHeight = 40 + items.length * 60;
+        if (secKey === "projects") secHeight = 40 + items.length * 80;
+
+        if (fontSizeLevel === "Large") secHeight *= 1.15;
+        if (fontSizeLevel === "XL") secHeight *= 1.30;
+        if (fontSizeLevel === "Small") secHeight *= 0.88;
+
+        if (accumHeight + secHeight <= p1Budget || p1Sections.length === 0) {
+          p1Sections.push(secKey);
+          accumHeight += secHeight;
+        } else {
+          p2Sections.push(secKey);
+        }
+      });
+
+      return { p1Sections, p2Sections };
+    };
+
+    // Advanced item-level partitioning specifically for Professional and Classic ATS to maximize Page 1 space utilization
+    const getAdvancedPartitioning = (filterSidebar: boolean, templateType: "Professional" | "Classic ATS") => {
+      const isProf = templateType === "Professional";
+      const activeSections = sectionOrder.filter((secKey) => {
+        const secData = resumeData[secKey];
+        if (!secData || !secData.visible) return false;
+        if (secKey === "mediaHandles") return false;
+        if (filterSidebar && ["skills", "languages"].includes(secKey)) return false;
+        const hasContent = secKey === "summary" ? !!secData.content : secData.items?.some((i: any) => i.visible);
+        return hasContent;
+      });
+
+      const p1Map: { [key: string]: any[] } = {};
+      const p2Map: { [key: string]: any[] } = {};
+      const p1Sections: string[] = [];
+      const p2Sections: string[] = [];
+
+      let accumHeight = 0;
+      // Maximized vertical height budget for Professional (930px) and Classic ATS (910px)
+      const p1Budget = isProf
+        ? (fontSizeLevel === "Small" ? 980 : fontSizeLevel === "Large" ? 880 : fontSizeLevel === "XL" ? 840 : 930)
+        : (fontSizeLevel === "Small" ? 960 : fontSizeLevel === "Large" ? 860 : fontSizeLevel === "XL" ? 820 : 910);
+
+      activeSections.forEach((secKey) => {
+        const secData = resumeData[secKey];
+        if (secKey === "summary") {
+          const summaryHeight = fontSizeLevel === "Small" ? 55 : fontSizeLevel === "Large" ? 85 : fontSizeLevel === "XL" ? 95 : 70;
+          if (accumHeight + summaryHeight <= p1Budget || p1Sections.length === 0) {
+            p1Sections.push(secKey);
+            p1Map[secKey] = [secData.content];
+            accumHeight += summaryHeight;
+          } else {
+            p2Sections.push(secKey);
+            p2Map[secKey] = [secData.content];
+          }
+          return;
+        }
+
+        const items = secData.items?.filter((i: any) => i.visible) || [];
+        if (items.length === 0) return;
+
+        const headerHeight = 32;
+        const secP1Items: any[] = [];
+        const secP2Items: any[] = [];
+
+        items.forEach((item: any) => {
+          let itemHeight = 55;
+          if (secKey === "experience") itemHeight = fontSizeLevel === "Small" ? 75 : fontSizeLevel === "Large" ? 105 : fontSizeLevel === "XL" ? 115 : 90;
+          if (secKey === "education") itemHeight = fontSizeLevel === "Small" ? 45 : fontSizeLevel === "Large" ? 65 : fontSizeLevel === "XL" ? 75 : 55;
+          if (secKey === "projects") itemHeight = fontSizeLevel === "Small" ? 65 : fontSizeLevel === "Large" ? 90 : fontSizeLevel === "XL" ? 100 : 75;
+
+          const needed = (secP1Items.length === 0 ? headerHeight : 0) + itemHeight;
+          if (accumHeight + needed <= p1Budget) {
+            secP1Items.push(item);
+            accumHeight += needed;
+          } else {
+            secP2Items.push(item);
+          }
+        });
+
+        if (secP1Items.length > 0) {
+          p1Sections.push(secKey);
+          p1Map[secKey] = secP1Items;
+        }
+        if (secP2Items.length > 0) {
+          p2Sections.push(secKey);
+          p2Map[secKey] = secP2Items;
+        }
+      });
+
+      return { p1Sections, p2Sections, p1Map, p2Map };
+    };
+
+    // ─── TEMPLATE 1: PROFESSIONAL (Split 2-Column Banner & Sidebar) ───
+    if (selectedTheme === "Professional") {
+      const { p1Sections, p2Sections, p1Map, p2Map } = getAdvancedPartitioning(true, "Professional");
+
+      const renderProfessionalMain = (sectionsToRender: string[], itemMap: { [key: string]: any[] }, isPage2: boolean = false) => {
+        return sectionsToRender.map((section) => {
+          const secData = resumeData[section];
+          if (!secData || !secData.visible) return null;
+          if (["skills", "languages", "mediaHandles"].includes(section)) return null;
+
+          const itemsToRender = section === "summary" ? secData.content : (itemMap[section] || []);
+          if (!itemsToRender || (Array.isArray(itemsToRender) && itemsToRender.length === 0)) return null;
+
+          const isContinued = isPage2 && p1Sections.includes(section);
+          const headingTitle = isContinued ? `${headings[section] || section} (Continued)` : (headings[section] || section);
+
+          return (
+            <div key={section + (isPage2 ? "_p2" : "_p1")} className="print-avoid-break" style={{ marginBottom: fontCfg.sectionGap }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: fontCfg.gap }}>
+                <div style={{ width: "4px", height: "15px", backgroundColor: accentColor, borderRadius: "2px", flexShrink: 0 }} />
+                <div style={{ fontSize: fontCfg.headingFont, fontWeight: 800, textTransform: "uppercase", letterSpacing: "1.5px", color: "#0f172a" }}>
+                  {headingTitle}
                 </div>
-                <div style={{ fontSize: "11.5px", fontFamily: "Inter, sans-serif", fontWeight: 700, letterSpacing: "1.5px", textTransform: "uppercase", color: "rgba(255,255,255,0.92)", marginTop: "6px" }}>
-                  {pInfo.title || "Professional Title"}
+                <div style={{ flex: 1, height: "1px", backgroundColor: "#e2e8f0" }} />
+              </div>
+
+              {section === "summary" && (
+                <p style={{ fontSize: fontCfg.bodyFont, color: "#1e293b", lineHeight: fontCfg.lineHeight, whiteSpace: "pre-wrap", margin: 0, textAlign: "justify" }}>{secData.content}</p>
+              )}
+
+              {section === "experience" && (
+                <div style={{ display: "flex", flexDirection: "column", gap: fontCfg.gap }}>
+                  {(itemsToRender as any[]).map((item: any) => (
+                    <div key={item.id} className="resume-module-card print-avoid-break" style={{ breakInside: "avoid", pageBreakInside: "avoid" }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+                        <span style={{ fontSize: `calc(${fontCfg.bodyFont} + 1.5px)`, fontWeight: 700, color: "#0f172a" }}>{item.role}</span>
+                        <span style={{ fontSize: fontCfg.smallFont, fontFamily: "monospace", color: "#475569" }}>{item.duration}</span>
+                      </div>
+                      <div style={{ fontSize: fontCfg.bodyFont, color: accentColor, fontWeight: 650, marginTop: "1px" }}>{item.company}</div>
+                      <p style={{ fontSize: fontCfg.bodyFont, color: "#334155", lineHeight: fontCfg.lineHeight, marginTop: "4px", whiteSpace: "pre-wrap" }}>{item.responsibilities}</p>
+                      {item.technologies && <div style={{ fontSize: fontCfg.smallFont, fontFamily: "monospace", color: "#475569", marginTop: "3px" }}>Stack: {item.technologies}</div>}
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {section === "education" && (
+                <div style={{ display: "flex", flexDirection: "column", gap: fontCfg.gap }}>
+                  {(itemsToRender as any[]).map((item: any) => (
+                    <div key={item.id} className="resume-module-card print-avoid-break" style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", fontSize: fontCfg.bodyFont, breakInside: "avoid", pageBreakInside: "avoid" }}>
+                      <div>
+                        <div style={{ fontSize: `calc(${fontCfg.bodyFont} + 1.5px)`, fontWeight: 700, color: "#0f172a" }}>{item.degree}</div>
+                        <div style={{ fontSize: fontCfg.bodyFont, color: "#475569", marginTop: "1px" }}>{item.institution}</div>
+                        {item.grade && <div style={{ fontSize: fontCfg.smallFont, fontFamily: "monospace", color: accentColor, fontWeight: 700, marginTop: "2px" }}>CGPA / Grade: {item.grade}</div>}
+                      </div>
+                      <span style={{ fontSize: fontCfg.smallFont, fontFamily: "monospace", color: "#475569", whiteSpace: "nowrap" }}>{item.duration}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {section === "projects" && (
+                <div style={{ display: "flex", flexDirection: "column", gap: fontCfg.gap }}>
+                  {(itemsToRender as any[]).map((item: any) => (
+                    <div key={item.id} className="resume-module-card print-avoid-break" style={{ breakInside: "avoid", pageBreakInside: "avoid" }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                        <span style={{ fontSize: `calc(${fontCfg.bodyFont} + 1.5px)`, fontWeight: 700, color: "#0f172a" }}>{item.name}</span>
+                        <div style={{ display: "flex", gap: "10px" }}>
+                          {item.github && <span style={{ fontSize: fontCfg.smallFont, fontWeight: 600, color: accentColor }}>GitHub</span>}
+                          {item.live && <span style={{ fontSize: fontCfg.smallFont, fontWeight: 600, color: accentColor }}>Demo</span>}
+                        </div>
+                      </div>
+                      <p style={{ fontSize: fontCfg.bodyFont, color: "#334155", lineHeight: fontCfg.lineHeight, marginTop: "3px" }}>{item.description}</p>
+                      {item.technologies && <div style={{ fontSize: fontCfg.smallFont, fontFamily: "monospace", color: "#475569", marginTop: "3px" }}>Technologies: {item.technologies}</div>}
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {section === "certifications" && (
+                <div style={{ display: "flex", flexDirection: "column", gap: "5px" }}>
+                  {(itemsToRender as any[]).map((cert: any) => (
+                    <div key={cert.id} className="resume-module-card print-avoid-break" style={{ display: "flex", justifyContent: "space-between", fontSize: fontCfg.bodyFont, breakInside: "avoid", pageBreakInside: "avoid" }}>
+                      <span><strong style={{ color: "#0f172a" }}>{cert.name}</strong> <span style={{ color: "#475569" }}>— {cert.issuer}</span></span>
+                      <span style={{ fontSize: fontCfg.smallFont, fontFamily: "monospace", color: "#475569" }}>{cert.date}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {section === "achievements" && (
+                <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                  {(itemsToRender as any[]).map((ach: any) => (
+                    <div key={ach.id} style={{ fontSize: fontCfg.bodyFont, color: "#0f172a" }}>
+                      <strong style={{ color: "#0f172a" }}>{ach.title}</strong>{ach.date && ` (${ach.date})`}
+                      {ach.description && <div style={{ fontSize: fontCfg.smallFont, color: "#475569", marginTop: "2px" }}>{ach.description}</div>}
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {section === "testScores" && (
+                <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                  {(itemsToRender as any[]).map((item: any) => (
+                    <div key={item.id} style={{ padding: fontCfg.cardPadding, borderRadius: "8px", border: `1px solid ${accentColor}30`, background: `${accentColor}08` }}>
+                      <div style={{ fontSize: fontCfg.bodyFont, fontWeight: 700, color: "#0f172a" }}>{item.title}</div>
+                      <div style={{ fontSize: `calc(${fontCfg.bodyFont} + 1px)`, fontFamily: "monospace", fontWeight: 800, color: accentColor, marginTop: "2px" }}>{item.score}</div>
+                      {item.institution && <div style={{ fontSize: fontCfg.smallFont, color: "#475569", marginTop: "1px" }}>{item.institution}</div>}
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {section === "patents" && (
+                <div style={{ display: "flex", flexDirection: "column", gap: "5px" }}>
+                  {(itemsToRender as any[]).map((pat: any) => (
+                    <div key={pat.id} style={{ fontSize: fontCfg.bodyFont, color: "#0f172a" }}>
+                      <strong style={{ color: "#0f172a" }}>{pat.title}</strong> — Patent No: {pat.number}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+        });
+      };
+
+      const renderProfessionalSidebar = () => (
+        <div style={{ width: "220px", backgroundColor: "#f8fafc", borderRight: "1px solid #e2e8f0", flexShrink: 0, display: "flex", flexDirection: "column" }}>
+          {pInfo.showPhoto && pInfo.profileImageUrl && (() => {
+            const img = parseImageAdjustments(pInfo.profileImageUrl);
+            return (
+              <div style={{ display: "flex", justifyContent: "center", padding: "20px 0 14px", background: `${accentColor}15` }}>
+                <div style={{ width: "95px", height: "95px", borderRadius: "50%", overflow: "hidden", border: `3px solid ${accentColor}`, boxShadow: "0 4px 12px rgba(0,0,0,0.15)", background: "#fff" }}>
+                  <img src={img.src} style={{ ...img.style, width: "100%", height: "100%" }} alt={pInfo.fullName} />
                 </div>
               </div>
-              <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "3px", fontSize: "10.5px", color: "rgba(255,255,255,0.95)", fontFamily: "Inter, sans-serif", fontWeight: 500 }}>
+            );
+          })()}
+
+          <div style={{ padding: "20px 16px", display: "flex", flexDirection: "column", gap: "18px" }}>
+            {resumeData.skills?.visible && resumeData.skills?.items?.some((i: any) => i.visible) && (
+              <div>
+                <div style={{ fontSize: fontCfg.smallFont, fontWeight: 800, textTransform: "uppercase", letterSpacing: "1.5px", color: accentColor, borderBottom: `2px solid ${accentColor}`, paddingBottom: "4px", marginBottom: "8px" }}>
+                  {headings["skills"] || "Skills"}
+                </div>
+                {resumeData.skills.items.filter((i: any) => i.visible).map((s: any) => (
+                  <div key={s.id} style={{ fontSize: fontCfg.bodyFont, color: "#0f172a", fontWeight: 700, marginBottom: "4px" }}>
+                    {s.name} <span style={{ fontSize: fontCfg.smallFont, color: "#64748b", fontWeight: 500 }}>({s.level})</span>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {resumeData.languages?.visible && resumeData.languages?.items?.some((l: any) => l.visible) && (
+              <div>
+                <div style={{ fontSize: fontCfg.smallFont, fontWeight: 800, textTransform: "uppercase", letterSpacing: "1.5px", color: accentColor, borderBottom: `2px solid ${accentColor}`, paddingBottom: "4px", marginBottom: "8px" }}>
+                  {headings["languages"] || "Languages"}
+                </div>
+                {resumeData.languages.items.filter((l: any) => l.visible).map((l: any) => (
+                  <div key={l.name} style={{ fontSize: fontCfg.bodyFont, color: "#0f172a", fontWeight: 700, marginBottom: "4px" }}>
+                    {l.name} <span style={{ fontSize: fontCfg.smallFont, color: "#64748b", fontWeight: 500 }}>({l.level})</span>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {resumeData.mediaHandles?.visible && resumeData.mediaHandles?.items?.some((h: any) => h.visible && h.url) && (
+              <div>
+                <div style={{ fontSize: fontCfg.smallFont, fontWeight: 800, textTransform: "uppercase", letterSpacing: "1.5px", color: accentColor, borderBottom: `2px solid ${accentColor}`, paddingBottom: "4px", marginBottom: "8px" }}>Socials</div>
+                {resumeData.mediaHandles.items.filter((h: any) => h.visible && h.url).map((h: any) => (
+                  <div key={h.platform} style={{ fontSize: fontCfg.smallFont, color: "#0f172a", wordBreak: "break-all", marginBottom: "5px" }}>
+                    <span style={{ fontWeight: 700, color: accentColor }}>{h.platform}:</span> {h.url}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      );
+
+      return (
+        <div id={isModal ? "resume-preview-container-modal" : "resume-preview-container"} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "32px", width: "794px" }}>
+          {/* Page 1 */}
+          <div className="resume-page-sheet resume-document-light" style={{ width: "794px", height: "1123px", backgroundColor: "#fff", boxShadow: "0 14px 40px rgba(0,0,0,0.35)", borderRadius: "4px", overflow: "hidden", display: "flex", flexDirection: "column", fontFamily: "'Inter',sans-serif" }}>
+            <div style={{ backgroundColor: accentColor, padding: "24px 32px 20px 32px", display: "flex", justifyContent: "space-between", alignItems: "flex-end", flexShrink: 0 }}>
+              <div>
+                <div style={{ fontSize: fontCfg.titleFont, fontWeight: 900, letterSpacing: "1.5px", textTransform: "uppercase", color: "#ffffff", lineHeight: 1.1 }}>{pInfo.fullName || "Your Name"}</div>
+                <div style={{ fontSize: fontCfg.bodyFont, fontWeight: 700, letterSpacing: "1.5px", textTransform: "uppercase", color: "rgba(255,255,255,0.92)", marginTop: "6px" }}>{pInfo.title || "Professional Title"}</div>
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "3px", fontSize: fontCfg.bodyFont, color: "rgba(255,255,255,0.95)" }}>
                 {pInfo.email && <span>{pInfo.email}</span>}
                 {pInfo.phone && <span>{pInfo.phone}</span>}
                 {pInfo.address && <span>{pInfo.address}</span>}
               </div>
             </div>
 
-            {/* Body */}
             <div style={{ display: "flex", flex: 1 }}>
-
-              {/* ── Sidebar ── */}
-              <div style={{ width: "220px", backgroundColor: "#f8fafc", borderRight: "1px solid #e2e8f0", flexShrink: 0, display: "flex", flexDirection: "column" }}>
-
-                {/* Photo */}
-                {pInfo.showPhoto && pInfo.profileImageUrl && (() => {
-                  const img = parseImageAdjustments(pInfo.profileImageUrl);
-                  return (
-                    <div style={{ display: "flex", justifyContent: "center", padding: "20px 0 14px", background: accentColor + "15" }}>
-                      <div style={{ width: "95px", height: "95px", borderRadius: "50%", overflow: "hidden", border: `3px solid ${accentColor}`, boxShadow: "0 4px 12px rgba(0,0,0,0.15)", background: "#fff" }}>
-                        <img src={img.src} style={{ ...img.style, width: "100%", height: "100%" }} alt={pInfo.fullName} />
-                      </div>
-                    </div>
-                  );
-                })()}
-
-                <div style={{ padding: "20px 16px", display: "flex", flexDirection: "column", gap: "18px" }}>
-                  {/* Skills */}
-                  {resumeData.skills?.visible && resumeData.skills?.items?.some((i: any) => i.visible) && (
-                    <div>
-                      <div style={{ fontSize: "10.5px", fontWeight: 800, textTransform: "uppercase", letterSpacing: "1.5px", color: accentColor, borderBottom: `2px solid ${accentColor}`, paddingBottom: "4px", marginBottom: "8px" }}>Skills</div>
-                      {resumeData.skills.items.filter((i: any) => i.visible).map((s: any) => (
-                        <div key={s.id} style={{ fontSize: "11px", color: "#0f172a", fontWeight: 700, marginBottom: "4px" }}>
-                          {s.name} <span style={{ fontSize: "9.5px", color: "#64748b", fontWeight: 500 }}>({s.level})</span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
-                  {/* Languages */}
-                  {resumeData.languages?.visible && resumeData.languages?.items?.some((l: any) => l.visible) && (
-                    <div>
-                      <div style={{ fontSize: "10.5px", fontWeight: 800, textTransform: "uppercase", letterSpacing: "1.5px", color: accentColor, borderBottom: `2px solid ${accentColor}`, paddingBottom: "4px", marginBottom: "8px" }}>Languages</div>
-                      {resumeData.languages.items.filter((l: any) => l.visible).map((l: any) => (
-                        <div key={l.name} style={{ fontSize: "11px", color: "#0f172a", fontWeight: 700, marginBottom: "4px" }}>
-                          {l.name} <span style={{ fontSize: "9.5px", color: "#64748b", fontWeight: 500 }}>({l.level})</span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
-                  {/* Socials */}
-                  {resumeData.mediaHandles?.visible && resumeData.mediaHandles?.items?.some((h: any) => h.visible && h.url) && (
-                    <div>
-                      <div style={{ fontSize: "10.5px", fontWeight: 800, textTransform: "uppercase", letterSpacing: "1.5px", color: accentColor, borderBottom: `2px solid ${accentColor}`, paddingBottom: "4px", marginBottom: "8px" }}>Socials</div>
-                      {resumeData.mediaHandles.items.filter((h: any) => h.visible && h.url).map((h: any) => (
-                        <div key={h.platform} style={{ fontSize: "10px", color: "#0f172a", wordBreak: "break-all", marginBottom: "5px" }}>
-                          <span style={{ fontWeight: 700, color: accentColor }}>{h.platform}:</span> {h.url}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* ── Main Content ── */}
-              <div style={{ flex: 1, padding: "24px 28px", display: "flex", flexDirection: "column", gap: "20px", background: "#fff" }}>
-                {sectionOrder.map((section) => {
-                  const secData = resumeData[section];
-                  if (!secData || !secData.visible) return null;
-                  if (["skills", "languages", "mediaHandles"].includes(section)) return null;
-                  const hasContent = section === "summary" ? !!secData.content : secData.items?.some((i: any) => i.visible);
-                  if (!hasContent) return null;
-
-                  return (
-                    <div key={section} className="print-avoid-break">
-                      {/* Heading row */}
-                      <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "8px" }}>
-                        <div style={{ width: "4px", height: "15px", backgroundColor: accentColor, borderRadius: "2px", flexShrink: 0 }} />
-                        <div style={{ fontSize: "11.5px", fontWeight: 800, textTransform: "uppercase", letterSpacing: "1.5px", color: "#0f172a" }}>{headings[section]}</div>
-                        <div style={{ flex: 1, height: "1px", backgroundColor: "#e2e8f0" }} />
-                      </div>
-
-                      {section === "summary" && (
-                        <p style={{ fontSize: "10.5px", color: "#1e293b", lineHeight: 1.6, whiteSpace: "pre-wrap", margin: 0 }}>{secData.content}</p>
-                      )}
-                      {section === "experience" && (
-                        <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-                          {secData.items.filter((i: any) => i.visible).map((item: any) => (
-                            <div key={item.id}>
-                              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
-                                <span style={{ fontSize: "12px", fontWeight: 700, color: "#0f172a" }}>{item.role}</span>
-                                <span style={{ fontSize: "10px", fontFamily: "monospace", color: "#475569" }}>{item.duration}</span>
-                              </div>
-                              <div style={{ fontSize: "11px", color: accentColor, fontWeight: 650, marginTop: "1px" }}>{item.company}</div>
-                              <p style={{ fontSize: "10.5px", color: "#334155", lineHeight: 1.55, marginTop: "4px", whiteSpace: "pre-wrap" }}>{item.responsibilities}</p>
-                              {item.technologies && <div style={{ fontSize: "9.5px", fontFamily: "monospace", color: "#475569", marginTop: "3px" }}>Stack: {item.technologies}</div>}
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                      {section === "education" && (
-                        <div style={{ display: "flex", flexDirection: "column", gap: "9px" }}>
-                          {secData.items.filter((i: any) => i.visible).map((item: any) => (
-                            <div key={item.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-                              <div>
-                                <div style={{ fontSize: "12px", fontWeight: 700, color: "#0f172a" }}>{item.degree}</div>
-                                <div style={{ fontSize: "11px", color: "#475569", marginTop: "1px" }}>{item.institution}</div>
-                                {item.grade && <div style={{ fontSize: "10px", fontFamily: "monospace", color: accentColor, fontWeight: 700, marginTop: "2px" }}>CGPA / Grade: {item.grade}</div>}
-                              </div>
-                              <span style={{ fontSize: "10px", fontFamily: "monospace", color: "#475569", whiteSpace: "nowrap" }}>{item.duration}</span>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                      {section === "projects" && (
-                        <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-                          {secData.items.filter((i: any) => i.visible).map((item: any) => (
-                            <div key={item.id}>
-                              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                                <span style={{ fontSize: "12px", fontWeight: 700, color: "#0f172a" }}>{item.name}</span>
-                                <div style={{ display: "flex", gap: "10px" }}>
-                                  {item.github && <span style={{ fontSize: "10px", fontWeight: 600, color: accentColor }}>GitHub</span>}
-                                  {item.live && <span style={{ fontSize: "10px", fontWeight: 600, color: accentColor }}>Demo</span>}
-                                </div>
-                              </div>
-                              <p style={{ fontSize: "10.5px", color: "#334155", lineHeight: 1.55, marginTop: "3px" }}>{item.description}</p>
-                              {item.technologies && <div style={{ fontSize: "9.5px", fontFamily: "monospace", color: "#475569", marginTop: "3px" }}>Technologies: {item.technologies}</div>}
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                      {section === "certifications" && (
-                        <div style={{ display: "flex", flexDirection: "column", gap: "5px" }}>
-                          {secData.items.filter((i: any) => i.visible).map((cert: any) => (
-                            <div key={cert.id} style={{ display: "flex", justifyContent: "space-between", fontSize: "10.5px" }}>
-                              <span><strong style={{ color: "#0f172a" }}>{cert.name}</strong> <span style={{ color: "#475569" }}>— {cert.issuer}</span></span>
-                              <span style={{ fontSize: "10px", fontFamily: "monospace", color: "#475569" }}>{cert.date}</span>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                      {section === "achievements" && (
-                        <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-                          {secData.items.filter((i: any) => i.visible).map((ach: any) => (
-                            <div key={ach.id} style={{ fontSize: "10.5px", color: "#0f172a" }}>
-                              <strong style={{ color: "#0f172a" }}>{ach.title}</strong>{ach.date && ` (${ach.date})`}
-                              {ach.description && <div style={{ fontSize: "10px", color: "#475569", marginTop: "2px" }}>{ach.description}</div>}
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                      {section === "testScores" && (
-                        <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-                          {secData.items.filter((i: any) => i.visible).map((item: any) => (
-                            <div key={item.id} style={{ padding: "8px 12px", borderRadius: "8px", border: `1px solid ${accentColor}30`, background: `${accentColor}08` }}>
-                              <div style={{ fontSize: "11px", fontWeight: 700, color: "#0f172a" }}>{item.title}</div>
-                              <div style={{ fontSize: "12px", fontFamily: "monospace", fontWeight: 800, color: accentColor, marginTop: "2px" }}>{item.score}</div>
-                              {item.institution && <div style={{ fontSize: "9.5px", color: "#475569", marginTop: "1px" }}>{item.institution}</div>}
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                      {section === "patents" && (
-                        <div style={{ display: "flex", flexDirection: "column", gap: "5px" }}>
-                          {secData.items.filter((i: any) => i.visible).map((pat: any) => (
-                            <div key={pat.id} style={{ fontSize: "10.5px", color: "#0f172a" }}>
-                              <strong style={{ color: "#0f172a" }}>{pat.title}</strong> — Patent No: {pat.number}
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
+              {renderProfessionalSidebar()}
+              <div style={{ flex: 1, padding: "24px 28px", display: "flex", flexDirection: "column", gap: fontCfg.sectionGap, background: "#fff" }}>
+                {renderProfessionalMain(p1Sections, p1Map, false)}
               </div>
             </div>
           </div>
-        )}
 
-        {/* ═══════════════════════════════════════════════════════════
-            TEMPLATE 2: CLASSIC ATS (Ultra Clean, 1-Column, Highly Readable)
-        ══════════════════════════════════════════════════════════════ */}
-        {selectedTheme === "Classic ATS" && (
-          <div style={{ padding: "40px 52px", display: "flex", flexDirection: "column", gap: "16px", flex: 1, textAlign: "left" }}>
-            
-            {/* Header info */}
+          {/* Visual Divider */}
+          {p2Sections.length > 0 && (
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "14px", width: "794px", userSelect: "none" }}>
+              <div style={{ flex: 1, height: "1px", background: "linear-gradient(to right, transparent, #475569, transparent)" }} />
+              <span style={{ fontSize: "10px", fontWeight: 800, color: "#cbd5e1", textTransform: "uppercase", letterSpacing: "2px", background: "#0f172a", padding: "5px 16px", borderRadius: "9999px", border: "1px solid #334155" }}>📄 PAGE BREAK · END OF PAGE 1</span>
+              <div style={{ flex: 1, height: "1px", background: "linear-gradient(to right, transparent, #475569, transparent)" }} />
+            </div>
+          )}
+
+          {/* Page 2 */}
+          {p2Sections.length > 0 && (
+            <div className="resume-page-sheet resume-document-light" style={{ width: "794px", height: "1123px", backgroundColor: "#fff", boxShadow: "0 14px 40px rgba(0,0,0,0.35)", borderRadius: "4px", overflow: "hidden", display: "flex", flexDirection: "column", fontFamily: "'Inter',sans-serif" }}>
+              <div style={{ display: "flex", flex: 1, paddingTop: "24px" }}>
+                <div style={{ width: "220px", backgroundColor: "#f8fafc", borderRight: "1px solid #e2e8f0", flexShrink: 0 }} />
+                <div style={{ flex: 1, padding: "0 28px 24px 28px", display: "flex", flexDirection: "column", gap: fontCfg.sectionGap, background: "#fff" }}>
+                  {renderProfessionalMain(p2Sections, p2Map, true)}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    // ─── TEMPLATE 2: CLASSIC ATS (Ultra Clean Monochrome 1-Column) ───
+    if (selectedTheme === "Classic ATS") {
+      const { p1Sections, p2Sections, p1Map, p2Map } = getAdvancedPartitioning(false, "Classic ATS");
+
+      const renderAtsContent = (sectionsToRender: string[], itemMap: { [key: string]: any[] }, isPage2: boolean = false) => {
+        return sectionsToRender.map((section) => {
+          const secData = resumeData[section];
+          if (!secData || !secData.visible) return null;
+          if (section === "mediaHandles") return null;
+
+          const itemsToRender = section === "summary" ? secData.content : (itemMap[section] || []);
+          if (!itemsToRender || (Array.isArray(itemsToRender) && itemsToRender.length === 0)) return null;
+
+          const isContinued = isPage2 && p1Sections.includes(section);
+          const headingTitle = isContinued ? `${headings[section] || section} (Continued)` : (headings[section] || section);
+
+          return (
+            <div key={section + (isPage2 ? "_p2" : "_p1")} className="print-avoid-break" style={{ display: "flex", flexDirection: "column", gap: "5px", marginBottom: fontCfg.sectionGap }}>
+              <h3 style={{ fontSize: fontCfg.headingFont, fontWeight: "bold", textTransform: "uppercase", letterSpacing: "1.5px", borderBottom: "1.5px solid #000000", paddingBottom: "3px", color: "#000000", margin: "6px 0 3px 0", textAlign: "left", fontFamily: "Georgia, serif" }}>
+                {headingTitle}
+              </h3>
+
+              {section === "summary" && (
+                <p style={{ fontSize: fontCfg.bodyFont, color: "#000000", lineHeight: fontCfg.lineHeight, margin: 0, textAlign: "justify" }}>{secData.content}</p>
+              )}
+
+              {section === "experience" && (
+                <div style={{ display: "flex", flexDirection: "column", gap: fontCfg.gap }}>
+                  {(itemsToRender as any[]).map((item: any) => (
+                    <div key={item.id} className="resume-module-card print-avoid-break" style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", fontWeight: "bold", fontSize: `calc(${fontCfg.bodyFont} + 1px)`, color: "#000000" }}>
+                        <span>{item.role}</span>
+                        <span style={{ fontSize: fontCfg.smallFont, fontWeight: "normal", fontFamily: "monospace", color: "#222222" }}>{item.duration}</span>
+                      </div>
+                      <div style={{ fontSize: fontCfg.bodyFont, fontWeight: "600", color: "#000000", fontStyle: "italic" }}>{item.company}</div>
+                      <p style={{ fontSize: fontCfg.bodyFont, color: "#000000", lineHeight: fontCfg.lineHeight, margin: "2px 0 0 0", whiteSpace: "pre-wrap" }}>{item.responsibilities}</p>
+                      {item.technologies && <div style={{ fontSize: fontCfg.smallFont, fontFamily: "monospace", color: "#222222", marginTop: "2px" }}>Key Stack: {item.technologies}</div>}
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {section === "education" && (
+                <div style={{ display: "flex", flexDirection: "column", gap: fontCfg.gap }}>
+                  {(itemsToRender as any[]).map((item: any) => (
+                    <div key={item.id} className="resume-module-card print-avoid-break" style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", fontSize: fontCfg.bodyFont }}>
+                      <div style={{ display: "flex", flexDirection: "column" }}>
+                        <span style={{ fontSize: `calc(${fontCfg.bodyFont} + 1.5px)`, fontWeight: "bold", color: "#000000" }}>{item.degree}</span>
+                        <span style={{ color: "#000000" }}>{item.institution}</span>
+                        {item.grade && <span style={{ fontSize: fontCfg.smallFont, fontFamily: "monospace", color: "#000000", fontWeight: "bold", marginTop: "2px" }}>GPA / Grade: {item.grade}</span>}
+                      </div>
+                      <span style={{ fontSize: fontCfg.smallFont, fontFamily: "monospace", color: "#222222" }}>{item.duration}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {section === "projects" && (
+                <div style={{ display: "flex", flexDirection: "column", gap: fontCfg.gap }}>
+                  {(itemsToRender as any[]).map((item: any) => (
+                    <div key={item.id} className="resume-module-card print-avoid-break" style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", fontWeight: "bold", fontSize: `calc(${fontCfg.bodyFont} + 1px)`, color: "#000000" }}>
+                        <span>{item.name}</span>
+                        <span style={{ fontSize: fontCfg.smallFont, fontWeight: "normal", fontFamily: "monospace", color: "#222222" }}>{item.github || item.live}</span>
+                      </div>
+                      <p style={{ fontSize: fontCfg.bodyFont, color: "#000000", lineHeight: fontCfg.lineHeight, margin: 0 }}>{item.description}</p>
+                      {item.technologies && <div style={{ fontSize: fontCfg.smallFont, fontFamily: "monospace", color: "#222222", marginTop: "2px" }}>Technologies: {item.technologies}</div>}
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {section === "skills" && (
+                <div style={{ fontSize: fontCfg.bodyFont, color: "#000000", lineHeight: fontCfg.lineHeight }}>
+                  {(itemsToRender as any[]).map((s: any) => (
+                    <span key={s.id} style={{ marginRight: "12px", display: "inline-block" }}>
+                      <strong>{s.name}</strong> <span style={{ color: "#333333", fontSize: fontCfg.smallFont }}>({s.level})</span>
+                    </span>
+                  ))}
+                </div>
+              )}
+
+              {section === "testScores" && (
+                <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                  {(itemsToRender as any[]).map((item: any) => (
+                    <div key={item.id} style={{ padding: "6px 10px", border: "1px solid #000000", borderRadius: "4px" }}>
+                      <div style={{ fontSize: fontCfg.bodyFont, fontWeight: "bold", color: "#000000" }}>{item.title}</div>
+                      <div style={{ fontSize: `calc(${fontCfg.bodyFont} + 1px)`, fontFamily: "monospace", fontWeight: "bold", color: "#000000", marginTop: "1px" }}>{item.score}</div>
+                      {item.institution && <div style={{ fontSize: fontCfg.smallFont, color: "#222222" }}>{item.institution}</div>}
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {section === "certifications" && (
+                <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+                  {(itemsToRender as any[]).map((cert: any) => (
+                    <div key={cert.id} style={{ display: "flex", justifyContent: "space-between", fontSize: fontCfg.bodyFont, color: "#000000" }}>
+                      <span><strong>{cert.name}</strong> <span style={{ color: "#333333" }}>— {cert.issuer}</span></span>
+                      <span style={{ fontSize: fontCfg.smallFont, fontFamily: "monospace", color: "#333333" }}>{cert.date}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {section === "achievements" && (
+                <ul style={{ listStyleType: "disc", paddingLeft: "18px", margin: 0, fontSize: fontCfg.bodyFont, color: "#000000" }}>
+                  {(itemsToRender as any[]).map((ach: any) => (
+                    <li key={ach.id} style={{ marginBottom: "3px" }}>
+                      <strong>{ach.title}</strong> {ach.date && `(${ach.date})`} {ach.description && `— ${ach.description}`}
+                    </li>
+                  ))}
+                </ul>
+              )}
+
+              {section === "patents" && (
+                <ul style={{ listStyleType: "square", paddingLeft: "18px", margin: 0, fontSize: fontCfg.bodyFont, color: "#000000" }}>
+                  {(itemsToRender as any[]).map((pat: any) => (
+                    <li key={pat.id} style={{ marginBottom: "3px" }}>
+                      <strong>{pat.title}</strong> — Patent No: {pat.number}
+                    </li>
+                  ))}
+                </ul>
+              )}
+
+              {section === "languages" && (
+                <div style={{ fontSize: fontCfg.bodyFont, color: "#000000" }}>
+                  {(itemsToRender as any[]).map((l: any, idx: number, arr: any[]) => (
+                    <span key={l.name}>
+                      {l.name} ({l.level}){idx < arr.length - 1 ? ", " : ""}
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+        });
+      };
+
+      return (
+        <div id={isModal ? "resume-preview-container-modal" : "resume-preview-container"} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "32px", width: "794px" }}>
+          {/* Page 1 */}
+          <div className="resume-page-sheet resume-document-light" style={{ width: "794px", height: "1123px", backgroundColor: "#fff", boxShadow: "0 14px 40px rgba(0,0,0,0.35)", borderRadius: "4px", padding: "40px 52px", display: "flex", flexDirection: "column", gap: fontCfg.sectionGap, boxSizing: "border-box", fontFamily: "Georgia, serif", textAlign: "left" }}>
             <div style={{ textAlign: "center", display: "flex", flexDirection: "column", gap: "5px" }}>
-              <h2 style={{ fontFamily: "Georgia, serif", fontSize: "26px", fontWeight: "bold", textTransform: "uppercase", letterSpacing: "1px", color: "#000000", margin: 0 }}>
+              <h2 style={{ fontFamily: "Georgia, serif", fontSize: fontCfg.titleFont, fontWeight: "bold", textTransform: "uppercase", letterSpacing: "1px", color: "#000000", margin: 0 }}>
                 {pInfo.fullName || "Your Name"}
               </h2>
-              <div style={{ fontSize: "11.5px", fontWeight: "bold", textTransform: "uppercase", letterSpacing: "1.5px", color: "#000000" }}>
+              <div style={{ fontSize: fontCfg.bodyFont, fontWeight: "bold", textTransform: "uppercase", letterSpacing: "1.5px", color: "#000000" }}>
                 {pInfo.title}
               </div>
-              <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", gap: "6px 14px", fontSize: "10.5px", color: "#111111" }}>
+              <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", gap: "6px 14px", fontSize: fontCfg.bodyFont, color: "#111111" }}>
                 {pInfo.email && <span>{pInfo.email}</span>}
                 {pInfo.phone && <span>• {pInfo.phone}</span>}
                 {pInfo.address && <span>• {pInfo.address}</span>}
               </div>
               {resumeData.mediaHandles?.visible && resumeData.mediaHandles?.items?.some((h: any) => h.visible && h.url) && (
-                <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", gap: "6px 12px", fontSize: "10px", fontFamily: "monospace", color: "#222222" }}>
+                <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", gap: "6px 12px", fontSize: fontCfg.smallFont, fontFamily: "monospace", color: "#222222" }}>
                   {resumeData.mediaHandles.items.filter((h: any) => h.visible && h.url).map((h: any) => (
                     <span key={h.platform}>{h.platform}: {h.url}</span>
                   ))}
                 </div>
               )}
             </div>
+            {renderAtsContent(p1Sections, p1Map, false)}
+          </div>
 
-            {sectionOrder.map((section) => {
-              const secData = resumeData[section];
-              if (!secData || !secData.visible) return null;
-              if (section === "mediaHandles") return null;
+          {/* Visual Divider */}
+          {p2Sections.length > 0 && (
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "14px", width: "794px", userSelect: "none" }}>
+              <div style={{ flex: 1, height: "1px", background: "linear-gradient(to right, transparent, #475569, transparent)" }} />
+              <span style={{ fontSize: "10px", fontWeight: 800, color: "#cbd5e1", textTransform: "uppercase", letterSpacing: "2px", background: "#0f172a", padding: "5px 16px", borderRadius: "9999px", border: "1px solid #334155" }}>📄 PAGE BREAK · END OF PAGE 1</span>
+              <div style={{ flex: 1, height: "1px", background: "linear-gradient(to right, transparent, #475569, transparent)" }} />
+            </div>
+          )}
 
-              const hasContent = section === "summary" ? !!secData.content : secData.items?.some((i: any) => i.visible);
-              if (!hasContent) return null;
+          {/* Page 2 */}
+          {p2Sections.length > 0 && (
+            <div className="resume-page-sheet resume-document-light" style={{ width: "794px", height: "1123px", backgroundColor: "#fff", boxShadow: "0 14px 40px rgba(0,0,0,0.35)", borderRadius: "4px", padding: "40px 52px", display: "flex", flexDirection: "column", gap: fontCfg.sectionGap, boxSizing: "border-box", fontFamily: "Georgia, serif", textAlign: "left" }}>
+              {renderAtsContent(p2Sections, p2Map, true)}
+            </div>
+          )}
+        </div>
+      );
+    }
 
-              return (
-                <div key={section} className="print-avoid-break" style={{ display: "flex", flexDirection: "column", gap: "5px" }}>
-                  {/* ATS standard border-bottom heading */}
-                  <h3 style={{ fontSize: "12px", fontWeight: "bold", textTransform: "uppercase", letterSpacing: "1.5px", borderBottom: "1.5px solid #000000", paddingBottom: "3px", color: "#000000", margin: "6px 0 3px 0", textAlign: "left" }}>
-                    {headings[section]}
-                  </h3>
+    // ─── TEMPLATE 3: CREATIVE (Executive Modern Header, Card Layout) ───
+    const { p1Sections, p2Sections } = getPartitionedSections(false);
 
-                  {section === "summary" && (
-                    <p style={{ fontSize: "10.5px", color: "#000000", lineHeight: 1.6, margin: 0, textAlign: "justify" }}>
-                      {secData.content}
-                    </p>
-                  )}
+    const renderCreativeContent = (sectionsToRender: string[]) => {
+      return sectionsToRender.map((section) => {
+        const secData = resumeData[section];
+        if (!secData || !secData.visible) return null;
+        if (section === "mediaHandles") return null;
 
-                  {section === "experience" && (
-                    <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-                      {secData.items.filter((i: any) => i.visible).map((item: any) => (
-                        <div key={item.id} style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
-                          <div style={{ display: "flex", justifyContent: "space-between", fontWeight: "bold", fontSize: "12px", color: "#000000" }}>
-                            <span>{item.role}</span>
-                            <span style={{ fontSize: "10px", fontWeight: "normal", fontFamily: "monospace", color: "#222222" }}>{item.duration}</span>
-                          </div>
-                          <div style={{ fontSize: "11px", fontWeight: "600", color: "#000000", fontStyle: "italic" }}>
-                            {item.company}
-                          </div>
-                          <p style={{ fontSize: "10.5px", color: "#000000", lineHeight: 1.55, margin: "2px 0 0 0", whiteSpace: "pre-wrap" }}>
-                            {item.responsibilities}
-                          </p>
-                          {item.technologies && (
-                            <div style={{ fontSize: "9.5px", fontFamily: "monospace", color: "#222222", marginTop: "2px" }}>
-                              Key Stack: {item.technologies}
-                            </div>
-                          )}
-                        </div>
-                      ))}
+        const hasContent = section === "summary" ? !!secData.content : secData.items?.some((i: any) => i.visible);
+        if (!hasContent) return null;
+
+        const itemsToRender = secData.items?.filter((i: any) => i.visible) || [];
+        const headingTitle = headings[section] || section;
+
+        return (
+          <div key={section} className="print-avoid-break" style={{ display: "flex", flexDirection: "column", gap: "8px", marginBottom: fontCfg.sectionGap }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+              <div style={{ width: "4px", height: "15px", backgroundColor: accentColor, borderRadius: "2px" }} />
+              <h3 style={{ fontSize: fontCfg.headingFont, fontWeight: 900, textTransform: "uppercase", letterSpacing: "1.5px", color: accentColor, margin: 0 }}>
+                {headingTitle}
+              </h3>
+              <div style={{ flex: 1, height: "1px", backgroundColor: `${accentColor}20` }} />
+            </div>
+
+            {section === "summary" && (
+              <p style={{ fontSize: fontCfg.bodyFont, color: "#0f172a", lineHeight: fontCfg.lineHeight, margin: 0, paddingLeft: "12px" }}>{secData.content}</p>
+            )}
+
+            {section === "experience" && (
+              <div style={{ display: "flex", flexDirection: "column", gap: fontCfg.gap }}>
+                {itemsToRender.map((item: any) => (
+                  <div key={item.id} className="resume-module-card print-avoid-break" style={{ padding: fontCfg.cardPadding, border: "1px solid #e2e8f0", borderLeft: `4px solid ${accentColor}`, backgroundColor: "#f8fafc", borderRadius: "8px", display: "flex", flexDirection: "column", gap: "2px" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+                      <span style={{ fontSize: `calc(${fontCfg.bodyFont} + 1px)`, fontWeight: "bold", color: "#0f172a" }}>{item.role}</span>
+                      <span style={{ fontSize: fontCfg.smallFont, fontFamily: "monospace", color: "#475569" }}>{item.duration}</span>
                     </div>
-                  )}
+                    <span style={{ fontSize: fontCfg.bodyFont, fontWeight: "700", color: accentColor }}>{item.company}</span>
+                    <p style={{ fontSize: fontCfg.bodyFont, color: "#334155", lineHeight: fontCfg.lineHeight, margin: "4px 0 0 0", whiteSpace: "pre-wrap" }}>{item.responsibilities}</p>
+                    {item.technologies && <div style={{ fontSize: fontCfg.smallFont, fontFamily: "monospace", color: "#475569", marginTop: "4px" }}>Stack: {item.technologies}</div>}
+                  </div>
+                ))}
+              </div>
+            )}
 
-                  {section === "education" && (
-                    <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-                      {secData.items.filter((i: any) => i.visible).map((item: any) => (
-                        <div key={item.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", fontSize: "11px" }}>
-                          <div style={{ display: "flex", flexDirection: "column" }}>
-                            <span style={{ fontSize: "12px", fontWeight: "bold", color: "#000000" }}>{item.degree}</span>
-                            <span style={{ color: "#000000" }}>{item.institution}</span>
-                            {item.grade && <span style={{ fontSize: "10px", fontFamily: "monospace", color: "#000000", fontWeight: "bold", marginTop: "2px" }}>GPA / Grade: {item.grade}</span>}
-                          </div>
-                          <span style={{ fontSize: "10px", fontFamily: "monospace", color: "#222222" }}>{item.duration}</span>
-                        </div>
-                      ))}
+            {section === "education" && (
+              <div style={{ display: "flex", flexDirection: "column", gap: fontCfg.gap }}>
+                {itemsToRender.map((item: any) => (
+                  <div key={item.id} className="resume-module-card print-avoid-break" style={{ padding: fontCfg.cardPadding, border: "1px solid #e2e8f0", borderLeft: `4px solid ${accentColor}`, backgroundColor: "#f8fafc", borderRadius: "8px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <div>
+                      <strong style={{ fontSize: `calc(${fontCfg.bodyFont} + 1.5px)`, color: "#0f172a", display: "block" }}>{item.degree}</strong>
+                      <span style={{ fontSize: fontCfg.bodyFont, color: "#475569" }}>{item.institution}</span>
                     </div>
-                  )}
-
-                  {section === "projects" && (
-                    <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-                      {secData.items.filter((i: any) => i.visible).map((item: any) => (
-                        <div key={item.id} style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
-                          <div style={{ display: "flex", justifyContent: "space-between", fontWeight: "bold", fontSize: "12px", color: "#000000" }}>
-                            <span>{item.name}</span>
-                            <span style={{ fontSize: "10px", fontWeight: "normal", fontFamily: "monospace", color: "#222222" }}>{item.github || item.live}</span>
-                          </div>
-                          <p style={{ fontSize: "10.5px", color: "#000000", lineHeight: 1.5, margin: 0 }}>
-                            {item.description}
-                          </p>
-                          {item.technologies && (
-                            <div style={{ fontSize: "9.5px", fontFamily: "monospace", color: "#222222", marginTop: "2px" }}>
-                              Technologies: {item.technologies}
-                            </div>
-                          )}
-                        </div>
-                      ))}
+                    <div style={{ textAlign: "right" }}>
+                      <span style={{ fontSize: fontCfg.smallFont, fontFamily: "monospace", color: "#475569", display: "block" }}>{item.duration}</span>
+                      {item.grade && <span style={{ fontSize: fontCfg.bodyFont, fontWeight: "bold", color: accentColor }}>CGPA / Grade: {item.grade}</span>}
                     </div>
-                  )}
+                  </div>
+                ))}
+              </div>
+            )}
 
-                  {section === "skills" && (
-                    <div style={{ fontSize: "10.5px", color: "#000000", lineHeight: 1.6 }}>
-                      {secData.items.filter((i: any) => i.visible).map((s: any) => (
-                        <span key={s.id} style={{ marginRight: "12px", display: "inline-block" }}>
-                          <strong>{s.name}</strong> <span style={{ color: "#333333", fontSize: "9.5px" }}>({s.level})</span>
-                        </span>
-                      ))}
+            {section === "projects" && (
+              <div style={{ display: "flex", flexDirection: "column", gap: fontCfg.gap }}>
+                {itemsToRender.map((item: any) => (
+                  <div key={item.id} className="resume-module-card print-avoid-break" style={{ padding: fontCfg.cardPadding, border: "1px solid #e2e8f0", borderLeft: `4px solid ${accentColor}`, backgroundColor: "#f8fafc", borderRadius: "8px", display: "flex", flexDirection: "column", gap: "2px" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <strong style={{ fontSize: `calc(${fontCfg.bodyFont} + 1px)`, color: "#0f172a" }}>{item.name}</strong>
+                      <div style={{ display: "flex", gap: "10px" }}>
+                        {item.github && <span style={{ fontSize: fontCfg.smallFont, fontWeight: 600, color: accentColor }}>Repo</span>}
+                        {item.live && <span style={{ fontSize: fontCfg.smallFont, fontWeight: 600, color: accentColor }}>Live</span>}
+                      </div>
                     </div>
-                  )}
+                    <p style={{ fontSize: fontCfg.bodyFont, color: "#334155", lineHeight: fontCfg.lineHeight, margin: "3px 0 0 0" }}>{item.description}</p>
+                    {item.technologies && <div style={{ fontSize: fontCfg.smallFont, fontFamily: "monospace", color: "#475569", marginTop: "4px" }}>Tech: {item.technologies}</div>}
+                  </div>
+                ))}
+              </div>
+            )}
 
-                  {section === "testScores" && (
-                    <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-                      {secData.items.filter((i: any) => i.visible).map((item: any) => (
-                        <div key={item.id} style={{ padding: "6px 10px", border: "1px solid #000000", borderRadius: "4px" }}>
-                          <div style={{ fontSize: "11px", fontWeight: "bold", color: "#000000" }}>{item.title}</div>
-                          <div style={{ fontSize: "11.5px", fontFamily: "monospace", fontWeight: "bold", color: "#000000", marginTop: "1px" }}>{item.score}</div>
-                          {item.institution && <div style={{ fontSize: "9.5px", color: "#222222" }}>{item.institution}</div>}
-                        </div>
-                      ))}
+            {section === "skills" && (
+              <div style={{ display: "flex", flexWrap: "wrap", gap: "6px", paddingLeft: "10px" }}>
+                {itemsToRender.map((skill: any) => {
+                  const isHigh = skill.level === "Expert" || skill.level === "Advanced";
+                  return (
+                    <span key={skill.id} style={{ fontSize: fontCfg.smallFont, fontWeight: "bold", padding: "4px 9px", borderRadius: "6px", backgroundColor: isHigh ? `${accentColor}18` : "#f1f5f9", color: isHigh ? accentColor : "#334155", border: `1px solid ${isHigh ? `${accentColor}30` : "#e2e8f0"}` }}>
+                      {skill.name} <span style={{ fontSize: "8px", opacity: 0.75 }}>({skill.level})</span>
+                    </span>
+                  );
+                })}
+              </div>
+            )}
+
+            {section === "certifications" && (
+              <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                {itemsToRender.map((cert: any) => (
+                  <div key={cert.id} style={{ padding: fontCfg.cardPadding, border: "1px solid #e2e8f0", backgroundColor: "#f8fafc", borderRadius: "6px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <div>
+                      <strong style={{ fontSize: fontCfg.bodyFont, color: "#0f172a", display: "block" }}>{cert.name}</strong>
+                      <span style={{ fontSize: fontCfg.smallFont, color: "#475569" }}>{cert.issuer}</span>
                     </div>
-                  )}
+                    <span style={{ fontSize: fontCfg.smallFont, fontFamily: "monospace", color: "#475569" }}>{cert.date}</span>
+                  </div>
+                ))}
+              </div>
+            )}
 
-                  {section === "certifications" && (
-                    <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-                      {secData.items.filter((i: any) => i.visible).map((cert: any) => (
-                        <div key={cert.id} style={{ display: "flex", justifyContent: "space-between", fontSize: "10.5px", color: "#000000" }}>
-                          <span><strong>{cert.name}</strong> <span style={{ color: "#333333" }}>— {cert.issuer}</span></span>
-                          <span style={{ fontSize: "10px", fontFamily: "monospace", color: "#333333" }}>{cert.date}</span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
+            {section === "achievements" && (
+              <div style={{ display: "flex", flexDirection: "column", gap: "6px", paddingLeft: "10px" }}>
+                {itemsToRender.map((ach: any) => (
+                  <div key={ach.id} style={{ fontSize: fontCfg.bodyFont, color: "#0f172a", borderLeft: `2px solid ${accentColor}40`, paddingLeft: "6px" }}>
+                    <strong style={{ color: "#0f172a" }}>{ach.title}</strong> {ach.date && `(${ach.date})`}
+                    {ach.description && <div style={{ fontSize: fontCfg.smallFont, color: "#334155", marginTop: "1px" }}>{ach.description}</div>}
+                  </div>
+                ))}
+              </div>
+            )}
 
-                  {section === "achievements" && (
-                    <ul style={{ listStyleType: "disc", paddingLeft: "18px", margin: 0, fontSize: "10.5px", color: "#000000" }}>
-                      {secData.items.filter((i: any) => i.visible).map((ach: any) => (
-                        <li key={ach.id} style={{ marginBottom: "3px" }}>
-                          <strong>{ach.title}</strong> {ach.date && `(${ach.date})`} {ach.description && `— ${ach.description}`}
-                        </li>
-                      ))}
-                    </ul>
-                  )}
+            {section === "testScores" && (
+              <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                {itemsToRender.map((item: any) => (
+                  <div key={item.id} style={{ padding: fontCfg.cardPadding, borderRadius: "8px", border: `1px solid ${accentColor}30`, background: `${accentColor}08` }}>
+                    <div style={{ fontSize: fontCfg.bodyFont, fontWeight: 700, color: "#0f172a" }}>{item.title}</div>
+                    <div style={{ fontSize: `calc(${fontCfg.bodyFont} + 1px)`, fontFamily: "monospace", fontWeight: 800, color: accentColor, marginTop: "2px" }}>{item.score}</div>
+                    {item.institution && <div style={{ fontSize: fontCfg.smallFont, color: "#475569", marginTop: "1px" }}>{item.institution}</div>}
+                  </div>
+                ))}
+              </div>
+            )}
 
-                  {section === "patents" && (
-                    <ul style={{ listStyleType: "square", paddingLeft: "18px", margin: 0, fontSize: "10.5px", color: "#000000" }}>
-                      {secData.items.filter((i: any) => i.visible).map((pat: any) => (
-                        <li key={pat.id} style={{ marginBottom: "3px" }}>
-                          <strong>{pat.title}</strong> — Patent No: {pat.number}
-                        </li>
-                      ))}
-                    </ul>
-                  )}
+            {section === "patents" && (
+              <div style={{ display: "flex", flexDirection: "column", gap: "5px", paddingLeft: "10px" }}>
+                {itemsToRender.map((pat: any) => (
+                  <div key={pat.id} style={{ fontSize: fontCfg.bodyFont, color: "#0f172a" }}>
+                    📜 <strong>{pat.title}</strong> (No: {pat.number})
+                  </div>
+                ))}
+              </div>
+            )}
 
-                  {section === "languages" && (
-                    <div style={{ fontSize: "10.5px", color: "#000000" }}>
-                      {secData.items.filter((i: any) => i.visible).map((l: any, idx: number, arr: any[]) => (
-                        <span key={l.name}>
-                          {l.name} ({l.level}){idx < arr.length - 1 ? ", " : ""}
-                        </span>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
+            {section === "languages" && (
+              <div style={{ display: "flex", flexWrap: "wrap", gap: "6px", paddingLeft: "10px" }}>
+                {itemsToRender.map((l: any) => (
+                  <span key={l.name} style={{ fontSize: fontCfg.smallFont, padding: "3px 8px", backgroundColor: "#f1f5f9", borderRadius: "5px", color: "#334155", fontWeight: 600 }}>
+                    {l.name} <span style={{ fontSize: "8px", opacity: 0.75 }}>({l.level})</span>
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+        );
+      });
+    };
+
+    return (
+      <div id={isModal ? "resume-preview-container-modal" : "resume-preview-container"} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "32px", width: "794px" }}>
+        {/* Page 1 */}
+        <div className="resume-page-sheet resume-document-light" style={{ width: "794px", height: "1123px", backgroundColor: "#fff", boxShadow: "0 14px 40px rgba(0,0,0,0.35)", borderRadius: "4px", padding: "30px", display: "flex", flexDirection: "column", gap: fontCfg.sectionGap, boxSizing: "border-box", fontFamily: "'Inter',sans-serif", textAlign: "left" }}>
+          {/* Header Banner */}
+          <div style={{ background: `linear-gradient(135deg, ${accentColor}, #0f172a)`, borderRadius: "14px", padding: "24px", color: "#ffffff", display: "flex", flexDirection: "column", gap: "12px", boxShadow: "0 6px 20px -4px rgba(0,0,0,0.12)" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
+              <div>
+                <h2 style={{ fontSize: fontCfg.titleFont, fontWeight: 900, textTransform: "uppercase", letterSpacing: "1.5px", color: "#ffffff", margin: 0 }}>
+                  {pInfo.fullName || "Your Name"}
+                </h2>
+                <p style={{ fontSize: fontCfg.bodyFont, fontFamily: "Inter, sans-serif", fontWeight: 700, textTransform: "uppercase", letterSpacing: "2px", color: "rgba(255,255,255,0.92)", marginTop: "6px", margin: 0 }}>
+                  {pInfo.title || "Creative Professional"}
+                </p>
+              </div>
+
+              {pInfo.showPhoto && pInfo.profileImageUrl && (() => {
+                const img = parseImageAdjustments(pInfo.profileImageUrl);
+                return (
+                  <div style={{ width: "75px", height: "75px", borderRadius: "12px", overflow: "hidden", border: "2px solid rgba(255,255,255,0.3)", boxShadow: "0 4px 12px rgba(0,0,0,0.2)", background: "#fff", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    <img src={img.src} style={{ ...img.style, width: "100%", height: "100%" }} alt={pInfo.fullName} />
+                  </div>
+                );
+              })()}
+            </div>
+
+            <div style={{ height: "1px", background: "rgba(255,255,255,0.2)" }} />
+
+            <div style={{ display: "flex", flexWrap: "wrap", gap: "6px 14px", fontSize: fontCfg.bodyFont, color: "rgba(255,255,255,0.95)" }}>
+              {pInfo.email && <span style={{ background: "rgba(255,255,255,0.1)", padding: "3px 8px", borderRadius: "6px" }}>✉ {pInfo.email}</span>}
+              {pInfo.phone && <span style={{ background: "rgba(255,255,255,0.1)", padding: "3px 8px", borderRadius: "6px" }}>📞 {pInfo.phone}</span>}
+              {pInfo.address && <span style={{ background: "rgba(255,255,255,0.1)", padding: "3px 8px", borderRadius: "6px" }}>📍 {pInfo.address}</span>}
+            </div>
+
+            {resumeData.mediaHandles?.visible && resumeData.mediaHandles?.items?.some((h: any) => h.visible && h.url) && (
+              <div style={{ display: "flex", flexWrap: "wrap", gap: "6px 12px", fontSize: fontCfg.smallFont }}>
+                {resumeData.mediaHandles.items.filter((h: any) => h.visible && h.url).map((h: any) => (
+                  <span key={h.platform} style={{ color: "#ffffff", background: "rgba(255,255,255,0.15)", padding: "3px 8px", borderRadius: "6px", fontWeight: "bold" }}>
+                    {h.platform}: {h.url}
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+          {renderCreativeContent(p1Sections)}
+        </div>
+
+        {/* Visual Divider */}
+        {p2Sections.length > 0 && (
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "14px", width: "794px", userSelect: "none" }}>
+            <div style={{ flex: 1, height: "1px", background: "linear-gradient(to right, transparent, #475569, transparent)" }} />
+            <span style={{ fontSize: "10px", fontWeight: 800, color: "#cbd5e1", textTransform: "uppercase", letterSpacing: "2px", background: "#0f172a", padding: "5px 16px", borderRadius: "9999px", border: "1px solid #334155" }}>📄 PAGE BREAK · END OF PAGE 1</span>
+            <div style={{ flex: 1, height: "1px", background: "linear-gradient(to right, transparent, #475569, transparent)" }} />
           </div>
         )}
 
-        {/* ═══════════════════════════════════════════════════════════
-            TEMPLATE 3: CREATIVE (Executive Modern Header, Card Layout)
-        ══════════════════════════════════════════════════════════════ */}
-        {selectedTheme === "Creative" && (
-          <div style={{ padding: "30px", display: "flex", flexDirection: "column", gap: "18px", flex: 1, textAlign: "left" }}>
-            
-            {/* Elegant Colorful Header Banner */}
-            <div
-              style={{
-                background: `linear-gradient(135deg, ${accentColor}, #0f172a)`,
-                borderRadius: "14px",
-                padding: "24px",
-                color: "#ffffff",
-                display: "flex",
-                flexDirection: "column",
-                gap: "12px",
-                boxShadow: "0 6px 20px -4px rgba(0,0,0,0.12)"
-              }}
-            >
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
-                <div>
-                  <h2 style={{ fontSize: "25px", fontWeight: 900, textTransform: "uppercase", letterSpacing: "1.5px", color: "#ffffff", margin: 0 }}>
-                    {pInfo.fullName || "Your Name"}
-                  </h2>
-                  <p style={{ fontSize: "11.5px", fontFamily: "Inter, sans-serif", fontWeight: 700, textTransform: "uppercase", letterSpacing: "2px", color: "rgba(255,255,255,0.92)", marginTop: "6px", margin: 0 }}>
-                    {pInfo.title || "Creative Professional"}
-                  </p>
-                </div>
-
-                {pInfo.showPhoto && pInfo.profileImageUrl && (() => {
-                  const img = parseImageAdjustments(pInfo.profileImageUrl);
-                  return (
-                    <div style={{ width: "75px", height: "75px", borderRadius: "12px", overflow: "hidden", border: "2px solid rgba(255,255,255,0.3)", boxShadow: "0 4px 12px rgba(0,0,0,0.2)", background: "#fff", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                      <img src={img.src} style={{ ...img.style, width: "100%", height: "100%" }} alt={pInfo.fullName} />
-                    </div>
-                  );
-                })()}
-              </div>
-
-              <div style={{ height: "1px", background: "rgba(255,255,255,0.2)" }} />
-
-              <div style={{ display: "flex", flexWrap: "wrap", gap: "6px 14px", fontSize: "10.5px", color: "rgba(255,255,255,0.95)" }}>
-                {pInfo.email && <span style={{ background: "rgba(255,255,255,0.1)", padding: "3px 8px", borderRadius: "6px" }}>✉ {pInfo.email}</span>}
-                {pInfo.phone && <span style={{ background: "rgba(255,255,255,0.1)", padding: "3px 8px", borderRadius: "6px" }}>📞 {pInfo.phone}</span>}
-                {pInfo.address && <span style={{ background: "rgba(255,255,255,0.1)", padding: "3px 8px", borderRadius: "6px" }}>📍 {pInfo.address}</span>}
-              </div>
-
-              {resumeData.mediaHandles?.visible && resumeData.mediaHandles?.items?.some((h: any) => h.visible && h.url) && (
-                <div style={{ display: "flex", flexWrap: "wrap", gap: "6px 12px", fontSize: "10px" }}>
-                  {resumeData.mediaHandles.items.filter((h: any) => h.visible && h.url).map((h: any) => (
-                    <span key={h.platform} style={{ color: "#ffffff", background: "rgba(255,255,255,0.15)", padding: "3px 8px", borderRadius: "6px", fontWeight: "bold" }}>
-                      {h.platform}: {h.url}
-                    </span>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* Content Sections */}
-            {sectionOrder.map((section) => {
-              const secData = resumeData[section];
-              if (!secData || !secData.visible) return null;
-              if (section === "mediaHandles") return null;
-
-              const hasContent = section === "summary" ? !!secData.content : secData.items?.some((i: any) => i.visible);
-              if (!hasContent) return null;
-
-              return (
-                <div key={section} className="print-avoid-break" style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-                  
-                  {/* Heading Accent styling */}
-                  <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                    <div style={{ width: "4px", height: "15px", backgroundColor: accentColor, borderRadius: "2px" }} />
-                    <h3 style={{ fontSize: "12px", fontWeight: 900, textTransform: "uppercase", letterSpacing: "1.5px", color: accentColor, margin: 0 }}>
-                      {headings[section]}
-                    </h3>
-                    <div style={{ flex: 1, height: "1px", backgroundColor: `${accentColor}20` }} />
-                  </div>
-
-                  {section === "summary" && (
-                    <p style={{ fontSize: "10.5px", color: "#0f172a", lineHeight: 1.6, margin: 0, paddingLeft: "12px" }}>
-                      {secData.content}
-                    </p>
-                  )}
-
-                  {section === "experience" && (
-                    <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-                      {secData.items.filter((i: any) => i.visible).map((item: any) => (
-                        <div key={item.id} style={{ padding: "10px 14px", border: "1px solid #e2e8f0", borderLeft: `4px solid ${accentColor}`, backgroundColor: "#f8fafc", borderRadius: "8px", display: "flex", flexDirection: "column", gap: "2px" }}>
-                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
-                            <span style={{ fontSize: "12px", fontWeight: "bold", color: "#0f172a" }}>{item.role}</span>
-                            <span style={{ fontSize: "10px", fontFamily: "monospace", color: "#475569" }}>{item.duration}</span>
-                          </div>
-                          <span style={{ fontSize: "11px", fontWeight: "700", color: accentColor }}>{item.company}</span>
-                          <p style={{ fontSize: "10.5px", color: "#334155", lineHeight: 1.5, margin: "4px 0 0 0", whiteSpace: "pre-wrap" }}>
-                            {item.responsibilities}
-                          </p>
-                          {item.technologies && (
-                            <div style={{ fontSize: "9.5px", fontFamily: "monospace", color: "#475569", marginTop: "4px" }}>
-                              Stack: {item.technologies}
-                            </div>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
-                  {section === "education" && (
-                    <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-                      {secData.items.filter((i: any) => i.visible).map((item: any) => (
-                        <div key={item.id} style={{ padding: "10px 14px", border: "1px solid #e2e8f0", borderLeft: `4px solid ${accentColor}`, backgroundColor: "#f8fafc", borderRadius: "8px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                          <div>
-                            <strong style={{ fontSize: "12px", color: "#0f172a", display: "block" }}>{item.degree}</strong>
-                            <span style={{ fontSize: "11px", color: "#475569" }}>{item.institution}</span>
-                          </div>
-                          <div style={{ textAlign: "right" }}>
-                            <span style={{ fontSize: "10px", fontFamily: "monospace", color: "#475569", display: "block" }}>{item.duration}</span>
-                            {item.grade && <span style={{ fontSize: "10.5px", fontWeight: "bold", color: accentColor }}>CGPA / Grade: {item.grade}</span>}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
-                  {section === "projects" && (
-                    <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-                      {secData.items.filter((i: any) => i.visible).map((item: any) => (
-                        <div key={item.id} style={{ padding: "10px 14px", border: "1px solid #e2e8f0", borderLeft: `4px solid ${accentColor}`, backgroundColor: "#f8fafc", borderRadius: "8px", display: "flex", flexDirection: "column", gap: "2px" }}>
-                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                            <strong style={{ fontSize: "12px", color: "#0f172a" }}>{item.name}</strong>
-                            <div style={{ display: "flex", gap: "10px" }}>
-                              {item.github && <span style={{ fontSize: "10px", fontWeight: 600, color: accentColor }}>Repo</span>}
-                              {item.live && <span style={{ fontSize: "10px", fontWeight: 600, color: accentColor }}>Live</span>}
-                            </div>
-                          </div>
-                          <p style={{ fontSize: "10.5px", color: "#334155", lineHeight: 1.5, margin: "3px 0 0 0" }}>
-                            {item.description}
-                          </p>
-                          {item.technologies && (
-                            <div style={{ fontSize: "9.5px", fontFamily: "monospace", color: "#475569", marginTop: "4px" }}>
-                              Tech: {item.technologies}
-                            </div>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
-                  {section === "skills" && (
-                    <div style={{ display: "flex", flexWrap: "wrap", gap: "6px", paddingLeft: "10px" }}>
-                      {secData.items.filter((i: any) => i.visible).map((skill: any) => {
-                        const isHigh = skill.level === "Expert" || skill.level === "Advanced";
-                        return (
-                          <span
-                            key={skill.id}
-                            style={{
-                              fontSize: "10px",
-                              fontWeight: "bold",
-                              padding: "4px 9px",
-                              borderRadius: "6px",
-                              backgroundColor: isHigh ? `${accentColor}18` : "#f1f5f9",
-                              color: isHigh ? accentColor : "#334155",
-                              border: `1px solid ${isHigh ? `${accentColor}30` : "#e2e8f0"}`
-                            }}
-                          >
-                            {skill.name} <span style={{ fontWeight: "normal", fontSize: "9px", opacity: 0.7 }}>· {skill.level}</span>
-                          </span>
-                        );
-                      })}
-                    </div>
-                  )}
-
-                  {section === "testScores" && (
-                    <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-                      {secData.items.filter((i: any) => i.visible).map((item: any) => (
-                        <div key={item.id} style={{ padding: "8px 12px", border: "1px solid #e2e8f0", backgroundColor: "#f8fafc", borderRadius: "8px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                          <div>
-                            <strong style={{ fontSize: "11px", color: "#0f172a", display: "block" }}>{item.title}</strong>
-                            {item.institution && <span style={{ fontSize: "9.5px", color: "#475569" }}>{item.institution}</span>}
-                          </div>
-                          <span style={{ fontSize: "11px", fontWeight: "bold", color: "#ffffff", backgroundColor: accentColor, padding: "3px 8px", borderRadius: "5px", fontFamily: "monospace" }}>{item.score}</span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
-                  {section === "certifications" && (
-                    <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-                      {secData.items.filter((i: any) => i.visible).map((cert: any) => (
-                        <div key={cert.id} style={{ padding: "8px 12px", border: "1px solid #e2e8f0", backgroundColor: "#f8fafc", borderRadius: "8px", fontSize: "10.5px", display: "flex", justifyContent: "space-between" }}>
-                          <div>
-                            <strong style={{ color: "#0f172a", display: "block" }}>{cert.name}</strong>
-                            <span style={{ color: "#475569", fontSize: "10px" }}>{cert.issuer}</span>
-                          </div>
-                          <span style={{ fontSize: "10px", fontFamily: "monospace", color: "#475569" }}>{cert.date}</span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
-                  {section === "achievements" && (
-                    <ul style={{ listStyleType: "disc", paddingLeft: "20px", margin: 0, fontSize: "10.5px", color: "#0f172a" }}>
-                      {secData.items.filter((i: any) => i.visible).map((ach: any) => (
-                        <li key={ach.id} style={{ marginBottom: "4px" }}>
-                          <strong>{ach.title}</strong> {ach.date && `(${ach.date})`} {ach.description && `— ${ach.description}`}
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-
-                  {section === "patents" && (
-                    <ul style={{ listStyleType: "square", paddingLeft: "20px", margin: 0, fontSize: "10.5px", color: "#0f172a" }}>
-                      {secData.items.filter((i: any) => i.visible).map((pat: any) => (
-                        <li key={pat.id} style={{ marginBottom: "4px" }}>
-                          <strong>{pat.title}</strong> — Patent No: {pat.number}
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-
-                  {section === "languages" && (
-                    <div style={{ fontSize: "10.5px", color: "#0f172a", paddingLeft: "10px" }}>
-                      {secData.items.filter((i: any) => i.visible).map((l: any, idx: number, arr: any[]) => (
-                        <span key={l.name}>
-                          <strong>{l.name}</strong> ({l.level}){idx < arr.length - 1 ? ", " : ""}
-                        </span>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
+        {/* Page 2 */}
+        {p2Sections.length > 0 && (
+          <div className="resume-page-sheet resume-document-light" style={{ width: "794px", height: "1123px", backgroundColor: "#fff", boxShadow: "0 14px 40px rgba(0,0,0,0.35)", borderRadius: "4px", padding: "30px", display: "flex", flexDirection: "column", gap: fontCfg.sectionGap, boxSizing: "border-box", fontFamily: "'Inter',sans-serif", textAlign: "left" }}>
+            {renderCreativeContent(p2Sections)}
           </div>
         )}
       </div>
@@ -1340,6 +1485,15 @@ export default function ResumeEditorPage() {
         html.dark .resume-document-light {
           background-color: #ffffff !important;
           color: #0f172a !important;
+          position: relative !important;
+          background-image: linear-gradient(to bottom, transparent 1121px, #cbd5e1 1121px, #94a3b8 1123px, #cbd5e1 1125px, transparent 1125px) !important;
+          background-size: 100% 1123px !important;
+        }
+
+        .resume-module-card, .print-avoid-break {
+          break-inside: avoid !important;
+          page-break-inside: avoid !important;
+          -webkit-column-break-inside: avoid !important;
         }
 
         #resume-preview-container h1,
@@ -1564,6 +1718,33 @@ export default function ResumeEditorPage() {
                   </div>
                 </div>
               )}
+
+              {/* Font Size Option Picker */}
+              <div className="space-y-3">
+                <label className="text-[10px] font-mono uppercase tracking-wider text-slate-400">Typography Font Size</label>
+                <div className="grid grid-cols-4 gap-2 bg-slate-900 p-2 rounded-xl border border-slate-700">
+                  {[
+                    { id: "Small", label: "Small", detail: "9.5px" },
+                    { id: "Medium", label: "Medium", detail: "10.5px" },
+                    { id: "Large", label: "Large", detail: "11.5px" },
+                    { id: "XL", label: "XL", detail: "12.5px" }
+                  ].map((f) => (
+                    <button
+                      key={f.id}
+                      type="button"
+                      onClick={() => setFontSizeLevel(f.id)}
+                      className={`p-2 rounded-lg text-center transition cursor-pointer border ${
+                        fontSizeLevel === f.id
+                          ? "border-[#781c1c] bg-[#781c1c]/20 text-white font-bold shadow-md"
+                          : "border-slate-800 bg-slate-800 text-slate-400 hover:text-white hover:border-slate-600"
+                      }`}
+                    >
+                      <div className="text-xs font-bold">{f.label}</div>
+                      <div className="text-[8.5px] opacity-75">{f.detail}</div>
+                    </button>
+                  ))}
+                </div>
+              </div>
 
               {/* Sections Reordering */}
               <div className="space-y-3">
@@ -2317,28 +2498,25 @@ export default function ResumeEditorPage() {
         </div>
 
         {/* Live Preview Area Container */}
-        <div className="flex-1 overflow-auto p-2 sm:p-8 flex justify-center bg-slate-950">
+        <div className="flex-1 overflow-y-auto p-4 sm:p-8 flex flex-col items-center bg-slate-950 scrollbar-thin">
           
           {/* Zoom Wrapper */}
           <div
             style={{
               width: `${794 * zoomLevel}px`,
-              height: `${1123 * zoomLevel}px`,
-              overflow: "hidden",
-              position: "relative"
+              minHeight: `${1123 * zoomLevel}px`,
+              position: "relative",
+              paddingBottom: "40px"
             }}
-            className="transition-all duration-200 shadow-2xl"
+            className="transition-all duration-200"
           >
             <div
               style={{
-                transform: `scale(${zoomLevel}) translateZ(0)`,
+                transform: `scale(${zoomLevel})`,
                 willChange: "transform",
-                transformOrigin: "top left",
+                transformOrigin: "top center",
                 width: "794px",
-                height: "1123px",
-                position: "absolute",
-                left: 0,
-                top: 0
+                minHeight: "1123px"
               }}
             >
               {renderResumeDocument(false)}
@@ -2348,7 +2526,7 @@ export default function ResumeEditorPage() {
       </div>
       {showPreviewModal && (
         <div className="fixed inset-0 z-[100] bg-slate-950/85 backdrop-blur-md flex flex-col items-center justify-center p-4">
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-4xl h-[90vh] flex flex-col overflow-hidden shadow-2xl relative">
+          <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-5xl h-[92vh] flex flex-col overflow-hidden shadow-2xl relative">
             {/* Modal Header */}
             <div className="p-4 border-b border-slate-800 flex justify-between items-center bg-slate-900/50 shrink-0">
               <h3 className="font-bold text-xs uppercase tracking-wider text-slate-400 font-mono">Fullscreen Resume Preview</h3>
@@ -2369,26 +2547,23 @@ export default function ResumeEditorPage() {
               </div>
             </div>
             {/* Modal Body (Scrollable preview area) */}
-            <div className="flex-1 overflow-auto p-2 sm:p-8 flex justify-center bg-slate-950">
+            <div className="flex-1 overflow-y-auto p-4 sm:p-8 flex flex-col items-center bg-slate-950">
               <div
                 style={{
                   width: `${794 * zoomLevel}px`,
-                  height: `${1123 * zoomLevel}px`,
-                  overflow: "hidden",
-                  position: "relative"
+                  minHeight: `${1123 * zoomLevel}px`,
+                  position: "relative",
+                  paddingBottom: "40px"
                 }}
-                className="transition-all duration-200 shadow-2xl"
+                className="transition-all duration-200"
               >
                 <div
                   style={{
-                    transform: `scale(${zoomLevel}) translateZ(0)`,
+                    transform: `scale(${zoomLevel})`,
                     willChange: "transform",
-                    transformOrigin: "top left",
+                    transformOrigin: "top center",
                     width: "794px",
-                    height: "1123px",
-                    position: "absolute",
-                    left: 0,
-                    top: 0
+                    minHeight: "1123px"
                   }}
                 >
                   {renderResumeDocument(true)}
