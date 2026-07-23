@@ -231,41 +231,18 @@ export default function ResumeEditorPage() {
     const prof = portfolio.profile;
     const userObj = prof?.user || {};
 
-    // Standardize marksheets from Academic Records
-    const testScoresItems = portfolio.academicRecords.map((rec: any) => {
-      const deg = rec.degree.toLowerCase();
-      let typeId = "other";
-      if (deg.includes("10th")) typeId = "10th";
-      else if (deg.includes("11th")) typeId = "11th";
-      else if (deg.includes("12th")) typeId = "12th";
-      else if (deg.includes("ug") || deg.includes("bachelor")) typeId = "ug";
-      else if (deg.includes("pg") || deg.includes("master")) typeId = "pg";
-
-      return {
-        id: rec.id.toString(),
-        typeId,
-        title: `${rec.degree} Marksheet`,
-        score: rec.grade,
-        institution: rec.institution,
-        duration: `${rec.startYear} - ${rec.endYear}`,
-        visible: true,
-        highlighted: true
-      };
-    });
-
-    // Add standardized text test scores if available in Profile
-    if (prof.testScores) {
-      testScoresItems.push({
+    const testScoresItems = prof?.testScores ? [
+      {
         id: "profile-test-scores",
         typeId: "standardized",
         title: "Standardized Test Scores",
         score: prof.testScores,
-        institution: "",
+        institution: "Official Entrance & Proficiency Examinations",
         duration: "",
         visible: true,
-        highlighted: false
-      });
-    }
+        highlighted: true
+      }
+    ] : [];
 
     return {
       personalInfo: {
@@ -304,27 +281,21 @@ export default function ResumeEditorPage() {
             role: exp.title,
             duration: `${formatResumeYear(exp.startDate)} - ${exp.isCurrent ? "Present" : formatResumeYear(exp.endDate)}`,
             responsibilities: exp.description || "",
-            technologies: exp.category || "", // Using Category field as placeholder for technologies
+            technologies: exp.category || "",
             visible: true
           };
         })
       },
       education: {
         visible: true,
-        items: portfolio.academicRecords
-          .filter((rec: any) => {
-            const d = rec.degree.toLowerCase();
-            // Filter out secondary school marksheets from standard education grid to put under Test Scores instead
-            return !d.includes("10th") && !d.includes("11th") && !d.includes("12th");
-          })
-          .map((rec: any) => ({
-            id: rec.id,
-            degree: rec.degree,
-            institution: rec.institution,
-            duration: `${rec.startYear} - ${rec.endYear}`,
-            grade: rec.grade,
-            visible: true
-          }))
+        items: portfolio.academicRecords.map((rec: any) => ({
+          id: rec.id,
+          degree: rec.degree,
+          institution: rec.institution,
+          duration: `${rec.startYear} - ${rec.endYear}`,
+          grade: rec.grade,
+          visible: true
+        }))
       },
       projects: {
         visible: true,
@@ -695,22 +666,22 @@ export default function ResumeEditorPage() {
         }}
       >
         {/* ══════════════════════════════════════════════════
-            TEMPLATE 1: PROFESSIONAL  (split column)
+            TEMPLATE 1: PROFESSIONAL (Split 2-Column Banner)
         ══════════════════════════════════════════════════ */}
         {selectedTheme === "Professional" && (
           <div style={{ display: "flex", flexDirection: "column", flex: 1 }}>
 
             {/* Header banner */}
-            <div style={{ backgroundColor: accentColor, padding: "22px 28px 18px 28px", display: "flex", justifyContent: "space-between", alignItems: "flex-end", flexShrink: 0 }}>
+            <div style={{ backgroundColor: accentColor, padding: "24px 32px 20px 32px", display: "flex", justifyContent: "space-between", alignItems: "flex-end", flexShrink: 0 }}>
               <div style={{ paddingLeft: pInfo.showPhoto && pInfo.profileImageUrl ? "110px" : "0" }}>
-                <div style={{ fontSize: "22px", fontWeight: 900, letterSpacing: "2px", textTransform: "uppercase", color: "#fff", lineHeight: 1.1 }}>
+                <div style={{ fontSize: "25px", fontWeight: 900, letterSpacing: "1.5px", textTransform: "uppercase", color: "#ffffff", lineHeight: 1.1 }}>
                   {pInfo.fullName || "Your Name"}
                 </div>
-                <div style={{ fontSize: "9.5px", fontFamily: "monospace", letterSpacing: "2px", textTransform: "uppercase", color: "rgba(255,255,255,0.85)", marginTop: "6px" }}>
+                <div style={{ fontSize: "11.5px", fontFamily: "Inter, sans-serif", fontWeight: 700, letterSpacing: "1.5px", textTransform: "uppercase", color: "rgba(255,255,255,0.92)", marginTop: "6px" }}>
                   {pInfo.title || "Professional Title"}
                 </div>
               </div>
-              <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "2px", fontSize: "9px", color: "rgba(255,255,255,0.8)", fontFamily: "monospace" }}>
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "3px", fontSize: "10.5px", color: "rgba(255,255,255,0.95)", fontFamily: "Inter, sans-serif", fontWeight: 500 }}>
                 {pInfo.email && <span>{pInfo.email}</span>}
                 {pInfo.phone && <span>{pInfo.phone}</span>}
                 {pInfo.address && <span>{pInfo.address}</span>}
@@ -721,28 +692,28 @@ export default function ResumeEditorPage() {
             <div style={{ display: "flex", flex: 1 }}>
 
               {/* ── Sidebar ── */}
-              <div style={{ width: "210px", backgroundColor: "#f1f5f9", flexShrink: 0, display: "flex", flexDirection: "column" }}>
+              <div style={{ width: "220px", backgroundColor: "#f8fafc", borderRight: "1px solid #e2e8f0", flexShrink: 0, display: "flex", flexDirection: "column" }}>
 
                 {/* Photo */}
                 {pInfo.showPhoto && pInfo.profileImageUrl && (() => {
                   const img = parseImageAdjustments(pInfo.profileImageUrl);
                   return (
-                    <div style={{ display: "flex", justifyContent: "center", padding: "18px 0 12px", background: accentColor + "18" }}>
-                      <div style={{ width: "90px", height: "90px", borderRadius: "50%", overflow: "hidden", border: `3px solid ${accentColor}`, boxShadow: "0 3px 12px rgba(0,0,0,0.18)", background: "#fff" }}>
+                    <div style={{ display: "flex", justifyContent: "center", padding: "20px 0 14px", background: accentColor + "15" }}>
+                      <div style={{ width: "95px", height: "95px", borderRadius: "50%", overflow: "hidden", border: `3px solid ${accentColor}`, boxShadow: "0 4px 12px rgba(0,0,0,0.15)", background: "#fff" }}>
                         <img src={img.src} style={{ ...img.style, width: "100%", height: "100%" }} alt={pInfo.fullName} />
                       </div>
                     </div>
                   );
                 })()}
 
-                <div style={{ padding: "18px 14px", display: "flex", flexDirection: "column", gap: "16px" }}>
+                <div style={{ padding: "20px 16px", display: "flex", flexDirection: "column", gap: "18px" }}>
                   {/* Skills */}
                   {resumeData.skills?.visible && resumeData.skills?.items?.some((i: any) => i.visible) && (
                     <div>
-                      <div style={{ fontSize: "8.5px", fontWeight: 800, textTransform: "uppercase", letterSpacing: "1.5px", color: accentColor, borderBottom: `2px solid ${accentColor}`, paddingBottom: "3px", marginBottom: "7px" }}>Skills</div>
+                      <div style={{ fontSize: "10.5px", fontWeight: 800, textTransform: "uppercase", letterSpacing: "1.5px", color: accentColor, borderBottom: `2px solid ${accentColor}`, paddingBottom: "4px", marginBottom: "8px" }}>Skills</div>
                       {resumeData.skills.items.filter((i: any) => i.visible).map((s: any) => (
-                        <div key={s.id} style={{ fontSize: "9.5px", color: "#0f172a", fontWeight: 700, marginBottom: "3px" }}>
-                          {s.name} <span style={{ fontSize: "8px", color: "#475569", fontWeight: 400 }}>({s.level})</span>
+                        <div key={s.id} style={{ fontSize: "11px", color: "#0f172a", fontWeight: 700, marginBottom: "4px" }}>
+                          {s.name} <span style={{ fontSize: "9.5px", color: "#64748b", fontWeight: 500 }}>({s.level})</span>
                         </div>
                       ))}
                     </div>
@@ -751,10 +722,10 @@ export default function ResumeEditorPage() {
                   {/* Languages */}
                   {resumeData.languages?.visible && resumeData.languages?.items?.some((l: any) => l.visible) && (
                     <div>
-                      <div style={{ fontSize: "8.5px", fontWeight: 800, textTransform: "uppercase", letterSpacing: "1.5px", color: accentColor, borderBottom: `2px solid ${accentColor}`, paddingBottom: "3px", marginBottom: "7px" }}>Languages</div>
+                      <div style={{ fontSize: "10.5px", fontWeight: 800, textTransform: "uppercase", letterSpacing: "1.5px", color: accentColor, borderBottom: `2px solid ${accentColor}`, paddingBottom: "4px", marginBottom: "8px" }}>Languages</div>
                       {resumeData.languages.items.filter((l: any) => l.visible).map((l: any) => (
-                        <div key={l.name} style={{ fontSize: "9.5px", color: "#0f172a", fontWeight: 700, marginBottom: "3px" }}>
-                          {l.name} <span style={{ fontSize: "8px", color: "#475569", fontWeight: 400 }}>({l.level})</span>
+                        <div key={l.name} style={{ fontSize: "11px", color: "#0f172a", fontWeight: 700, marginBottom: "4px" }}>
+                          {l.name} <span style={{ fontSize: "9.5px", color: "#64748b", fontWeight: 500 }}>({l.level})</span>
                         </div>
                       ))}
                     </div>
@@ -763,9 +734,9 @@ export default function ResumeEditorPage() {
                   {/* Socials */}
                   {resumeData.mediaHandles?.visible && resumeData.mediaHandles?.items?.some((h: any) => h.visible && h.url) && (
                     <div>
-                      <div style={{ fontSize: "8.5px", fontWeight: 800, textTransform: "uppercase", letterSpacing: "1.5px", color: accentColor, borderBottom: `2px solid ${accentColor}`, paddingBottom: "3px", marginBottom: "7px" }}>Socials</div>
+                      <div style={{ fontSize: "10.5px", fontWeight: 800, textTransform: "uppercase", letterSpacing: "1.5px", color: accentColor, borderBottom: `2px solid ${accentColor}`, paddingBottom: "4px", marginBottom: "8px" }}>Socials</div>
                       {resumeData.mediaHandles.items.filter((h: any) => h.visible && h.url).map((h: any) => (
-                        <div key={h.platform} style={{ fontSize: "8.5px", color: "#0f172a", wordBreak: "break-all", marginBottom: "4px" }}>
+                        <div key={h.platform} style={{ fontSize: "10px", color: "#0f172a", wordBreak: "break-all", marginBottom: "5px" }}>
                           <span style={{ fontWeight: 700, color: accentColor }}>{h.platform}:</span> {h.url}
                         </div>
                       ))}
@@ -774,8 +745,8 @@ export default function ResumeEditorPage() {
                 </div>
               </div>
 
-              {/* ── Main content ── */}
-              <div style={{ flex: 1, padding: "22px 26px", display: "flex", flexDirection: "column", gap: "18px", background: "#fff" }}>
+              {/* ── Main Content ── */}
+              <div style={{ flex: 1, padding: "24px 28px", display: "flex", flexDirection: "column", gap: "20px", background: "#fff" }}>
                 {sectionOrder.map((section) => {
                   const secData = resumeData[section];
                   if (!secData || !secData.visible) return null;
@@ -786,96 +757,96 @@ export default function ResumeEditorPage() {
                   return (
                     <div key={section} className="print-avoid-break">
                       {/* Heading row */}
-                      <div style={{ display: "flex", alignItems: "center", gap: "7px", marginBottom: "7px" }}>
-                        <div style={{ width: "3px", height: "13px", backgroundColor: accentColor, borderRadius: "2px", flexShrink: 0 }} />
-                        <div style={{ fontSize: "9.5px", fontWeight: 800, textTransform: "uppercase", letterSpacing: "1.5px", color: "#0f172a" }}>{headings[section]}</div>
+                      <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "8px" }}>
+                        <div style={{ width: "4px", height: "15px", backgroundColor: accentColor, borderRadius: "2px", flexShrink: 0 }} />
+                        <div style={{ fontSize: "11.5px", fontWeight: 800, textTransform: "uppercase", letterSpacing: "1.5px", color: "#0f172a" }}>{headings[section]}</div>
                         <div style={{ flex: 1, height: "1px", backgroundColor: "#e2e8f0" }} />
                       </div>
 
                       {section === "summary" && (
-                        <p style={{ fontSize: "10px", color: "#0f172a", lineHeight: 1.7, whiteSpace: "pre-wrap", margin: 0 }}>{secData.content}</p>
+                        <p style={{ fontSize: "10.5px", color: "#1e293b", lineHeight: 1.6, whiteSpace: "pre-wrap", margin: 0 }}>{secData.content}</p>
                       )}
                       {section === "experience" && (
-                        <div style={{ display: "flex", flexDirection: "column", gap: "11px" }}>
+                        <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
                           {secData.items.filter((i: any) => i.visible).map((item: any) => (
                             <div key={item.id}>
-                              <div style={{ display: "flex", justifyContent: "space-between" }}>
-                                <span style={{ fontSize: "10.5px", fontWeight: 700, color: "#0f172a" }}>{item.role}</span>
-                                <span style={{ fontSize: "8.5px", fontFamily: "monospace", color: "#475569" }}>{item.duration}</span>
+                              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+                                <span style={{ fontSize: "12px", fontWeight: 700, color: "#0f172a" }}>{item.role}</span>
+                                <span style={{ fontSize: "10px", fontFamily: "monospace", color: "#475569" }}>{item.duration}</span>
                               </div>
-                              <div style={{ fontSize: "9.5px", color: accentColor, fontWeight: 600, marginTop: "1px" }}>{item.company}</div>
-                              <p style={{ fontSize: "9.5px", color: "#0f172a", lineHeight: 1.65, marginTop: "3px", whiteSpace: "pre-wrap" }}>{item.responsibilities}</p>
-                              {item.technologies && <div style={{ fontSize: "8.5px", fontFamily: "monospace", color: "#334155", marginTop: "2px" }}>Stack: {item.technologies}</div>}
+                              <div style={{ fontSize: "11px", color: accentColor, fontWeight: 650, marginTop: "1px" }}>{item.company}</div>
+                              <p style={{ fontSize: "10.5px", color: "#334155", lineHeight: 1.55, marginTop: "4px", whiteSpace: "pre-wrap" }}>{item.responsibilities}</p>
+                              {item.technologies && <div style={{ fontSize: "9.5px", fontFamily: "monospace", color: "#475569", marginTop: "3px" }}>Stack: {item.technologies}</div>}
                             </div>
                           ))}
                         </div>
                       )}
                       {section === "education" && (
-                        <div style={{ display: "flex", flexDirection: "column", gap: "7px" }}>
+                        <div style={{ display: "flex", flexDirection: "column", gap: "9px" }}>
                           {secData.items.filter((i: any) => i.visible).map((item: any) => (
-                            <div key={item.id} style={{ display: "flex", justifyContent: "space-between" }}>
+                            <div key={item.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
                               <div>
-                                <div style={{ fontSize: "10.5px", fontWeight: 700, color: "#0f172a" }}>{item.degree}</div>
-                                <div style={{ fontSize: "9.5px", color: "#334155" }}>{item.institution}</div>
-                                {item.grade && <div style={{ fontSize: "8.5px", fontFamily: "monospace", color: accentColor, fontWeight: 700 }}>CGPA: {item.grade}</div>}
+                                <div style={{ fontSize: "12px", fontWeight: 700, color: "#0f172a" }}>{item.degree}</div>
+                                <div style={{ fontSize: "11px", color: "#475569", marginTop: "1px" }}>{item.institution}</div>
+                                {item.grade && <div style={{ fontSize: "10px", fontFamily: "monospace", color: accentColor, fontWeight: 700, marginTop: "2px" }}>CGPA / Grade: {item.grade}</div>}
                               </div>
-                              <span style={{ fontSize: "8.5px", fontFamily: "monospace", color: "#475569", whiteSpace: "nowrap" }}>{item.duration}</span>
+                              <span style={{ fontSize: "10px", fontFamily: "monospace", color: "#475569", whiteSpace: "nowrap" }}>{item.duration}</span>
                             </div>
                           ))}
                         </div>
                       )}
                       {section === "projects" && (
-                        <div style={{ display: "flex", flexDirection: "column", gap: "9px" }}>
+                        <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
                           {secData.items.filter((i: any) => i.visible).map((item: any) => (
                             <div key={item.id}>
-                              <div style={{ display: "flex", justifyContent: "space-between" }}>
-                                <span style={{ fontSize: "10.5px", fontWeight: 700, color: "#0f172a" }}>{item.name}</span>
-                                <div style={{ display: "flex", gap: "8px" }}>
-                                  {item.github && <span style={{ fontSize: "8.5px", color: accentColor }}>GitHub</span>}
-                                  {item.live && <span style={{ fontSize: "8.5px", color: accentColor }}>Demo</span>}
+                              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                                <span style={{ fontSize: "12px", fontWeight: 700, color: "#0f172a" }}>{item.name}</span>
+                                <div style={{ display: "flex", gap: "10px" }}>
+                                  {item.github && <span style={{ fontSize: "10px", fontWeight: 600, color: accentColor }}>GitHub</span>}
+                                  {item.live && <span style={{ fontSize: "10px", fontWeight: 600, color: accentColor }}>Demo</span>}
                                 </div>
                               </div>
-                              <p style={{ fontSize: "9.5px", color: "#0f172a", lineHeight: 1.6, marginTop: "2px" }}>{item.description}</p>
-                              {item.technologies && <div style={{ fontSize: "8.5px", fontFamily: "monospace", color: "#334155", marginTop: "2px" }}>{item.technologies}</div>}
+                              <p style={{ fontSize: "10.5px", color: "#334155", lineHeight: 1.55, marginTop: "3px" }}>{item.description}</p>
+                              {item.technologies && <div style={{ fontSize: "9.5px", fontFamily: "monospace", color: "#475569", marginTop: "3px" }}>Technologies: {item.technologies}</div>}
                             </div>
                           ))}
                         </div>
                       )}
                       {section === "certifications" && (
-                        <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+                        <div style={{ display: "flex", flexDirection: "column", gap: "5px" }}>
                           {secData.items.filter((i: any) => i.visible).map((cert: any) => (
-                            <div key={cert.id} style={{ display: "flex", justifyContent: "space-between", fontSize: "9.5px" }}>
-                              <span><strong style={{ color: "#0f172a" }}>{cert.name}</strong> <span style={{ color: "#334155" }}>— {cert.issuer}</span></span>
-                              <span style={{ fontSize: "8.5px", fontFamily: "monospace", color: "#475569" }}>{cert.date}</span>
+                            <div key={cert.id} style={{ display: "flex", justifyContent: "space-between", fontSize: "10.5px" }}>
+                              <span><strong style={{ color: "#0f172a" }}>{cert.name}</strong> <span style={{ color: "#475569" }}>— {cert.issuer}</span></span>
+                              <span style={{ fontSize: "10px", fontFamily: "monospace", color: "#475569" }}>{cert.date}</span>
                             </div>
                           ))}
                         </div>
                       )}
                       {section === "achievements" && (
-                        <div style={{ display: "flex", flexDirection: "column", gap: "5px" }}>
+                        <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
                           {secData.items.filter((i: any) => i.visible).map((ach: any) => (
-                            <div key={ach.id} style={{ fontSize: "9.5px", color: "#0f172a" }}>
+                            <div key={ach.id} style={{ fontSize: "10.5px", color: "#0f172a" }}>
                               <strong style={{ color: "#0f172a" }}>{ach.title}</strong>{ach.date && ` (${ach.date})`}
-                              {ach.description && <div style={{ fontSize: "8.5px", color: "#475569", marginTop: "1px" }}>{ach.description}</div>}
+                              {ach.description && <div style={{ fontSize: "10px", color: "#475569", marginTop: "2px" }}>{ach.description}</div>}
                             </div>
                           ))}
                         </div>
                       )}
                       {section === "testScores" && (
-                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "7px" }}>
+                        <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
                           {secData.items.filter((i: any) => i.visible).map((item: any) => (
-                            <div key={item.id} style={{ padding: "7px 9px", borderRadius: "7px", border: `1px solid ${accentColor}20`, background: `${accentColor}07` }}>
-                              <div style={{ fontSize: "9.5px", fontWeight: 700, color: "#0f172a" }}>{item.title}</div>
-                              <div style={{ fontSize: "11px", fontFamily: "monospace", fontWeight: 800, color: accentColor, marginTop: "1px" }}>{item.score}</div>
-                              {item.institution && <div style={{ fontSize: "8.5px", color: "#475569" }}>{item.institution}</div>}
+                            <div key={item.id} style={{ padding: "8px 12px", borderRadius: "8px", border: `1px solid ${accentColor}30`, background: `${accentColor}08` }}>
+                              <div style={{ fontSize: "11px", fontWeight: 700, color: "#0f172a" }}>{item.title}</div>
+                              <div style={{ fontSize: "12px", fontFamily: "monospace", fontWeight: 800, color: accentColor, marginTop: "2px" }}>{item.score}</div>
+                              {item.institution && <div style={{ fontSize: "9.5px", color: "#475569", marginTop: "1px" }}>{item.institution}</div>}
                             </div>
                           ))}
                         </div>
                       )}
                       {section === "patents" && (
-                        <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+                        <div style={{ display: "flex", flexDirection: "column", gap: "5px" }}>
                           {secData.items.filter((i: any) => i.visible).map((pat: any) => (
-                            <div key={pat.id} style={{ fontSize: "9.5px", color: "#0f172a" }}>
+                            <div key={pat.id} style={{ fontSize: "10.5px", color: "#0f172a" }}>
                               <strong style={{ color: "#0f172a" }}>{pat.title}</strong> — Patent No: {pat.number}
                             </div>
                           ))}
@@ -893,23 +864,23 @@ export default function ResumeEditorPage() {
             TEMPLATE 2: CLASSIC ATS (Ultra Clean, 1-Column, Highly Readable)
         ══════════════════════════════════════════════════════════════ */}
         {selectedTheme === "Classic ATS" && (
-          <div style={{ padding: "40px 48px", display: "flex", flexDirection: "column", gap: "14px", flex: 1, textAlign: "left" }}>
+          <div style={{ padding: "40px 52px", display: "flex", flexDirection: "column", gap: "16px", flex: 1, textAlign: "left" }}>
             
             {/* Header info */}
-            <div style={{ textAlign: "center", display: "flex", flexDirection: "column", gap: "4px" }}>
-              <h2 style={{ fontFamily: "Georgia, serif", fontSize: "22px", fontWeight: "bold", textTransform: "uppercase", letterSpacing: "1px", color: "#000", margin: 0 }}>
+            <div style={{ textAlign: "center", display: "flex", flexDirection: "column", gap: "5px" }}>
+              <h2 style={{ fontFamily: "Georgia, serif", fontSize: "26px", fontWeight: "bold", textTransform: "uppercase", letterSpacing: "1px", color: "#000000", margin: 0 }}>
                 {pInfo.fullName || "Your Name"}
               </h2>
-              <div style={{ fontSize: "10px", fontWeight: "bold", textTransform: "uppercase", letterSpacing: "1px", color: "#000" }}>
+              <div style={{ fontSize: "11.5px", fontWeight: "bold", textTransform: "uppercase", letterSpacing: "1.5px", color: "#000000" }}>
                 {pInfo.title}
               </div>
-              <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", gap: "6px 12px", fontSize: "9.5px", color: "#000" }}>
+              <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", gap: "6px 14px", fontSize: "10.5px", color: "#111111" }}>
                 {pInfo.email && <span>{pInfo.email}</span>}
-                {pInfo.phone && <span>{pInfo.phone}</span>}
-                {pInfo.address && <span>{pInfo.address}</span>}
+                {pInfo.phone && <span>• {pInfo.phone}</span>}
+                {pInfo.address && <span>• {pInfo.address}</span>}
               </div>
               {resumeData.mediaHandles?.visible && resumeData.mediaHandles?.items?.some((h: any) => h.visible && h.url) && (
-                <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", gap: "5px 10px", fontSize: "9px", fontFamily: "monospace", color: "#334155" }}>
+                <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", gap: "6px 12px", fontSize: "10px", fontFamily: "monospace", color: "#222222" }}>
                   {resumeData.mediaHandles.items.filter((h: any) => h.visible && h.url).map((h: any) => (
                     <span key={h.platform}>{h.platform}: {h.url}</span>
                   ))}
@@ -926,34 +897,34 @@ export default function ResumeEditorPage() {
               if (!hasContent) return null;
 
               return (
-                <div key={section} className="print-avoid-break" style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+                <div key={section} className="print-avoid-break" style={{ display: "flex", flexDirection: "column", gap: "5px" }}>
                   {/* ATS standard border-bottom heading */}
-                  <h3 style={{ fontSize: "10.5px", fontWeight: "bold", textTransform: "uppercase", letterSpacing: "1.2px", borderBottom: "1.5px solid #000", paddingBottom: "2px", color: "#000", margin: "5px 0 2px 0", textAlign: "left" }}>
+                  <h3 style={{ fontSize: "12px", fontWeight: "bold", textTransform: "uppercase", letterSpacing: "1.5px", borderBottom: "1.5px solid #000000", paddingBottom: "3px", color: "#000000", margin: "6px 0 3px 0", textAlign: "left" }}>
                     {headings[section]}
                   </h3>
 
                   {section === "summary" && (
-                    <p style={{ fontSize: "10px", color: "#000", lineHeight: 1.55, margin: 0, textAlign: "justify" }}>
+                    <p style={{ fontSize: "10.5px", color: "#000000", lineHeight: 1.6, margin: 0, textAlign: "justify" }}>
                       {secData.content}
                     </p>
                   )}
 
                   {section === "experience" && (
-                    <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                    <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
                       {secData.items.filter((i: any) => i.visible).map((item: any) => (
-                        <div key={item.id} style={{ display: "flex", flexDirection: "column", gap: "1px" }}>
-                          <div style={{ display: "flex", justifyContent: "space-between", fontWeight: "bold", fontSize: "10.5px", color: "#000" }}>
+                        <div key={item.id} style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+                          <div style={{ display: "flex", justifyContent: "space-between", fontWeight: "bold", fontSize: "12px", color: "#000000" }}>
                             <span>{item.role}</span>
-                            <span style={{ fontSize: "9px", fontWeight: "normal", fontFamily: "monospace", color: "#334155" }}>{item.duration}</span>
+                            <span style={{ fontSize: "10px", fontWeight: "normal", fontFamily: "monospace", color: "#222222" }}>{item.duration}</span>
                           </div>
-                          <div style={{ fontSize: "9.5px", fontWeight: "650", color: "#000", fontStyle: "italic" }}>
+                          <div style={{ fontSize: "11px", fontWeight: "600", color: "#000000", fontStyle: "italic" }}>
                             {item.company}
                           </div>
-                          <p style={{ fontSize: "9.5px", color: "#000", lineHeight: 1.45, margin: "2px 0 0 0", whiteSpace: "pre-wrap" }}>
+                          <p style={{ fontSize: "10.5px", color: "#000000", lineHeight: 1.55, margin: "2px 0 0 0", whiteSpace: "pre-wrap" }}>
                             {item.responsibilities}
                           </p>
                           {item.technologies && (
-                            <div style={{ fontSize: "8.5px", fontFamily: "monospace", color: "#334155", marginTop: "2px" }}>
+                            <div style={{ fontSize: "9.5px", fontFamily: "monospace", color: "#222222", marginTop: "2px" }}>
                               Key Stack: {item.technologies}
                             </div>
                           )}
@@ -963,33 +934,33 @@ export default function ResumeEditorPage() {
                   )}
 
                   {section === "education" && (
-                    <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                    <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
                       {secData.items.filter((i: any) => i.visible).map((item: any) => (
-                        <div key={item.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", fontSize: "10px" }}>
+                        <div key={item.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", fontSize: "11px" }}>
                           <div style={{ display: "flex", flexDirection: "column" }}>
-                            <span style={{ fontWeight: "bold", color: "#000" }}>{item.degree}</span>
-                            <span style={{ color: "#000" }}>{item.institution}</span>
-                            {item.grade && <span style={{ fontSize: "9px", fontFamily: "monospace", color: "#000", fontWeight: "bold", marginTop: "1px" }}>GPA / Grade: {item.grade}</span>}
+                            <span style={{ fontSize: "12px", fontWeight: "bold", color: "#000000" }}>{item.degree}</span>
+                            <span style={{ color: "#000000" }}>{item.institution}</span>
+                            {item.grade && <span style={{ fontSize: "10px", fontFamily: "monospace", color: "#000000", fontWeight: "bold", marginTop: "2px" }}>GPA / Grade: {item.grade}</span>}
                           </div>
-                          <span style={{ fontSize: "9px", fontFamily: "monospace", color: "#334155" }}>{item.duration}</span>
+                          <span style={{ fontSize: "10px", fontFamily: "monospace", color: "#222222" }}>{item.duration}</span>
                         </div>
                       ))}
                     </div>
                   )}
 
                   {section === "projects" && (
-                    <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                    <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
                       {secData.items.filter((i: any) => i.visible).map((item: any) => (
-                        <div key={item.id} style={{ display: "flex", flexDirection: "column", gap: "1px" }}>
-                          <div style={{ display: "flex", justifyContent: "space-between", fontWeight: "bold", fontSize: "10px", color: "#000" }}>
+                        <div key={item.id} style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+                          <div style={{ display: "flex", justifyContent: "space-between", fontWeight: "bold", fontSize: "12px", color: "#000000" }}>
                             <span>{item.name}</span>
-                            <span style={{ fontSize: "8.5px", fontWeight: "normal", fontFamily: "monospace", color: "#334155" }}>{item.github || item.live}</span>
+                            <span style={{ fontSize: "10px", fontWeight: "normal", fontFamily: "monospace", color: "#222222" }}>{item.github || item.live}</span>
                           </div>
-                          <p style={{ fontSize: "9.5px", color: "#000", lineHeight: 1.45, margin: 0 }}>
+                          <p style={{ fontSize: "10.5px", color: "#000000", lineHeight: 1.5, margin: 0 }}>
                             {item.description}
                           </p>
                           {item.technologies && (
-                            <div style={{ fontSize: "8.5px", fontFamily: "monospace", color: "#334155", marginTop: "1px" }}>
+                            <div style={{ fontSize: "9.5px", fontFamily: "monospace", color: "#222222", marginTop: "2px" }}>
                               Technologies: {item.technologies}
                             </div>
                           )}
@@ -999,42 +970,42 @@ export default function ResumeEditorPage() {
                   )}
 
                   {section === "skills" && (
-                    <div style={{ fontSize: "9.5px", color: "#000", lineHeight: 1.5 }}>
+                    <div style={{ fontSize: "10.5px", color: "#000000", lineHeight: 1.6 }}>
                       {secData.items.filter((i: any) => i.visible).map((s: any) => (
-                        <span key={s.id} style={{ marginRight: "10px", display: "inline-block" }}>
-                          <strong>{s.name}</strong> <span style={{ color: "#334155", fontSize: "8px" }}>({s.level})</span>
+                        <span key={s.id} style={{ marginRight: "12px", display: "inline-block" }}>
+                          <strong>{s.name}</strong> <span style={{ color: "#333333", fontSize: "9.5px" }}>({s.level})</span>
                         </span>
                       ))}
                     </div>
                   )}
 
                   {section === "testScores" && (
-                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "6px" }}>
+                    <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
                       {secData.items.filter((i: any) => i.visible).map((item: any) => (
-                        <div key={item.id} style={{ padding: "5px 7px", border: "1px solid #cbd5e1", borderRadius: "4px" }}>
-                          <div style={{ fontSize: "9px", fontWeight: "bold", color: "#000" }}>{item.title}</div>
-                          <div style={{ fontSize: "10px", fontFamily: "monospace", fontWeight: "bold", color: "#000", marginTop: "1px" }}>{item.score}</div>
-                          {item.institution && <div style={{ fontSize: "8px", color: "#334155" }}>{item.institution}</div>}
+                        <div key={item.id} style={{ padding: "6px 10px", border: "1px solid #000000", borderRadius: "4px" }}>
+                          <div style={{ fontSize: "11px", fontWeight: "bold", color: "#000000" }}>{item.title}</div>
+                          <div style={{ fontSize: "11.5px", fontFamily: "monospace", fontWeight: "bold", color: "#000000", marginTop: "1px" }}>{item.score}</div>
+                          {item.institution && <div style={{ fontSize: "9.5px", color: "#222222" }}>{item.institution}</div>}
                         </div>
                       ))}
                     </div>
                   )}
 
                   {section === "certifications" && (
-                    <div style={{ display: "flex", flexDirection: "column", gap: "3px" }}>
+                    <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
                       {secData.items.filter((i: any) => i.visible).map((cert: any) => (
-                        <div key={cert.id} style={{ display: "flex", justifyContent: "space-between", fontSize: "9.5px", color: "#000" }}>
-                          <span><strong>{cert.name}</strong> <span style={{ color: "#334155" }}>— {cert.issuer}</span></span>
-                          <span style={{ fontSize: "8.5px", fontFamily: "monospace", color: "#334155" }}>{cert.date}</span>
+                        <div key={cert.id} style={{ display: "flex", justifyContent: "space-between", fontSize: "10.5px", color: "#000000" }}>
+                          <span><strong>{cert.name}</strong> <span style={{ color: "#333333" }}>— {cert.issuer}</span></span>
+                          <span style={{ fontSize: "10px", fontFamily: "monospace", color: "#333333" }}>{cert.date}</span>
                         </div>
                       ))}
                     </div>
                   )}
 
                   {section === "achievements" && (
-                    <ul style={{ listStyleType: "disc", paddingLeft: "15px", margin: 0, fontSize: "9.5px", color: "#000" }}>
+                    <ul style={{ listStyleType: "disc", paddingLeft: "18px", margin: 0, fontSize: "10.5px", color: "#000000" }}>
                       {secData.items.filter((i: any) => i.visible).map((ach: any) => (
-                        <li key={ach.id} style={{ marginBottom: "2px" }}>
+                        <li key={ach.id} style={{ marginBottom: "3px" }}>
                           <strong>{ach.title}</strong> {ach.date && `(${ach.date})`} {ach.description && `— ${ach.description}`}
                         </li>
                       ))}
@@ -1042,9 +1013,9 @@ export default function ResumeEditorPage() {
                   )}
 
                   {section === "patents" && (
-                    <ul style={{ listStyleType: "square", paddingLeft: "15px", margin: 0, fontSize: "9.5px", color: "#000" }}>
+                    <ul style={{ listStyleType: "square", paddingLeft: "18px", margin: 0, fontSize: "10.5px", color: "#000000" }}>
                       {secData.items.filter((i: any) => i.visible).map((pat: any) => (
-                        <li key={pat.id} style={{ marginBottom: "2px" }}>
+                        <li key={pat.id} style={{ marginBottom: "3px" }}>
                           <strong>{pat.title}</strong> — Patent No: {pat.number}
                         </li>
                       ))}
@@ -1052,7 +1023,7 @@ export default function ResumeEditorPage() {
                   )}
 
                   {section === "languages" && (
-                    <div style={{ fontSize: "9.5px", color: "#000" }}>
+                    <div style={{ fontSize: "10.5px", color: "#000000" }}>
                       {secData.items.filter((i: any) => i.visible).map((l: any, idx: number, arr: any[]) => (
                         <span key={l.name}>
                           {l.name} ({l.level}){idx < arr.length - 1 ? ", " : ""}
@@ -1067,30 +1038,30 @@ export default function ResumeEditorPage() {
         )}
 
         {/* ═══════════════════════════════════════════════════════════
-            TEMPLATE 3: CREATIVE (Glassmorphism Header, Premium Tag Cloud)
+            TEMPLATE 3: CREATIVE (Executive Modern Header, Card Layout)
         ══════════════════════════════════════════════════════════════ */}
         {selectedTheme === "Creative" && (
-          <div style={{ padding: "26px", display: "flex", flexDirection: "column", gap: "16px", flex: 1, textAlign: "left" }}>
+          <div style={{ padding: "30px", display: "flex", flexDirection: "column", gap: "18px", flex: 1, textAlign: "left" }}>
             
             {/* Elegant Colorful Header Banner */}
             <div
               style={{
                 background: `linear-gradient(135deg, ${accentColor}, #0f172a)`,
                 borderRadius: "14px",
-                padding: "20px",
-                color: "#fff",
+                padding: "24px",
+                color: "#ffffff",
                 display: "flex",
                 flexDirection: "column",
-                gap: "10px",
-                boxShadow: "0 6px 20px -4px rgba(0,0,0,0.1)"
+                gap: "12px",
+                boxShadow: "0 6px 20px -4px rgba(0,0,0,0.12)"
               }}
             >
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
                 <div>
-                  <h2 style={{ fontSize: "22px", fontWeight: 900, textTransform: "uppercase", letterSpacing: "1.5px", color: "#fff", margin: 0 }}>
+                  <h2 style={{ fontSize: "25px", fontWeight: 900, textTransform: "uppercase", letterSpacing: "1.5px", color: "#ffffff", margin: 0 }}>
                     {pInfo.fullName || "Your Name"}
                   </h2>
-                  <p style={{ fontSize: "10px", fontFamily: "monospace", textTransform: "uppercase", letterSpacing: "2px", color: "rgba(255,255,255,0.9)", marginTop: "4px", margin: 0 }}>
+                  <p style={{ fontSize: "11.5px", fontFamily: "Inter, sans-serif", fontWeight: 700, textTransform: "uppercase", letterSpacing: "2px", color: "rgba(255,255,255,0.92)", marginTop: "6px", margin: 0 }}>
                     {pInfo.title || "Creative Professional"}
                   </p>
                 </div>
@@ -1098,26 +1069,26 @@ export default function ResumeEditorPage() {
                 {pInfo.showPhoto && pInfo.profileImageUrl && (() => {
                   const img = parseImageAdjustments(pInfo.profileImageUrl);
                   return (
-                    <div style={{ width: "70px", height: "70px", borderRadius: "10px", overflow: "hidden", border: "2px solid rgba(255,255,255,0.25)", boxShadow: "0 4px 10px rgba(0,0,0,0.2)", background: "#fff", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    <div style={{ width: "75px", height: "75px", borderRadius: "12px", overflow: "hidden", border: "2px solid rgba(255,255,255,0.3)", boxShadow: "0 4px 12px rgba(0,0,0,0.2)", background: "#fff", display: "flex", alignItems: "center", justifyContent: "center" }}>
                       <img src={img.src} style={{ ...img.style, width: "100%", height: "100%" }} alt={pInfo.fullName} />
                     </div>
                   );
                 })()}
               </div>
 
-              <div style={{ height: "1px", background: "rgba(255,255,255,0.15)" }} />
+              <div style={{ height: "1px", background: "rgba(255,255,255,0.2)" }} />
 
-              <div style={{ display: "flex", flexWrap: "wrap", gap: "5px 12px", fontSize: "9.5px", color: "rgba(255,255,255,0.9)" }}>
-                {pInfo.email && <span style={{ background: "rgba(255,255,255,0.08)", padding: "2px 6px", borderRadius: "5px" }}>✉ {pInfo.email}</span>}
-                {pInfo.phone && <span style={{ background: "rgba(255,255,255,0.08)", padding: "2px 6px", borderRadius: "5px" }}>📞 {pInfo.phone}</span>}
-                {pInfo.address && <span style={{ background: "rgba(255,255,255,0.08)", padding: "2px 6px", borderRadius: "5px" }}>📍 {pInfo.address}</span>}
+              <div style={{ display: "flex", flexWrap: "wrap", gap: "6px 14px", fontSize: "10.5px", color: "rgba(255,255,255,0.95)" }}>
+                {pInfo.email && <span style={{ background: "rgba(255,255,255,0.1)", padding: "3px 8px", borderRadius: "6px" }}>✉ {pInfo.email}</span>}
+                {pInfo.phone && <span style={{ background: "rgba(255,255,255,0.1)", padding: "3px 8px", borderRadius: "6px" }}>📞 {pInfo.phone}</span>}
+                {pInfo.address && <span style={{ background: "rgba(255,255,255,0.1)", padding: "3px 8px", borderRadius: "6px" }}>📍 {pInfo.address}</span>}
               </div>
 
               {resumeData.mediaHandles?.visible && resumeData.mediaHandles?.items?.some((h: any) => h.visible && h.url) && (
-                <div style={{ display: "flex", flexWrap: "wrap", gap: "5px 10px", fontSize: "8.5px" }}>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: "6px 12px", fontSize: "10px" }}>
                   {resumeData.mediaHandles.items.filter((h: any) => h.visible && h.url).map((h: any) => (
-                    <span key={h.platform} style={{ color: "rgba(255,255,255,0.95)", background: "rgba(255,255,255,0.12)", padding: "2px 6px", borderRadius: "4px", fontWeight: "bold" }}>
-                      {h.platform}
+                    <span key={h.platform} style={{ color: "#ffffff", background: "rgba(255,255,255,0.15)", padding: "3px 8px", borderRadius: "6px", fontWeight: "bold" }}>
+                      {h.platform}: {h.url}
                     </span>
                   ))}
                 </div>
@@ -1134,38 +1105,38 @@ export default function ResumeEditorPage() {
               if (!hasContent) return null;
 
               return (
-                <div key={section} className="print-avoid-break" style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                <div key={section} className="print-avoid-break" style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
                   
                   {/* Heading Accent styling */}
-                  <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                    <div style={{ width: "3.5px", height: "13px", backgroundColor: accentColor, borderRadius: "2px" }} />
-                    <h3 style={{ fontSize: "10px", fontWeight: 900, textTransform: "uppercase", letterSpacing: "1.2px", color: accentColor, margin: 0 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                    <div style={{ width: "4px", height: "15px", backgroundColor: accentColor, borderRadius: "2px" }} />
+                    <h3 style={{ fontSize: "12px", fontWeight: 900, textTransform: "uppercase", letterSpacing: "1.5px", color: accentColor, margin: 0 }}>
                       {headings[section]}
                     </h3>
-                    <div style={{ flex: 1, height: "1px", backgroundColor: `${accentColor}15` }} />
+                    <div style={{ flex: 1, height: "1px", backgroundColor: `${accentColor}20` }} />
                   </div>
 
                   {section === "summary" && (
-                    <p style={{ fontSize: "9.5px", color: "#0f172a", lineHeight: 1.6, margin: 0, paddingLeft: "10px" }}>
+                    <p style={{ fontSize: "10.5px", color: "#0f172a", lineHeight: 1.6, margin: 0, paddingLeft: "12px" }}>
                       {secData.content}
                     </p>
                   )}
 
                   {section === "experience" && (
-                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
+                    <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
                       {secData.items.filter((i: any) => i.visible).map((item: any) => (
-                        <div key={item.id} style={{ padding: "8px 10px", border: "1px solid #f1f5f9", backgroundColor: "#f8fafc", borderRadius: "8px", display: "flex", flexDirection: "column", gap: "1px", boxShadow: "0 1px 2px rgba(0,0,0,0.01)" }}>
-                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-                            <span style={{ fontSize: "9.5px", fontWeight: "bold", color: "#0f172a" }}>{item.role}</span>
-                            <span style={{ fontSize: "8px", fontFamily: "monospace", color: "#475569" }}>{item.duration}</span>
+                        <div key={item.id} style={{ padding: "10px 14px", border: "1px solid #e2e8f0", borderLeft: `4px solid ${accentColor}`, backgroundColor: "#f8fafc", borderRadius: "8px", display: "flex", flexDirection: "column", gap: "2px" }}>
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+                            <span style={{ fontSize: "12px", fontWeight: "bold", color: "#0f172a" }}>{item.role}</span>
+                            <span style={{ fontSize: "10px", fontFamily: "monospace", color: "#475569" }}>{item.duration}</span>
                           </div>
-                          <span style={{ fontSize: "9px", fontWeight: "700", color: accentColor }}>{item.company}</span>
-                          <p style={{ fontSize: "9px", color: "#0f172a", lineHeight: 1.4, margin: "3px 0 0 0", whiteSpace: "pre-wrap" }}>
+                          <span style={{ fontSize: "11px", fontWeight: "700", color: accentColor }}>{item.company}</span>
+                          <p style={{ fontSize: "10.5px", color: "#334155", lineHeight: 1.5, margin: "4px 0 0 0", whiteSpace: "pre-wrap" }}>
                             {item.responsibilities}
                           </p>
                           {item.technologies && (
-                            <div style={{ fontSize: "8px", fontFamily: "monospace", color: "#334155", marginTop: "3px" }}>
-                              {item.technologies}
+                            <div style={{ fontSize: "9.5px", fontFamily: "monospace", color: "#475569", marginTop: "4px" }}>
+                              Stack: {item.technologies}
                             </div>
                           )}
                         </div>
@@ -1174,16 +1145,16 @@ export default function ResumeEditorPage() {
                   )}
 
                   {section === "education" && (
-                    <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                    <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
                       {secData.items.filter((i: any) => i.visible).map((item: any) => (
-                        <div key={item.id} style={{ padding: "8px 10px", border: "1px solid #f1f5f9", backgroundColor: "#f8fafc", borderRadius: "8px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                        <div key={item.id} style={{ padding: "10px 14px", border: "1px solid #e2e8f0", borderLeft: `4px solid ${accentColor}`, backgroundColor: "#f8fafc", borderRadius: "8px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                           <div>
-                            <strong style={{ fontSize: "9.5px", color: "#0f172a", display: "block" }}>{item.degree}</strong>
-                            <span style={{ fontSize: "9px", color: "#334155" }}>{item.institution}</span>
+                            <strong style={{ fontSize: "12px", color: "#0f172a", display: "block" }}>{item.degree}</strong>
+                            <span style={{ fontSize: "11px", color: "#475569" }}>{item.institution}</span>
                           </div>
                           <div style={{ textAlign: "right" }}>
-                            <span style={{ fontSize: "8px", fontFamily: "monospace", color: "#475569", display: "block" }}>{item.duration}</span>
-                            {item.grade && <span style={{ fontSize: "9px", fontWeight: "bold", color: accentColor }}>GPA: {item.grade}</span>}
+                            <span style={{ fontSize: "10px", fontFamily: "monospace", color: "#475569", display: "block" }}>{item.duration}</span>
+                            {item.grade && <span style={{ fontSize: "10.5px", fontWeight: "bold", color: accentColor }}>CGPA / Grade: {item.grade}</span>}
                           </div>
                         </div>
                       ))}
@@ -1191,22 +1162,22 @@ export default function ResumeEditorPage() {
                   )}
 
                   {section === "projects" && (
-                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
+                    <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
                       {secData.items.filter((i: any) => i.visible).map((item: any) => (
-                        <div key={item.id} style={{ padding: "8px 10px", border: "1px solid #f1f5f9", backgroundColor: "#f8fafc", borderRadius: "8px", display: "flex", flexDirection: "column", gap: "1px" }}>
+                        <div key={item.id} style={{ padding: "10px 14px", border: "1px solid #e2e8f0", borderLeft: `4px solid ${accentColor}`, backgroundColor: "#f8fafc", borderRadius: "8px", display: "flex", flexDirection: "column", gap: "2px" }}>
                           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                            <strong style={{ fontSize: "9.5px", color: "#0f172a" }}>{item.name}</strong>
-                            <div style={{ display: "flex", gap: "5px" }}>
-                              {item.github && <span style={{ fontSize: "8px", color: accentColor }}>Repo</span>}
-                              {item.live && <span style={{ fontSize: "8px", color: accentColor }}>Live</span>}
+                            <strong style={{ fontSize: "12px", color: "#0f172a" }}>{item.name}</strong>
+                            <div style={{ display: "flex", gap: "10px" }}>
+                              {item.github && <span style={{ fontSize: "10px", fontWeight: 600, color: accentColor }}>Repo</span>}
+                              {item.live && <span style={{ fontSize: "10px", fontWeight: 600, color: accentColor }}>Live</span>}
                             </div>
                           </div>
-                          <p style={{ fontSize: "9px", color: "#0f172a", lineHeight: 1.35, margin: "2px 0 0 0" }}>
+                          <p style={{ fontSize: "10.5px", color: "#334155", lineHeight: 1.5, margin: "3px 0 0 0" }}>
                             {item.description}
                           </p>
                           {item.technologies && (
-                            <div style={{ fontSize: "8px", fontFamily: "monospace", color: "#334155", marginTop: "3px" }}>
-                              {item.technologies}
+                            <div style={{ fontSize: "9.5px", fontFamily: "monospace", color: "#475569", marginTop: "4px" }}>
+                              Tech: {item.technologies}
                             </div>
                           )}
                         </div>
@@ -1215,23 +1186,23 @@ export default function ResumeEditorPage() {
                   )}
 
                   {section === "skills" && (
-                    <div style={{ display: "flex", flexWrap: "wrap", gap: "5px", paddingLeft: "10px" }}>
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: "6px", paddingLeft: "10px" }}>
                       {secData.items.filter((i: any) => i.visible).map((skill: any) => {
                         const isHigh = skill.level === "Expert" || skill.level === "Advanced";
                         return (
                           <span
                             key={skill.id}
                             style={{
-                              fontSize: "8.5px",
+                              fontSize: "10px",
                               fontWeight: "bold",
-                              padding: "3px 7px",
+                              padding: "4px 9px",
                               borderRadius: "6px",
-                              backgroundColor: isHigh ? `${accentColor}15` : "#f1f5f9",
+                              backgroundColor: isHigh ? `${accentColor}18` : "#f1f5f9",
                               color: isHigh ? accentColor : "#334155",
-                              border: `1px solid ${isHigh ? `${accentColor}25` : "#e2e8f0"}`
+                              border: `1px solid ${isHigh ? `${accentColor}30` : "#e2e8f0"}`
                             }}
                           >
-                            {skill.name} <span style={{ fontWeight: "normal", fontSize: "7px", opacity: 0.65 }}>· {skill.level}</span>
+                            {skill.name} <span style={{ fontWeight: "normal", fontSize: "9px", opacity: 0.7 }}>· {skill.level}</span>
                           </span>
                         );
                       })}
@@ -1239,57 +1210,59 @@ export default function ResumeEditorPage() {
                   )}
 
                   {section === "testScores" && (
-                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "6px" }}>
+                    <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
                       {secData.items.filter((i: any) => i.visible).map((item: any) => (
-                        <div key={item.id} style={{ padding: "6px 8px", border: "1px solid #f1f5f9", backgroundColor: "#f8fafc", borderRadius: "8px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                        <div key={item.id} style={{ padding: "8px 12px", border: "1px solid #e2e8f0", backgroundColor: "#f8fafc", borderRadius: "8px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                           <div>
-                            <strong style={{ fontSize: "9px", color: "#0f172a", display: "block" }}>{item.title}</strong>
-                            {item.institution && <span style={{ fontSize: "8px", color: "#475569" }}>{item.institution}</span>}
+                            <strong style={{ fontSize: "11px", color: "#0f172a", display: "block" }}>{item.title}</strong>
+                            {item.institution && <span style={{ fontSize: "9.5px", color: "#475569" }}>{item.institution}</span>}
                           </div>
-                          <span style={{ fontSize: "9.5px", fontWeight: "bold", color: "#fff", backgroundColor: accentColor, padding: "2px 6px", borderRadius: "4px", fontFamily: "monospace" }}>{item.score}</span>
+                          <span style={{ fontSize: "11px", fontWeight: "bold", color: "#ffffff", backgroundColor: accentColor, padding: "3px 8px", borderRadius: "5px", fontFamily: "monospace" }}>{item.score}</span>
                         </div>
                       ))}
                     </div>
                   )}
 
                   {section === "certifications" && (
-                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "6px" }}>
+                    <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
                       {secData.items.filter((i: any) => i.visible).map((cert: any) => (
-                        <div key={cert.id} style={{ padding: "6px 8px", border: "1px solid #f1f5f9", backgroundColor: "#f8fafc", borderRadius: "8px", fontSize: "9px" }}>
-                          <strong style={{ color: "#0f172a", display: "block" }}>{cert.name}</strong>
-                          <span style={{ color: "#334155" }}>{cert.issuer} {cert.date && `· ${cert.date}`}</span>
+                        <div key={cert.id} style={{ padding: "8px 12px", border: "1px solid #e2e8f0", backgroundColor: "#f8fafc", borderRadius: "8px", fontSize: "10.5px", display: "flex", justifyContent: "space-between" }}>
+                          <div>
+                            <strong style={{ color: "#0f172a", display: "block" }}>{cert.name}</strong>
+                            <span style={{ color: "#475569", fontSize: "10px" }}>{cert.issuer}</span>
+                          </div>
+                          <span style={{ fontSize: "10px", fontFamily: "monospace", color: "#475569" }}>{cert.date}</span>
                         </div>
                       ))}
                     </div>
                   )}
 
                   {section === "achievements" && (
-                    <div style={{ display: "flex", flexDirection: "column", gap: "5px", paddingLeft: "10px" }}>
+                    <ul style={{ listStyleType: "disc", paddingLeft: "20px", margin: 0, fontSize: "10.5px", color: "#0f172a" }}>
                       {secData.items.filter((i: any) => i.visible).map((ach: any) => (
-                        <div key={ach.id} style={{ fontSize: "9px", color: "#0f172a", borderLeft: `2px solid ${accentColor}40`, paddingLeft: "6px" }}>
-                          <strong style={{ color: "#0f172a" }}>{ach.title}</strong> {ach.date && `(${ach.date})`}
-                          {ach.description && <div style={{ fontSize: "8px", color: "#334155", marginTop: "1px" }}>{ach.description}</div>}
-                        </div>
+                        <li key={ach.id} style={{ marginBottom: "4px" }}>
+                          <strong>{ach.title}</strong> {ach.date && `(${ach.date})`} {ach.description && `— ${ach.description}`}
+                        </li>
                       ))}
-                    </div>
-                  )}
-
-                  {section === "languages" && (
-                    <div style={{ display: "flex", flexWrap: "wrap", gap: "5px", paddingLeft: "10px" }}>
-                      {secData.items.filter((i: any) => i.visible).map((l: any) => (
-                        <span key={l.name} style={{ fontSize: "9px", padding: "2px 6px", backgroundColor: "#f1f5f9", borderRadius: "5px", color: "#334155" }}>
-                          {l.name} <span style={{ fontSize: "7px", opacity: 0.65 }}>({l.level})</span>
-                        </span>
-                      ))}
-                    </div>
+                    </ul>
                   )}
 
                   {section === "patents" && (
-                    <div style={{ display: "flex", flexDirection: "column", gap: "5px", paddingLeft: "10px" }}>
+                    <ul style={{ listStyleType: "square", paddingLeft: "20px", margin: 0, fontSize: "10.5px", color: "#0f172a" }}>
                       {secData.items.filter((i: any) => i.visible).map((pat: any) => (
-                        <div key={pat.id} style={{ fontSize: "9px", color: "#334155" }}>
-                          📜 <strong>{pat.title}</strong> (No: {pat.number})
-                        </div>
+                        <li key={pat.id} style={{ marginBottom: "4px" }}>
+                          <strong>{pat.title}</strong> — Patent No: {pat.number}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+
+                  {section === "languages" && (
+                    <div style={{ fontSize: "10.5px", color: "#0f172a", paddingLeft: "10px" }}>
+                      {secData.items.filter((i: any) => i.visible).map((l: any, idx: number, arr: any[]) => (
+                        <span key={l.name}>
+                          <strong>{l.name}</strong> ({l.level}){idx < arr.length - 1 ? ", " : ""}
+                        </span>
                       ))}
                     </div>
                   )}
