@@ -10,14 +10,15 @@ export async function POST(request: Request) {
 
     const searchKey = (username || email || "").trim();
     if (!searchKey || !password) {
-      return NextResponse.json({ message: "Username/Email and Password are required." }, { status: 400 });
+      return NextResponse.json({ message: "Username/Register Number and Password are required." }, { status: 400 });
     }
 
-    // Search user by username or email
+    // Search user by username, register number, or email
     const user = await prisma.users.findFirst({
       where: {
         OR: [
           { Username: { equals: searchKey, mode: "insensitive" } },
+          { RegisterNumber: { equals: searchKey, mode: "insensitive" } },
           { Email: { equals: searchKey, mode: "insensitive" } },
         ],
       },

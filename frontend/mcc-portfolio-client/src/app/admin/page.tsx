@@ -889,7 +889,7 @@ export default function AdminPage() {
         {/* Logo & Console Title */}
         <div className="p-6 border-b border-slate-200 flex items-center justify-center shrink-0">
           <img 
-            src="/mcc-logo.jpg" 
+            src={themeMode === "dark" ? "/mcc-logo-dark.png" : "/mcc-logo.jpg"} 
             className="w-full max-w-[280px] h-auto object-contain rounded-lg transition-transform duration-200 hover:scale-[1.02]" 
             alt="Madras Christian College Logo" 
           />
@@ -960,6 +960,20 @@ export default function AdminPage() {
             <Shield size={11} />
             {isSuperAdmin ? "Super Administrator" : "Sub-Admin"}
           </div>
+
+          {/* Dark / Light Mode Toggle */}
+          <button
+            onClick={toggleThemeMode}
+            className={`w-full flex items-center justify-center gap-2.5 py-2.5 rounded-xl text-xs font-bold transition cursor-pointer ${
+              themeMode === "dark"
+                ? "bg-white/10 hover:bg-white/20 text-yellow-300 border border-white/10"
+                : "bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200"
+            }`}
+          >
+            {themeMode === "dark" ? <Sun size={15} /> : <Moon size={15} />}
+            <span>{themeMode === "dark" ? "Light Mode" : "Dark Mode"}</span>
+          </button>
+
           <Link
             href="/"
             className={`flex items-center justify-between text-[11px] transition px-2 ${
@@ -990,7 +1004,7 @@ export default function AdminPage() {
             <div className="flex justify-between items-center pb-4 border-b border-gray-250 shrink-0">
               <div className="flex items-center justify-start py-1">
                 <img 
-                  src="/mcc-logo.jpg" 
+                  src={themeMode === "dark" ? "/mcc-logo-dark.png" : "/mcc-logo.jpg"} 
                   className="w-full max-w-[190px] h-auto object-contain rounded-lg" 
                   alt="Madras Christian College Logo" 
                 />
@@ -1019,29 +1033,49 @@ export default function AdminPage() {
                 }).map((tab) => {
                   const Icon = tab.icon;
                   const isActive = activeTab === tab.id;
+                  const isRbac = tab.id === "rbac";
+                  const readOnly = !isSuperAdmin && !canWrite(tab.id);
                   return (
                     <button
                       key={tab.id}
-                      onClick={() => {
-                        setActiveTab(tab.id as ActiveTab);
-                        setShowMobileNav(false);
-                      }}
-                      className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold transition ${
+                      onClick={() => { setActiveTab(tab.id as ActiveTab); setShowMobileNav(false); }}
+                      className={`w-full flex items-center gap-3.5 px-4 py-3 rounded-xl text-xs font-semibold tracking-wide transition-all duration-200 ${
                         isActive
                           ? "mcc-active-tab font-bold"
-                          : tab.id === "rbac"
-                            ? "text-violet-350 hover:bg-violet-500/10 border border-violet-400/20"
-                            : "hover:bg-white/5 text-slate-350 hover:text-white"
+                          : isRbac
+                            ? themeMode === "dark"
+                              ? "text-violet-400 hover:text-violet-200 hover:bg-violet-500/10 border border-violet-500/20"
+                              : "text-violet-300 hover:text-white hover:bg-violet-500/20 border border-violet-400/30"
+                            : themeMode === "dark"
+                              ? "text-slate-400 hover:text-white hover:bg-white/5"
+                              : "text-slate-305 hover:text-white hover:bg-white/10"
                       }`}
                     >
-                      <Icon size={14} />
+                      <Icon size={16} className={isActive ? (themeMode === "dark" ? "text-black" : "text-[#18233c]") : isRbac && !isActive ? "text-violet-400" : "text-slate-400"} />
                       {tab.label}
+                      {!isSuperAdmin && readOnly && !isActive && (
+                        <span className="ml-auto text-[8px] bg-amber-500/20 text-amber-300 px-1.5 py-0.5 rounded font-mono font-bold" title="Read-only access">R</span>
+                      )}
+                      {isRbac && !isActive && (
+                        <span className="ml-auto text-[8px] bg-violet-500/20 text-violet-300 px-1.5 py-0.5 rounded font-mono font-bold">SA</span>
+                      )}
                     </button>
                   );
                 })}
               </nav>
             
-            <div className="pt-4 border-t border-white/10 space-y-3 shrink-0">
+            <div className="pt-4 border-t border-slate-800 shrink-0 space-y-2">
+              <button
+                onClick={toggleThemeMode}
+                className={`w-full flex items-center justify-center gap-2.5 py-2.5 rounded-xl text-xs font-bold transition cursor-pointer ${
+                  themeMode === "dark"
+                    ? "bg-white/10 hover:bg-white/20 text-yellow-300 border border-white/10"
+                    : "bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200"
+                }`}
+              >
+                {themeMode === "dark" ? <Sun size={15} /> : <Moon size={15} />}
+                <span>{themeMode === "dark" ? "Light Mode" : "Dark Mode"}</span>
+              </button>
               <button
                 onClick={() => {
                   localStorage.removeItem("adminToken");
@@ -1077,6 +1111,15 @@ export default function AdminPage() {
               Admin Console
             </span>
           </div>
+          <button
+            onClick={toggleThemeMode}
+            aria-label="Toggle theme"
+            className={`w-8 h-8 rounded-full flex items-center justify-center transition-all duration-200 cursor-pointer ${
+              themeMode === "dark" ? "bg-white/10 text-yellow-300" : "bg-slate-100 text-slate-600"
+            }`}
+          >
+            {themeMode === "dark" ? <Sun size={15} /> : <Moon size={15} />}
+          </button>
         </div>
 
         {/* BANNER SHOWCASE */}

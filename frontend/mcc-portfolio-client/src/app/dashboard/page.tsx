@@ -1335,7 +1335,7 @@ Report Generated: ${new Date().toLocaleDateString()}
       <div className="w-72 border-r backdrop-blur-xl sticky top-0 h-screen flex-col transition-colors duration-300 shrink-0 hidden md:flex mcc-sidebar">
         <div className="p-6 border-b border-slate-200 flex items-center justify-center">
           <img 
-            src="/mcc-logo.jpg" 
+            src={themeMode === "dark" ? "/mcc-logo-dark.png" : "/mcc-logo.jpg"} 
             className="w-full max-w-[280px] h-auto object-contain rounded-lg transition-transform duration-200 hover:scale-[1.02]" 
             alt="Madras Christian College Logo" 
           />
@@ -1445,12 +1445,23 @@ Report Generated: ${new Date().toLocaleDateString()}
           </div>
         </div>
 
-        <div className="p-4 border-t border-white/10">
+        <div className="p-4 border-t border-white/10 space-y-2">
+          <button
+            onClick={toggleThemeMode}
+            className={`w-full flex items-center justify-center gap-2.5 py-2.5 rounded-xl text-xs font-bold transition cursor-pointer ${
+              themeMode === "dark"
+                ? "bg-white/10 hover:bg-white/20 text-yellow-300 border border-white/10"
+                : "bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200"
+            }`}
+          >
+            {themeMode === "dark" ? <Sun size={15} /> : <Moon size={15} />}
+            <span>{themeMode === "dark" ? "Light Mode" : "Dark Mode"}</span>
+          </button>
           <button
             onClick={handleLogout}
-            className="w-full flex items-center justify-center gap-3 bg-red-500/10 hover:bg-red-500/20 text-red-400 py-3 rounded-xl text-sm font-semibold transition cursor-pointer"
+            className="w-full flex items-center justify-center gap-3 bg-red-500/10 hover:bg-red-500/20 text-red-400 py-2.5 rounded-xl text-xs font-semibold transition cursor-pointer"
           >
-            <LogOut size={16} /> Log Out
+            <LogOut size={15} /> Log Out
           </button>
         </div>
       </div>
@@ -1462,7 +1473,7 @@ Report Generated: ${new Date().toLocaleDateString()}
             <div className="flex justify-between items-center pb-4 border-b border-gray-250">
               <div className="flex items-center justify-start py-1">
                 <img 
-                  src="/mcc-logo.jpg" 
+                  src={themeMode === "dark" ? "/mcc-logo-dark.png" : "/mcc-logo.jpg"} 
                   className="w-full max-w-[190px] h-auto object-contain rounded-lg" 
                   alt="Madras Christian College Logo" 
                 />
@@ -1575,9 +1586,20 @@ Report Generated: ${new Date().toLocaleDateString()}
                 </button>
               </div>
             </nav>
-            <div className="pt-4 border-t border-white/10">
-              <button onClick={handleLogout} className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium text-left hover:bg-red-500/10 text-red-400 cursor-pointer">
-                <LogOut size={16} /> Log Out
+            <div className="pt-4 border-t border-white/10 space-y-2">
+              <button
+                onClick={toggleThemeMode}
+                className={`w-full flex items-center justify-center gap-2.5 py-2.5 rounded-xl text-xs font-bold transition cursor-pointer ${
+                  themeMode === "dark"
+                    ? "bg-white/10 hover:bg-white/20 text-yellow-300 border border-white/10"
+                    : "bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200"
+                }`}
+              >
+                {themeMode === "dark" ? <Sun size={15} /> : <Moon size={15} />}
+                <span>{themeMode === "dark" ? "Light Mode" : "Dark Mode"}</span>
+              </button>
+              <button onClick={handleLogout} className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-semibold bg-red-500/10 hover:bg-red-500/20 text-red-400 cursor-pointer">
+                <LogOut size={15} /> Log Out
               </button>
             </div>
           </div>
@@ -1602,6 +1624,15 @@ Report Generated: ${new Date().toLocaleDateString()}
               Dashboard Menu
             </span>
           </div>
+          <button
+            onClick={toggleThemeMode}
+            aria-label="Toggle theme"
+            className={`w-8 h-8 rounded-full flex items-center justify-center transition-all duration-200 cursor-pointer ${
+              themeMode === "dark" ? "bg-white/10 text-yellow-300" : "bg-slate-100 text-slate-600"
+            }`}
+          >
+            {themeMode === "dark" ? <Sun size={15} /> : <Moon size={15} />}
+          </button>
         </div>
 
         {/* MAIN CONTAINER */}
@@ -1796,7 +1827,9 @@ Report Generated: ${new Date().toLocaleDateString()}
                 type="text"
                 disabled
                 value={course}
-                className="border rounded-xl px-4 py-3 text-sm outline-none bg-slate-100 border-slate-200 text-slate-455 cursor-not-allowed"
+                className={`border rounded-xl px-4 py-3 text-sm outline-none cursor-not-allowed transition ${
+                  themeMode === "dark" ? "bg-white/5 border-white/10 text-slate-300" : "bg-slate-100 border-slate-200 text-slate-500"
+                }`}
               />
             </div>
 
@@ -1847,7 +1880,9 @@ Report Generated: ${new Date().toLocaleDateString()}
                 placeholder="Email Address"
                 value={email}
                 disabled
-                className="border rounded-xl px-4 py-3 text-sm outline-none bg-slate-100 border-slate-200 text-slate-455 cursor-not-allowed"
+                className={`border rounded-xl px-4 py-3 text-sm outline-none cursor-not-allowed transition ${
+                  themeMode === "dark" ? "bg-white/5 border-white/10 text-slate-300" : "bg-slate-100 border-slate-200 text-slate-500"
+                }`}
               />
             </div>
 

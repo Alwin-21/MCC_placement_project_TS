@@ -190,7 +190,7 @@ export default function LoginPage() {
             <form onSubmit={handleLogin} className="space-y-4" autoComplete="off">
               
               <div>
-                <label className={`text-[10px] uppercase font-mono tracking-wider font-bold block mb-1.5 ${isDark ? "text-slate-300" : "text-slate-700"}`}>
+                <label className="text-[10px] uppercase font-mono tracking-wider font-bold text-slate-655 block mb-1.5">
                   Username or Register Number
                 </label>
                 <div className="relative">
