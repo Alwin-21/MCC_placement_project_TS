@@ -288,6 +288,14 @@ export default function ResumesDashboardPage() {
               Resume Dashboard
             </span>
           </div>
+          <button
+            onClick={toggleThemeMode}
+            aria-label="Toggle theme"
+            className="mcc-theme-toggle"
+            title="Toggle Light/Dark Mode"
+          >
+            {themeMode === "dark" ? <Sun size={16} /> : <Moon size={16} />}
+          </button>
         </div>
 
         {/* DESKTOP TOP BAR */}
@@ -303,6 +311,14 @@ export default function ResumesDashboardPage() {
               className="bg-[#781c1c] hover:bg-[#5f1515] text-white px-5 py-2.5 rounded-xl font-bold text-xs transition flex items-center gap-2 shadow-sm shadow-[#781c1c]/10 cursor-pointer"
             >
               <Plus size={16} /> Create Resume
+            </button>
+            <button
+              onClick={toggleThemeMode}
+              aria-label="Toggle theme"
+              className="mcc-theme-toggle"
+              title="Toggle Light/Dark Mode"
+            >
+              {themeMode === "dark" ? <Sun size={16} /> : <Moon size={16} />}
             </button>
           </div>
         </div>
