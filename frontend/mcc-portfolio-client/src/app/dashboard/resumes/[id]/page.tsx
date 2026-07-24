@@ -40,6 +40,7 @@ export default function ResumeEditorPage() {
   const { id } = useParams();
   const router = useRouter();
   const [themeMode, toggleThemeMode] = useTheme();
+  const isDark = themeMode === "dark";
 
   // Core loading states
   const [loading, setLoading] = useState(true);
@@ -694,23 +695,34 @@ export default function ResumeEditorPage() {
       const p1Sections: string[] = [];
       const p2Sections: string[] = [];
       let accumHeight = 0;
-      const p1Budget = fontSizeLevel === "Small" ? 760 : fontSizeLevel === "Large" ? 660 : fontSizeLevel === "XL" ? 620 : 720;
+      // Tightened budget to account for header banner height in Creative template
+      const p1Budget = fontSizeLevel === "Small" ? 620 : fontSizeLevel === "Large" ? 560 : fontSizeLevel === "XL" ? 520 : 590;
+      const MIN_SPACE_REMAINING = 80;
 
       activeSections.forEach((secKey) => {
         const secData = resumeData[secKey];
         const items = secData.items?.filter((i: any) => i.visible) || [];
-        let secHeight = 60 + items.length * 50;
+        let secHeight = 50 + items.length * 50;
 
-        if (secKey === "summary") secHeight = 70;
-        if (secKey === "experience") secHeight = 40 + items.length * 90;
-        if (secKey === "education") secHeight = 40 + items.length * 60;
-        if (secKey === "projects") secHeight = 40 + items.length * 80;
+        if (secKey === "summary") secHeight = 65;
+        if (secKey === "experience") secHeight = 38 + items.length * 90;
+        if (secKey === "education") secHeight = 38 + items.length * 60;
+        if (secKey === "projects") secHeight = 38 + items.length * 75;
+        // Compact sections - each item is just one text line
+        if (secKey === "skills") secHeight = 32 + Math.ceil(items.length / 3) * 22;
+        if (secKey === "certifications") secHeight = 32 + items.length * 32;
+        if (secKey === "achievements") secHeight = 32 + items.length * 30;
+        if (secKey === "languages") secHeight = 32 + Math.ceil(items.length / 4) * 22;
+        if (secKey === "testScores") secHeight = 32 + items.length * 45;
+        if (secKey === "patents") secHeight = 32 + items.length * 28;
 
         if (fontSizeLevel === "Large") secHeight *= 1.15;
         if (fontSizeLevel === "XL") secHeight *= 1.30;
         if (fontSizeLevel === "Small") secHeight *= 0.88;
 
-        if (accumHeight + secHeight <= p1Budget || p1Sections.length === 0) {
+        const remaining = p1Budget - accumHeight;
+        // Push entire section to p2 if it won't fit with comfortable margin
+        if ((remaining >= secHeight + MIN_SPACE_REMAINING) || p1Sections.length === 0) {
           p1Sections.push(secKey);
           accumHeight += secHeight;
         } else {
@@ -739,16 +751,22 @@ export default function ResumeEditorPage() {
       const p2Sections: string[] = [];
 
       let accumHeight = 0;
-      // Maximized vertical height budget for Professional (930px) and Classic ATS (910px)
+      // Conservative budgets: page content area minus generous bottom margin.
+      // Professional: header banner ~110px + sidebar layout → main column ~950px usable → budget 760
+      // Classic ATS: header ~70px + padding 80px → ~973px usable → budget 820
+      // We subtract an extra ~120px safety margin so sections are never clipped.
       const p1Budget = isProf
-        ? (fontSizeLevel === "Small" ? 980 : fontSizeLevel === "Large" ? 880 : fontSizeLevel === "XL" ? 840 : 930)
-        : (fontSizeLevel === "Small" ? 960 : fontSizeLevel === "Large" ? 860 : fontSizeLevel === "XL" ? 820 : 910);
+        ? (fontSizeLevel === "Small" ? 780 : fontSizeLevel === "Large" ? 720 : fontSizeLevel === "XL" ? 680 : 760)
+        : (fontSizeLevel === "Small" ? 800 : fontSizeLevel === "Large" ? 740 : fontSizeLevel === "XL" ? 700 : 780);
+      // Minimum space that must remain after placing a section. If remaining < this, stop adding to page 1.
+      const MIN_SPACE_REMAINING = 70;
 
       activeSections.forEach((secKey) => {
         const secData = resumeData[secKey];
         if (secKey === "summary") {
           const summaryHeight = fontSizeLevel === "Small" ? 55 : fontSizeLevel === "Large" ? 85 : fontSizeLevel === "XL" ? 95 : 70;
-          if (accumHeight + summaryHeight <= p1Budget || p1Sections.length === 0) {
+          const remaining = p1Budget - accumHeight;
+          if ((remaining >= summaryHeight + MIN_SPACE_REMAINING) || p1Sections.length === 0) {
             p1Sections.push(secKey);
             p1Map[secKey] = [secData.content];
             accumHeight += summaryHeight;
@@ -762,7 +780,7 @@ export default function ResumeEditorPage() {
         const items = secData.items?.filter((i: any) => i.visible) || [];
         if (items.length === 0) return;
 
-        const headerHeight = 32;
+        const headerHeight = 34;
         const secP1Items: any[] = [];
         const secP2Items: any[] = [];
 
@@ -771,15 +789,48 @@ export default function ResumeEditorPage() {
           if (secKey === "experience") itemHeight = fontSizeLevel === "Small" ? 75 : fontSizeLevel === "Large" ? 105 : fontSizeLevel === "XL" ? 115 : 90;
           if (secKey === "education") itemHeight = fontSizeLevel === "Small" ? 45 : fontSizeLevel === "Large" ? 65 : fontSizeLevel === "XL" ? 75 : 55;
           if (secKey === "projects") itemHeight = fontSizeLevel === "Small" ? 65 : fontSizeLevel === "Large" ? 90 : fontSizeLevel === "XL" ? 100 : 75;
+          // Compact sections — each item is a short single-line row
+          if (secKey === "skills") itemHeight = fontSizeLevel === "Small" ? 18 : fontSizeLevel === "Large" ? 24 : fontSizeLevel === "XL" ? 26 : 21;
+          if (secKey === "certifications") itemHeight = fontSizeLevel === "Small" ? 28 : fontSizeLevel === "Large" ? 38 : fontSizeLevel === "XL" ? 42 : 33;
+          if (secKey === "achievements") itemHeight = fontSizeLevel === "Small" ? 26 : fontSizeLevel === "Large" ? 36 : fontSizeLevel === "XL" ? 40 : 30;
+          if (secKey === "languages") itemHeight = fontSizeLevel === "Small" ? 18 : fontSizeLevel === "Large" ? 24 : fontSizeLevel === "XL" ? 26 : 21;
+          if (secKey === "testScores") itemHeight = fontSizeLevel === "Small" ? 40 : fontSizeLevel === "Large" ? 55 : fontSizeLevel === "XL" ? 62 : 48;
+          if (secKey === "patents") itemHeight = fontSizeLevel === "Small" ? 22 : fontSizeLevel === "Large" ? 32 : fontSizeLevel === "XL" ? 36 : 27;
 
           const needed = (secP1Items.length === 0 ? headerHeight : 0) + itemHeight;
-          if (accumHeight + needed <= p1Budget) {
+          // Only place on page 1 if there's enough space PLUS the minimum remaining margin
+          const remaining = p1Budget - accumHeight;
+          if (remaining >= needed + MIN_SPACE_REMAINING) {
             secP1Items.push(item);
             accumHeight += needed;
           } else {
             secP2Items.push(item);
           }
         });
+
+        // Guard: don't strand a section heading with very few items at the bottom of page 1.
+        // If fewer than 2 items fit on page 1 AND there are still items spilling to page 2,
+        // move the entire section to page 2 to keep heading + content together.
+        const minItemsOnPage1 = ["experience", "projects"].includes(secKey) ? 1 : 2;
+        if (secP1Items.length > 0 && secP1Items.length < minItemsOnPage1 && secP2Items.length > 0) {
+          // Undo the p1 accumulation and push all to p2
+          const p1AccumToUndo = headerHeight + secP1Items.reduce((_: number, item: any) => {
+            let h = 55;
+            if (secKey === "experience") h = fontSizeLevel === "Small" ? 75 : fontSizeLevel === "Large" ? 105 : fontSizeLevel === "XL" ? 115 : 90;
+            if (secKey === "education") h = fontSizeLevel === "Small" ? 45 : fontSizeLevel === "Large" ? 65 : fontSizeLevel === "XL" ? 75 : 55;
+            if (secKey === "projects") h = fontSizeLevel === "Small" ? 65 : fontSizeLevel === "Large" ? 90 : fontSizeLevel === "XL" ? 100 : 75;
+            if (secKey === "skills") h = fontSizeLevel === "Small" ? 18 : fontSizeLevel === "Large" ? 24 : fontSizeLevel === "XL" ? 26 : 21;
+            if (secKey === "certifications") h = fontSizeLevel === "Small" ? 28 : fontSizeLevel === "Large" ? 38 : fontSizeLevel === "XL" ? 42 : 33;
+            if (secKey === "achievements") h = fontSizeLevel === "Small" ? 26 : fontSizeLevel === "Large" ? 36 : fontSizeLevel === "XL" ? 40 : 30;
+            if (secKey === "languages") h = fontSizeLevel === "Small" ? 18 : fontSizeLevel === "Large" ? 24 : fontSizeLevel === "XL" ? 26 : 21;
+            if (secKey === "testScores") h = fontSizeLevel === "Small" ? 40 : fontSizeLevel === "Large" ? 55 : fontSizeLevel === "XL" ? 62 : 48;
+            if (secKey === "patents") h = fontSizeLevel === "Small" ? 22 : fontSizeLevel === "Large" ? 32 : fontSizeLevel === "XL" ? 36 : 27;
+            return _ + h;
+          }, 0);
+          accumHeight -= p1AccumToUndo;
+          secP2Items.unshift(...secP1Items);
+          secP1Items.length = 0;
+        }
 
         if (secP1Items.length > 0) {
           p1Sections.push(secKey);
@@ -1590,111 +1641,162 @@ export default function ResumeEditorPage() {
       </div>
 
       {/* LEFT COLUMN: EDITOR CONTROL PANEL */}
-      <div className={`resume-editor-sidebar w-full md:w-[480px] md:shrink-0 flex flex-col border-r border-slate-700 bg-slate-800 h-full ${mobileTab === "edit" ? "flex" : "hidden md:flex"}`}>
+      <div className={`resume-editor-sidebar w-full md:w-[460px] lg:w-[480px] md:shrink-0 flex flex-col h-full transition-colors duration-300 ${
+        isDark
+          ? "bg-[#0b0f18] text-white shadow-[2px_0_24px_0_rgba(0,0,0,0.55)]"
+          : "bg-slate-50 text-slate-900 shadow-[2px_0_16px_0_rgba(15,23,42,0.08)]"
+      } ${mobileTab === "edit" ? "flex" : "hidden md:flex"}`}>
         
         {/* Editor Top Bar */}
-        <div className="p-3 sm:p-4 border-b border-slate-700 bg-[#09090d] flex items-center justify-between shrink-0 gap-1.5 sm:gap-2">
+        <div className={`px-3 pt-3 pb-2 flex items-center gap-2 shrink-0 ${
+          isDark ? "bg-[#080c15]" : "bg-white"
+        }`}>
+          {/* Back button */}
           <button
             onClick={() => router.push("/dashboard/resumes")}
-            className="p-1.5 sm:p-2 rounded-lg hover:bg-slate-800 transition text-slate-300 hover:text-white cursor-pointer shrink-0"
-            title="Back to Dashboard"
+            className={`p-2 rounded-xl transition cursor-pointer shrink-0 ${
+              isDark
+                ? "bg-slate-800/80 hover:bg-slate-700 text-slate-300 hover:text-white"
+                : "bg-slate-100 hover:bg-slate-200 text-slate-600 hover:text-slate-900"
+            }`}
+            title="Back to Resumes"
           >
-            <ArrowLeft size={16} />
+            <ArrowLeft size={15} />
           </button>
 
+          {/* Resume name input */}
           <input
             type="text"
             value={resumeTitle}
             onChange={(e) => setResumeTitle(e.target.value)}
-            className="flex-1 min-w-[60px] sm:min-w-[80px] bg-slate-900 border border-slate-700 rounded-xl px-2 sm:px-3 py-1.5 text-xs text-white outline-none focus:border-[#781c1c] font-bold"
+            className={`flex-1 min-w-0 rounded-xl px-3 py-1.5 text-[11px] outline-none font-black border-0 ring-1 focus:ring-2 focus:ring-[#781c1c]/70 transition-all ${
+              isDark
+                ? "bg-slate-800/60 ring-slate-700/60 text-white placeholder-slate-500"
+                : "bg-slate-100 ring-slate-200 text-slate-900 placeholder-slate-400"
+            }`}
             placeholder="Resume Name"
           />
-          <div className="flex gap-1 sm:gap-1.5 shrink-0">
+
+          {/* Action buttons pill group */}
+          <div className={`flex items-center rounded-xl overflow-hidden shrink-0 ${
+            isDark ? "bg-slate-800/70 ring-1 ring-slate-700/60" : "bg-slate-100 ring-1 ring-slate-200"
+          }`}>
             <button
-              onClick={() => setShowPreviewModal(true)}
-              className="p-1.5 sm:p-2 rounded-lg bg-slate-800 hover:bg-slate-700 transition text-sky-400 cursor-pointer"
-              title="Fullscreen Preview"
+              onClick={toggleThemeMode}
+              className={`p-2 transition cursor-pointer ${
+                isDark ? "text-amber-300 hover:bg-slate-700" : "text-slate-500 hover:bg-slate-200"
+              }`}
+              title={isDark ? "Switch to Light Mode" : "Switch to Dark Mode"}
             >
-              <Eye size={14} />
+              {isDark ? <Sun size={13} /> : <Moon size={13} />}
+            </button>
+            <button
+              onClick={handleSyncFromPortfolio}
+              className={`p-2 transition cursor-pointer ${
+                isDark ? "text-emerald-300 hover:bg-slate-700" : "text-emerald-600 hover:bg-slate-200"
+              }`}
+              title="Sync latest from Portfolio"
+            >
+              <RefreshCw size={13} />
             </button>
             <button
               onClick={handleDownloadPDF}
               disabled={downloading}
-              className="p-1.5 sm:p-2 rounded-lg bg-slate-800 hover:bg-slate-700 transition text-indigo-400 cursor-pointer disabled:opacity-50"
+              className={`p-2 transition cursor-pointer disabled:opacity-40 ${
+                isDark ? "text-indigo-300 hover:bg-slate-700" : "text-indigo-600 hover:bg-slate-200"
+              }`}
               title={downloading ? "Generating PDF..." : "Download PDF"}
             >
-              {downloading ? <span className="text-[9px] font-mono">...</span> : <Download size={14} />}
-            </button>
-            <button
-              onClick={handleSyncFromPortfolio}
-              className="p-1.5 sm:p-2 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 transition text-emerald-600 dark:text-emerald-400 cursor-pointer"
-              title="Sync latest from Portfolio"
-            >
-              <RefreshCw size={14} />
-            </button>
-            <button
-              onClick={handleSaveResume}
-              disabled={saving}
-              className="p-1.5 sm:p-2 rounded-lg bg-[#781c1c] hover:bg-[#5f1515] transition text-white cursor-pointer disabled:opacity-50"
-              title="Save Resume Draft"
-            >
-              <Save size={14} />
+              {downloading ? <span className="text-[9px] font-mono font-bold px-1">...</span> : <Download size={13} />}
             </button>
           </div>
+
+          {/* Save button — standalone accent */}
+          <button
+            onClick={handleSaveResume}
+            disabled={saving}
+            className="p-2 rounded-xl bg-[#781c1c] hover:bg-[#5f1515] active:scale-95 transition-all text-white cursor-pointer disabled:opacity-50 shadow-lg shadow-red-900/30 shrink-0"
+            title="Save Resume Draft"
+          >
+            <Save size={13} />
+          </button>
         </div>
 
-        {/* Tab Headers */}
-        <div className="flex border-b border-slate-700 text-[10px] uppercase font-mono tracking-wider font-bold shrink-0 overflow-x-auto bg-slate-900 scrollbar-thin whitespace-nowrap">
-          {["theme", "profile", "summary", "experience", "education", "projects", "skills", "others"].map((tab) => (
-            <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
-              className={`px-4 py-3 text-center border-b-2 cursor-pointer transition shrink-0 ${
-                activeTab === tab ? "border-[#781c1c]" : "border-transparent"
-              }`}
-              style={{ color: activeTab === tab ? "#ffffff" : "#cbd5e1" }}
-            >
-              {tab}
-            </button>
-          ))}
+        {/* Tab Headers — Pill Chips */}
+        <div className={`px-3 pt-2 pb-2.5 shrink-0 ${
+          isDark ? "bg-[#080c15]" : "bg-white"
+        }`}>
+          <div className={`flex gap-1 overflow-x-auto scrollbar-none whitespace-nowrap pb-0.5`}>
+            {["theme", "profile", "summary", "experience", "education", "projects", "skills", "others"].map((tab) => (
+              <button
+                key={tab}
+                onClick={() => setActiveTab(tab)}
+                className={`px-3 py-1.5 rounded-full text-[10px] uppercase tracking-widest font-black cursor-pointer transition-all shrink-0 ${
+                  activeTab === tab
+                    ? "bg-[#781c1c] text-white shadow-md shadow-red-900/30"
+                    : isDark
+                      ? "bg-slate-800/70 text-slate-400 hover:text-slate-200 hover:bg-slate-700/80"
+                      : "bg-slate-100 text-slate-500 hover:text-slate-700 hover:bg-slate-200"
+                }`}
+              >
+                {tab}
+              </button>
+            ))}
+          </div>
         </div>
+        {/* Thin divider under tabs */}
+        <div className={`h-px mx-3 mb-1 shrink-0 rounded-full ${
+          isDark ? "bg-slate-800" : "bg-slate-200"
+        }`} />
 
         {/* Tab Body Contents */}
-        <div className="flex-1 overflow-y-auto p-5 space-y-5 scrollbar-thin">
+        <div className="flex-1 overflow-y-auto px-3 pt-2 pb-6 space-y-4 scrollbar-thin">
           
           {/* Warning banner for missing marksheets */}
           {missingSheets.length > 0 && (
-            <div className="bg-amber-500/10 border border-amber-500/20 text-amber-400 rounded-2xl p-4 flex gap-3 text-xs leading-relaxed">
-              <AlertCircle size={18} className="shrink-0 mt-0.5" />
+            <div className={`rounded-2xl p-3.5 flex gap-3 text-xs leading-relaxed ${
+              isDark
+                ? "bg-amber-500/10 border border-amber-500/25 text-amber-300"
+                : "bg-amber-50 border border-amber-200 text-amber-800"
+            }`}>
+              <AlertCircle size={16} className="shrink-0 mt-0.5" />
               <div>
-                <strong className="block mb-1">Portfolio Completion Alert:</strong>
-                Missing mandatory marksheets: <span className="font-semibold text-white">{missingSheets.join(", ")}</span>. Add these under your Academic portfolio section to include them.
+                <strong className="block mb-0.5 font-black text-[11px]">Portfolio Completion Alert</strong>
+                <span className="font-semibold leading-relaxed">Missing marksheets: <span className="font-black">{missingSheets.join(", ")}</span>. Add under Academic portfolio.</span>
               </div>
             </div>
           )}
 
           {/* TAB 1: THEME & COLOR */}
           {activeTab === "theme" && (
-            <div className="space-y-6">
-              <div className="space-y-3">
-                <label className="text-[10px] font-mono uppercase tracking-wider text-slate-400">Choose Resume Template</label>
-                <div className="grid grid-cols-3 gap-3">
+            <div className="space-y-5">
+              <div className="space-y-2">
+                <label className={`text-[9.5px] font-mono uppercase tracking-widest block font-black ${
+                  isDark ? "text-slate-400" : "text-slate-500"
+                }`}>Resume Template</label>
+                <div className="grid grid-cols-3 gap-2">
                   {[
-                    { id: "Professional", name: "Professional", desc: "Two-Column Blue" },
-                    { id: "Classic ATS", name: "Classic ATS", desc: "B&W Optimized" },
-                    { id: "Creative", name: "Creative", desc: "Vibrant Banner" }
+                    { id: "Professional", name: "Professional", desc: "Two-Column" },
+                    { id: "Classic ATS", name: "Classic ATS", desc: "B&W ATS" },
+                    { id: "Creative", name: "Creative", desc: "Vibrant" }
                   ].map((t) => (
                     <button
                       key={t.id}
                       onClick={() => setSelectedTheme(t.id)}
-                      className={`border rounded-xl p-3 text-left transition ${
+                      className={`rounded-2xl p-3 text-left transition-all cursor-pointer ${
                         selectedTheme === t.id
-                          ? "border-[#781c1c] bg-[#781c1c]/10 text-white"
-                          : "border-slate-700 bg-slate-900 text-slate-400 hover:border-slate-500"
+                          ? isDark
+                            ? "bg-[#781c1c]/25 ring-1 ring-[#781c1c] text-white"
+                            : "bg-[#781c1c]/8 ring-1 ring-[#781c1c] text-[#781c1c]"
+                          : isDark
+                            ? "bg-slate-800/60 text-slate-300 hover:bg-slate-700/70 hover:text-white"
+                            : "bg-white text-slate-600 hover:bg-slate-50 ring-1 ring-slate-200 hover:ring-slate-300"
                       }`}
                     >
-                      <strong className="block text-xs text-white">{t.name}</strong>
-                      <span className="text-[9px] opacity-75 mt-1 block leading-tight">{t.desc}</span>
+                      <strong className="block text-[11px] font-black">{t.name}</strong>
+                      <span className={`text-[9px] mt-0.5 block font-semibold ${
+                        isDark ? "text-slate-400" : "text-slate-400"
+                      }`}>{t.desc}</span>
                     </button>
                   ))}
                 </div>
@@ -1702,63 +1804,89 @@ export default function ResumeEditorPage() {
 
               {/* Accent Color */}
               {selectedTheme !== "Classic ATS" && (
-                <div className="space-y-3">
-                  <label className="text-[10px] font-mono uppercase tracking-wider text-slate-400">Accent Brand Color</label>
-                  <div className="flex gap-2.5 items-center bg-slate-900 p-3 rounded-xl border border-slate-700">
+                <div className="space-y-2">
+                  <label className={`text-[9.5px] font-mono uppercase tracking-widest block font-black ${
+                    isDark ? "text-slate-400" : "text-slate-500"
+                  }`}>Accent Color</label>
+                  <div className={`flex gap-3 items-center p-3 rounded-2xl ${
+                    isDark ? "bg-slate-800/60" : "bg-white ring-1 ring-slate-200"
+                  }`}>
                     <input
                       type="color"
                       value={accentColor}
                       onChange={(e) => setAccentColor(e.target.value)}
-                      className="w-10 h-10 border border-slate-700 rounded-lg cursor-pointer bg-transparent"
+                      className="w-9 h-9 rounded-xl cursor-pointer bg-transparent border-0 p-0"
                     />
                     <div>
-                      <span className="text-xs font-mono font-bold block">{accentColor}</span>
-                      <span className="text-[9px] opacity-60">Pick color for sidebar titles, lines, and tags.</span>
+                      <span className={`text-xs font-mono font-black block ${
+                        isDark ? "text-white" : "text-slate-800"
+                      }`}>{accentColor}</span>
+                      <span className={`text-[10px] ${
+                        isDark ? "text-slate-400" : "text-slate-500"
+                      }`}>Sidebar titles, lines & tags</span>
                     </div>
                   </div>
                 </div>
               )}
 
               {/* Font Size Option Picker */}
-              <div className="space-y-3">
-                <label className="text-[10px] font-mono uppercase tracking-wider text-slate-400">Typography Font Size</label>
-                <div className="grid grid-cols-4 gap-2 bg-slate-900 p-2 rounded-xl border border-slate-700">
+              <div className="space-y-2">
+                <label className={`text-[9.5px] font-mono uppercase tracking-widest block font-black ${
+                  isDark ? "text-slate-400" : "text-slate-500"
+                }`}>Font Size</label>
+                <div className={`grid grid-cols-4 gap-1.5 p-1.5 rounded-2xl ${
+                  isDark ? "bg-slate-800/40" : "bg-slate-100"
+                }`}>
                   {[
-                    { id: "Small", label: "Small", detail: "9.5px" },
-                    { id: "Medium", label: "Medium", detail: "10.5px" },
-                    { id: "Large", label: "Large", detail: "11.5px" },
-                    { id: "XL", label: "XL", detail: "12.5px" }
+                    { id: "Small", label: "Sm", detail: "10px" },
+                    { id: "Medium", label: "Md", detail: "11px" },
+                    { id: "Large", label: "Lg", detail: "12px" },
+                    { id: "XL", label: "XL", detail: "13px" }
                   ].map((f) => (
                     <button
                       key={f.id}
                       type="button"
                       onClick={() => setFontSizeLevel(f.id)}
-                      className={`p-2 rounded-lg text-center transition cursor-pointer border ${
+                      className={`py-2 rounded-xl text-center transition-all cursor-pointer ${
                         fontSizeLevel === f.id
-                          ? "border-[#781c1c] bg-[#781c1c]/20 text-white font-bold shadow-md"
-                          : "border-slate-800 bg-slate-800 text-slate-400 hover:text-white hover:border-slate-600"
+                          ? "bg-[#781c1c] text-white shadow-md shadow-red-900/30"
+                          : isDark
+                            ? "text-slate-400 hover:text-white hover:bg-slate-700/70"
+                            : "text-slate-500 hover:text-slate-800 hover:bg-white"
                       }`}
                     >
-                      <div className="text-xs font-bold">{f.label}</div>
-                      <div className="text-[8.5px] opacity-75">{f.detail}</div>
+                      <div className="text-[11px] font-black">{f.label}</div>
+                      <div className={`text-[8.5px] font-semibold ${
+                        fontSizeLevel === f.id ? "text-red-200" : isDark ? "text-slate-500" : "text-slate-400"
+                      }`}>{f.detail}</div>
                     </button>
                   ))}
                 </div>
               </div>
 
               {/* Sections Reordering */}
-              <div className="space-y-3">
-                <label className="text-[10px] font-mono uppercase tracking-wider text-slate-400">Section Order & Rename Headings</label>
-                <div className="space-y-2 bg-slate-900 p-3 rounded-2xl border border-slate-700">
+              <div className="space-y-2">
+                <label className={`text-[9.5px] font-mono uppercase tracking-widest block font-black ${
+                  isDark ? "text-slate-400" : "text-slate-500"
+                }`}>Section Order & Headings</label>
+                <div className={`space-y-1.5 p-2 rounded-2xl ${
+                  isDark ? "bg-slate-800/40" : "bg-slate-100/80"
+                }`}>
                   {sectionOrder.map((section, idx) => (
-                    <div key={section} className="flex items-center justify-between bg-slate-800 rounded-xl p-2.5 text-xs">
+                    <div key={section} className={`flex items-center justify-between rounded-xl px-3 py-2 text-xs ${
+                      isDark
+                        ? "bg-slate-800/80 text-white hover:bg-slate-700/80 transition-colors"
+                        : "bg-white text-slate-900 shadow-sm hover:shadow-md transition-shadow"
+                    }`}>
                       <div className="flex items-center gap-2">
-                        <span className="text-[9px] font-mono opacity-40">#{idx + 1}</span>
+                        <span className="text-[9px] font-mono opacity-80 font-black">#{idx + 1}</span>
                         <input
                           type="text"
                           value={headings[section]}
                           onChange={(e) => setHeadings({ ...headings, [section]: e.target.value })}
-                          className="bg-transparent border-none outline-none font-bold text-white text-xs w-36 focus:underline"
+                          className={`bg-transparent border-none outline-none font-black text-xs w-36 focus:underline ${
+                            isDark ? "text-white" : "text-slate-900"
+                          }`}
                         />
                       </div>
                       
@@ -1766,7 +1894,7 @@ export default function ResumeEditorPage() {
                         <button
                           onClick={() => moveSection(idx, "up")}
                           disabled={idx === 0}
-                          className="p-1 hover:bg-slate-700 rounded text-slate-400 disabled:opacity-20 cursor-pointer"
+                          className="p-1 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg text-slate-400 dark:text-slate-200 disabled:opacity-20 cursor-pointer"
                           title="Move Up"
                         >
                           <ChevronUp size={14} />
@@ -1774,14 +1902,14 @@ export default function ResumeEditorPage() {
                         <button
                           onClick={() => moveSection(idx, "down")}
                           disabled={idx === sectionOrder.length - 1}
-                          className="p-1 hover:bg-slate-700 rounded text-slate-400 disabled:opacity-20 cursor-pointer"
+                          className="p-1 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg text-slate-400 dark:text-slate-200 disabled:opacity-20 cursor-pointer"
                           title="Move Down"
                         >
                           <ChevronDown size={14} />
                         </button>
                         <button
                           onClick={() => removeSection(section)}
-                          className="p-1 hover:bg-red-950 hover:text-red-400 rounded text-red-500 cursor-pointer"
+                          className="p-1 hover:bg-red-100 dark:hover:bg-red-950 text-red-600 dark:text-red-400 rounded-lg cursor-pointer"
                           title="Remove Section"
                         >
                           <Trash2 size={14} />
@@ -1809,18 +1937,22 @@ export default function ResumeEditorPage() {
                     if (hidden.length === 0) return null;
 
                     return (
-                      <div className="pt-2 border-t border-slate-800 mt-2">
+                      <div className={`pt-2 mt-1 border-t ${
+                        isDark ? "border-slate-700/50" : "border-slate-200"
+                      }`}>
                         <select
                           onChange={(e) => {
                             if (e.target.value) {
                               addSection(e.target.value);
-                              e.target.value = ""; // Reset selection
+                              e.target.value = "";
                             }
                           }}
-                          className="w-full bg-slate-800 border border-slate-700 rounded-xl px-2.5 py-1.5 text-[11px] text-slate-300 outline-none focus:border-[#781c1c] cursor-pointer"
+                          className={`w-full rounded-xl px-3 py-1.5 text-[11px] font-bold outline-none focus:ring-1 focus:ring-[#781c1c] cursor-pointer border-0 ${
+                            isDark ? "bg-slate-800/80 text-slate-200" : "bg-white text-slate-700 ring-1 ring-slate-200"
+                          }`}
                           defaultValue=""
                         >
-                          <option value="" disabled>＋ Add back removed section...</option>
+                          <option value="" disabled>＋ Add removed section...</option>
                           {hidden.map(sec => (
                             <option key={sec} value={sec}>
                               {headings[sec] || sec.charAt(0).toUpperCase() + sec.slice(1)}
@@ -1837,121 +1969,165 @@ export default function ResumeEditorPage() {
 
           {/* TAB 2: PROFILE DETAILS */}
           {activeTab === "profile" && (
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-[10px] font-mono uppercase tracking-wider text-slate-400">Full Name</label>
+            <div className="space-y-3">
+              <div className="grid grid-cols-2 gap-2.5">
+                <div className="flex flex-col gap-1">
+                  <label className={`text-[9.5px] font-mono uppercase tracking-widest font-black ${
+                    isDark ? "text-slate-400" : "text-slate-500"
+                  }`}>Full Name</label>
                   <input
                     type="text"
                     value={pInfo.fullName}
                     onChange={(e) => updatePersonalInfo("fullName", e.target.value)}
-                    className="bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-[#781c1c]"
+                    className={`rounded-xl px-3 py-2 text-[11px] outline-none focus:ring-2 focus:ring-[#781c1c]/50 font-bold border-0 ring-1 transition-all ${
+                      isDark ? "bg-slate-800/60 ring-slate-700/60 text-white placeholder-slate-500" : "bg-white ring-slate-200 text-slate-900"
+                    }`}
                   />
                 </div>
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-[10px] font-mono uppercase tracking-wider text-slate-400">Job Title / Headline</label>
+                <div className="flex flex-col gap-1">
+                  <label className={`text-[9.5px] font-mono uppercase tracking-widest font-black ${
+                    isDark ? "text-slate-400" : "text-slate-500"
+                  }`}>Job Title</label>
                   <input
                     type="text"
                     value={pInfo.title}
                     onChange={(e) => updatePersonalInfo("title", e.target.value)}
-                    className="bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-[#781c1c]"
+                    className={`rounded-xl px-3 py-2 text-[11px] outline-none focus:ring-2 focus:ring-[#781c1c]/50 font-bold border-0 ring-1 transition-all ${
+                      isDark ? "bg-slate-800/60 ring-slate-700/60 text-white placeholder-slate-500" : "bg-white ring-slate-200 text-slate-900"
+                    }`}
                   />
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-[10px] font-mono uppercase tracking-wider text-slate-400">Email Address</label>
+              <div className="grid grid-cols-2 gap-2.5">
+                <div className="flex flex-col gap-1">
+                  <label className={`text-[9.5px] font-mono uppercase tracking-widest font-black ${
+                    isDark ? "text-slate-400" : "text-slate-500"
+                  }`}>Email</label>
                   <input
                     type="email"
                     value={pInfo.email}
                     onChange={(e) => updatePersonalInfo("email", e.target.value)}
-                    className="bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-[#781c1c]"
+                    className={`rounded-xl px-3 py-2 text-[11px] outline-none focus:ring-2 focus:ring-[#781c1c]/50 font-bold border-0 ring-1 transition-all ${
+                      isDark ? "bg-slate-800/60 ring-slate-700/60 text-white placeholder-slate-500" : "bg-white ring-slate-200 text-slate-900"
+                    }`}
                   />
                 </div>
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-[10px] font-mono uppercase tracking-wider text-slate-400">Phone Number</label>
+                <div className="flex flex-col gap-1">
+                  <label className={`text-[9.5px] font-mono uppercase tracking-widest font-black ${
+                    isDark ? "text-slate-400" : "text-slate-500"
+                  }`}>Phone</label>
                   <input
                     type="text"
                     value={pInfo.phone}
                     onChange={(e) => updatePersonalInfo("phone", e.target.value)}
-                    className="bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-[#781c1c]"
+                    className={`rounded-xl px-3 py-2 text-[11px] outline-none focus:ring-2 focus:ring-[#781c1c]/50 font-bold border-0 ring-1 transition-all ${
+                      isDark ? "bg-slate-800/60 ring-slate-700/60 text-white placeholder-slate-500" : "bg-white ring-slate-200 text-slate-900"
+                    }`}
                   />
                 </div>
               </div>
 
-              <div className="flex flex-col gap-1.5">
-                <label className="text-[10px] font-mono uppercase tracking-wider text-slate-400">Location / Address</label>
+              <div className="flex flex-col gap-1">
+                <label className={`text-[9.5px] font-mono uppercase tracking-widest font-black ${
+                  isDark ? "text-slate-400" : "text-slate-500"
+                }`}>Location</label>
                 <input
                   type="text"
                   value={pInfo.address}
                   onChange={(e) => updatePersonalInfo("address", e.target.value)}
-                  className="bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-[#781c1c]"
+                  className={`rounded-xl px-3 py-2 text-[11px] outline-none focus:ring-2 focus:ring-[#781c1c]/50 font-bold border-0 ring-1 transition-all ${
+                    isDark ? "bg-slate-800/60 ring-slate-700/60 text-white placeholder-slate-500" : "bg-white ring-slate-200 text-slate-900"
+                  }`}
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-[10px] font-mono uppercase tracking-wider text-slate-400">LinkedIn Url</label>
+              <div className="grid grid-cols-2 gap-2.5">
+                <div className="flex flex-col gap-1">
+                  <label className={`text-[9.5px] font-mono uppercase tracking-widest font-black ${
+                    isDark ? "text-slate-400" : "text-slate-500"
+                  }`}>LinkedIn</label>
                   <input
                     type="text"
                     value={pInfo.linkedin}
                     onChange={(e) => updatePersonalInfo("linkedin", e.target.value)}
-                    className="bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-[#781c1c]"
+                    className={`rounded-xl px-3 py-2 text-[11px] outline-none focus:ring-2 focus:ring-[#781c1c]/50 font-bold border-0 ring-1 transition-all ${
+                      isDark ? "bg-slate-800/60 ring-slate-700/60 text-white placeholder-slate-500" : "bg-white ring-slate-200 text-slate-900"
+                    }`}
                   />
                 </div>
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-[10px] font-mono uppercase tracking-wider text-slate-400">GitHub Url</label>
+                <div className="flex flex-col gap-1">
+                  <label className={`text-[9.5px] font-mono uppercase tracking-widest font-black ${
+                    isDark ? "text-slate-400" : "text-slate-500"
+                  }`}>GitHub</label>
                   <input
                     type="text"
                     value={pInfo.github}
                     onChange={(e) => updatePersonalInfo("github", e.target.value)}
-                    className="bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-[#781c1c]"
+                    className={`rounded-xl px-3 py-2 text-[11px] outline-none focus:ring-2 focus:ring-[#781c1c]/50 font-bold border-0 ring-1 transition-all ${
+                      isDark ? "bg-slate-800/60 ring-slate-700/60 text-white placeholder-slate-500" : "bg-white ring-slate-200 text-slate-900"
+                    }`}
                   />
                 </div>
               </div>
 
-              <div className="grid grid-cols-3 gap-4">
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-[10px] font-mono uppercase tracking-wider text-slate-400">Portfolio Url</label>
+              <div className="grid grid-cols-3 gap-2">
+                <div className="flex flex-col gap-1">
+                  <label className={`text-[9.5px] font-mono uppercase tracking-widest font-black ${
+                    isDark ? "text-slate-400" : "text-slate-500"
+                  }`}>Portfolio</label>
                   <input
                     type="text"
                     value={pInfo.portfolio || ""}
                     onChange={(e) => updatePersonalInfo("portfolio", e.target.value)}
-                    className="bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-[#781c1c]"
+                    className={`rounded-xl px-2.5 py-2 text-[10px] outline-none focus:ring-2 focus:ring-[#781c1c]/50 font-bold border-0 ring-1 transition-all ${
+                      isDark ? "bg-slate-800/60 ring-slate-700/60 text-white placeholder-slate-500" : "bg-white ring-slate-200 text-slate-900"
+                    }`}
                   />
                 </div>
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-[10px] font-mono uppercase tracking-wider text-slate-400">Behance Url</label>
+                <div className="flex flex-col gap-1">
+                  <label className={`text-[9.5px] font-mono uppercase tracking-widest font-black ${
+                    isDark ? "text-slate-400" : "text-slate-500"
+                  }`}>Behance</label>
                   <input
                     type="text"
                     value={pInfo.behance || ""}
                     onChange={(e) => updatePersonalInfo("behance", e.target.value)}
-                    className="bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-[#781c1c]"
+                    className={`rounded-xl px-2.5 py-2 text-[10px] outline-none focus:ring-2 focus:ring-[#781c1c]/50 font-bold border-0 ring-1 transition-all ${
+                      isDark ? "bg-slate-800/60 ring-slate-700/60 text-white placeholder-slate-500" : "bg-white ring-slate-200 text-slate-900"
+                    }`}
                   />
                 </div>
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-[10px] font-mono uppercase tracking-wider text-slate-400">Instagram Url</label>
+                <div className="flex flex-col gap-1">
+                  <label className={`text-[9.5px] font-mono uppercase tracking-widest font-black ${
+                    isDark ? "text-slate-400" : "text-slate-500"
+                  }`}>Instagram</label>
                   <input
                     type="text"
                     value={pInfo.instagram || ""}
                     onChange={(e) => updatePersonalInfo("instagram", e.target.value)}
-                    className="bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-[#781c1c]"
+                    className={`rounded-xl px-2.5 py-2 text-[10px] outline-none focus:ring-2 focus:ring-[#781c1c]/50 font-bold border-0 ring-1 transition-all ${
+                      isDark ? "bg-slate-800/60 ring-slate-700/60 text-white placeholder-slate-500" : "bg-white ring-slate-200 text-slate-900"
+                    }`}
                   />
                 </div>
               </div>
 
               {selectedTheme !== "Classic ATS" && (
-                <div className="flex items-center gap-3 bg-slate-900 border border-slate-700 p-3 rounded-xl">
+                <div className={`flex items-center gap-3 p-3 rounded-2xl ${
+                  isDark ? "bg-slate-800/50" : "bg-white ring-1 ring-slate-200"
+                }`}>
                   <input
                     type="checkbox"
                     checked={pInfo.showPhoto}
                     onChange={(e) => updatePersonalInfo("showPhoto", e.target.checked)}
                     id="show-photo-checkbox"
-                    className="w-4 h-4 cursor-pointer rounded border-slate-700 text-[#781c1c] focus:ring-0 focus:ring-offset-0"
+                    className="w-4 h-4 cursor-pointer rounded accent-[#781c1c]"
                   />
-                  <label htmlFor="show-photo-checkbox" className="text-xs cursor-pointer select-none">
-                    Show Profile Photo in Sidebar/Header
+                  <label htmlFor="show-photo-checkbox" className={`text-[11px] cursor-pointer select-none font-bold ${
+                    isDark ? "text-slate-200" : "text-slate-700"
+                  }`}>
+                    Show Profile Photo in Resume
                   </label>
                 </div>
               )}
@@ -1960,29 +2136,36 @@ export default function ResumeEditorPage() {
 
           {/* TAB 3: PROFESSIONAL SUMMARY */}
           {activeTab === "summary" && (
-            <div className="space-y-4">
-              <div className="flex justify-between items-center bg-slate-900 p-3 rounded-xl border border-slate-700">
-                <label className="text-xs cursor-pointer select-none flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    checked={resumeData.summary.visible}
-                    onChange={(e) => setResumeData({
-                      ...resumeData,
-                      summary: { ...resumeData.summary, visible: e.target.checked }
-                    })}
-                    className="w-4 h-4 rounded text-[#781c1c]"
-                  />
-                  Show Professional Summary Section
-                </label>
+            <div className="space-y-3">
+              <div className={`flex items-center gap-3 p-3 rounded-2xl ${
+                isDark ? "bg-slate-800/50" : "bg-white ring-1 ring-slate-200"
+              }`}>
+                <input
+                  type="checkbox"
+                  checked={resumeData.summary.visible}
+                  id="summary-visible"
+                  onChange={(e) => setResumeData({
+                    ...resumeData,
+                    summary: { ...resumeData.summary, visible: e.target.checked }
+                  })}
+                  className="w-4 h-4 rounded accent-[#781c1c] cursor-pointer"
+                />
+                <label htmlFor="summary-visible" className={`text-[11px] cursor-pointer select-none font-bold ${
+                  isDark ? "text-slate-200" : "text-slate-700"
+                }`}>Show Professional Summary</label>
               </div>
 
               {resumeData.summary.visible && (
-                <div className="flex flex-col gap-2">
-                  <label className="text-[10px] font-mono uppercase tracking-wider text-slate-400">Summary Context</label>
+                <div className="flex flex-col gap-1.5">
+                  <label className={`text-[9.5px] font-mono uppercase tracking-widest font-black ${
+                    isDark ? "text-slate-400" : "text-slate-500"
+                  }`}>Summary Text</label>
                   <textarea
                     value={resumeData.summary.content}
                     onChange={(e) => updateSummary(e.target.value)}
-                    className="w-full min-h-[180px] bg-slate-900 border border-slate-700 rounded-xl p-3 text-xs text-white outline-none focus:border-[#781c1c]"
+                    className={`w-full min-h-[160px] rounded-2xl p-3.5 text-[11px] outline-none focus:ring-2 focus:ring-[#781c1c]/50 font-medium leading-relaxed border-0 ring-1 transition-all resize-none ${
+                      isDark ? "bg-slate-800/60 ring-slate-700/60 text-white placeholder-slate-500" : "bg-white ring-slate-200 text-slate-900"
+                    }`}
                   />
                 </div>
               )}
@@ -1991,55 +2174,73 @@ export default function ResumeEditorPage() {
 
           {/* TAB 4: EXPERIENCE */}
           {activeTab === "experience" && (
-            <div className="space-y-4">
-              <div className="flex justify-between items-center bg-slate-900 p-3 rounded-xl border border-slate-700">
-                <label className="text-xs cursor-pointer select-none flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    checked={resumeData.experience.visible}
-                    onChange={(e) => setResumeData({
-                      ...resumeData,
-                      experience: { ...resumeData.experience, visible: e.target.checked }
-                    })}
-                    className="w-4 h-4 rounded text-[#781c1c]"
-                  />
-                  Show Experience Section
-                </label>
+            <div className="space-y-3">
+              <div className={`flex items-center gap-3 p-3 rounded-2xl ${
+                isDark ? "bg-slate-800/50" : "bg-white ring-1 ring-slate-200"
+              }`}>
+                <input
+                  type="checkbox"
+                  checked={resumeData.experience.visible}
+                  id="exp-visible"
+                  onChange={(e) => setResumeData({
+                    ...resumeData,
+                    experience: { ...resumeData.experience, visible: e.target.checked }
+                  })}
+                  className="w-4 h-4 rounded accent-[#781c1c] cursor-pointer"
+                />
+                <label htmlFor="exp-visible" className={`text-[11px] cursor-pointer select-none font-bold ${
+                  isDark ? "text-slate-200" : "text-slate-700"
+                }`}>Show Experience Section</label>
               </div>
 
               {resumeData.experience.visible && (
-                <div className="space-y-2">
-                  <label className="text-[10px] font-mono uppercase tracking-wider text-slate-400 block mb-1">Experience Entries</label>
+                <div className="space-y-1.5">
+                  <label className={`text-[9.5px] font-mono uppercase tracking-widest font-black ${
+                    isDark ? "text-slate-400" : "text-slate-500"
+                  }`}>Entries</label>
                   {resumeData.experience.items.map((item: any, idx: number) => (
-                    <div key={item.id} className="bg-slate-900 border border-slate-700 p-3 rounded-xl flex items-center justify-between text-xs">
-                      <div>
-                        <strong className="block text-white">{item.role}</strong>
-                        <span className="opacity-60 block text-[10px] mt-0.5">{item.company} · {item.duration}</span>
+                    <div key={item.id} className={`rounded-2xl px-3 py-2.5 flex items-center justify-between ${
+                      isDark
+                        ? "bg-slate-800/70 hover:bg-slate-700/70 transition-colors"
+                        : "bg-white ring-1 ring-slate-200 hover:ring-slate-300 transition-all"
+                    }`}>
+                      <div className="min-w-0 flex-1 mr-2">
+                        <strong className={`block font-black text-[11px] truncate ${
+                          isDark ? "text-white" : "text-slate-900"
+                        }`}>{item.role}</strong>
+                        <span className={`block text-[10px] mt-0.5 font-semibold truncate ${
+                          isDark ? "text-slate-400" : "text-slate-500"
+                        }`}>{item.company} · {item.duration}</span>
                       </div>
-                      
-                      <div className="flex items-center gap-1 shrink-0">
+                      <div className="flex items-center gap-0.5 shrink-0">
                         <button
                           onClick={() => toggleItemVisibility("experience", idx)}
-                          className={`p-1.5 rounded-lg text-xs cursor-pointer ${
-                            item.visible ? "text-emerald-400 hover:bg-slate-800" : "text-slate-500 hover:bg-slate-800"
+                          className={`p-1.5 rounded-lg cursor-pointer transition-colors ${
+                            item.visible
+                              ? isDark ? "text-emerald-400 hover:bg-slate-700" : "text-emerald-600 hover:bg-slate-100"
+                              : "text-slate-400 hover:text-slate-600"
                           }`}
-                          title={item.visible ? "Hide Entry" : "Show Entry"}
+                          title={item.visible ? "Hide" : "Show"}
                         >
-                          <Eye size={14} />
+                          <Eye size={13} />
                         </button>
                         <button
                           onClick={() => moveItem("experience", idx, "up")}
                           disabled={idx === 0}
-                          className="p-1 hover:bg-slate-800 rounded text-slate-400 disabled:opacity-20 cursor-pointer"
+                          className={`p-1 rounded transition-colors disabled:opacity-20 cursor-pointer ${
+                            isDark ? "text-slate-400 hover:bg-slate-700 hover:text-white" : "text-slate-400 hover:bg-slate-100"
+                          }`}
                         >
-                          <ChevronUp size={14} />
+                          <ChevronUp size={13} />
                         </button>
                         <button
                           onClick={() => moveItem("experience", idx, "down")}
                           disabled={idx === resumeData.experience.items.length - 1}
-                          className="p-1 hover:bg-slate-800 rounded text-slate-400 disabled:opacity-20 cursor-pointer"
+                          className={`p-1 rounded transition-colors disabled:opacity-20 cursor-pointer ${
+                            isDark ? "text-slate-400 hover:bg-slate-700 hover:text-white" : "text-slate-400 hover:bg-slate-100"
+                          }`}
                         >
-                          <ChevronDown size={14} />
+                          <ChevronDown size={13} />
                         </button>
                       </div>
                     </div>
@@ -2051,54 +2252,73 @@ export default function ResumeEditorPage() {
 
           {/* TAB 5: EDUCATION & TEST SCORES */}
           {activeTab === "education" && (
-            <div className="space-y-4">
+            <div className="space-y-3">
               {/* Education section */}
-              <div className="flex justify-between items-center bg-slate-900 p-3 rounded-xl border border-slate-700">
-                <label className="text-xs cursor-pointer select-none flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    checked={resumeData.education.visible}
-                    onChange={(e) => setResumeData({
-                      ...resumeData,
-                      education: { ...resumeData.education, visible: e.target.checked }
-                    })}
-                    className="w-4 h-4 rounded text-[#781c1c]"
-                  />
-                  Show Education Section
-                </label>
+              <div className={`flex items-center gap-3 p-3 rounded-2xl ${
+                isDark ? "bg-slate-800/50" : "bg-white ring-1 ring-slate-200"
+              }`}>
+                <input
+                  type="checkbox"
+                  checked={resumeData.education.visible}
+                  id="edu-visible"
+                  onChange={(e) => setResumeData({
+                    ...resumeData,
+                    education: { ...resumeData.education, visible: e.target.checked }
+                  })}
+                  className="w-4 h-4 rounded accent-[#781c1c] cursor-pointer"
+                />
+                <label htmlFor="edu-visible" className={`text-[11px] cursor-pointer select-none font-bold ${
+                  isDark ? "text-slate-200" : "text-slate-700"
+                }`}>Show Education Section</label>
               </div>
 
               {resumeData.education.visible && (
-                <div className="space-y-2">
-                  <label className="text-[10px] font-mono uppercase tracking-wider text-slate-400 block mb-1">Education Entries</label>
+                <div className="space-y-1.5">
+                  <label className={`text-[9.5px] font-mono uppercase tracking-widest font-black ${
+                    isDark ? "text-slate-400" : "text-slate-500"
+                  }`}>Entries</label>
                   {resumeData.education.items.map((item: any, idx: number) => (
-                    <div key={item.id} className="bg-slate-900 border border-slate-700 p-3 rounded-xl flex items-center justify-between text-xs">
-                      <div>
-                        <strong className="block text-white">{item.degree}</strong>
-                        <span className="opacity-60 block text-[10px] mt-0.5">{item.institution}</span>
+                    <div key={item.id} className={`rounded-2xl px-3 py-2.5 flex items-center justify-between ${
+                      isDark
+                        ? "bg-slate-800/70 hover:bg-slate-700/70 transition-colors"
+                        : "bg-white ring-1 ring-slate-200 hover:ring-slate-300 transition-all"
+                    }`}>
+                      <div className="min-w-0 flex-1 mr-2">
+                        <strong className={`block font-black text-[11px] truncate ${
+                          isDark ? "text-white" : "text-slate-900"
+                        }`}>{item.degree}</strong>
+                        <span className={`block text-[10px] mt-0.5 font-semibold truncate ${
+                          isDark ? "text-slate-400" : "text-slate-500"
+                        }`}>{item.institution}</span>
                       </div>
-                      <div className="flex items-center gap-1 shrink-0">
+                      <div className="flex items-center gap-0.5 shrink-0">
                         <button
                           onClick={() => toggleItemVisibility("education", idx)}
-                          className={`p-1.5 rounded-lg text-xs cursor-pointer ${
-                            item.visible ? "text-emerald-400 hover:bg-slate-800" : "text-slate-500 hover:bg-slate-800"
+                          className={`p-1.5 rounded-lg cursor-pointer transition-colors ${
+                            item.visible
+                              ? isDark ? "text-emerald-400 hover:bg-slate-700" : "text-emerald-600 hover:bg-slate-100"
+                              : "text-slate-400"
                           }`}
                         >
-                          <Eye size={14} />
+                          <Eye size={13} />
                         </button>
                         <button
                           onClick={() => moveItem("education", idx, "up")}
                           disabled={idx === 0}
-                          className="p-1 hover:bg-slate-800 rounded text-slate-400 disabled:opacity-20"
+                          className={`p-1 rounded transition-colors disabled:opacity-20 cursor-pointer ${
+                            isDark ? "text-slate-400 hover:bg-slate-700 hover:text-white" : "text-slate-400 hover:bg-slate-100"
+                          }`}
                         >
-                          <ChevronUp size={14} />
+                          <ChevronUp size={13} />
                         </button>
                         <button
                           onClick={() => moveItem("education", idx, "down")}
                           disabled={idx === resumeData.education.items.length - 1}
-                          className="p-1 hover:bg-slate-800 rounded text-slate-400 disabled:opacity-20"
+                          className={`p-1 rounded transition-colors disabled:opacity-20 cursor-pointer ${
+                            isDark ? "text-slate-400 hover:bg-slate-700 hover:text-white" : "text-slate-400 hover:bg-slate-100"
+                          }`}
                         >
-                          <ChevronDown size={14} />
+                          <ChevronDown size={13} />
                         </button>
                       </div>
                     </div>
@@ -2107,36 +2327,41 @@ export default function ResumeEditorPage() {
               )}
 
               {/* Test Scores & Marksheets section */}
-              <div className="pt-4 border-t border-slate-700 space-y-4">
-                <div className="flex justify-between items-center bg-slate-900 p-3 rounded-xl border border-slate-700">
-                  <label className="text-xs cursor-pointer select-none flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      checked={resumeData.testScores.visible}
-                      onChange={(e) => setResumeData({
-                        ...resumeData,
-                        testScores: { ...resumeData.testScores, visible: e.target.checked }
-                      })}
-                      className="w-4 h-4 rounded text-[#781c1c]"
-                    />
-                    Show Test Scores Section
-                  </label>
+              <div className={`pt-3 border-t space-y-3 ${isDark ? "border-slate-700/50" : "border-slate-200"}`}>
+                <div className={`flex items-center gap-3 p-3 rounded-2xl ${
+                  isDark ? "bg-slate-800/50" : "bg-white ring-1 ring-slate-200"
+                }`}>
+                  <input
+                    type="checkbox"
+                    checked={resumeData.testScores.visible}
+                    id="scores-visible"
+                    onChange={(e) => setResumeData({
+                      ...resumeData,
+                      testScores: { ...resumeData.testScores, visible: e.target.checked }
+                    })}
+                    className="w-4 h-4 rounded accent-[#781c1c] cursor-pointer"
+                  />
+                  <label htmlFor="scores-visible" className={`text-[11px] cursor-pointer select-none font-bold ${
+                    isDark ? "text-slate-200" : "text-slate-700"
+                  }`}>Show Test Scores Section</label>
                 </div>
 
                 {resumeData.testScores.visible && (
                   <div className="space-y-2">
-                    <label className="text-[10px] font-mono uppercase tracking-wider text-slate-400 block mb-1">Standardized Scores & Marksheets</label>
+                    <label className={`text-[10px] font-mono uppercase tracking-wider block font-black mb-1 ${isDark ? "text-slate-100" : "text-slate-800"}`}>Standardized Scores & Marksheets</label>
                     {resumeData.testScores.items.map((item: any, idx: number) => (
-                      <div key={item.id} className="bg-slate-900 border border-slate-700 p-3 rounded-xl flex items-center justify-between text-xs">
+                      <div key={item.id} className={`border p-3 rounded-2xl flex items-center justify-between text-xs ${
+                        isDark ? "bg-slate-850 border-slate-700 text-white" : "bg-slate-50 border-slate-200 text-slate-900"
+                      }`}>
                         <div className="flex-1 mr-3">
-                          <strong className="block text-white leading-tight">{item.title}</strong>
-                          <span className="opacity-60 block text-[10px] mt-0.5">{item.score} {item.institution ? `· ${item.institution}` : ""}</span>
+                          <strong className="block leading-tight font-black">{item.title}</strong>
+                          <span className={`block text-[11px] mt-0.5 font-extrabold ${isDark ? "text-slate-200" : "text-slate-700"}`}>{item.score} {item.institution ? `· ${item.institution}` : ""}</span>
                         </div>
                         <div className="flex items-center gap-1 shrink-0">
                           <button
                             onClick={() => toggleItemHighlight(idx)}
-                            className={`px-2 py-0.5 rounded text-[8px] uppercase tracking-wider font-bold cursor-pointer transition ${
-                              item.highlighted ? "bg-amber-500/20 text-amber-400 border border-amber-500/30" : "bg-slate-800 text-slate-400 hover:text-white"
+                            className={`px-2 py-0.5 rounded text-[8px] uppercase tracking-wider font-extrabold cursor-pointer transition ${
+                              item.highlighted ? "bg-amber-500/20 text-amber-300 border border-amber-500/40" : "bg-slate-200 dark:bg-slate-800 text-slate-400 dark:text-slate-300"
                             }`}
                             title="Highlight score"
                           >
@@ -2144,8 +2369,8 @@ export default function ResumeEditorPage() {
                           </button>
                           <button
                             onClick={() => toggleItemVisibility("testScores", idx)}
-                            className={`p-1 hover:bg-slate-800 rounded cursor-pointer ${
-                              item.visible ? "text-emerald-400" : "text-slate-500"
+                            className={`p-1 rounded cursor-pointer ${
+                              item.visible ? (isDark ? "text-emerald-400" : "text-emerald-600") : "text-slate-400"
                             }`}
                           >
                             <Eye size={14} />
@@ -2153,14 +2378,14 @@ export default function ResumeEditorPage() {
                           <button
                             onClick={() => moveItem("testScores", idx, "up")}
                             disabled={idx === 0}
-                            className="p-1 hover:bg-slate-800 rounded text-slate-400 disabled:opacity-20"
+                            className="p-1 hover:bg-slate-200 dark:hover:bg-slate-800 rounded text-slate-400 dark:text-slate-200 disabled:opacity-20"
                           >
                             <ChevronUp size={14} />
                           </button>
                           <button
                             onClick={() => moveItem("testScores", idx, "down")}
                             disabled={idx === resumeData.testScores.items.length - 1}
-                            className="p-1 hover:bg-slate-800 rounded text-slate-400 disabled:opacity-20"
+                            className="p-1 hover:bg-slate-200 dark:hover:bg-slate-800 rounded text-slate-400 dark:text-slate-200 disabled:opacity-20"
                           >
                             <ChevronDown size={14} />
                           </button>
@@ -2175,54 +2400,72 @@ export default function ResumeEditorPage() {
 
           {/* TAB 6: PROJECTS & RESEARCH */}
           {activeTab === "projects" && (
-            <div className="space-y-4">
-              <div className="flex justify-between items-center bg-slate-900 p-3 rounded-xl border border-slate-700">
-                <label className="text-xs cursor-pointer select-none flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    checked={resumeData.projects.visible}
-                    onChange={(e) => setResumeData({
-                      ...resumeData,
-                      projects: { ...resumeData.projects, visible: e.target.checked }
-                    })}
-                    className="w-4 h-4 rounded text-[#781c1c]"
-                  />
-                  Show Projects & Publications Section
-                </label>
+            <div className="space-y-3">
+              <div className={`flex items-center gap-3 p-3 rounded-2xl ${
+                isDark ? "bg-slate-800/50" : "bg-white ring-1 ring-slate-200"
+              }`}>
+                <input
+                  type="checkbox"
+                  checked={resumeData.projects.visible}
+                  id="proj-visible"
+                  onChange={(e) => setResumeData({
+                    ...resumeData,
+                    projects: { ...resumeData.projects, visible: e.target.checked }
+                  })}
+                  className="w-4 h-4 rounded accent-[#781c1c] cursor-pointer"
+                />
+                <label htmlFor="proj-visible" className={`text-[11px] cursor-pointer select-none font-bold ${
+                  isDark ? "text-slate-200" : "text-slate-700"
+                }`}>Show Projects & Publications</label>
               </div>
 
               {resumeData.projects.visible && (
-                <div className="space-y-2">
-                  <label className="text-[10px] font-mono uppercase tracking-wider text-slate-400 block mb-1">Project Entries</label>
+                <div className="space-y-1.5">
+                  <label className={`text-[9.5px] font-mono uppercase tracking-widest font-black ${
+                    isDark ? "text-slate-400" : "text-slate-500"
+                  }`}>Entries</label>
                   {resumeData.projects.items.map((item: any, idx: number) => (
-                    <div key={item.id} className="bg-slate-900 border border-slate-700 p-3 rounded-xl flex items-center justify-between text-xs">
-                      <div>
-                        <strong className="block text-white">{item.name}</strong>
-                        <span className="opacity-60 block text-[10px] mt-0.5">{item.technologies}</span>
+                    <div key={item.id} className={`rounded-2xl px-3 py-2.5 flex items-center justify-between ${
+                      isDark
+                        ? "bg-slate-800/70 hover:bg-slate-700/70 transition-colors"
+                        : "bg-white ring-1 ring-slate-200 hover:ring-slate-300 transition-all"
+                    }`}>
+                      <div className="min-w-0 flex-1 mr-2">
+                        <strong className={`block font-black text-[11px] truncate ${
+                          isDark ? "text-white" : "text-slate-900"
+                        }`}>{item.name}</strong>
+                        <span className={`block text-[10px] mt-0.5 font-semibold truncate ${
+                          isDark ? "text-slate-400" : "text-slate-500"
+                        }`}>{item.technologies}</span>
                       </div>
-                      
-                      <div className="flex items-center gap-1 shrink-0">
+                      <div className="flex items-center gap-0.5 shrink-0">
                         <button
                           onClick={() => toggleItemVisibility("projects", idx)}
-                          className={`p-1.5 rounded-lg text-xs cursor-pointer ${
-                            item.visible ? "text-emerald-400 hover:bg-slate-800" : "text-slate-500 hover:bg-slate-800"
+                          className={`p-1.5 rounded-lg cursor-pointer transition-colors ${
+                            item.visible
+                              ? isDark ? "text-emerald-400 hover:bg-slate-700" : "text-emerald-600 hover:bg-slate-100"
+                              : "text-slate-400"
                           }`}
                         >
-                          <Eye size={14} />
+                          <Eye size={13} />
                         </button>
                         <button
                           onClick={() => moveItem("projects", idx, "up")}
                           disabled={idx === 0}
-                          className="p-1 hover:bg-slate-800 rounded text-slate-400 disabled:opacity-20"
+                          className={`p-1 rounded transition-colors disabled:opacity-20 cursor-pointer ${
+                            isDark ? "text-slate-400 hover:bg-slate-700 hover:text-white" : "text-slate-400 hover:bg-slate-100"
+                          }`}
                         >
-                          <ChevronUp size={14} />
+                          <ChevronUp size={13} />
                         </button>
                         <button
                           onClick={() => moveItem("projects", idx, "down")}
                           disabled={idx === resumeData.projects.items.length - 1}
-                          className="p-1 hover:bg-slate-800 rounded text-slate-400 disabled:opacity-20"
+                          className={`p-1 rounded transition-colors disabled:opacity-20 cursor-pointer ${
+                            isDark ? "text-slate-400 hover:bg-slate-700 hover:text-white" : "text-slate-400 hover:bg-slate-100"
+                          }`}
                         >
-                          <ChevronDown size={14} />
+                          <ChevronDown size={13} />
                         </button>
                       </div>
                     </div>
@@ -2234,41 +2477,57 @@ export default function ResumeEditorPage() {
 
           {/* TAB 7: SKILLS */}
           {activeTab === "skills" && (
-            <div className="space-y-4">
-              <div className="flex justify-between items-center bg-slate-900 p-3 rounded-xl border border-slate-700">
-                <label className="text-xs cursor-pointer select-none flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    checked={resumeData.skills.visible}
-                    onChange={(e) => setResumeData({
-                      ...resumeData,
-                      skills: { ...resumeData.skills, visible: e.target.checked }
-                    })}
-                    className="w-4 h-4 rounded text-[#781c1c]"
-                  />
-                  Show Skills Section
-                </label>
+            <div className="space-y-3">
+              <div className={`flex items-center gap-3 p-3 rounded-2xl ${
+                isDark ? "bg-slate-800/50" : "bg-white ring-1 ring-slate-200"
+              }`}>
+                <input
+                  type="checkbox"
+                  checked={resumeData.skills.visible}
+                  id="skills-visible"
+                  onChange={(e) => setResumeData({
+                    ...resumeData,
+                    skills: { ...resumeData.skills, visible: e.target.checked }
+                  })}
+                  className="w-4 h-4 rounded accent-[#781c1c] cursor-pointer"
+                />
+                <label htmlFor="skills-visible" className={`text-[11px] cursor-pointer select-none font-bold ${
+                  isDark ? "text-slate-200" : "text-slate-700"
+                }`}>Show Skills Section</label>
               </div>
 
               {resumeData.skills.visible && (
-                <div className="space-y-2">
-                  <label className="text-[10px] font-mono uppercase tracking-wider text-slate-400 block mb-1">Skills List</label>
+                <div className="space-y-1.5">
+                  <label className={`text-[9.5px] font-mono uppercase tracking-widest font-black ${
+                    isDark ? "text-slate-400" : "text-slate-500"
+                  }`}>Skills</label>
                   {resumeData.skills.items.map((item: any, idx: number) => (
-                    <div key={item.id} className="bg-slate-900 border border-slate-700 p-2 rounded-xl flex items-center justify-between text-xs">
-                      <div>
-                        <span className="text-[8px] font-mono opacity-50 uppercase tracking-wider font-bold block">{item.category}</span>
-                        <strong className="text-white text-xs">{item.name}</strong>
+                    <div key={item.id} className={`rounded-2xl px-3 py-2.5 flex items-center justify-between ${
+                      isDark
+                        ? "bg-slate-800/70 hover:bg-slate-700/70 transition-colors"
+                        : "bg-white ring-1 ring-slate-200 hover:ring-slate-300 transition-all"
+                    }`}>
+                      <div className="min-w-0 flex-1">
+                        <span className={`text-[9px] font-mono uppercase tracking-widest font-black block ${
+                          isDark ? "text-slate-500" : "text-slate-400"
+                        }`}>{item.category}</span>
+                        <strong className={`text-[11px] font-black ${
+                          isDark ? "text-white" : "text-slate-900"
+                        }`}>{item.name}</strong>
                       </div>
-                      
-                      <div className="flex items-center gap-1 shrink-0">
-                        <span className="text-[10px] opacity-70 border border-slate-700 rounded px-1.5 py-0.5 bg-slate-800 mr-2">{item.level}</span>
+                      <div className="flex items-center gap-1.5 shrink-0 ml-2">
+                        <span className={`text-[9.5px] font-bold rounded-full px-2 py-0.5 ${
+                          isDark ? "bg-slate-700 text-slate-300" : "bg-slate-100 text-slate-600"
+                        }`}>{item.level}</span>
                         <button
                           onClick={() => toggleItemVisibility("skills", idx)}
-                          className={`p-1.5 rounded-lg text-xs cursor-pointer ${
-                            item.visible ? "text-emerald-400 hover:bg-slate-800" : "text-slate-500 hover:bg-slate-800"
+                          className={`p-1.5 rounded-lg cursor-pointer transition-colors ${
+                            item.visible
+                              ? isDark ? "text-emerald-400 hover:bg-slate-700" : "text-emerald-600 hover:bg-slate-100"
+                              : "text-slate-400"
                           }`}
                         >
-                          <Eye size={14} />
+                          <Eye size={13} />
                         </button>
                       </div>
                     </div>
@@ -2280,32 +2539,41 @@ export default function ResumeEditorPage() {
 
           {/* TAB 8: CERTIFICATES & OTHERS */}
           {activeTab === "others" && (
-            <div className="space-y-6">
-              
+            <div className="space-y-4">
+
               {/* Licenses */}
-              <div className="space-y-3">
-                <div className="flex justify-between items-center bg-slate-900 p-2.5 rounded-xl border border-slate-700">
-                  <label className="text-xs cursor-pointer select-none flex items-center gap-2 font-bold text-white">
-                    <input
-                      type="checkbox"
-                      checked={resumeData.certifications.visible}
-                      onChange={(e) => setResumeData({
-                        ...resumeData,
-                        certifications: { ...resumeData.certifications, visible: e.target.checked }
-                      })}
-                      className="w-4 h-4 rounded text-[#781c1c]"
-                    />
-                    Show Licenses & Certifications
-                  </label>
+              <div className="space-y-2">
+                <div className={`flex items-center gap-3 p-3 rounded-2xl ${
+                  isDark ? "bg-slate-800/50" : "bg-white ring-1 ring-slate-200"
+                }`}>
+                  <input
+                    type="checkbox"
+                    checked={resumeData.certifications.visible}
+                    id="certs-visible"
+                    onChange={(e) => setResumeData({
+                      ...resumeData,
+                      certifications: { ...resumeData.certifications, visible: e.target.checked }
+                    })}
+                    className="w-4 h-4 rounded accent-[#781c1c] cursor-pointer"
+                  />
+                  <label htmlFor="certs-visible" className={`text-[11px] cursor-pointer select-none font-bold ${
+                    isDark ? "text-slate-200" : "text-slate-700"
+                  }`}>Show Licenses & Certifications</label>
                 </div>
                 {resumeData.certifications.visible && (
                   <div className="space-y-1">
                     {resumeData.certifications.items.map((item: any, idx: number) => (
-                      <div key={item.id} className="bg-slate-900 border border-slate-700 p-2 rounded-xl flex items-center justify-between text-xs">
-                        <span className="text-white text-xs truncate max-w-[200px]">{item.name}</span>
+                      <div key={item.id} className={`rounded-xl px-3 py-2 flex items-center justify-between ${
+                        isDark ? "bg-slate-800/70" : "bg-white ring-1 ring-slate-200"
+                      }`}>
+                        <span className={`text-[11px] truncate max-w-[200px] font-semibold ${
+                          isDark ? "text-slate-200" : "text-slate-800"
+                        }`}>{item.name}</span>
                         <button
                           onClick={() => toggleItemVisibility("certifications", idx)}
-                          className={`p-1 hover:bg-slate-850 rounded ${item.visible ? "text-emerald-400" : "text-slate-500"}`}
+                          className={`p-1 rounded cursor-pointer transition-colors ${
+                            item.visible ? (isDark ? "text-emerald-400" : "text-emerald-600") : "text-slate-400"
+                          }`}
                         >
                           <Eye size={12} />
                         </button>
@@ -2316,29 +2584,38 @@ export default function ResumeEditorPage() {
               </div>
 
               {/* Achievements */}
-              <div className="space-y-3">
-                <div className="flex justify-between items-center bg-slate-900 p-2.5 rounded-xl border border-slate-700">
-                  <label className="text-xs cursor-pointer select-none flex items-center gap-2 font-bold text-white">
-                    <input
-                      type="checkbox"
-                      checked={resumeData.achievements.visible}
-                      onChange={(e) => setResumeData({
-                        ...resumeData,
-                        achievements: { ...resumeData.achievements, visible: e.target.checked }
-                      })}
-                      className="w-4 h-4 rounded text-[#781c1c]"
-                    />
-                    Show Achievements
-                  </label>
+              <div className="space-y-2">
+                <div className={`flex items-center gap-3 p-3 rounded-2xl ${
+                  isDark ? "bg-slate-800/50" : "bg-white ring-1 ring-slate-200"
+                }`}>
+                  <input
+                    type="checkbox"
+                    checked={resumeData.achievements.visible}
+                    id="ach-visible"
+                    onChange={(e) => setResumeData({
+                      ...resumeData,
+                      achievements: { ...resumeData.achievements, visible: e.target.checked }
+                    })}
+                    className="w-4 h-4 rounded accent-[#781c1c] cursor-pointer"
+                  />
+                  <label htmlFor="ach-visible" className={`text-[11px] cursor-pointer select-none font-bold ${
+                    isDark ? "text-slate-200" : "text-slate-700"
+                  }`}>Show Achievements</label>
                 </div>
                 {resumeData.achievements.visible && (
                   <div className="space-y-1">
                     {resumeData.achievements.items.map((item: any, idx: number) => (
-                      <div key={item.id} className="bg-slate-900 border border-slate-700 p-2 rounded-xl flex items-center justify-between text-xs">
-                        <span className="text-white text-xs truncate max-w-[200px]">{item.title}</span>
+                      <div key={item.id} className={`rounded-xl px-3 py-2 flex items-center justify-between ${
+                        isDark ? "bg-slate-800/70" : "bg-white ring-1 ring-slate-200"
+                      }`}>
+                        <span className={`text-[11px] truncate max-w-[200px] font-semibold ${
+                          isDark ? "text-slate-200" : "text-slate-800"
+                        }`}>{item.title}</span>
                         <button
                           onClick={() => toggleItemVisibility("achievements", idx)}
-                          className={`p-1 hover:bg-slate-850 rounded ${item.visible ? "text-emerald-400" : "text-slate-500"}`}
+                          className={`p-1 rounded cursor-pointer transition-colors ${
+                            item.visible ? (isDark ? "text-emerald-400" : "text-emerald-600") : "text-slate-400"
+                          }`}
                         >
                           <Eye size={12} />
                         </button>
@@ -2349,33 +2626,44 @@ export default function ResumeEditorPage() {
               </div>
 
               {/* Languages */}
-              <div className="space-y-3">
-                <div className="flex justify-between items-center bg-slate-900 p-2.5 rounded-xl border border-slate-700">
-                  <label className="text-xs cursor-pointer select-none flex items-center gap-2 font-bold text-white">
-                    <input
-                      type="checkbox"
-                      checked={resumeData.languages.visible}
-                      onChange={(e) => setResumeData({
-                        ...resumeData,
-                        languages: { ...resumeData.languages, visible: e.target.checked }
-                      })}
-                      className="w-4 h-4 rounded text-[#781c1c]"
-                    />
-                    Show Languages
-                  </label>
+              <div className="space-y-2">
+                <div className={`flex items-center gap-3 p-3 rounded-2xl ${
+                  isDark ? "bg-slate-800/50" : "bg-white ring-1 ring-slate-200"
+                }`}>
+                  <input
+                    type="checkbox"
+                    checked={resumeData.languages.visible}
+                    id="lang-visible"
+                    onChange={(e) => setResumeData({
+                      ...resumeData,
+                      languages: { ...resumeData.languages, visible: e.target.checked }
+                    })}
+                    className="w-4 h-4 rounded accent-[#781c1c] cursor-pointer"
+                  />
+                  <label htmlFor="lang-visible" className={`text-[11px] cursor-pointer select-none font-bold ${
+                    isDark ? "text-slate-200" : "text-slate-700"
+                  }`}>Show Languages</label>
                 </div>
                 {resumeData.languages.visible && (
                   <div className="space-y-1">
                     {resumeData.languages.items.map((item: any, idx: number) => (
-                      <div key={item.name} className="bg-slate-900 border border-slate-700 p-2 rounded-xl flex items-center justify-between text-xs">
-                        <span className="text-white text-xs">{item.name} ({item.level})</span>
+                      <div key={item.name} className={`rounded-xl px-3 py-2 flex items-center justify-between ${
+                        isDark ? "bg-slate-800/70" : "bg-white ring-1 ring-slate-200"
+                      }`}>
+                        <span className={`text-[11px] font-semibold ${
+                          isDark ? "text-slate-200" : "text-slate-800"
+                        }`}>{item.name} <span className={`text-[9.5px] ${
+                          isDark ? "text-slate-500" : "text-slate-400"
+                        }`}>({item.level})</span></span>
                         <button
                           onClick={() => {
                             const list = [...resumeData.languages.items];
                             list[idx].visible = !list[idx].visible;
                             setResumeData({ ...resumeData, languages: { ...resumeData.languages, items: list } });
                           }}
-                          className={`p-1 hover:bg-slate-850 rounded ${item.visible ? "text-emerald-400" : "text-slate-500"}`}
+                          className={`p-1 rounded cursor-pointer transition-colors ${
+                            item.visible ? (isDark ? "text-emerald-400" : "text-emerald-600") : "text-slate-400"
+                          }`}
                         >
                           <Eye size={12} />
                         </button>
@@ -2386,29 +2674,38 @@ export default function ResumeEditorPage() {
               </div>
 
               {/* Patents */}
-              <div className="space-y-3">
-                <div className="flex justify-between items-center bg-slate-900 p-2.5 rounded-xl border border-slate-700">
-                  <label className="text-xs cursor-pointer select-none flex items-center gap-2 font-bold text-white">
-                    <input
-                      type="checkbox"
-                      checked={resumeData.patents.visible}
-                      onChange={(e) => setResumeData({
-                        ...resumeData,
-                        patents: { ...resumeData.patents, visible: e.target.checked }
-                      })}
-                      className="w-4 h-4 rounded text-[#781c1c]"
-                    />
-                    Show Patents
-                  </label>
+              <div className="space-y-2">
+                <div className={`flex items-center gap-3 p-3 rounded-2xl ${
+                  isDark ? "bg-slate-800/50" : "bg-white ring-1 ring-slate-200"
+                }`}>
+                  <input
+                    type="checkbox"
+                    checked={resumeData.patents.visible}
+                    id="pat-visible"
+                    onChange={(e) => setResumeData({
+                      ...resumeData,
+                      patents: { ...resumeData.patents, visible: e.target.checked }
+                    })}
+                    className="w-4 h-4 rounded accent-[#781c1c] cursor-pointer"
+                  />
+                  <label htmlFor="pat-visible" className={`text-[11px] cursor-pointer select-none font-bold ${
+                    isDark ? "text-slate-200" : "text-slate-700"
+                  }`}>Show Patents</label>
                 </div>
                 {resumeData.patents.visible && (
                   <div className="space-y-1">
                     {resumeData.patents.items.map((item: any, idx: number) => (
-                      <div key={item.id} className="bg-slate-900 border border-slate-700 p-2 rounded-xl flex items-center justify-between text-xs">
-                        <span className="text-white text-xs truncate max-w-[200px]">{item.title}</span>
+                      <div key={item.id} className={`rounded-xl px-3 py-2 flex items-center justify-between ${
+                        isDark ? "bg-slate-800/70" : "bg-white ring-1 ring-slate-200"
+                      }`}>
+                        <span className={`text-[11px] truncate max-w-[200px] font-semibold ${
+                          isDark ? "text-slate-200" : "text-slate-800"
+                        }`}>{item.title}</span>
                         <button
                           onClick={() => toggleItemVisibility("patents", idx)}
-                          className={`p-1 hover:bg-slate-850 rounded ${item.visible ? "text-emerald-400" : "text-slate-500"}`}
+                          className={`p-1 rounded cursor-pointer transition-colors ${
+                            item.visible ? (isDark ? "text-emerald-400" : "text-emerald-600") : "text-slate-400"
+                          }`}
                         >
                           <Eye size={12} />
                         </button>
@@ -2419,33 +2716,41 @@ export default function ResumeEditorPage() {
               </div>
 
               {/* Social Media Handles */}
-              <div className="space-y-3">
-                <div className="flex justify-between items-center bg-slate-900 p-2.5 rounded-xl border border-slate-700">
-                  <label className="text-xs cursor-pointer select-none flex items-center gap-2 font-bold text-white">
-                    <input
-                      type="checkbox"
-                      checked={resumeData.mediaHandles?.visible || false}
-                      onChange={(e) => setResumeData({
-                        ...resumeData,
-                        mediaHandles: { ...resumeData.mediaHandles, visible: e.target.checked }
-                      })}
-                      className="w-4 h-4 rounded text-[#781c1c]"
-                    />
-                    Show Socials / Media Handles
+              <div className="space-y-2">
+                <div className={`flex items-center gap-3 p-3 rounded-2xl ${
+                  isDark ? "bg-slate-800/50" : "bg-white ring-1 ring-slate-200"
+                }`}>
+                  <input
+                    type="checkbox"
+                    checked={resumeData.mediaHandles?.visible || false}
+                    id="social-visible"
+                    onChange={(e) => setResumeData({
+                      ...resumeData,
+                      mediaHandles: { ...resumeData.mediaHandles, visible: e.target.checked }
+                    })}
+                    className="w-4 h-4 rounded accent-[#781c1c] cursor-pointer"
+                  />
+                  <label htmlFor="social-visible" className={`text-[11px] cursor-pointer select-none font-bold ${
+                    isDark ? "text-slate-200" : "text-slate-700"
+                  }`}>Show Socials / Media Handles
                   </label>
                 </div>
                 {(resumeData.mediaHandles?.visible || false) && (
                   <div className="space-y-1">
                     {resumeData.mediaHandles?.items?.map((item: any, idx: number) => (
-                      <div key={item.platform} className="bg-slate-900 border border-slate-700 p-2 rounded-xl flex items-center justify-between text-xs">
-                        <span className="text-white text-xs">{item.platform} ({item.url ? "Set" : "Not set"})</span>
+                      <div key={item.platform} className={`rounded-xl px-3 py-2 flex items-center justify-between ${
+                        isDark ? "bg-slate-800/70" : "bg-white ring-1 ring-slate-200"
+                      }`}>
+                        <span className={`text-[11px] font-semibold ${
+                          isDark ? "text-slate-200" : "text-slate-800"
+                        }`}>{item.platform} <span className={`text-[9.5px] ${isDark ? "text-slate-500" : "text-slate-400"}`}>({item.url ? "Set" : "Not set"})</span></span>
                         <button
                           onClick={() => {
                             const list = [...resumeData.mediaHandles.items];
                             list[idx].visible = !list[idx].visible;
                             setResumeData({ ...resumeData, mediaHandles: { ...resumeData.mediaHandles, items: list } });
                           }}
-                          className={`p-1 hover:bg-slate-855 rounded ${item.visible ? "text-emerald-400" : "text-slate-500"}`}
+                          className={`p-1 rounded cursor-pointer transition-colors ${item.visible ? (isDark ? "text-emerald-400" : "text-emerald-600") : "text-slate-400"}`}
                         >
                           <Eye size={12} />
                         </button>
@@ -2470,26 +2775,73 @@ export default function ResumeEditorPage() {
           </div>
 
           <div className="flex items-center justify-between w-full sm:w-auto gap-2">
-            <div className="flex items-center gap-1 bg-slate-850 border border-slate-800 rounded-xl px-2 py-1 text-slate-400">
+            {/* Quick Zoom Preset Buttons */}
+            <div className={`hidden sm:flex items-center gap-1 p-1 rounded-xl border text-[10px] font-black ${
+              isDark ? "bg-slate-900 border-slate-700" : "bg-slate-100 border-slate-300"
+            }`}>
               <button
-                onClick={() => setZoomLevel(Math.max(0.5, zoomLevel - 0.1))}
-                className="p-1 hover:text-white transition cursor-pointer"
+                onClick={() => {
+                  if (window.innerWidth < 768) {
+                    setZoomLevel(Math.max(0.25, Math.min(1.0, (window.innerWidth - 24) / 794)));
+                  } else {
+                    setZoomLevel(0.9);
+                  }
+                }}
+                className={`px-2 py-0.5 rounded-lg transition cursor-pointer ${
+                  zoomLevel < 0.75 ? "bg-[#781c1c] text-white font-black" : (isDark ? "text-slate-200 hover:text-white font-bold" : "text-slate-700 hover:text-slate-900")
+                }`}
+              >
+                Auto Fit
+              </button>
+              <button
+                onClick={() => setZoomLevel(0.75)}
+                className={`px-2 py-0.5 rounded-lg transition cursor-pointer ${
+                  Math.abs(zoomLevel - 0.75) < 0.05 ? "bg-[#781c1c] text-white font-black" : (isDark ? "text-slate-200 hover:text-white font-bold" : "text-slate-700 hover:text-slate-900")
+                }`}
+              >
+                75%
+              </button>
+              <button
+                onClick={() => setZoomLevel(1.0)}
+                className={`px-2 py-0.5 rounded-lg transition cursor-pointer ${
+                  Math.abs(zoomLevel - 1.0) < 0.05 ? "bg-[#781c1c] text-white font-black" : (isDark ? "text-slate-200 hover:text-white font-bold" : "text-slate-700 hover:text-slate-900")
+                }`}
+              >
+                100%
+              </button>
+            </div>
+
+            {/* Stepper Zoom Box */}
+            <div className={`flex items-center gap-1 border rounded-xl px-2 py-1 ${
+              isDark ? "bg-slate-900 border-slate-700 text-slate-100 font-bold" : "bg-white border-slate-300 text-slate-700 shadow-2xs"
+            }`}>
+              <button
+                onClick={() => setZoomLevel(Math.max(0.25, zoomLevel - 0.08))}
+                className="p-1 hover:text-red-400 transition cursor-pointer"
                 title="Zoom Out"
               >
                 <ZoomOut size={14} />
               </button>
-              <span className="text-[10px] font-mono select-none px-2 font-bold">{Math.round(zoomLevel * 100)}%</span>
+              <span className="text-[10px] font-mono select-none px-1.5 font-black">{Math.round(zoomLevel * 100)}%</span>
               <button
-                onClick={() => setZoomLevel(Math.min(1.5, zoomLevel + 0.1))}
-                className="p-1 hover:text-white transition cursor-pointer"
+                onClick={() => setZoomLevel(Math.min(1.5, zoomLevel + 0.08))}
+                className="p-1 hover:text-red-400 transition cursor-pointer"
                 title="Zoom In"
               >
                 <ZoomIn size={14} />
               </button>
               <button
-                onClick={() => setZoomLevel(1)}
-                className="p-1 hover:text-white border-l border-slate-800 pl-1.5 ml-1 transition cursor-pointer"
-                title="Reset Zoom"
+                onClick={() => {
+                  if (window.innerWidth < 768) {
+                    setZoomLevel(Math.max(0.25, Math.min(1.0, (window.innerWidth - 24) / 794)));
+                  } else {
+                    setZoomLevel(0.9);
+                  }
+                }}
+                className={`p-1 border-l pl-1.5 ml-0.5 transition cursor-pointer ${
+                  isDark ? "border-slate-700 hover:text-white" : "border-slate-300 hover:text-slate-900"
+                }`}
+                title="Reset Zoom / Auto Fit Screen"
               >
                 <Maximize2 size={12} />
               </button>
@@ -2497,82 +2849,40 @@ export default function ResumeEditorPage() {
           </div>
         </div>
 
-        {/* Live Preview Area Container */}
-        <div className="flex-1 overflow-y-auto p-4 sm:p-8 flex flex-col items-center bg-slate-950 scrollbar-thin">
+        {/* ── LIVE PREVIEW AREA CONTAINER (PERFECT ABSOLUTE ACCURATE SCALING & CENTERING) ── */}
+        <div className={`flex-1 overflow-y-auto overflow-x-hidden p-2 sm:p-8 flex flex-col items-center justify-start scrollbar-thin ${
+          isDark ? "bg-[#06090e]" : "bg-slate-200/90"
+        }`}>
           
-          {/* Zoom Wrapper */}
+          {/* Sizing Box: Holds the exact calculated scaled footprint in flexbox layout */}
           <div
             style={{
               width: `${794 * zoomLevel}px`,
               minHeight: `${1123 * zoomLevel}px`,
               position: "relative",
-              paddingBottom: "40px"
+              margin: "0 auto",
+              paddingBottom: "60px"
             }}
-            className="transition-all duration-200"
+            className="transition-all duration-200 shrink-0"
           >
+            {/* Scaled Sheet Container: Absolutely positioned at top-left, scaled smoothly from top-left */}
             <div
               style={{
+                position: "absolute",
+                top: 0,
+                left: 0,
                 transform: `scale(${zoomLevel})`,
-                willChange: "transform",
-                transformOrigin: "top center",
+                transformOrigin: "top left",
                 width: "794px",
-                minHeight: "1123px"
+                minHeight: "1123px",
+                willChange: "transform"
               }}
             >
-              {renderResumeDocument(false)}
+              {renderResumeDocument()}
             </div>
           </div>
         </div>
       </div>
-      {showPreviewModal && (
-        <div className="fixed inset-0 z-[100] bg-slate-950/85 backdrop-blur-md flex flex-col items-center justify-center p-4">
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-5xl h-[92vh] flex flex-col overflow-hidden shadow-2xl relative">
-            {/* Modal Header */}
-            <div className="p-4 border-b border-slate-800 flex justify-between items-center bg-slate-900/50 shrink-0">
-              <h3 className="font-bold text-xs uppercase tracking-wider text-slate-400 font-mono">Fullscreen Resume Preview</h3>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={handleDownloadPDF}
-                  disabled={downloading}
-                  className="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer disabled:opacity-60"
-                >
-                  <Download size={12} /> {downloading ? "Generating..." : "Download PDF"}
-                </button>
-                <button
-                  onClick={() => setShowPreviewModal(false)}
-                  className="bg-slate-800 hover:bg-slate-700 text-white px-4 py-2 rounded-xl text-xs font-bold transition cursor-pointer"
-                >
-                  Close
-                </button>
-              </div>
-            </div>
-            {/* Modal Body (Scrollable preview area) */}
-            <div className="flex-1 overflow-y-auto p-4 sm:p-8 flex flex-col items-center bg-slate-950">
-              <div
-                style={{
-                  width: `${794 * zoomLevel}px`,
-                  minHeight: `${1123 * zoomLevel}px`,
-                  position: "relative",
-                  paddingBottom: "40px"
-                }}
-                className="transition-all duration-200"
-              >
-                <div
-                  style={{
-                    transform: `scale(${zoomLevel})`,
-                    willChange: "transform",
-                    transformOrigin: "top center",
-                    width: "794px",
-                    minHeight: "1123px"
-                  }}
-                >
-                  {renderResumeDocument(true)}
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
