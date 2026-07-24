@@ -1,261 +1,205 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import Link from "next/link";
-import { ArrowRight, Sun, Moon } from "lucide-react";
+import { ArrowRight, Sun, Moon, Sparkles } from "lucide-react";
 import { useTheme } from "@/hooks/useTheme";
 
 export default function HomePage() {
-  const slides = [
-    "/mcc-building.jpg",
-    "/mcc-facade.jpg",
-    "/mcc-entrance-gate.jpg",
-    "/mcc-lake.jpg",
-    "/mcc-pathway.jpg",
-  ];
-
-  const [activeSlide, setActiveSlide] = useState(0);
   const [themeMode, toggleThemeMode] = useTheme();
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setActiveSlide((prev) => (prev + 1) % slides.length);
-    }, 4500);
-    return () => clearInterval(interval);
-  }, []);
-
   const isDark = themeMode === "dark";
 
   return (
     <div
-      style={{ fontFamily: "'Inter', 'Plus Jakarta Sans', system-ui, sans-serif" }}
-      className={`min-h-screen flex flex-col overflow-x-hidden transition-colors duration-200 ${isDark ? "bg-[#0d0d12]" : "bg-[#fcfaf6]"}`}
+      style={{ fontFamily: "'Plus Jakarta Sans', 'Inter', system-ui, sans-serif" }}
+      className={`min-h-screen flex flex-col justify-between overflow-x-hidden transition-colors duration-300 ${
+        isDark ? "bg-[#090d16] text-slate-100" : "bg-[#faf9f6] text-slate-900"
+      }`}
     >
-
-      {/* ── FLOATING "N" BADGE ─────────────────────────────────────────── */}
-      <div className="fixed bottom-6 left-6 z-50">
-        <div
-          className="w-10 h-10 rounded-full bg-[#781c1c] text-white flex items-center justify-center font-black text-base shadow-lg hover:scale-105 active:scale-95 transition-all cursor-pointer select-none"
-          style={{ fontFamily: "Georgia, serif" }}
-        >
-          N
-        </div>
-      </div>
-
-      {/* ── HEADER ─────────────────────────────────────────────────────── */}
-      <header className={`sticky top-0 z-50 shadow-sm transition-colors duration-200 ${isDark ? "bg-[#000000] border-b border-white/10" : "bg-white border-b border-slate-200"}`}>
-        <div className="px-4 sm:px-8 md:px-10 flex items-center gap-3 sm:gap-4 py-1 sm:py-2">
-          {/* MCC logo — swaps based on theme */}
-          <Link href="/" className="flex items-center gap-3 shrink-0 group">
+      {/* ── HEADER WITH MOBILE-OPTIMIZED PROMINENT LOGO ─────────────────── */}
+      <header
+        className={`sticky top-0 z-50 backdrop-blur-2xl border-b transition-all duration-300 ${
+          isDark
+            ? "bg-[#090d16]/90 border-white/10 shadow-2xl shadow-black/50"
+            : "bg-white/95 border-slate-200/90 shadow-md"
+        }`}
+      >
+        <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-2.5 sm:py-3.5 flex items-center justify-between gap-2 sm:gap-4">
+          {/* Prominent Logo & Brand Link */}
+          <Link href="/" className="flex items-center gap-2.5 sm:gap-4 group shrink-0">
+            {/* Clean Logo without Frame */}
             <img
-              src={isDark ? "/mcc-logo-dark.png" : "/mcc-logo.jpg"}
-              alt="Madras Christian College"
-              className="h-[72px] sm:h-[96px] md:h-[120px] w-auto object-contain rounded-sm"
+              src={isDark ? "/mcc-logo-dark.png" : "/mcc-logo.png"}
+              alt="Madras Christian College Crest"
+              className="h-14 sm:h-18 md:h-22 lg:h-24 w-auto object-contain shrink-0 transition-transform duration-300 group-hover:scale-105"
             />
+
+            {/* Vertical Divider */}
+            <div className="h-12 sm:h-16 w-[2px] bg-gradient-to-b from-[#781c1c]/40 via-[#781c1c] to-[#781c1c]/40 dark:from-white/10 dark:via-white/30 dark:to-white/10 hidden sm:block shrink-0" />
+
+            {/* Brand Title */}
+            <div className="flex flex-col space-y-0.5">
+              <span
+                className="text-sm sm:text-xl md:text-2xl font-black uppercase tracking-wider leading-none"
+                style={{ color: isDark ? "#ffffff" : "#781c1c" }}
+              >
+                Portfolios
+              </span>
+              <span className="text-[11px] sm:text-sm font-extrabold text-slate-700 dark:text-slate-300 tracking-wide">
+                Madras Christian College
+              </span>
+              <span className="text-[10px] sm:text-[11px] text-slate-500 dark:text-slate-400 font-semibold hidden md:block">
+                Student Ecosystem
+              </span>
+            </div>
           </Link>
 
-          {/* Pipe divider */}
-          <div
-            style={{
-              width: "1px",
-              height: "32px",
-              background: isDark ? "rgba(255,255,255,0.12)" : "#cbd5e1",
-              margin: "0 4px",
-              flexShrink: 0,
-            }}
-          />
+          {/* Right Header Actions */}
+          <div className="flex items-center gap-2 sm:gap-4 shrink-0">
+            {/* Dark/Light Mode Switcher */}
+            <button
+              onClick={toggleThemeMode}
+              aria-label="Toggle dark mode"
+              className={`p-2.5 sm:p-3 rounded-2xl transition-all duration-300 cursor-pointer border shadow-md ${
+                isDark
+                  ? "bg-white/10 hover:bg-white/20 text-amber-300 border-white/15"
+                  : "bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-200"
+              }`}
+            >
+              {isDark ? <Sun size={18} /> : <Moon size={18} />}
+            </button>
 
-          {/* PORTFOLIOS text */}
-          <span
-            className="text-[10px] sm:text-[13px] md:text-[15px] tracking-[0.12em] sm:tracking-[0.18em] font-bold uppercase truncate"
-            style={{
-              fontFamily: "Inter, system-ui, sans-serif",
-              color: isDark ? "#f3f4f6" : "#781c1c",
-            }}
-          >
-            Portfolios
-          </span>
+            <Link
+              href="/login"
+              className="text-xs sm:text-sm font-extrabold text-slate-700 dark:text-slate-200 hover:text-[#781c1c] dark:hover:text-white px-3 sm:px-4 py-2.5 transition-colors hidden sm:block"
+            >
+              Sign In
+            </Link>
 
-          {/* Spacer */}
-          <div className="flex-1" />
-
-          {/* Dark mode toggle */}
-          <button
-            onClick={toggleThemeMode}
-            aria-label="Toggle dark mode"
-            className={`w-9 h-9 rounded-full flex items-center justify-center transition-all duration-200 cursor-pointer ${
-              isDark
-                ? "bg-white/10 hover:bg-white/20 text-yellow-300"
-                : "bg-slate-100 hover:bg-slate-200 text-slate-600"
-            }`}
-          >
-            {isDark ? <Sun size={16} /> : <Moon size={16} />}
-          </button>
+            <Link
+              href="/register"
+              className="px-3.5 sm:px-6 py-2.5 sm:py-3 rounded-2xl text-xs sm:text-sm font-extrabold bg-[#781c1c] hover:bg-[#5f1515] text-white shadow-xl shadow-red-900/30 hover:shadow-red-900/50 hover:-translate-y-0.5 active:translate-y-0 transition-all flex items-center gap-1.5 sm:gap-2.5 group"
+            >
+              <span>Build Portfolio</span>
+              <ArrowRight size={15} className="group-hover:translate-x-1 transition-transform" />
+            </Link>
+          </div>
         </div>
       </header>
 
-      {/* ── HERO ───────────────────────────────────────────────────────── */}
-      <section
-        className="relative flex items-center justify-center overflow-hidden flex-1"
-        style={{ minHeight: "calc(100vh - 88px)" }}
-      >
-        {/* Sliding campus background images */}
-        <div className="absolute inset-0 z-0">
-          {slides.map((src, i) => (
-            <img
-              key={src}
-              src={src}
-              alt="MCC Campus"
-              className="absolute inset-0 w-full h-full object-cover transition-opacity duration-1000"
-              style={{ opacity: i === activeSlide ? 1 : 0 }}
-            />
-          ))}
-          {/* Overlay — slightly darker in dark mode */}
+      {/* ── HERO SECTION WITH INSTANT PERMANENTLY CROPPED VIDEO ─────────── */}
+      <section className="relative min-h-[calc(100vh-90px)] flex items-center justify-center overflow-hidden py-10 sm:py-14 px-4 flex-1">
+        {/* Permanently Cropped Background Drone Video - Plays Instantly with Zero Delay */}
+        <div className="absolute inset-0 z-0 bg-[#090d16]">
+          <video
+            autoPlay
+            loop
+            muted
+            playsInline
+            preload="auto"
+            src="/DJI_0007.mp4"
+            className="w-full h-full object-cover filter brightness-105 contrast-105"
+          />
+
+          {/* Minimal overlay to ensure maximum video clarity */}
           <div
-            className="absolute inset-0"
-            style={{ background: isDark ? "rgba(0,0,0,0.35)" : "rgba(255,255,255,0.18)" }}
+            className={`absolute inset-0 transition-colors duration-500 ${
+              isDark
+                ? "bg-black/20"
+                : "bg-black/10"
+            }`}
           />
         </div>
 
-        {/* ── Frosted glass card ──────────────────────────────────────── */}
-        <div className="relative z-10 w-full px-4 flex justify-center">
+        {/* Floating Ultra-Translucent Glass Center Card */}
+        <div className="relative z-10 max-w-2xl mx-auto text-center px-2 sm:px-4 w-full animate-fade-in-up">
           <div
-            className="w-full text-center"
-            style={{
-              maxWidth: "560px",
-              background: isDark ? "rgba(13,13,18,0.88)" : "rgba(24,35,60,0.85)",
-              backdropFilter: "blur(18px)",
-              WebkitBackdropFilter: "blur(18px)",
-              border: isDark ? "1px solid rgba(255,255,255,0.08)" : "1px solid rgba(255,255,255,0.15)",
-              borderRadius: "24px",
-              padding: "48px 52px",
-              boxShadow: "0 20px 60px rgba(0,0,0,0.25), 0 4px 16px rgba(0,0,0,0.15)",
-            }}
+            className={`rounded-3xl p-8 sm:p-12 shadow-2xl backdrop-blur-sm border transition-all duration-300 ${
+              isDark
+                ? "bg-black/20 border-white/20 shadow-black/90"
+                : "bg-black/20 border-white/25 shadow-2xl text-white"
+            }`}
           >
-            {/* Main heading */}
+            {/* Pill Badge */}
+            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/20 backdrop-blur-md border border-white/30 text-white text-xs font-extrabold tracking-wide mb-6 shadow-md">
+              <Sparkles size={14} className="text-amber-300 animate-pulse" />
+              <span>Madras Christian College</span>
+            </div>
+
+            {/* Main Headline */}
             <h1
-              style={{
-                fontFamily: "Inter, 'Plus Jakarta Sans', system-ui, sans-serif",
-                fontWeight: 900,
-                fontSize: "clamp(28px, 5vw, 42px)",
-                lineHeight: 1.15,
-                color: "#ffffff",
-                margin: "0 0 16px 0",
-                letterSpacing: "-0.02em",
-              }}
+              className="text-3xl sm:text-5xl lg:text-6xl font-black text-white tracking-tight leading-[1.15] mb-4 drop-shadow-lg"
+              style={{ fontFamily: "'Plus Jakarta Sans', 'Inter', sans-serif" }}
             >
               Designed for Academic Excellence.
             </h1>
 
             {/* Subtitle */}
-            <p
-              style={{
-                fontFamily: "Inter, system-ui, sans-serif",
-                fontWeight: 400,
-                fontSize: "14px",
-                lineHeight: 1.65,
-                color: "rgba(255,255,255,0.85)",
-                margin: "0 0 28px 0",
-                maxWidth: "400px",
-                marginLeft: "auto",
-                marginRight: "auto",
-              }}
-            >
-              A premium, minimalist showcase of certified portfolios, student
-              research, and verified competencies at Madras Christian College.
+            <p className="text-sm sm:text-base text-slate-100 max-w-lg mx-auto leading-relaxed font-medium mb-8 drop-shadow-md">
+              A minimalist, certified showcase of student portfolios, research, and verified competencies at Madras Christian College.
             </p>
 
-            {/* CTA buttons */}
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+            {/* CTA Buttons */}
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4">
               <Link
                 href="/register"
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: "8px",
-                  background: "#781c1c",
-                  color: "#ffffff",
-                  borderRadius: "9999px",
-                  padding: "12px 28px",
-                  fontFamily: "Inter, system-ui, sans-serif",
-                  fontWeight: 800,
-                  fontSize: "11px",
-                  letterSpacing: "0.12em",
-                  textTransform: "uppercase",
-                  textDecoration: "none",
-                  transition: "background 0.2s, transform 0.15s, box-shadow 0.2s",
-                  boxShadow: "0 4px 14px rgba(120,28,28,0.35)",
-                }}
-                onMouseEnter={(e) => {
-                  (e.currentTarget as HTMLAnchorElement).style.background = "#5f1515";
-                  (e.currentTarget as HTMLAnchorElement).style.transform = "translateY(-1px)";
-                }}
-                onMouseLeave={(e) => {
-                  (e.currentTarget as HTMLAnchorElement).style.background = "#781c1c";
-                  (e.currentTarget as HTMLAnchorElement).style.transform = "translateY(0)";
-                }}
+                className="w-full sm:w-auto px-8 py-3.5 rounded-2xl text-xs sm:text-sm font-black bg-[#781c1c] hover:bg-[#5f1515] text-white shadow-xl shadow-red-900/50 hover:scale-105 active:scale-95 transition-all flex items-center justify-center gap-2 uppercase tracking-wider"
               >
-                Build Portfolio
-                <ArrowRight size={13} />
+                <span>Build Portfolio</span>
+                <ArrowRight size={15} />
               </Link>
 
               <Link
                 href="/login"
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  background: "rgba(255,255,255,0.1)",
-                  color: "#ffffff",
-                  border: "1.5px solid rgba(255,255,255,0.3)",
-                  borderRadius: "9999px",
-                  padding: "12px 28px",
-                  fontFamily: "Inter, system-ui, sans-serif",
-                  fontWeight: 800,
-                  fontSize: "11px",
-                  letterSpacing: "0.12em",
-                  textTransform: "uppercase",
-                  textDecoration: "none",
-                  transition: "background 0.2s, transform 0.15s",
-                }}
-                onMouseEnter={(e) => {
-                  (e.currentTarget as HTMLAnchorElement).style.background = "rgba(255,255,255,0.2)";
-                  (e.currentTarget as HTMLAnchorElement).style.transform = "translateY(-1px)";
-                }}
-                onMouseLeave={(e) => {
-                  (e.currentTarget as HTMLAnchorElement).style.background = "rgba(255,255,255,0.1)";
-                  (e.currentTarget as HTMLAnchorElement).style.transform = "translateY(0)";
-                }}
+                className="w-full sm:w-auto px-8 py-3.5 rounded-2xl text-xs sm:text-sm font-black bg-white/25 hover:bg-white/35 text-white backdrop-blur-md border border-white/40 hover:scale-105 active:scale-95 transition-all flex items-center justify-center uppercase tracking-wider"
               >
                 Sign In to Account
               </Link>
             </div>
           </div>
         </div>
-
-        {/* Slide indicator dots */}
-        <div
-          className="absolute z-10 flex gap-2"
-          style={{ bottom: "24px", left: "50%", transform: "translateX(-50%)" }}
-        >
-          {slides.map((_, i) => (
-            <button
-              key={i}
-              onClick={() => setActiveSlide(i)}
-              style={{
-                height: "6px",
-                width: i === activeSlide ? "20px" : "6px",
-                borderRadius: "9999px",
-                background: i === activeSlide ? "#781c1c" : "rgba(255,255,255,0.6)",
-                border: "none",
-                cursor: "pointer",
-                transition: "all 0.3s ease",
-                padding: 0,
-              }}
-            />
-          ))}
-        </div>
       </section>
+
+      {/* ── FOOTER ───────────────────────────────────────────────────────── */}
+      <footer
+        className={`py-6 px-4 border-t transition-colors ${
+          isDark
+            ? "bg-[#060911] border-white/10 text-slate-400"
+            : "bg-white border-slate-200 text-slate-600"
+        }`}
+      >
+        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4 text-center sm:text-left">
+          <div className="flex items-center gap-3.5">
+            <img
+              src={isDark ? "/mcc-logo-dark.png" : "/mcc-logo.png"}
+              alt="MCC Logo"
+              className="h-10 w-auto object-contain shrink-0"
+            />
+            <div>
+              <div className="text-xs font-black uppercase tracking-wider text-[#781c1c] dark:text-red-400">
+                MCC Portfolio Platform
+              </div>
+              <div className="text-[11px] text-slate-500 dark:text-slate-400">
+                © {new Date().getFullYear()} Madras Christian College. All rights reserved.
+              </div>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-6 text-xs font-bold">
+            <Link href="/login" className="hover:text-[#781c1c] dark:hover:text-white transition-colors">
+              Student Sign In
+            </Link>
+            <Link href="/register" className="hover:text-[#781c1c] dark:hover:text-white transition-colors">
+              Register Account
+            </Link>
+            <Link
+              href="/admin/login"
+              className="text-[#781c1c] dark:text-red-400 font-extrabold hover:underline"
+            >
+              Admin Portal
+            </Link>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 }

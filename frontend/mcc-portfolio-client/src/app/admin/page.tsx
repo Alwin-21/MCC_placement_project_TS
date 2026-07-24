@@ -1182,13 +1182,12 @@ export default function AdminPage() {
         {activeTab === "overview" && (
           <div className="space-y-10">
             {/* Global Stats Grid */}
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
               {[
                 { label: "Students", val: metrics?.totalStudents, icon: Users, color: "text-[#781c1c]" },
                 { label: "Projects", val: metrics?.totalProjects, icon: Code, color: "text-pink-400" },
                 { label: "Skills", val: metrics?.totalSkills, icon: Layers, color: "text-[#781c1c]" },
                 { label: "Achievements", val: metrics?.totalAchievements, icon: Trophy, color: "text-amber-400" },
-                { label: "Hackathons", val: metrics?.totalHackathons, icon: Activity, color: "text-emerald-400" },
                 { label: "Papers", val: metrics?.totalResearchPapers, icon: BookOpen, color: "text-cyan-400" }
               ].map((stat, idx) => {
                 const Icon = stat.icon;
