@@ -1649,6 +1649,17 @@ Report Generated: ${new Date().toLocaleDateString()}
             />
             <div className="absolute inset-0 bg-gradient-to-t from-[#18233c] via-[#18233c]/40 to-transparent" />
           </div>
+
+          {/* Desktop Only: Theme Switcher Inside Top-Right Corner of Banner Card */}
+          <div className="hidden md:flex absolute top-4 right-5 z-20 items-center">
+            <button
+              onClick={toggleThemeMode}
+              className="mcc-theme-toggle"
+              title="Toggle Light/Dark Mode"
+            >
+              {themeMode === "dark" ? <Sun size={16} /> : <Moon size={16} />}
+            </button>
+          </div>
           <div className="relative z-10 space-y-1 w-full text-left">
             <span 
               style={{ color: '#ffffff' }}
