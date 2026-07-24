@@ -3,11 +3,14 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, User, Mail, Key, ShieldAlert, BookOpen } from "lucide-react";
+import { ArrowLeft, User, Mail, Key, ShieldAlert, BookOpen, Eye, EyeOff, Sun, Moon } from "lucide-react";
 import api from "@/services/api";
+import { useTheme } from "@/hooks/useTheme";
 
 export default function RegisterPage() {
   const router = useRouter();
+  const [themeMode, toggleThemeMode] = useTheme();
+  const isDark = themeMode === "dark";
 
   const aidedDepartments = [
     "English", "Tamil", "Languages", "History", "Political Science", "Public Administration",
@@ -31,6 +34,7 @@ export default function RegisterPage() {
   const [course, setCourse] = useState("");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [emailRegMismatch, setEmailRegMismatch] = useState(false);
@@ -115,7 +119,18 @@ export default function RegisterPage() {
   };
 
   return (
-    <div className="min-h-screen flex bg-[#fcfaf6] text-[#2c2c2c] font-sans">
+    <div className={`min-h-screen flex font-sans transition-colors duration-200 ${isDark ? "bg-[#0d0d12] text-[#f3f4f6]" : "bg-[#fcfaf6] text-[#2c2c2c]"}`}>
+
+      {/* DARK MODE TOGGLE */}
+      <button
+        onClick={toggleThemeMode}
+        aria-label="Toggle dark mode"
+        className={`fixed top-4 right-4 z-50 w-9 h-9 rounded-full flex items-center justify-center transition-all duration-200 cursor-pointer shadow-md ${
+          isDark ? "bg-white/10 hover:bg-white/20 text-yellow-300" : "bg-slate-100 hover:bg-slate-200 text-slate-600"
+        }`}
+      >
+        {isDark ? <Sun size={16} /> : <Moon size={16} />}
+      </button>
       
       {/* LEFT PANEL: CAMPUS ARCHWAY SHOWCASE (Hidden on Mobile) */}
       <div className="hidden lg:flex lg:w-5/12 relative bg-[#18233c] text-white p-12 flex-col justify-center overflow-hidden">
@@ -151,13 +166,13 @@ export default function RegisterPage() {
             <ArrowLeft size={14} /> Back to Home
           </Link>
 
-          <div className="bg-white border border-slate-200 rounded-3xl p-8 md:p-10 shadow-lg">
+          <div className={`border rounded-3xl p-8 md:p-10 shadow-lg transition-colors duration-200 ${isDark ? "bg-[#121218] border-white/10" : "bg-white border-slate-200"}`}>
             
             <div className="text-center mb-8">
-              <h1 className="font-serif text-3xl font-extrabold text-[#18233c] mb-1">
+              <h1 className={`font-serif text-3xl font-extrabold mb-1 ${isDark ? "text-white" : "text-[#18233c]"}`}>
                 Student Registration
               </h1>
-              <p className="text-xs text-slate-500 font-medium">
+              <p className={`text-xs font-medium ${isDark ? "text-slate-400" : "text-slate-500"}`}>
                 Submit details to create your student placement account
               </p>
             </div>
@@ -167,7 +182,7 @@ export default function RegisterPage() {
               <div className="grid md:grid-cols-2 gap-4">
                 
                 <div>
-                  <label className="text-[10px] uppercase font-mono tracking-wider font-bold text-slate-655 block mb-1.5">
+                  <label className={`text-[10px] uppercase font-mono tracking-wider font-bold block mb-1.5 ${isDark ? "text-slate-300" : "text-slate-700"}`}>
                     Full Name *
                   </label>
                   <div className="relative">
@@ -178,13 +193,17 @@ export default function RegisterPage() {
                       placeholder="Enter full name"
                       value={fullName}
                       onChange={(e) => setFullName(e.target.value)}
-                      className="w-full bg-slate-50 border border-slate-200 focus:border-[#781c1c] text-slate-800 placeholder-slate-400 text-xs px-11 py-3.5 rounded-xl outline-none focus:ring-1 focus:ring-[#781c1c]/10 transition"
+                      className={`w-full border text-xs px-11 py-3.5 rounded-xl outline-none focus:ring-1 transition ${
+                        isDark 
+                          ? "bg-white/5 border-white/10 text-white placeholder-slate-500 focus:border-[#781c1c] focus:ring-[#781c1c]/20" 
+                          : "bg-slate-50 border-slate-200 text-slate-800 placeholder-slate-400 focus:border-[#781c1c] focus:ring-[#781c1c]/10"
+                      }`}
                     />
                   </div>
                 </div>
 
                 <div>
-                  <label className="text-[10px] uppercase font-mono tracking-wider font-bold text-slate-655 block mb-1.5">
+                  <label className={`text-[10px] uppercase font-mono tracking-wider font-bold block mb-1.5 ${isDark ? "text-slate-300" : "text-slate-700"}`}>
                     Email Address *
                   </label>
                   <div className="relative">
@@ -198,22 +217,24 @@ export default function RegisterPage() {
                         setEmail(e.target.value);
                         checkEmailRegMatch(e.target.value, registerNumber);
                       }}
-                      className={`w-full bg-slate-50 border text-slate-800 placeholder-slate-400 text-xs px-11 py-3.5 rounded-xl outline-none focus:ring-1 transition ${
+                      className={`w-full border text-xs px-11 py-3.5 rounded-xl outline-none focus:ring-1 transition ${
                         emailRegMismatch
                           ? "border-amber-400 focus:border-amber-500 focus:ring-amber-100"
-                          : "border-slate-200 focus:border-[#781c1c] focus:ring-[#781c1c]/10"
+                          : isDark
+                          ? "bg-white/5 border-white/10 text-white placeholder-slate-500 focus:border-[#781c1c] focus:ring-[#781c1c]/20"
+                          : "bg-slate-50 border-slate-200 text-slate-800 placeholder-slate-400 focus:border-[#781c1c] focus:ring-[#781c1c]/10"
                       }`}
                     />
                   </div>
                   {emailRegMismatch && (
-                    <p className="text-[10px] text-amber-600 font-semibold mt-1.5 flex items-center gap-1">
+                    <p className="text-[10px] text-amber-500 font-semibold mt-1.5 flex items-center gap-1">
                       ⚠️ The part before '@' must match your register number exactly.
                     </p>
                   )}
                 </div>
 
                 <div>
-                  <label className="text-[10px] uppercase font-mono tracking-wider font-bold text-slate-655 block mb-1.5">
+                  <label className={`text-[10px] uppercase font-mono tracking-wider font-bold block mb-1.5 ${isDark ? "text-slate-300" : "text-slate-700"}`}>
                     Register Number *
                   </label>
                   <div className="relative">
@@ -227,29 +248,37 @@ export default function RegisterPage() {
                         setRegisterNumber(e.target.value);
                         checkEmailRegMatch(email, e.target.value);
                       }}
-                      className="w-full bg-slate-50 border border-slate-200 focus:border-[#781c1c] text-slate-800 placeholder-slate-400 text-xs px-11 py-3.5 rounded-xl outline-none focus:ring-1 focus:ring-[#781c1c]/10 transition"
+                      className={`w-full border text-xs px-11 py-3.5 rounded-xl outline-none focus:ring-1 transition ${
+                        isDark 
+                          ? "bg-white/5 border-white/10 text-white placeholder-slate-500 focus:border-[#781c1c] focus:ring-[#781c1c]/20" 
+                          : "bg-slate-50 border-slate-200 text-slate-800 placeholder-slate-400 focus:border-[#781c1c] focus:ring-[#781c1c]/10"
+                      }`}
                     />
                   </div>
                 </div>
 
                 <div>
-                  <label className="text-[10px] uppercase font-mono tracking-wider font-bold text-slate-655 block mb-1.5">
+                  <label className={`text-[10px] uppercase font-mono tracking-wider font-bold block mb-1.5 ${isDark ? "text-slate-300" : "text-slate-700"}`}>
                     Stream *
                   </label>
                   <select
                     required
                     value={stream}
                     onChange={(e) => handleStreamChange(e.target.value)}
-                    className="w-full bg-slate-50 border border-slate-200 focus:border-[#781c1c] text-slate-800 text-xs px-4 py-3.5 rounded-xl outline-none transition cursor-pointer"
+                    className={`w-full border text-xs px-4 py-3.5 rounded-xl outline-none transition cursor-pointer ${
+                      isDark 
+                        ? "bg-[#181822] border-white/10 text-white" 
+                        : "bg-slate-50 border-slate-200 text-slate-800"
+                    }`}
                   >
-                    <option value="">Select Stream</option>
-                    <option value="Aided">Aided</option>
-                    <option value="SFS">SFS</option>
+                    <option value="" className={isDark ? "bg-[#181822] text-white" : ""}>Select Stream</option>
+                    <option value="Aided" className={isDark ? "bg-[#181822] text-white" : ""}>Aided</option>
+                    <option value="SFS" className={isDark ? "bg-[#181822] text-white" : ""}>SFS</option>
                   </select>
                 </div>
 
                 <div className="md:col-span-2">
-                  <label className="text-[10px] uppercase font-mono tracking-wider font-bold text-slate-655 block mb-1.5">
+                  <label className={`text-[10px] uppercase font-mono tracking-wider font-bold block mb-1.5 ${isDark ? "text-slate-300" : "text-slate-700"}`}>
                     Department *
                   </label>
                   <select
@@ -257,20 +286,24 @@ export default function RegisterPage() {
                     disabled={!stream}
                     value={department}
                     onChange={(e) => setDepartment(e.target.value)}
-                    className="w-full bg-slate-50 border border-slate-200 focus:border-[#781c1c] text-slate-800 text-xs px-4 py-3.5 rounded-xl outline-none transition disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                    className={`w-full border text-xs px-4 py-3.5 rounded-xl outline-none transition disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer ${
+                      isDark 
+                        ? "bg-[#181822] border-white/10 text-white" 
+                        : "bg-slate-50 border-slate-200 text-slate-800"
+                    }`}
                   >
-                    <option value="">Select Department</option>
+                    <option value="" className={isDark ? "bg-[#181822] text-white" : ""}>Select Department</option>
                     {stream === "Aided" && aidedDepartments.map((dept, idx) => (
-                      <option key={idx} value={dept}>{dept}</option>
+                      <option key={idx} value={dept} className={isDark ? "bg-[#181822] text-white" : ""}>{dept}</option>
                     ))}
                     {stream === "SFS" && sfsDepartments.map((dept, idx) => (
-                      <option key={idx} value={dept}>{dept}</option>
+                      <option key={idx} value={dept} className={isDark ? "bg-[#181822] text-white" : ""}>{dept}</option>
                     ))}
                   </select>
                 </div>
 
                 <div className="md:col-span-2">
-                  <label className="text-[10px] uppercase font-mono tracking-wider font-bold text-slate-655 block mb-1.5">
+                  <label className={`text-[10px] uppercase font-mono tracking-wider font-bold block mb-1.5 ${isDark ? "text-slate-300" : "text-slate-700"}`}>
                     Course *
                   </label>
                   <div className="relative">
@@ -281,13 +314,17 @@ export default function RegisterPage() {
                       placeholder="e.g. B.Sc. Computer Science, MCA, English"
                       value={course}
                       onChange={(e) => setCourse(e.target.value)}
-                      className="w-full bg-slate-50 border border-slate-200 focus:border-[#781c1c] text-slate-800 placeholder-slate-400 text-xs px-11 py-3.5 rounded-xl outline-none focus:ring-1 focus:ring-[#781c1c]/10 transition"
+                      className={`w-full border text-xs px-11 py-3.5 rounded-xl outline-none focus:ring-1 transition ${
+                        isDark 
+                          ? "bg-white/5 border-white/10 text-white placeholder-slate-500 focus:border-[#781c1c] focus:ring-[#781c1c]/20" 
+                          : "bg-slate-50 border-slate-200 text-slate-800 placeholder-slate-400 focus:border-[#781c1c] focus:ring-[#781c1c]/10"
+                      }`}
                     />
                   </div>
                 </div>
 
                 <div>
-                  <label className="text-[10px] uppercase font-mono tracking-wider font-bold text-slate-655 block mb-1.5">
+                  <label className={`text-[10px] uppercase font-mono tracking-wider font-bold block mb-1.5 ${isDark ? "text-slate-300" : "text-slate-700"}`}>
                     Choose Username *
                   </label>
                   <div className="relative">
@@ -298,32 +335,47 @@ export default function RegisterPage() {
                       placeholder="Create unique username"
                       value={username}
                       onChange={(e) => setUsername(e.target.value)}
-                      className="w-full bg-slate-50 border border-slate-200 focus:border-[#781c1c] text-slate-800 placeholder-slate-400 text-xs px-11 py-3.5 rounded-xl outline-none focus:ring-1 focus:ring-[#781c1c]/10 transition"
+                      className={`w-full border text-xs px-11 py-3.5 rounded-xl outline-none focus:ring-1 transition ${
+                        isDark 
+                          ? "bg-white/5 border-white/10 text-white placeholder-slate-500 focus:border-[#781c1c] focus:ring-[#781c1c]/20" 
+                          : "bg-slate-50 border-slate-200 text-slate-800 placeholder-slate-400 focus:border-[#781c1c] focus:ring-[#781c1c]/10"
+                      }`}
                     />
                   </div>
                 </div>
 
                 <div>
-                  <label className="text-[10px] uppercase font-mono tracking-wider font-bold text-slate-655 block mb-1.5">
+                  <label className={`text-[10px] uppercase font-mono tracking-wider font-bold block mb-1.5 ${isDark ? "text-slate-300" : "text-slate-700"}`}>
                     Create Password *
                   </label>
                   <div className="relative">
                     <Key className="absolute left-4 top-3.5 text-slate-400" size={16} />
                     <input
-                      type="password"
+                      type={showPassword ? "text" : "password"}
                       required
                       placeholder="Enter secure password"
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
-                      className="w-full bg-slate-50 border border-slate-200 focus:border-[#781c1c] text-slate-800 placeholder-slate-400 text-xs px-11 py-3.5 rounded-xl outline-none focus:ring-1 focus:ring-[#781c1c]/10 transition"
+                      className={`w-full border text-xs px-11 py-3.5 rounded-xl outline-none focus:ring-1 transition pr-12 ${
+                        isDark 
+                          ? "bg-white/5 border-white/10 text-white placeholder-slate-500 focus:border-[#781c1c] focus:ring-[#781c1c]/20" 
+                          : "bg-slate-50 border-slate-200 text-slate-800 placeholder-slate-400 focus:border-[#781c1c] focus:ring-[#781c1c]/10"
+                      }`}
                     />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-4 top-3.5 text-slate-400 hover:text-slate-300 transition cursor-pointer"
+                    >
+                      {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                    </button>
                   </div>
                 </div>
 
               </div>
 
               {error && (
-                <div className="bg-red-50 border border-red-200 text-red-700 text-xs p-3 rounded-xl flex items-center gap-2">
+                <div className="bg-red-50 border border-red-200 text-red-700 dark:bg-red-950/40 dark:border-red-800 dark:text-red-300 text-xs p-3 rounded-xl flex items-center gap-2">
                   <ShieldAlert size={14} className="shrink-0" />
                   <span>{error}</span>
                 </div>

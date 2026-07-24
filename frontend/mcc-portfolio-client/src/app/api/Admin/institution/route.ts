@@ -15,13 +15,13 @@ export async function GET(request: Request) {
         data: {
           Name: "Madras Christian College",
           Code: "MCC",
-          Description: "A premier institution of higher education in South India.",
-          Address: "Tambaram, Chennai, Tamil Nadu 600059",
+          Description: "Madras Christian College (MCC) is a liberal arts and sciences college in Chennai, India.",
+          Address: "East Tambaram, Chennai - 600 059, Tamil Nadu, India",
           ContactEmail: "info@mcc.edu.in",
-          ContactPhone: "044 2239 0675",
+          ContactPhone: "+91-44-22390675",
           Website: "https://mcc.edu.in",
-          LogoUrl: "/assets/mcc_logo.png",
-          Departments: "Computer Science;Computer Applications (BCA);Information Technology;Mathematics;Physics;Chemistry;Commerce;Business Administration (BBA);English;Economics"
+          LogoUrl: "/mcc-logo.png",
+          Departments: "English;Tamil;Languages;History;Political Science;Public Administration;Economics;Philosophy;Commerce;Social Work;Mathematics;Statistics;Physics;Chemistry;Botany;Zoology;Journalism;Business Administration;Communication;Geography;Tourism Studies;Microbiology;Computer Application (BCA);Computer Science (B.Sc);Computer Science (MCA);Visual Communication;Physical Education, Health Education and Sports;Psychology;Data Science;Physical Education"
         }
       });
     }

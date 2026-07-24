@@ -32,7 +32,8 @@ import {
   Menu,
   X,
   Copy,
-  Sliders
+  Sliders,
+  Upload
 } from "lucide-react";
 import api from "@/services/api";
 import { useTheme } from "@/hooks/useTheme";
@@ -1335,7 +1336,7 @@ Report Generated: ${new Date().toLocaleDateString()}
       <div className="w-72 border-r backdrop-blur-xl sticky top-0 h-screen flex-col transition-colors duration-300 shrink-0 hidden md:flex mcc-sidebar">
         <div className="p-6 border-b border-slate-200 flex items-center justify-center">
           <img 
-            src="/mcc-logo.jpg" 
+            src={themeMode === "dark" ? "/mcc-logo-dark.png" : "/mcc-logo.jpg"} 
             className="w-full max-w-[280px] h-auto object-contain rounded-lg transition-transform duration-200 hover:scale-[1.02]" 
             alt="Madras Christian College Logo" 
           />
@@ -1445,12 +1446,23 @@ Report Generated: ${new Date().toLocaleDateString()}
           </div>
         </div>
 
-        <div className="p-4 border-t border-white/10">
+        <div className="p-4 border-t border-white/10 space-y-2">
+          <button
+            onClick={toggleThemeMode}
+            className={`w-full flex items-center justify-center gap-2.5 py-2.5 rounded-xl text-xs font-bold transition cursor-pointer ${
+              themeMode === "dark"
+                ? "bg-white/10 hover:bg-white/20 text-yellow-300 border border-white/10"
+                : "bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200"
+            }`}
+          >
+            {themeMode === "dark" ? <Sun size={15} /> : <Moon size={15} />}
+            <span>{themeMode === "dark" ? "Light Mode" : "Dark Mode"}</span>
+          </button>
           <button
             onClick={handleLogout}
-            className="w-full flex items-center justify-center gap-3 bg-red-500/10 hover:bg-red-500/20 text-red-400 py-3 rounded-xl text-sm font-semibold transition cursor-pointer"
+            className="w-full flex items-center justify-center gap-3 bg-red-500/10 hover:bg-red-500/20 text-red-400 py-2.5 rounded-xl text-xs font-semibold transition cursor-pointer"
           >
-            <LogOut size={16} /> Log Out
+            <LogOut size={15} /> Log Out
           </button>
         </div>
       </div>
@@ -1462,7 +1474,7 @@ Report Generated: ${new Date().toLocaleDateString()}
             <div className="flex justify-between items-center pb-4 border-b border-gray-250">
               <div className="flex items-center justify-start py-1">
                 <img 
-                  src="/mcc-logo.jpg" 
+                  src={themeMode === "dark" ? "/mcc-logo-dark.png" : "/mcc-logo.jpg"} 
                   className="w-full max-w-[190px] h-auto object-contain rounded-lg" 
                   alt="Madras Christian College Logo" 
                 />
@@ -1575,9 +1587,20 @@ Report Generated: ${new Date().toLocaleDateString()}
                 </button>
               </div>
             </nav>
-            <div className="pt-4 border-t border-white/10">
-              <button onClick={handleLogout} className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium text-left hover:bg-red-500/10 text-red-400 cursor-pointer">
-                <LogOut size={16} /> Log Out
+            <div className="pt-4 border-t border-white/10 space-y-2">
+              <button
+                onClick={toggleThemeMode}
+                className={`w-full flex items-center justify-center gap-2.5 py-2.5 rounded-xl text-xs font-bold transition cursor-pointer ${
+                  themeMode === "dark"
+                    ? "bg-white/10 hover:bg-white/20 text-yellow-300 border border-white/10"
+                    : "bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200"
+                }`}
+              >
+                {themeMode === "dark" ? <Sun size={15} /> : <Moon size={15} />}
+                <span>{themeMode === "dark" ? "Light Mode" : "Dark Mode"}</span>
+              </button>
+              <button onClick={handleLogout} className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-semibold bg-red-500/10 hover:bg-red-500/20 text-red-400 cursor-pointer">
+                <LogOut size={15} /> Log Out
               </button>
             </div>
           </div>
@@ -1605,10 +1628,11 @@ Report Generated: ${new Date().toLocaleDateString()}
           <button
             onClick={toggleThemeMode}
             aria-label="Toggle theme"
-            className="mcc-theme-toggle"
-            title="Toggle Light/Dark Mode"
+            className={`w-8 h-8 rounded-full flex items-center justify-center transition-all duration-200 cursor-pointer ${
+              themeMode === "dark" ? "bg-white/10 text-yellow-300" : "bg-slate-100 text-slate-600"
+            }`}
           >
-            {themeMode === "dark" ? <Sun size={16} /> : <Moon size={16} />}
+            {themeMode === "dark" ? <Sun size={15} /> : <Moon size={15} />}
           </button>
         </div>
 
@@ -1616,7 +1640,7 @@ Report Generated: ${new Date().toLocaleDateString()}
         <div className="flex-1 overflow-y-auto px-4 md:px-10 py-6 md:py-8 space-y-10">
 
         {/* BANNER SHOWCASE */}
-        <div className="relative rounded-3xl overflow-hidden h-36 md:h-44 bg-[#18233c] text-white flex items-end p-6 md:p-8 border border-amber-600/20 shadow-md mb-4 mcc-welcome-banner">
+        <div className="relative rounded-2xl sm:rounded-3xl overflow-hidden min-h-[140px] sm:min-h-[160px] md:h-44 bg-[#18233c] text-white flex items-end p-4 sm:p-6 md:p-8 border border-amber-600/20 shadow-md mb-4 mcc-welcome-banner">
           <div className="absolute inset-0 z-0">
             <img 
               src="/mcc-facade.jpg" 
@@ -1639,19 +1663,19 @@ Report Generated: ${new Date().toLocaleDateString()}
           <div className="relative z-10 space-y-1 w-full text-left">
             <span 
               style={{ color: '#ffffff' }}
-              className="text-[9.5px] uppercase font-mono font-black tracking-widest bg-[#781c1c] px-3.5 py-1.5 rounded-full border border-amber-500/20 inline-block"
+              className="text-[9px] sm:text-[9.5px] uppercase font-mono font-black tracking-wider sm:tracking-widest bg-[#781c1c] px-2.5 sm:px-3.5 py-1 sm:py-1.5 rounded-full border border-amber-500/20 inline-block max-w-full truncate"
             >
               {user?.stream || "General"} Stream · {user?.department || "Unassigned"}
             </span>
             <h1 
               style={{ color: '#ffffff' }}
-              className="font-serif text-xl md:text-3xl font-black mt-2 leading-tight"
+              className="font-serif text-lg sm:text-2xl md:text-3xl font-black mt-1.5 sm:mt-2 leading-tight break-words"
             >
               Welcome back, {fullName || user?.fullName || "Student Scholar"}
             </h1>
             <p 
               style={{ color: 'rgba(255, 255, 255, 0.85)' }}
-              className="text-xs"
+              className="text-[11px] sm:text-xs leading-normal"
             >
               Manage your academic records, certifications, and portfolio pages.
             </p>
@@ -1723,11 +1747,19 @@ Report Generated: ${new Date().toLocaleDateString()}
 
           <div className="grid md:grid-cols-2 gap-6">
             {/* Profile Photo upload */}
-            <div className={`border rounded-2xl p-5 flex flex-col justify-center gap-2 transition ${
+            <div className={`border rounded-2xl p-4 sm:p-5 flex flex-col justify-between gap-3 transition ${
               themeMode === "dark" ? "bg-white/[0.02] border-white/10" : "bg-slate-50 border-slate-200"
             }`}>
-              <label className="text-[10px] uppercase font-mono tracking-wider font-bold text-slate-500 mb-1.5">Profile Photo (JPG / PNG)</label>
-              <div className="flex items-center gap-4 mt-2">
+              <div>
+                <label className="text-[10px] uppercase font-mono tracking-wider font-bold text-slate-500 block mb-1">
+                  Profile Photo (JPG / PNG)
+                </label>
+                <p className="text-[11px] text-slate-400 font-medium leading-tight">
+                  Upload an official headshot photo for your portfolio and resume pages.
+                </p>
+              </div>
+
+              <div className="flex flex-col sm:flex-row sm:items-center gap-3 mt-1">
                 <input
                   type="file"
                   accept="image/*"
@@ -1737,16 +1769,18 @@ Report Generated: ${new Date().toLocaleDateString()}
                 />
                 <label
                   htmlFor="profile-image-upload"
-                  className="bg-[#781c1c] hover:bg-[#5f1515] px-5 py-2.5 rounded-xl cursor-pointer text-xs font-bold transition text-white"
+                  className="bg-[#781c1c] hover:bg-[#5f1515] px-4 py-2.5 rounded-xl cursor-pointer text-xs font-bold transition text-white text-center shrink-0 flex items-center justify-center gap-2 shadow-xs"
                 >
+                  <Upload size={14} />
                   {uploadingField === "Profile Image" ? "Uploading..." : "Upload Photo"}
                 </label>
+
                 {profileImageUrl && (() => {
                   const imgDetails = parseImageAdjustments(profileImageUrl);
                   return (
-                    <div className="flex items-center gap-3 flex-wrap">
+                    <div className="flex items-center gap-2.5 flex-wrap">
                       <div 
-                        className="w-10 h-10 rounded-full border border-[#781c1c] overflow-hidden flex items-center justify-center cursor-pointer"
+                        className="w-10 h-10 rounded-full border-2 border-[#781c1c] overflow-hidden flex items-center justify-center cursor-pointer shrink-0 shadow-xs"
                         onClick={() => setShowPhotoPreviewModal(true)}
                         title="Click to view full preview"
                       >
@@ -1760,22 +1794,22 @@ Report Generated: ${new Date().toLocaleDateString()}
                       <button
                         type="button"
                         onClick={openPhotoAdjustModal}
-                        className={`p-2 rounded-xl text-[10px] font-semibold flex items-center gap-1.5 cursor-pointer transition border ${
+                        className={`px-3 py-2 rounded-xl text-[11px] font-semibold flex items-center gap-1.5 cursor-pointer transition border ${
                           themeMode === "dark"
                             ? "bg-white/10 hover:bg-white/20 text-white border-white/15"
-                            : "bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-300"
+                            : "bg-white hover:bg-slate-100 text-slate-700 border-slate-300 shadow-2xs"
                         }`}
                         title="Adjust Photo position / zoom / rotation"
                       >
-                        <Sliders size={12} /> Adjust
+                        <Sliders size={13} /> Adjust
                       </button>
                       <button
                         type="button"
                         onClick={() => setProfileImageUrl("")}
-                        className="p-2 bg-red-950/40 border border-red-500/20 hover:bg-red-950/70 rounded-xl text-red-400 text-[10px] font-semibold flex items-center gap-1 cursor-pointer transition"
+                        className="px-3 py-2 bg-red-950/40 border border-red-500/20 hover:bg-red-950/70 rounded-xl text-red-400 text-[11px] font-semibold flex items-center gap-1 cursor-pointer transition"
                         title="Delete profile image"
                       >
-                        <Trash2 size={12} /> Delete
+                        <Trash2 size={13} /> Delete
                       </button>
                     </div>
                   );
@@ -1815,7 +1849,9 @@ Report Generated: ${new Date().toLocaleDateString()}
                 type="text"
                 disabled
                 value={course}
-                className="border rounded-xl px-4 py-3 text-sm outline-none bg-slate-100 border-slate-200 text-slate-455 cursor-not-allowed"
+                className={`border rounded-xl px-4 py-3 text-sm outline-none cursor-not-allowed transition ${
+                  themeMode === "dark" ? "bg-white/5 border-white/10 text-slate-300" : "bg-slate-100 border-slate-200 text-slate-500"
+                }`}
               />
             </div>
 
@@ -1866,7 +1902,9 @@ Report Generated: ${new Date().toLocaleDateString()}
                 placeholder="Email Address"
                 value={email}
                 disabled
-                className="border rounded-xl px-4 py-3 text-sm outline-none bg-slate-100 border-slate-200 text-slate-455 cursor-not-allowed"
+                className={`border rounded-xl px-4 py-3 text-sm outline-none cursor-not-allowed transition ${
+                  themeMode === "dark" ? "bg-white/5 border-white/10 text-slate-300" : "bg-slate-100 border-slate-200 text-slate-500"
+                }`}
               />
             </div>
 
@@ -2398,7 +2436,9 @@ Report Generated: ${new Date().toLocaleDateString()}
               }`}>
                 <div className="flex justify-between items-start gap-4">
                   <div>
-                    <h4 className="font-bold text-base">{rec.degree} in {rec.fieldOfStudy}</h4>
+                    <h4 className="font-bold text-base">
+                      {rec.fieldOfStudy?.trim() ? `${rec.degree} in ${rec.fieldOfStudy}` : rec.degree}
+                    </h4>
                     <p className="text-xs opacity-75 mt-1">{rec.institution}</p>
                     <p className="text-[10px] opacity-50 mt-1 font-semibold">Duration: {rec.startYear} - {rec.endYear} · Grade: {rec.grade || "N/A"}</p>
                   </div>

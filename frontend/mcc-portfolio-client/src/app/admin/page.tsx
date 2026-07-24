@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
+  Eye,
+  EyeOff,
   Users,
   Code,
   Award,
@@ -121,6 +123,7 @@ export default function AdminPage() {
   const [isManageModalOpen, setIsManageModalOpen] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState<any>(null);
   const [resetPasswordValue, setResetPasswordValue] = useState("");
+  const [showResetPassword, setShowResetPassword] = useState(false);
   const [streamFilter, setStreamFilter] = useState("all");
   const [deptFilter, setDeptFilter] = useState("all");
   const [manageLoading, setManageLoading] = useState(false);
@@ -596,6 +599,7 @@ export default function AdminPage() {
   const openManageModal = (student: any) => {
     setSelectedStudent(student);
     setResetPasswordValue("");
+    setShowResetPassword(false);
     setIsManageModalOpen(true);
   };
 
@@ -632,6 +636,7 @@ export default function AdminPage() {
       await api.post(`/Admin/students/${studentId}/reset-password`, { password: resetPasswordValue });
       alert("Password reset successfully.");
       setResetPasswordValue("");
+      setShowResetPassword(false);
     } catch (err: any) {
       alert(`Failed to reset password: ${err.response?.data || err.message}`);
     } finally {
@@ -880,19 +885,18 @@ export default function AdminPage() {
       {/* ==========================================
           SIDEBAR NAVIGATION
           ========================================== */}
-      <div className={`w-72 border-r relative z-20 flex-col justify-between shrink-0 h-screen sticky top-0 transition-colors duration-300 hidden md:flex mcc-sidebar`}>
-        <div>
-          {/* Logo & Console Title */}
-          <div className="p-6 border-b border-slate-200 flex items-center justify-center">
-            <img 
-              src="/mcc-logo.jpg" 
-              className="w-full max-w-[280px] h-auto object-contain rounded-lg transition-transform duration-200 hover:scale-[1.02]" 
-              alt="Madras Christian College Logo" 
-            />
-          </div>
+      <div className={`w-72 border-r relative z-20 flex flex-col justify-between shrink-0 h-screen sticky top-0 transition-colors duration-300 hidden md:flex mcc-sidebar`}>
+        {/* Logo & Console Title */}
+        <div className="p-6 border-b border-slate-200 flex items-center justify-center shrink-0">
+          <img 
+            src={themeMode === "dark" ? "/mcc-logo-dark.png" : "/mcc-logo.jpg"} 
+            className="w-full max-w-[280px] h-auto object-contain rounded-lg transition-transform duration-200 hover:scale-[1.02]" 
+            alt="Madras Christian College Logo" 
+          />
+        </div>
 
-          {/* Navigation Items */}
-          <nav className="p-4 space-y-1.5 overflow-y-auto flex-1">
+        {/* Navigation Items */}
+        <nav className="p-4 space-y-1.5 overflow-y-auto flex-1">
             {([
               { id: "overview",       label: "Dashboard Overview",  icon: Activity,  superOnly: false },
               { id: "students",       label: "Student Directory",    icon: Users,     superOnly: false },
@@ -942,10 +946,9 @@ export default function AdminPage() {
               );
             })}
           </nav>
-        </div>
 
         {/* User Quick Controls */}
-        <div className={`p-4 border-t space-y-3 ${
+        <div className={`p-4 border-t space-y-3 shrink-0 ${
           themeMode === "dark" ? "border-white/5" : "border-[#781c1c]/10"
         }`}>
           {/* Role Badge */}
@@ -957,6 +960,20 @@ export default function AdminPage() {
             <Shield size={11} />
             {isSuperAdmin ? "Super Administrator" : "Sub-Admin"}
           </div>
+
+          {/* Dark / Light Mode Toggle */}
+          <button
+            onClick={toggleThemeMode}
+            className={`w-full flex items-center justify-center gap-2.5 py-2.5 rounded-xl text-xs font-bold transition cursor-pointer ${
+              themeMode === "dark"
+                ? "bg-white/10 hover:bg-white/20 text-yellow-300 border border-white/10"
+                : "bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200"
+            }`}
+          >
+            {themeMode === "dark" ? <Sun size={15} /> : <Moon size={15} />}
+            <span>{themeMode === "dark" ? "Light Mode" : "Dark Mode"}</span>
+          </button>
+
           <Link
             href="/"
             className={`flex items-center justify-between text-[11px] transition px-2 ${
@@ -983,21 +1000,22 @@ export default function AdminPage() {
       {showMobileNav && (
         <div className="fixed inset-0 z-50 flex md:hidden bg-black/60 backdrop-blur-xs select-none">
           <div className="w-72 flex flex-col justify-between p-5 animate-slideIn h-screen border-r mcc-sidebar">
-            <div>
-              <div className="flex justify-between items-center pb-4 border-b border-gray-250">
-                <div className="flex items-center justify-start py-1">
-                  <img 
-                    src="/mcc-logo.jpg" 
-                    className="w-full max-w-[190px] h-auto object-contain rounded-lg" 
-                    alt="Madras Christian College Logo" 
-                  />
-                </div>
-                <button onClick={() => setShowMobileNav(false)} className="text-slate-400 hover:text-white cursor-pointer p-1">
-                  <X size={18} />
-                </button>
+            {/* Header */}
+            <div className="flex justify-between items-center pb-4 border-b border-gray-250 shrink-0">
+              <div className="flex items-center justify-start py-1">
+                <img 
+                  src={themeMode === "dark" ? "/mcc-logo-dark.png" : "/mcc-logo.jpg"} 
+                  className="w-full max-w-[190px] h-auto object-contain rounded-lg" 
+                  alt="Madras Christian College Logo" 
+                />
               </div>
-              
-              <nav className="py-4 space-y-1.5 overflow-y-auto max-h-[60vh] scrollbar-thin">
+              <button onClick={() => setShowMobileNav(false)} className="text-slate-400 hover:text-white cursor-pointer p-1">
+                <X size={18} />
+              </button>
+            </div>
+            
+            {/* Navigation Items */}
+            <nav className="py-4 space-y-1.5 overflow-y-auto flex-1 scrollbar-thin">
                 {([
                   { id: "overview",       label: "Dashboard Overview",  icon: Activity,  superOnly: false },
                   { id: "students",       label: "Student Directory",    icon: Users,     superOnly: false },
@@ -1015,30 +1033,49 @@ export default function AdminPage() {
                 }).map((tab) => {
                   const Icon = tab.icon;
                   const isActive = activeTab === tab.id;
+                  const isRbac = tab.id === "rbac";
+                  const readOnly = !isSuperAdmin && !canWrite(tab.id);
                   return (
                     <button
                       key={tab.id}
-                      onClick={() => {
-                        setActiveTab(tab.id as ActiveTab);
-                        setShowMobileNav(false);
-                      }}
-                      className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold transition ${
+                      onClick={() => { setActiveTab(tab.id as ActiveTab); setShowMobileNav(false); }}
+                      className={`w-full flex items-center gap-3.5 px-4 py-3 rounded-xl text-xs font-semibold tracking-wide transition-all duration-200 ${
                         isActive
                           ? "mcc-active-tab font-bold"
-                          : tab.id === "rbac"
-                            ? "text-violet-350 hover:bg-violet-500/10 border border-violet-400/20"
-                            : "hover:bg-white/5 text-slate-350 hover:text-white"
+                          : isRbac
+                            ? themeMode === "dark"
+                              ? "text-violet-400 hover:text-violet-200 hover:bg-violet-500/10 border border-violet-500/20"
+                              : "text-violet-300 hover:text-white hover:bg-violet-500/20 border border-violet-400/30"
+                            : themeMode === "dark"
+                              ? "text-slate-400 hover:text-white hover:bg-white/5"
+                              : "text-slate-305 hover:text-white hover:bg-white/10"
                       }`}
                     >
-                      <Icon size={14} />
+                      <Icon size={16} className={isActive ? (themeMode === "dark" ? "text-black" : "text-[#18233c]") : isRbac && !isActive ? "text-violet-400" : "text-slate-400"} />
                       {tab.label}
+                      {!isSuperAdmin && readOnly && !isActive && (
+                        <span className="ml-auto text-[8px] bg-amber-500/20 text-amber-300 px-1.5 py-0.5 rounded font-mono font-bold" title="Read-only access">R</span>
+                      )}
+                      {isRbac && !isActive && (
+                        <span className="ml-auto text-[8px] bg-violet-500/20 text-violet-300 px-1.5 py-0.5 rounded font-mono font-bold">SA</span>
+                      )}
                     </button>
                   );
                 })}
               </nav>
-            </div>
             
-            <div className="pt-4 border-t border-white/10 space-y-3">
+            <div className="pt-4 border-t border-slate-800 shrink-0 space-y-2">
+              <button
+                onClick={toggleThemeMode}
+                className={`w-full flex items-center justify-center gap-2.5 py-2.5 rounded-xl text-xs font-bold transition cursor-pointer ${
+                  themeMode === "dark"
+                    ? "bg-white/10 hover:bg-white/20 text-yellow-300 border border-white/10"
+                    : "bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200"
+                }`}
+              >
+                {themeMode === "dark" ? <Sun size={15} /> : <Moon size={15} />}
+                <span>{themeMode === "dark" ? "Light Mode" : "Dark Mode"}</span>
+              </button>
               <button
                 onClick={() => {
                   localStorage.removeItem("adminToken");
@@ -1074,10 +1111,19 @@ export default function AdminPage() {
               Admin Console
             </span>
           </div>
+          <button
+            onClick={toggleThemeMode}
+            aria-label="Toggle theme"
+            className={`w-8 h-8 rounded-full flex items-center justify-center transition-all duration-200 cursor-pointer ${
+              themeMode === "dark" ? "bg-white/10 text-yellow-300" : "bg-slate-100 text-slate-600"
+            }`}
+          >
+            {themeMode === "dark" ? <Sun size={15} /> : <Moon size={15} />}
+          </button>
         </div>
 
         {/* BANNER SHOWCASE */}
-        <div className="relative rounded-3xl overflow-hidden h-44 bg-[#18233c] text-white flex items-end p-8 border border-amber-600/20 shadow-md mb-8 mcc-welcome-banner">
+        <div className="relative rounded-2xl sm:rounded-3xl overflow-hidden min-h-[140px] sm:min-h-[160px] md:h-44 bg-[#18233c] text-white flex items-end p-4 sm:p-6 md:p-8 border border-amber-600/20 shadow-md mb-6 md:mb-8 mcc-welcome-banner">
           <div className="absolute inset-0 z-0">
             <img 
               src="/mcc-main-gate.jpg" 
@@ -1089,19 +1135,19 @@ export default function AdminPage() {
           <div className="relative z-10 space-y-1 w-full text-left">
             <span 
               style={{ color: '#ffffff' }}
-              className="text-[9.5px] uppercase font-mono font-black tracking-widest bg-[#781c1c] px-3.5 py-1.5 rounded-full border border-amber-500/20 inline-block"
+              className="text-[9px] sm:text-[9.5px] uppercase font-mono font-black tracking-wider sm:tracking-widest bg-[#781c1c] px-2.5 sm:px-3.5 py-1 sm:py-1.5 rounded-full border border-amber-500/20 inline-block max-w-full truncate"
             >
               Super Admin Console
             </span>
             <h1 
               style={{ color: '#ffffff' }}
-              className="font-serif text-2xl md:text-3xl font-black mt-2"
+              className="font-serif text-lg sm:text-2xl md:text-3xl font-black mt-1.5 sm:mt-2 leading-tight break-words"
             >
               Placement &amp; Portfolio Administration
             </h1>
             <p 
               style={{ color: 'rgba(255, 255, 255, 0.85)' }}
-              className="text-xs"
+              className="text-[11px] sm:text-xs leading-normal"
             >
               Review and approve student directories, customize templates, and examine security audit logs.
             </p>
@@ -1138,12 +1184,12 @@ export default function AdminPage() {
             {/* Global Stats Grid */}
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
               {[
-                { label: "Students", val: metrics.totalStudents, icon: Users, color: "text-[#781c1c]" },
-                { label: "Projects", val: metrics.totalProjects, icon: Code, color: "text-pink-400" },
-                { label: "Skills", val: metrics.totalSkills, icon: Layers, color: "text-[#781c1c]" },
-                { label: "Achievements", val: metrics.totalAchievements, icon: Trophy, color: "text-amber-400" },
-                { label: "Hackathons", val: metrics.totalHackathons, icon: Activity, color: "text-emerald-400" },
-                { label: "Papers", val: metrics.totalResearchPapers, icon: BookOpen, color: "text-cyan-400" }
+                { label: "Students", val: metrics?.totalStudents, icon: Users, color: "text-[#781c1c]" },
+                { label: "Projects", val: metrics?.totalProjects, icon: Code, color: "text-pink-400" },
+                { label: "Skills", val: metrics?.totalSkills, icon: Layers, color: "text-[#781c1c]" },
+                { label: "Achievements", val: metrics?.totalAchievements, icon: Trophy, color: "text-amber-400" },
+                { label: "Hackathons", val: metrics?.totalHackathons, icon: Activity, color: "text-emerald-400" },
+                { label: "Papers", val: metrics?.totalResearchPapers, icon: BookOpen, color: "text-cyan-400" }
               ].map((stat, idx) => {
                 const Icon = stat.icon;
                 return (
@@ -2926,6 +2972,9 @@ export default function AdminPage() {
                   {selectedStudent.isActive !== false ? "✓ Account Active" : "✗ Account Disabled"}
                 </span>
                 <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-[10px] font-bold bg-white/10 text-white/80">
+                  👤 {selectedStudent.username || "—"}
+                </span>
+                <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-[10px] font-bold bg-white/10 text-white/80">
                   ✉️ {selectedStudent.email}
                 </span>
               </div>
@@ -2973,19 +3022,30 @@ export default function AdminPage() {
                 <div className={`border rounded-2xl p-5 space-y-3 ${themeMode === "dark" ? "border-white/5 bg-white/[0.02]" : "border-slate-200 bg-slate-50"}`}>
                   <h4 className={`text-xs uppercase font-mono font-bold tracking-widest ${themeMode === "dark" ? "text-gray-400" : "text-slate-500"}`}>Reset Password</h4>
                   <div className="flex gap-3">
-                    <input
-                      type="password"
-                      placeholder="Enter new password (min 6 chars)"
-                      value={resetPasswordValue}
-                      onChange={(e) => setResetPasswordValue(e.target.value)}
-                      className={`flex-1 border rounded-xl px-4 py-2.5 text-xs outline-none focus:border-[#781c1c] ${
-                        themeMode === "dark" ? "bg-[#121217] border-white/5 text-white placeholder-gray-600" : "bg-white border-slate-200 text-slate-900 placeholder-slate-400"
-                      }`}
-                    />
+                    <div className="relative flex-1">
+                      <input
+                        type={showResetPassword ? "text" : "password"}
+                        placeholder="Enter new password (min 6 chars)"
+                        value={resetPasswordValue}
+                        onChange={(e) => setResetPasswordValue(e.target.value)}
+                        className={`w-full border rounded-xl pl-4 pr-10 py-2.5 text-xs outline-none focus:border-[#781c1c] ${
+                          themeMode === "dark" ? "bg-[#121217] border-white/5 text-white placeholder-gray-600" : "bg-white border-slate-200 text-slate-900 placeholder-slate-400"
+                        }`}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowResetPassword(!showResetPassword)}
+                        className={`absolute right-3 top-1/2 -translate-y-1/2 transition ${
+                          themeMode === "dark" ? "text-gray-400 hover:text-white" : "text-slate-400 hover:text-slate-600"
+                        }`}
+                      >
+                        {showResetPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                      </button>
+                    </div>
                     <button
                       onClick={() => handleAdminResetPassword(selectedStudent.id)}
                       disabled={manageLoading || !resetPasswordValue}
-                      className="px-4 py-2.5 rounded-xl bg-[#781c1c] hover:bg-[#5f1515] text-white text-xs font-bold transition disabled:opacity-40"
+                      className="px-4 py-2.5 rounded-xl bg-[#781c1c] hover:bg-[#5f1515] text-white text-xs font-bold transition disabled:opacity-40 shrink-0"
                     >
                       Reset
                     </button>

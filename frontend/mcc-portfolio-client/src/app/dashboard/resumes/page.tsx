@@ -25,7 +25,9 @@ import {
   X,
   Copy,
   Calendar,
-  AlertCircle
+  AlertCircle,
+  ArrowLeft,
+  LayoutDashboard
 } from "lucide-react";
 import api from "@/services/api";
 import { useTheme } from "@/hooks/useTheme";
@@ -146,67 +148,60 @@ export default function ResumesDashboardPage() {
     <div className={`flex h-screen h-[100dvh] overflow-hidden ${themeMode === "dark" ? "bg-[#09090d] text-white" : "bg-slate-50 text-slate-900"}`}>
       
       {/* DESKTOP SIDEBAR */}
-      <div className={`hidden md:flex flex-col w-72 shrink-0 border-r select-none ${
-        themeMode === "dark" ? "bg-[#09090d] border-white/5" : "bg-[#18233c] border-[#781c1c]/10 text-white shadow-xl"
-      }`}>
-        {/* Brand Crest */}
-        <div className="flex items-center gap-2.5 p-6 border-b border-white/10">
-          <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center border border-white/20 shadow-sm overflow-hidden p-0.5">
-            <img src="/mcc-crest.png" className="w-full h-full object-contain" alt="MCC Crest" />
-          </div>
-          <div>
-            <span className="font-serif font-black text-xs tracking-tight text-white block leading-none">
-              MADRAS CHRISTIAN
-            </span>
-            <span className="font-serif font-black text-xs tracking-tight text-white block mt-0.5 leading-none">
-              COLLEGE
-            </span>
-          </div>
+      <div className={`hidden md:flex flex-col w-72 shrink-0 border-r select-none mcc-sidebar`}>
+        {/* Logo & Console Title */}
+        <div className="p-6 border-b border-slate-200 flex items-center justify-center shrink-0">
+          <img 
+            src={themeMode === "dark" ? "/mcc-logo-dark.png" : "/mcc-logo.jpg"} 
+            className="w-full max-w-[280px] h-auto object-contain rounded-lg transition-transform duration-200 hover:scale-[1.02]" 
+            alt="Madras Christian College Logo" 
+          />
         </div>
 
         {/* Navigation Sidebar List */}
-        <div className="flex-1 py-6 overflow-y-auto px-4 space-y-1.5 scrollbar-thin">
-          <button onClick={() => navigateToDashboardSection("header-section")} className="w-full flex items-center gap-3 transition px-4 py-2.5 rounded-xl text-sm font-medium text-left text-slate-300 hover:text-white hover:bg-white/5 cursor-pointer">
-            <User size={16} className="text-[#781c1c]" /> Header Section
+        <nav className="flex-1 py-6 overflow-y-auto px-4 space-y-1.5 scrollbar-thin">
+          <button
+            onClick={() => {
+              if (user?.fullName) {
+                const slug = user.registerNumber || user.fullName.replace(/\s+/g, "").toLowerCase();
+                window.open(`/student/${slug}`, "_blank");
+              } else if (user?.id) {
+                window.open(`/portfolio/${user.id}`, "_blank");
+              } else {
+                alert("Portfolio details not ready yet.");
+              }
+            }}
+            className={`w-full flex items-center gap-3 transition px-4 py-2.5 rounded-xl text-sm font-medium text-left cursor-pointer ${
+              themeMode === "dark" ? "hover:bg-white/5 text-slate-300 hover:text-white" : "hover:bg-slate-100 text-slate-700"
+            }`}
+          >
+            <Eye size={16} className="text-emerald-400" /> View Portfolio
           </button>
-          <button onClick={() => navigateToDashboardSection("about-section")} className="w-full flex items-center gap-3 transition px-4 py-2.5 rounded-xl text-sm font-medium text-left text-slate-300 hover:text-white hover:bg-white/5 cursor-pointer">
-            <FileText size={16} className="text-[#781c1c]" /> About Section
+          <button
+            onClick={() => router.push("/dashboard")}
+            className="w-full flex items-center gap-3 transition px-4 py-2.5 rounded-xl text-sm font-semibold text-left mcc-active-tab cursor-pointer"
+          >
+            <ArrowLeft size={16} /> Back to Dashboard
           </button>
-          <button onClick={() => navigateToDashboardSection("experience-section")} className="w-full flex items-center gap-3 transition px-4 py-2.5 rounded-xl text-sm font-medium text-left text-slate-300 hover:text-white hover:bg-white/5 cursor-pointer">
-            <Briefcase size={16} className="text-[#781c1c]" /> Experience
-          </button>
-          <button onClick={() => navigateToDashboardSection("academic-section")} className="w-full flex items-center gap-3 transition px-4 py-2.5 rounded-xl text-sm font-medium text-left text-slate-300 hover:text-white hover:bg-white/5 cursor-pointer">
-            <Award size={16} className="text-[#781c1c]" /> Academic Details
-          </button>
-          <button onClick={() => navigateToDashboardSection("achievements-section")} className="w-full flex items-center gap-3 transition px-4 py-2.5 rounded-xl text-sm font-medium text-left text-slate-300 hover:text-white hover:bg-white/5 cursor-pointer">
-            <Trophy size={16} className="text-[#781c1c]" /> Achievements
-          </button>
-          <button onClick={() => navigateToDashboardSection("projects-research-section")} className="w-full flex items-center gap-3 transition px-4 py-2.5 rounded-xl text-sm font-medium text-left text-slate-300 hover:text-white hover:bg-white/5 cursor-pointer">
-            <GitBranch size={16} className="text-[#781c1c]" /> Projects & Research
-          </button>
-          <button onClick={() => navigateToDashboardSection("skills-section")} className="w-full flex items-center gap-3 transition px-4 py-2.5 rounded-xl text-sm font-medium text-left text-slate-300 hover:text-white hover:bg-white/5 cursor-pointer">
-            <Code size={16} className="text-[#781c1c]" /> Skills
-          </button>
+        </nav>
 
-          <div className="pt-4 border-t border-white/5 space-y-1">
-            <button
-              onClick={() => router.push("/dashboard/resumes")}
-              className={`w-full flex items-center gap-3 transition px-4 py-2.5 rounded-xl text-sm font-semibold text-left bg-white/10 text-white cursor-pointer`}
-            >
-              <Sparkles size={16} className="text-emerald-400" /> Resume Builder
-            </button>
-            <button onClick={() => router.push("/dashboard")} className="w-full flex items-center gap-3 transition px-4 py-2.5 rounded-xl text-sm font-medium text-left text-slate-300 hover:text-white hover:bg-white/5 cursor-pointer">
-              <Eye size={16} className="text-emerald-400" /> Back to Dashboard
-            </button>
-          </div>
-        </div>
-
-        <div className="p-4 border-t border-white/10">
+        <div className="p-4 border-t border-white/10 space-y-2">
+          <button
+            onClick={toggleThemeMode}
+            className={`w-full flex items-center justify-center gap-2.5 py-2.5 rounded-xl text-xs font-bold transition cursor-pointer ${
+              themeMode === "dark"
+                ? "bg-white/10 hover:bg-white/20 text-yellow-300 border border-white/10"
+                : "bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200"
+            }`}
+          >
+            {themeMode === "dark" ? <Sun size={15} /> : <Moon size={15} />}
+            <span>{themeMode === "dark" ? "Light Mode" : "Dark Mode"}</span>
+          </button>
           <button
             onClick={handleLogout}
-            className="w-full flex items-center justify-center gap-3 bg-red-500/10 hover:bg-red-500/20 text-red-400 py-3 rounded-xl text-sm font-semibold transition cursor-pointer"
+            className="w-full flex items-center justify-center gap-3 bg-red-500/10 hover:bg-red-500/20 text-red-400 py-2.5 rounded-xl text-xs font-semibold transition cursor-pointer"
           >
-            <LogOut size={16} /> Log Out
+            <LogOut size={15} /> Log Out
           </button>
         </div>
       </div>
@@ -214,57 +209,63 @@ export default function ResumesDashboardPage() {
       {/* MOBILE DRAWER SIDEBAR OVERLAY */}
       {showMobileNav && (
         <div className="fixed inset-0 z-50 flex md:hidden bg-black/60 backdrop-blur-xs select-none">
-          <div className={`w-72 flex flex-col p-5 animate-slideIn h-screen border-r ${
-            themeMode === "dark" ? "bg-[#09090d] border-white/5 text-white" : "bg-[#18233c] border-[#781c1c]/10 text-white shadow-xl"
-          }`}>
-            <div className="flex justify-between items-center pb-4 border-b border-white/10">
-              <div className="flex items-center gap-2.5">
-                <div className="w-9 h-9 rounded-full bg-white flex items-center justify-center border border-white/20 shadow-sm overflow-hidden shrink-0 p-0.5">
-                  <img src="/mcc-crest.png" className="w-full h-full object-contain" alt="MCC Crest" />
-                </div>
-                <div>
-                  <span className="font-serif font-black text-[10px] tracking-tight text-white block leading-none">
-                    MADRAS CHRISTIAN
-                  </span>
-                  <span className="font-serif font-black text-[10px] tracking-tight text-white block mt-0.5 leading-none">
-                    COLLEGE
-                  </span>
-                </div>
+          <div className="w-72 flex flex-col p-5 animate-slideIn h-screen border-r mcc-sidebar">
+            <div className="flex justify-between items-center pb-4 border-b border-gray-250 shrink-0">
+              <div className="flex items-center justify-start py-1">
+                <img 
+                  src={themeMode === "dark" ? "/mcc-logo-dark.png" : "/mcc-logo.jpg"} 
+                  className="w-full max-w-[190px] h-auto object-contain rounded-lg" 
+                  alt="Madras Christian College Logo" 
+                />
               </div>
               <button onClick={() => setShowMobileNav(false)} className="text-slate-400 hover:text-white cursor-pointer p-1">
                 <X size={18} />
               </button>
             </div>
             
-            <nav className="flex-1 py-4 space-y-1 overflow-y-auto scrollbar-thin">
-              <button onClick={() => { navigateToDashboardSection("header-section"); setShowMobileNav(false); }} className="w-full flex items-center gap-3 transition px-4 py-2.5 rounded-xl text-sm font-medium text-left text-slate-300 hover:text-white cursor-pointer">
-                <User size={16} className="text-[#781c1c]" /> Header Section
+            <nav className="flex-1 py-4 space-y-1.5 overflow-y-auto scrollbar-thin">
+              <button
+                onClick={() => {
+                  setShowMobileNav(false);
+                  if (user?.fullName) {
+                    const slug = user.registerNumber || user.fullName.replace(/\s+/g, "").toLowerCase();
+                    window.open(`/student/${slug}`, "_blank");
+                  } else if (user?.id) {
+                    window.open(`/portfolio/${user.id}`, "_blank");
+                  } else {
+                    alert("Portfolio details not ready yet.");
+                  }
+                }}
+                className={`w-full flex items-center gap-3 transition px-4 py-2.5 rounded-xl text-sm font-medium text-left cursor-pointer ${
+                  themeMode === "dark" ? "hover:bg-white/5 text-slate-300 hover:text-white" : "hover:bg-slate-100 text-slate-700"
+                }`}
+              >
+                <Eye size={16} className="text-emerald-400" /> View Portfolio
               </button>
-              <button onClick={() => { navigateToDashboardSection("about-section"); setShowMobileNav(false); }} className="w-full flex items-center gap-3 transition px-4 py-2.5 rounded-xl text-sm font-medium text-left text-slate-300 hover:text-white cursor-pointer">
-                <FileText size={16} className="text-[#781c1c]" /> About Section
+              <button
+                onClick={() => {
+                  setShowMobileNav(false);
+                  router.push("/dashboard");
+                }}
+                className="w-full flex items-center gap-3 transition px-4 py-2.5 rounded-xl text-sm font-semibold text-left mcc-active-tab cursor-pointer"
+              >
+                <ArrowLeft size={16} /> Back to Dashboard
               </button>
-              <button onClick={() => { navigateToDashboardSection("experience-section"); setShowMobileNav(false); }} className="w-full flex items-center gap-3 transition px-4 py-2.5 rounded-xl text-sm font-medium text-left text-slate-300 hover:text-white cursor-pointer">
-                <Briefcase size={16} className="text-[#781c1c]" /> Experience
-              </button>
-              <button onClick={() => { navigateToDashboardSection("academic-section"); setShowMobileNav(false); }} className="w-full flex items-center gap-3 transition px-4 py-2.5 rounded-xl text-sm font-medium text-left text-slate-300 hover:text-white cursor-pointer">
-                <Award size={16} className="text-[#781c1c]" /> Academic Details
-              </button>
-              
-              <div className="pt-4 border-t border-white/5 space-y-1">
-                <button
-                  onClick={() => { router.push("/dashboard/resumes"); setShowMobileNav(false); }}
-                  className="w-full flex items-center gap-3 transition px-4 py-2.5 rounded-xl text-sm font-semibold text-left bg-white/10 text-white cursor-pointer"
-                >
-                  <Sparkles size={16} className="text-emerald-400" /> Resume Builder
-                </button>
-                <button onClick={() => { router.push("/dashboard"); setShowMobileNav(false); }} className="w-full flex items-center gap-3 transition px-4 py-2.5 rounded-xl text-sm font-medium text-left text-slate-300 hover:text-white cursor-pointer">
-                  <Eye size={16} className="text-emerald-400" /> Back to Dashboard
-                </button>
-              </div>
             </nav>
-            <div className="pt-4 border-t border-white/10">
-              <button onClick={handleLogout} className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium text-left hover:bg-red-500/10 text-red-400 cursor-pointer">
-                <LogOut size={16} /> Log Out
+            <div className="pt-4 border-t border-white/10 space-y-2">
+              <button
+                onClick={toggleThemeMode}
+                className={`w-full flex items-center justify-center gap-2.5 py-2.5 rounded-xl text-xs font-bold transition cursor-pointer ${
+                  themeMode === "dark"
+                    ? "bg-white/10 hover:bg-white/20 text-yellow-300 border border-white/10"
+                    : "bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200"
+                }`}
+              >
+                {themeMode === "dark" ? <Sun size={15} /> : <Moon size={15} />}
+                <span>{themeMode === "dark" ? "Light Mode" : "Dark Mode"}</span>
+              </button>
+              <button onClick={handleLogout} className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-medium bg-red-500/10 hover:bg-red-500/20 text-red-400 cursor-pointer">
+                <LogOut size={15} /> Log Out
               </button>
             </div>
           </div>
@@ -277,12 +278,13 @@ export default function ResumesDashboardPage() {
         
         {/* MOBILE TOP BAR */}
         <div className="sticky top-0 z-[49] md:hidden flex items-center justify-between p-4 bg-white/90 dark:bg-[#09090d]/90 backdrop-blur-md border-b border-slate-200 dark:border-white/5 select-none shadow-md shrink-0">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2.5">
             <button
               onClick={() => setShowMobileNav(true)}
-              className="p-2 rounded-lg text-slate-500 hover:bg-slate-100 dark:hover:bg-white/5 transition cursor-pointer"
+              className="p-2 rounded-xl bg-[#781c1c] hover:bg-[#5f1515] transition cursor-pointer flex items-center justify-center shrink-0"
+              style={{ color: '#ffffff' }}
             >
-              <Menu size={20} />
+              <Menu size={18} style={{ color: '#ffffff' }} />
             </button>
             <span className="font-serif font-black text-[#18233c] dark:text-white tracking-tight text-xs uppercase">
               Resume Dashboard
@@ -291,40 +293,60 @@ export default function ResumesDashboardPage() {
           <button
             onClick={toggleThemeMode}
             aria-label="Toggle theme"
-            className="mcc-theme-toggle"
-            title="Toggle Light/Dark Mode"
+            className={`w-8 h-8 rounded-full flex items-center justify-center transition-all duration-200 cursor-pointer ${
+              themeMode === "dark" ? "bg-white/10 text-yellow-300" : "bg-slate-100 text-slate-600"
+            }`}
           >
-            {themeMode === "dark" ? <Sun size={16} /> : <Moon size={16} />}
+            {themeMode === "dark" ? <Sun size={15} /> : <Moon size={15} />}
           </button>
-        </div>
-
-        {/* DESKTOP TOP BAR */}
-        <div className="hidden md:flex items-center justify-between p-6 border-b border-slate-200 dark:border-white/5 bg-white/50 dark:bg-[#09090d]/50 backdrop-blur-md shrink-0">
-          <div>
-            <h1 className="text-2xl font-serif font-black text-[#18233c] dark:text-white">Resume Builder Dashboard</h1>
-            <p className="text-xs opacity-60 mt-1">Design and manage multiple professional resumes generated from your portfolio.</p>
-          </div>
-
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => setShowCreateModal(true)}
-              className="bg-[#781c1c] hover:bg-[#5f1515] text-white px-5 py-2.5 rounded-xl font-bold text-xs transition flex items-center gap-2 shadow-sm shadow-[#781c1c]/10 cursor-pointer"
-            >
-              <Plus size={16} /> Create Resume
-            </button>
-            <button
-              onClick={toggleThemeMode}
-              aria-label="Toggle theme"
-              className="mcc-theme-toggle"
-              title="Toggle Light/Dark Mode"
-            >
-              {themeMode === "dark" ? <Sun size={16} /> : <Moon size={16} />}
-            </button>
-          </div>
         </div>
 
         {/* MAIN BODY AREA */}
         <div className="flex-1 overflow-y-auto p-6 md:p-8">
+          
+          {/* BANNER SHOWCASE */}
+          <div className="relative rounded-2xl sm:rounded-3xl overflow-hidden min-h-[140px] sm:min-h-[160px] md:h-44 bg-[#18233c] text-white flex items-end p-4 sm:p-6 md:p-8 border border-amber-600/20 shadow-md mb-6 md:mb-8 mcc-welcome-banner">
+            <div className="absolute inset-0 z-0">
+              <img 
+                src="/mcc-facade.jpg" 
+                alt="MCC Quadrangle" 
+                className="w-full h-full object-cover opacity-35 filter brightness-90 contrast-110"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-[#18233c] via-[#18233c]/40 to-transparent" />
+            </div>
+            <div className="relative z-10 flex justify-between items-end w-full text-left">
+              <div className="space-y-1">
+                <span 
+                  style={{ color: '#ffffff' }}
+                  className="text-[9px] sm:text-[9.5px] uppercase font-mono font-black tracking-wider sm:tracking-widest bg-[#781c1c] px-2.5 sm:px-3.5 py-1 sm:py-1.5 rounded-full border border-amber-500/20 inline-block"
+                >
+                  Resume Module
+                </span>
+                <h1 
+                  style={{ color: '#ffffff' }}
+                  className="font-serif text-lg sm:text-2xl md:text-3xl font-black mt-1.5 sm:mt-2 leading-tight break-words"
+                >
+                  Resume Builder Dashboard
+                </h1>
+                <p 
+                  style={{ color: 'rgba(255, 255, 255, 0.85)' }}
+                  className="text-[11px] sm:text-xs leading-normal"
+                >
+                  Build, edit, duplicate, and export professional ATS-friendly resumes.
+                </p>
+              </div>
+
+              <div className="hidden md:block shrink-0 pb-1">
+                <button
+                  onClick={() => setShowCreateModal(true)}
+                  className="bg-[#781c1c] hover:bg-[#5f1515] text-white px-5 py-2.5 rounded-xl font-bold text-xs transition flex items-center gap-2 shadow-sm shadow-[#781c1c]/10 cursor-pointer"
+                >
+                  <Plus size={16} /> Create Resume
+                </button>
+              </div>
+            </div>
+          </div>
+
           {/* Mobile Create Button Row */}
           <div className="md:hidden mb-6 flex justify-end">
             <button

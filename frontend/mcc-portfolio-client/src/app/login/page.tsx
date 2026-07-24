@@ -3,11 +3,14 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, User, Lock, ShieldAlert, KeyRound, CheckCircle2, Eye, EyeOff } from "lucide-react";
+import { ArrowLeft, User, Lock, ShieldAlert, KeyRound, CheckCircle2, Eye, EyeOff, Sun, Moon } from "lucide-react";
 import api from "@/services/api";
+import { useTheme } from "@/hooks/useTheme";
 
 export default function LoginPage() {
   const router = useRouter();
+  const [themeMode, toggleThemeMode] = useTheme();
+  const isDark = themeMode === "dark";
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -36,7 +39,7 @@ export default function LoginPage() {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!username || !password) {
-      setError("Please enter both username and password.");
+      setError("Please enter your username or register number, and password.");
       return;
     }
     try {
@@ -126,8 +129,19 @@ export default function LoginPage() {
 
 
   return (
-    <div className="min-h-screen flex bg-[#fcfaf6] text-[#2c2c2c] font-sans">
-      
+    <div className={`min-h-screen flex font-sans transition-colors duration-200 ${isDark ? "bg-[#0d0d12] text-[#f3f4f6]" : "bg-[#fcfaf6] text-[#2c2c2c]"}`}>
+
+      {/* DARK MODE TOGGLE */}
+      <button
+        onClick={toggleThemeMode}
+        aria-label="Toggle dark mode"
+        className={`fixed top-4 right-4 z-50 w-9 h-9 rounded-full flex items-center justify-center transition-all duration-200 cursor-pointer shadow-md ${
+          isDark ? "bg-white/10 hover:bg-white/20 text-yellow-300" : "bg-slate-100 hover:bg-slate-200 text-slate-600"
+        }`}
+      >
+        {isDark ? <Sun size={16} /> : <Moon size={16} />}
+      </button>
+
       {/* LEFT PANEL: CAMPUS IMAGERY SHOWCASE (Hidden on Mobile) */}
       <div className="hidden lg:flex lg:w-7/12 relative bg-[#18233c] text-white p-12 flex-col justify-center overflow-hidden">
         <div className="absolute inset-0 z-0">
@@ -162,10 +176,10 @@ export default function LoginPage() {
             <ArrowLeft size={14} /> Back to Home
           </Link>
 
-          <div className="bg-white border border-slate-200 rounded-3xl p-8 md:p-10 shadow-lg">
+          <div className={`border rounded-3xl p-8 md:p-10 shadow-lg transition-colors duration-200 ${isDark ? "bg-[#121218] border-white/10" : "bg-white border-slate-200"}`}>
             
             <div className="text-center mb-8">
-              <h1 className="font-serif text-3xl font-extrabold text-[#18233c] mb-1">
+              <h1 className={`font-serif text-3xl font-extrabold mb-1 ${isDark ? "text-white" : "text-[#18233c]"}`}>
                 Student Log In
               </h1>
               <p className="text-xs text-slate-500 font-medium">
@@ -177,18 +191,18 @@ export default function LoginPage() {
               
               <div>
                 <label className="text-[10px] uppercase font-mono tracking-wider font-bold text-slate-655 block mb-1.5">
-                  Username
+                  Username or Register Number
                 </label>
                 <div className="relative">
                   <User className="absolute left-4 top-3.5 text-slate-400" size={16} />
                   <input
                     type="text"
                     required
-                    placeholder="Enter your generated username"
+                    placeholder="Enter your username or register number"
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
                     autoComplete="username"
-                    className="w-full bg-slate-50 border border-slate-200 focus:border-[#781c1c] text-slate-800 placeholder-slate-400 text-xs px-11 py-3.5 rounded-xl outline-none focus:ring-1 focus:ring-[#781c1c]/10 transition"
+                    className={`w-full border text-xs px-11 py-3.5 rounded-xl outline-none focus:ring-1 focus:ring-[#781c1c]/10 transition ${isDark ? "bg-white/5 border-white/10 text-white placeholder-gray-500 focus:border-[#781c1c]" : "bg-slate-50 border-slate-200 text-slate-800 placeholder-slate-400 focus:border-[#781c1c]"}`}
                   />
                 </div>
               </div>
@@ -206,7 +220,7 @@ export default function LoginPage() {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     autoComplete="current-password"
-                    className="w-full bg-slate-50 border border-slate-200 focus:border-[#781c1c] text-slate-800 placeholder-slate-400 text-xs pl-11 pr-12 py-3.5 rounded-xl outline-none focus:ring-1 focus:ring-[#781c1c]/10 transition"
+                    className={`w-full border text-xs pl-11 pr-12 py-3.5 rounded-xl outline-none focus:ring-1 focus:ring-[#781c1c]/10 transition ${isDark ? "bg-white/5 border-white/10 text-white placeholder-gray-500 focus:border-[#781c1c]" : "bg-slate-50 border-slate-200 text-slate-800 placeholder-slate-400 focus:border-[#781c1c]"}`}
                   />
                   <button
                     type="button"
