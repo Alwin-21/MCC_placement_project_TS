@@ -12,6 +12,7 @@ import {
   GitBranch,
   Trophy,
   Sparkles,
+  CheckCircle,
   Trash2,
   Sun,
   Moon,
@@ -161,42 +162,56 @@ export default function ResumesDashboardPage() {
         {/* Navigation Sidebar List */}
         <nav className="flex-1 py-6 overflow-y-auto px-4 space-y-1.5 scrollbar-thin">
           <button
+            onClick={() => router.push("/dashboard")}
+            className={`w-full flex items-center gap-3.5 px-4 py-3 rounded-xl text-xs font-semibold tracking-wide transition-all duration-200 cursor-pointer ${
+              themeMode === "dark"
+                ? "text-slate-400 hover:text-white hover:bg-white/5"
+                : "text-slate-700 hover:text-[#18233c] hover:bg-slate-100"
+            }`}
+          >
+            <ArrowLeft size={16} className="text-[#781c1c]" /> Back to Dashboard
+          </button>
+
+          <button
+            onClick={() => {}}
+            className="w-full flex items-center gap-3.5 px-4 py-3 rounded-xl text-xs font-bold tracking-wide transition-all duration-200 mcc-active-tab cursor-pointer"
+          >
+            <Sparkles size={16} className="text-white" /> Resume Builder
+          </button>
+
+          <button
             onClick={() => {
               if (user?.fullName) {
                 const slug = user.registerNumber || user.fullName.replace(/\s+/g, "").toLowerCase();
                 window.open(`/student/${slug}`, "_blank");
-              } else if (user?.id) {
-                window.open(`/portfolio/${user.id}`, "_blank");
               } else {
-                alert("Portfolio details not ready yet.");
+                alert("Please save your Header details first.");
               }
             }}
-            className={`w-full flex items-center gap-3 transition px-4 py-2.5 rounded-xl text-sm font-medium text-left cursor-pointer ${
-              themeMode === "dark" ? "hover:bg-white/5 text-slate-300 hover:text-white" : "hover:bg-slate-100 text-slate-700"
+            className={`w-full flex items-center gap-3.5 px-4 py-3 rounded-xl text-xs font-semibold tracking-wide transition-all duration-200 cursor-pointer ${
+              themeMode === "dark"
+                ? "text-slate-400 hover:text-white hover:bg-white/5"
+                : "text-slate-700 hover:text-[#18233c] hover:bg-slate-100"
             }`}
           >
-            <Eye size={16} className="text-emerald-400" /> View Portfolio
-          </button>
-          <button
-            onClick={() => router.push("/dashboard")}
-            className="w-full flex items-center gap-3 transition px-4 py-2.5 rounded-xl text-sm font-semibold text-left mcc-active-tab cursor-pointer"
-          >
-            <ArrowLeft size={16} /> Back to Dashboard
+            <Eye size={16} className="text-emerald-400" /> View Public Portfolio
           </button>
         </nav>
 
-        <div className="p-4 border-t border-white/10 space-y-2">
-          <button
-            onClick={toggleThemeMode}
-            className={`w-full flex items-center justify-center gap-2.5 py-2.5 rounded-xl text-xs font-bold transition cursor-pointer ${
-              themeMode === "dark"
-                ? "bg-white/10 hover:bg-white/20 text-yellow-300 border border-white/10"
-                : "bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200"
-            }`}
-          >
-            {themeMode === "dark" ? <Sun size={15} /> : <Moon size={15} />}
-            <span>{themeMode === "dark" ? "Light Mode" : "Dark Mode"}</span>
-          </button>
+        {/* User Quick Controls */}
+        <div className={`p-4 border-t space-y-3 shrink-0 ${
+          themeMode === "dark" ? "border-white/5" : "border-[#781c1c]/10"
+        }`}>
+          {/* Role Badge */}
+          <div className={`px-3 py-2 rounded-xl text-[10px] font-mono font-bold flex items-center gap-2 ${
+            themeMode === "dark"
+              ? "bg-emerald-500/10 text-emerald-350 border border-emerald-500/20"
+              : "bg-emerald-50 text-emerald-700 border border-emerald-250"
+          }`}>
+            <CheckCircle size={11} className="text-emerald-400" />
+            Verified Student
+          </div>
+
           <button
             onClick={handleLogout}
             className="w-full flex items-center justify-center gap-3 bg-red-500/10 hover:bg-red-500/20 text-red-400 py-2.5 rounded-xl text-xs font-semibold transition cursor-pointer"
@@ -210,7 +225,7 @@ export default function ResumesDashboardPage() {
       {showMobileNav && (
         <div className="fixed inset-0 z-50 flex md:hidden bg-black/60 backdrop-blur-xs select-none">
           <div className="w-72 flex flex-col p-5 animate-slideIn h-screen border-r mcc-sidebar">
-            <div className="flex justify-between items-center pb-4 border-b border-gray-250 shrink-0">
+            <div className="flex justify-between items-center pb-4 border-b border-slate-200 dark:border-white/5 shrink-0">
               <div className="flex items-center justify-start py-1">
                 <img 
                   src={themeMode === "dark" ? "/mcc-logo-dark.png" : "/mcc-logo.jpg"} 
@@ -227,44 +242,60 @@ export default function ResumesDashboardPage() {
               <button
                 onClick={() => {
                   setShowMobileNav(false);
-                  if (user?.fullName) {
-                    const slug = user.registerNumber || user.fullName.replace(/\s+/g, "").toLowerCase();
-                    window.open(`/student/${slug}`, "_blank");
-                  } else if (user?.id) {
-                    window.open(`/portfolio/${user.id}`, "_blank");
-                  } else {
-                    alert("Portfolio details not ready yet.");
-                  }
+                  router.push("/dashboard");
                 }}
-                className={`w-full flex items-center gap-3 transition px-4 py-2.5 rounded-xl text-sm font-medium text-left cursor-pointer ${
-                  themeMode === "dark" ? "hover:bg-white/5 text-slate-300 hover:text-white" : "hover:bg-slate-100 text-slate-700"
+                className={`w-full flex items-center gap-3.5 px-4 py-2.5 rounded-xl text-xs font-semibold tracking-wide transition-all duration-200 cursor-pointer ${
+                  themeMode === "dark"
+                    ? "text-slate-400 hover:text-white hover:bg-white/5"
+                    : "text-slate-700 hover:text-[#18233c] hover:bg-slate-100"
                 }`}
               >
-                <Eye size={16} className="text-emerald-400" /> View Portfolio
+                <ArrowLeft size={16} className="text-[#781c1c]" /> Back to Dashboard
               </button>
+
+              <button
+                onClick={() => {}}
+                className="w-full flex items-center gap-3.5 px-4 py-2.5 rounded-xl text-xs font-bold tracking-wide transition-all duration-200 mcc-active-tab cursor-pointer"
+              >
+                <Sparkles size={16} className="text-white" /> Resume Builder
+              </button>
+
               <button
                 onClick={() => {
                   setShowMobileNav(false);
-                  router.push("/dashboard");
+                  if (user?.fullName) {
+                    const slug = user.registerNumber || user.fullName.replace(/\s+/g, "").toLowerCase();
+                    window.open(`/student/${slug}`, "_blank");
+                  } else {
+                    alert("Please save your Header details first.");
+                  }
                 }}
-                className="w-full flex items-center gap-3 transition px-4 py-2.5 rounded-xl text-sm font-semibold text-left mcc-active-tab cursor-pointer"
-              >
-                <ArrowLeft size={16} /> Back to Dashboard
-              </button>
-            </nav>
-            <div className="pt-4 border-t border-white/10 space-y-2">
-              <button
-                onClick={toggleThemeMode}
-                className={`w-full flex items-center justify-center gap-2.5 py-2.5 rounded-xl text-xs font-bold transition cursor-pointer ${
+                className={`w-full flex items-center gap-3.5 px-4 py-2.5 rounded-xl text-xs font-semibold tracking-wide transition-all duration-200 cursor-pointer ${
                   themeMode === "dark"
-                    ? "bg-white/10 hover:bg-white/20 text-yellow-300 border border-white/10"
-                    : "bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200"
+                    ? "text-slate-400 hover:text-white hover:bg-white/5"
+                    : "text-slate-700 hover:text-[#18233c] hover:bg-slate-100"
                 }`}
               >
-                {themeMode === "dark" ? <Sun size={15} /> : <Moon size={15} />}
-                <span>{themeMode === "dark" ? "Light Mode" : "Dark Mode"}</span>
+                <Eye size={16} className="text-emerald-400" /> View Public Portfolio
               </button>
-              <button onClick={handleLogout} className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-medium bg-red-500/10 hover:bg-red-500/20 text-red-400 cursor-pointer">
+            </nav>
+
+            {/* User Quick Controls */}
+            <div className="pt-4 border-t border-slate-200 dark:border-white/5 space-y-3 shrink-0">
+              {/* Role Badge */}
+              <div className={`px-3 py-2 rounded-xl text-[10px] font-mono font-bold flex items-center gap-2 ${
+                themeMode === "dark"
+                  ? "bg-emerald-500/10 text-emerald-350 border border-emerald-500/20"
+                  : "bg-emerald-50 text-emerald-700 border border-emerald-250"
+              }`}>
+                <CheckCircle size={11} className="text-emerald-400" />
+                Verified Student
+              </div>
+
+              <button
+                onClick={handleLogout}
+                className="w-full flex items-center justify-center gap-3 bg-red-500/10 hover:bg-red-500/20 text-red-400 py-2.5 rounded-xl text-xs font-semibold transition cursor-pointer"
+              >
                 <LogOut size={15} /> Log Out
               </button>
             </div>
@@ -293,11 +324,13 @@ export default function ResumesDashboardPage() {
           <button
             onClick={toggleThemeMode}
             aria-label="Toggle theme"
-            className={`w-8 h-8 rounded-full flex items-center justify-center transition-all duration-200 cursor-pointer ${
-              themeMode === "dark" ? "bg-white/10 text-yellow-300" : "bg-slate-100 text-slate-600"
+            className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all duration-300 cursor-pointer shadow-md hover:scale-110 active:scale-95 border ${
+              themeMode === "dark"
+                ? "bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border-amber-500/30"
+                : "bg-indigo-900/40 hover:bg-indigo-900/60 text-white border-white/10"
             }`}
           >
-            {themeMode === "dark" ? <Sun size={15} /> : <Moon size={15} />}
+            {themeMode === "dark" ? <Sun size={18} /> : <Moon size={18} />}
           </button>
         </div>
 
@@ -313,6 +346,21 @@ export default function ResumesDashboardPage() {
                 className="w-full h-full object-cover opacity-35 filter brightness-90 contrast-110"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-[#18233c] via-[#18233c]/40 to-transparent" />
+            </div>
+
+            {/* Desktop Only: Theme Switcher Inside Top-Right Corner of Banner Card */}
+            <div className="hidden md:flex absolute top-4 right-5 z-20 items-center">
+              <button
+                onClick={toggleThemeMode}
+                className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all duration-300 cursor-pointer shadow-md hover:scale-110 active:scale-95 border ${
+                  themeMode === "dark"
+                    ? "bg-white/10 hover:bg-white/20 text-amber-400 border-white/25"
+                    : "bg-white/20 hover:bg-white/30 text-amber-300 border-white/30"
+                }`}
+                title="Toggle Light/Dark Mode"
+              >
+                {themeMode === "dark" ? <Sun size={18} /> : <Moon size={18} />}
+              </button>
             </div>
             <div className="relative z-10 flex justify-between items-end w-full text-left">
               <div className="space-y-1">

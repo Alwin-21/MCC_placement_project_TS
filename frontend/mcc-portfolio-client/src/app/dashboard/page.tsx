@@ -39,9 +39,54 @@ import api from "@/services/api";
 import { useTheme } from "@/hooks/useTheme";
 import { parseImageAdjustments } from "@/utils/image";
 
+const sidebarLinks = [
+  { id: "header-section", label: "Header Section", icon: User },
+  { id: "about-section", label: "About Section", icon: FileText },
+  { id: "experience-section", label: "Experience", icon: Briefcase },
+  { id: "academic-section", label: "Academic Details", icon: Award },
+  { id: "achievements-section", label: "Achievements", icon: Trophy },
+  { id: "projects-research-section", label: "Projects & Research", icon: GitBranch },
+  { id: "skills-section", label: "Skills", icon: Code },
+  { id: "licenses-certifications-section", label: "Certifications", icon: Award },
+  { id: "languages-section", label: "Languages known", icon: Globe },
+  { id: "test-scores-section", label: "Test Scores", icon: Award },
+  { id: "patents-section", label: "Patents", icon: FileText },
+  { id: "media-handles-section", label: "Media Handles", icon: Link },
+  { id: "resume-section", label: "Resume", icon: FileText },
+  { id: "assessments-section", label: "Assessments", icon: BookOpen }
+];
+
 export default function DashboardPage() {
   const [user, setUser] = useState<any>(null);
   const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+
+  // Active scroll section state
+  const [activeSection, setActiveSection] = useState("header-section");
+
+  // Track active section via IntersectionObserver
+  useEffect(() => {
+    const observerOptions = {
+      root: null,
+      rootMargin: "-20% 0px -60% 0px",
+      threshold: 0
+    };
+
+    const observerCallback = (entries: IntersectionObserverEntry[]) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) {
+          setActiveSection(entry.target.id);
+        }
+      });
+    };
+
+    const observer = new IntersectionObserver(observerCallback, observerOptions);
+    sidebarLinks.forEach((linkItem) => {
+      const el = document.getElementById(linkItem.id);
+      if (el) observer.observe(el);
+    });
+
+    return () => observer.disconnect();
+  }, []);
 
   // Theme states
   const [themeMode, toggleThemeMode] = useTheme();
@@ -198,6 +243,9 @@ export default function DashboardPage() {
   const [resumeUrl, setResumeUrl] = useState("");
   const [editingResumeId, setEditingResumeId] = useState<number | null>(null);
 
+  // Student Assessments State
+  const [studentAssessments, setStudentAssessments] = useState<any[]>([]);
+
   // Copy Link State
   const [copiedIdLink, setCopiedIdLink] = useState(false);
   const [copiedSlugLink, setCopiedSlugLink] = useState(false);
@@ -287,6 +335,7 @@ export default function DashboardPage() {
     fetchNotifications();
     fetchThemesList();
     fetchAiAnalysis();
+    fetchStudentAssessments();
   };
 
   // ==========================================
@@ -300,6 +349,15 @@ export default function DashboardPage() {
       setNotifications(res.data);
     } catch (err) {
       console.error("Failed to fetch notifications", err);
+    }
+  };
+
+  const fetchStudentAssessments = async () => {
+    try {
+      const res = await api.get("/Assessments/student");
+      setStudentAssessments(res.data || []);
+    } catch (err) {
+      console.error("Failed to fetch student assessments", err);
     }
   };
 
@@ -1331,10 +1389,9 @@ Report Generated: ${new Date().toLocaleDateString()}
     <div className={`h-screen h-[100dvh] overflow-hidden flex transition-colors duration-300 ${
       themeMode === "dark" ? "bg-[#0d0d12] text-white" : "bg-[#fcfaf6] text-[#0f172a]"
     }`}>
-      
-      {/* SIDEBAR NAVIGATION */}
-      <div className="w-72 border-r backdrop-blur-xl sticky top-0 h-screen flex-col transition-colors duration-300 shrink-0 hidden md:flex mcc-sidebar">
-        <div className="p-6 border-b border-slate-200 flex items-center justify-center">
+            {/* SIDEBAR NAVIGATION */}
+      <div className="w-72 border-r relative z-20 flex flex-col justify-between shrink-0 h-screen sticky top-0 transition-colors duration-300 hidden md:flex mcc-sidebar">
+        <div className="p-6 border-b border-slate-200 flex items-center justify-center shrink-0">
           <img 
             src={themeMode === "dark" ? "/mcc-logo-dark.png" : "/mcc-logo.jpg"} 
             className="w-full max-w-[280px] h-auto object-contain rounded-lg transition-transform duration-200 hover:scale-[1.02]" 
@@ -1342,66 +1399,64 @@ Report Generated: ${new Date().toLocaleDateString()}
           />
         </div>
 
-        {/* 13 SECTIONS LINKS */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-1 scrollbar-thin">
-          <button onClick={() => scrollTo("header-section")} className={`w-full flex items-center gap-3 transition px-4 py-2.5 rounded-xl text-sm font-medium text-left ${themeMode === "dark" ? "hover:bg-white/5 text-slate-300 hover:text-white" : "hover:bg-white/10 text-slate-200 hover:text-white"}`}>
-            <User size={16} className="text-[#781c1c]" /> Header Section
-          </button>
-          <button onClick={() => scrollTo("about-section")} className={`w-full flex items-center gap-3 transition px-4 py-2.5 rounded-xl text-sm font-medium text-left ${themeMode === "dark" ? "hover:bg-white/5 text-slate-300 hover:text-white" : "hover:bg-white/10 text-slate-200 hover:text-white"}`}>
-            <FileText size={16} className="text-[#781c1c]" /> About Section
-          </button>
-          <button onClick={() => scrollTo("experience-section")} className={`w-full flex items-center gap-3 transition px-4 py-2.5 rounded-xl text-sm font-medium text-left ${themeMode === "dark" ? "hover:bg-white/5 text-slate-300 hover:text-white" : "hover:bg-white/10 text-slate-200 hover:text-white"}`}>
-            <Briefcase size={16} className="text-[#781c1c]" /> Experience
-          </button>
-          <button onClick={() => scrollTo("academic-section")} className={`w-full flex items-center gap-3 transition px-4 py-2.5 rounded-xl text-sm font-medium text-left ${themeMode === "dark" ? "hover:bg-white/5 text-slate-300 hover:text-white" : "hover:bg-white/10 text-slate-200 hover:text-white"}`}>
-            <Award size={16} className="text-[#781c1c]" /> Academic Details
-          </button>
-          <button onClick={() => scrollTo("achievements-section")} className={`w-full flex items-center gap-3 transition px-4 py-2.5 rounded-xl text-sm font-medium text-left ${themeMode === "dark" ? "hover:bg-white/5 text-slate-300 hover:text-white" : "hover:bg-white/10 text-slate-200 hover:text-white"}`}>
-            <Trophy size={16} className="text-[#781c1c]" /> Achievements
-          </button>
-          <button onClick={() => scrollTo("projects-research-section")} className={`w-full flex items-center gap-3 transition px-4 py-2.5 rounded-xl text-sm font-medium text-left ${themeMode === "dark" ? "hover:bg-white/5 text-slate-300 hover:text-white" : "hover:bg-white/10 text-slate-200 hover:text-white"}`}>
-            <GitBranch size={16} className="text-[#781c1c]" /> Projects & Research
-          </button>
-          <button onClick={() => scrollTo("skills-section")} className={`w-full flex items-center gap-3 transition px-4 py-2.5 rounded-xl text-sm font-medium text-left ${themeMode === "dark" ? "hover:bg-white/5 text-slate-300 hover:text-white" : "hover:bg-white/10 text-slate-200 hover:text-white"}`}>
-            <Code size={16} className="text-[#781c1c]" /> Skills
-          </button>
-          <button onClick={() => scrollTo("licenses-certifications-section")} className={`w-full flex items-center gap-3 transition px-4 py-2.5 rounded-xl text-sm font-medium text-left ${themeMode === "dark" ? "hover:bg-white/5 text-slate-300 hover:text-white" : "hover:bg-white/10 text-slate-200 hover:text-white"}`}>
-            <Award size={16} className="text-[#781c1c]" /> Certifications
-          </button>
-          <button onClick={() => scrollTo("languages-section")} className={`w-full flex items-center gap-3 transition px-4 py-2.5 rounded-xl text-sm font-medium text-left ${themeMode === "dark" ? "hover:bg-white/5 text-slate-300 hover:text-white" : "hover:bg-white/10 text-slate-200 hover:text-white"}`}>
-            <Globe size={16} className="text-[#781c1c]" /> Languages known
-          </button>
-          <button onClick={() => scrollTo("test-scores-section")} className={`w-full flex items-center gap-3 transition px-4 py-2.5 rounded-xl text-sm font-medium text-left ${themeMode === "dark" ? "hover:bg-white/5 text-slate-300 hover:text-white" : "hover:bg-white/10 text-slate-200 hover:text-white"}`}>
-            <Award size={16} className="text-[#781c1c]" /> Test Scores
-          </button>
-          <button onClick={() => scrollTo("patents-section")} className={`w-full flex items-center gap-3 transition px-4 py-2.5 rounded-xl text-sm font-medium text-left ${themeMode === "dark" ? "hover:bg-white/5 text-slate-300 hover:text-white" : "hover:bg-white/10 text-slate-200 hover:text-white"}`}>
-            <FileText size={16} className="text-[#781c1c]" /> Patents
-          </button>
-          <button onClick={() => scrollTo("media-handles-section")} className={`w-full flex items-center gap-3 transition px-4 py-2.5 rounded-xl text-sm font-medium text-left ${themeMode === "dark" ? "hover:bg-white/5 text-slate-300 hover:text-white" : "hover:bg-white/10 text-slate-200 hover:text-white"}`}>
-            <Link size={16} className="text-[#781c1c]" /> Media Handles
-          </button>
-          <button onClick={() => scrollTo("resume-section")} className={`w-full flex items-center gap-3 transition px-4 py-2.5 rounded-xl text-sm font-medium text-left ${themeMode === "dark" ? "hover:bg-white/5 text-slate-300 hover:text-white" : "hover:bg-white/10 text-slate-200 hover:text-white"}`}>
-            <FileText size={16} className="text-[#781c1c]" /> Resume
-          </button>
+        {/* Navigation Items */}
+        <nav className="p-4 space-y-1.5 overflow-y-auto flex-1 scrollbar-thin">
+          {sidebarLinks.map((linkItem) => {
+            const Icon = linkItem.icon;
+            const isActive = activeSection === linkItem.id;
+            return (
+              <button
+                key={linkItem.id}
+                onClick={() => {
+                  scrollTo(linkItem.id);
+                  setActiveSection(linkItem.id);
+                }}
+                className={`w-full flex items-center gap-3.5 px-4 py-3 rounded-xl text-xs font-semibold tracking-wide transition-all duration-200 cursor-pointer ${
+                  isActive
+                    ? "mcc-active-tab font-bold"
+                    : themeMode === "dark"
+                      ? "text-slate-400 hover:text-white hover:bg-white/5"
+                      : "text-slate-700 hover:text-[#18233c] hover:bg-slate-100"
+                }`}
+              >
+                <Icon
+                  size={16}
+                  className={
+                    isActive
+                      ? themeMode === "dark"
+                        ? "text-white"
+                        : "text-white"
+                      : "text-[#781c1c]"
+                  }
+                />
+                {linkItem.label}
+              </button>
+            );
+          })}
 
-          <div className="pt-4 border-t border-white/5 space-y-1">
+          <div className="pt-4 border-t border-slate-200 dark:border-white/5 space-y-1.5">
             <button
               onClick={() => window.location.href = "/dashboard/resumes"}
-              className={`w-full flex items-center gap-3 transition px-4 py-2.5 rounded-xl text-sm font-medium text-left ${
-                themeMode === "dark" ? "hover:bg-white/5 text-slate-300 hover:text-white" : "hover:bg-white/10 text-slate-200 hover:text-white"
-              } cursor-pointer`}
+              className={`w-full flex items-center gap-3.5 px-4 py-3 rounded-xl text-xs font-semibold tracking-wide transition-all duration-200 cursor-pointer ${
+                themeMode === "dark"
+                  ? "text-slate-400 hover:text-white hover:bg-white/5"
+                  : "text-slate-700 hover:text-[#18233c] hover:bg-slate-100"
+              }`}
             >
-              <Sparkles size={16} className="text-emerald-400" /> Resume Builder
+              <Sparkles size={16} className="text-emerald-400" />
+              Resume Builder
             </button>
 
             {/* Portfolio Link in Sidebar */}
-            <div className={`mx-2 my-2.5 p-3 rounded-xl border text-left ${
-              themeMode === "dark" ? "bg-white/[0.03] border-white/10 text-slate-200" : "bg-white/10 border-white/10 text-slate-100"
+            <div className={`mx-2 my-2.5 p-4 rounded-2xl border text-left transition duration-200 ${
+              themeMode === "dark" ? "bg-white/[0.03] border-white/10 text-slate-200" : "bg-[#781c1c]/5 border-[#781c1c]/10 text-slate-800"
             }`}>
-              <span className="text-[9px] uppercase font-mono tracking-widest text-[#d4af37] font-bold block mb-1">
+              <span className={`text-[9px] uppercase font-mono tracking-widest font-black block mb-1.5 ${
+                themeMode === "dark" ? "text-amber-400" : "text-[#781c1c]"
+              }`}>
                 Portfolio Link
               </span>
-              <div className="text-[10px] font-mono break-all truncate opacity-85 mb-2">
+              <div className="text-[10px] font-mono break-all truncate opacity-85 mb-3">
                 {typeof window !== "undefined" && user?.fullName
                   ? `${window.location.origin}/student/${user.registerNumber || user.fullName.replace(/\s+/g, "").toLowerCase()}`
                   : "http://localhost:3001/student/username"}
@@ -1416,48 +1471,50 @@ Report Generated: ${new Date().toLocaleDateString()}
                       setCopiedSlugLink(true);
                       setTimeout(() => setCopiedSlugLink(false), 2000);
                     } else {
-                      alert("Please save your Header details with your Full Name first.");
+                      alert("Please save your Header details first.");
                     }
                   }}
-                  className="bg-white/10 hover:bg-white/20 text-[9px] font-bold py-1 px-2 rounded-lg transition active:scale-95 flex items-center gap-1 cursor-pointer"
+                  className={`text-[9px] font-bold py-1.5 px-2.5 rounded-lg transition active:scale-95 flex items-center gap-1 cursor-pointer ${
+                    themeMode === "dark" ? "bg-white/10 hover:bg-white/20 text-white" : "bg-slate-200 hover:bg-slate-350 text-slate-800"
+                  }`}
                 >
                   {copiedSlugLink ? <CheckCircle size={10} className="text-emerald-400" /> : <Copy size={10} />}
                   {copiedSlugLink ? "Copied" : "Copy Link"}
                 </button>
-                <a
-                  href={user?.fullName ? `/student/${user.registerNumber || user.fullName.replace(/\s+/g, "").toLowerCase()}` : "#"}
-                  target="_blank"
-                  className="bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-350 text-[9px] font-bold py-1 px-2 rounded-lg transition flex items-center gap-1"
+                <button
+                  onClick={() => {
+                    if (user?.fullName) {
+                      const slug = user.registerNumber || user.fullName.replace(/\s+/g, "").toLowerCase();
+                      window.open(`/student/${slug}`, "_blank");
+                    } else {
+                      alert("Please save your Header details first.");
+                    }
+                  }}
+                  className={`text-[9px] font-bold py-1.5 px-2.5 rounded-lg transition flex items-center gap-1 cursor-pointer ${
+                    themeMode === "dark" ? "bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-350" : "bg-[#781c1c] text-white hover:bg-[#5f1515]"
+                  }`}
                 >
-                  <ExternalLink size={10} /> View
-                </a>
+                  <Eye size={10} /> View
+                </button>
               </div>
             </div>
-            <button onClick={() => {
-              if (user?.fullName) {
-                const slug = user.registerNumber || user.fullName.replace(/\s+/g, "").toLowerCase();
-                window.open(`/student/${slug}`, "_blank");
-              } else {
-                alert("Please save your Header details first.");
-              }
-            }} className={`w-full flex items-center gap-3 transition px-4 py-2.5 rounded-xl text-sm font-medium text-left ${themeMode === "dark" ? "hover:bg-white/5 text-slate-300 hover:text-white" : "hover:bg-white/10 text-slate-200 hover:text-white"}`}>
-              <Eye size={16} className="text-emerald-400" /> View Public Portfolio
-            </button>
           </div>
-        </div>
+        </nav>
 
-        <div className="p-4 border-t border-white/10 space-y-2">
-          <button
-            onClick={toggleThemeMode}
-            className={`w-full flex items-center justify-center gap-2.5 py-2.5 rounded-xl text-xs font-bold transition cursor-pointer ${
-              themeMode === "dark"
-                ? "bg-white/10 hover:bg-white/20 text-yellow-300 border border-white/10"
-                : "bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200"
-            }`}
-          >
-            {themeMode === "dark" ? <Sun size={15} /> : <Moon size={15} />}
-            <span>{themeMode === "dark" ? "Light Mode" : "Dark Mode"}</span>
-          </button>
+        {/* User Quick Controls */}
+        <div className={`p-4 border-t space-y-3 shrink-0 ${
+          themeMode === "dark" ? "border-white/5" : "border-[#781c1c]/10"
+        }`}>
+          {/* Role Badge */}
+          <div className={`px-3 py-2 rounded-xl text-[10px] font-mono font-bold flex items-center gap-2 ${
+            themeMode === "dark"
+              ? "bg-emerald-500/10 text-emerald-350 border border-emerald-500/20"
+              : "bg-emerald-50 text-emerald-700 border border-emerald-250"
+          }`}>
+            <CheckCircle size={11} className="text-emerald-400" />
+            Verified Student
+          </div>
+
           <button
             onClick={handleLogout}
             className="w-full flex items-center justify-center gap-3 bg-red-500/10 hover:bg-red-500/20 text-red-400 py-2.5 rounded-xl text-xs font-semibold transition cursor-pointer"
@@ -1466,12 +1523,11 @@ Report Generated: ${new Date().toLocaleDateString()}
           </button>
         </div>
       </div>
-
       {/* MOBILE DRAWER SIDEBAR OVERLAY */}
       {showMobileNav && (
         <div className="fixed inset-0 z-50 flex md:hidden bg-black/60 backdrop-blur-xs select-none">
           <div className="w-72 flex flex-col p-5 animate-slideIn h-screen border-r mcc-sidebar">
-            <div className="flex justify-between items-center pb-4 border-b border-gray-250">
+            <div className="flex justify-between items-center pb-4 border-b border-slate-200 dark:border-white/5">
               <div className="flex items-center justify-start py-1">
                 <img 
                   src={themeMode === "dark" ? "/mcc-logo-dark.png" : "/mcc-logo.jpg"} 
@@ -1484,65 +1540,67 @@ Report Generated: ${new Date().toLocaleDateString()}
               </button>
             </div>
             
-            <nav className="flex-1 py-4 space-y-1 overflow-y-auto scrollbar-thin">
-              <button onClick={() => { scrollTo("header-section"); setShowMobileNav(false); }} className={`w-full flex items-center gap-3 transition px-4 py-2.5 rounded-xl text-sm font-medium text-left ${themeMode === "dark" ? "hover:bg-white/5 text-slate-300 hover:text-white" : "hover:bg-white/10 text-slate-200 hover:text-white"} cursor-pointer`}>
-                <User size={16} className="text-[#781c1c]" /> Header Section
-              </button>
-              <button onClick={() => { scrollTo("about-section"); setShowMobileNav(false); }} className={`w-full flex items-center gap-3 transition px-4 py-2.5 rounded-xl text-sm font-medium text-left ${themeMode === "dark" ? "hover:bg-white/5 text-slate-300 hover:text-white" : "hover:bg-white/10 text-slate-200 hover:text-white"} cursor-pointer`}>
-                <FileText size={16} className="text-[#781c1c]" /> About Section
-              </button>
-              <button onClick={() => { scrollTo("experience-section"); setShowMobileNav(false); }} className={`w-full flex items-center gap-3 transition px-4 py-2.5 rounded-xl text-sm font-medium text-left ${themeMode === "dark" ? "hover:bg-white/5 text-slate-300 hover:text-white" : "hover:bg-white/10 text-slate-200 hover:text-white"} cursor-pointer`}>
-                <Briefcase size={16} className="text-[#781c1c]" /> Experience
-              </button>
-              <button onClick={() => { scrollTo("academic-section"); setShowMobileNav(false); }} className={`w-full flex items-center gap-3 transition px-4 py-2.5 rounded-xl text-sm font-medium text-left ${themeMode === "dark" ? "hover:bg-white/5 text-slate-300 hover:text-white" : "hover:bg-white/10 text-slate-200 hover:text-white"} cursor-pointer`}>
-                <Award size={16} className="text-[#781c1c]" /> Academic Details
-              </button>
-              <button onClick={() => { scrollTo("achievements-section"); setShowMobileNav(false); }} className={`w-full flex items-center gap-3 transition px-4 py-2.5 rounded-xl text-sm font-medium text-left ${themeMode === "dark" ? "hover:bg-white/5 text-slate-300 hover:text-white" : "hover:bg-white/10 text-slate-200 hover:text-white"} cursor-pointer`}>
-                <Trophy size={16} className="text-[#781c1c]" /> Achievements
-              </button>
-              <button onClick={() => { scrollTo("projects-research-section"); setShowMobileNav(false); }} className={`w-full flex items-center gap-3 transition px-4 py-2.5 rounded-xl text-sm font-medium text-left ${themeMode === "dark" ? "hover:bg-white/5 text-slate-300 hover:text-white" : "hover:bg-white/10 text-slate-200 hover:text-white"} cursor-pointer`}>
-                <GitBranch size={16} className="text-[#781c1c]" /> Projects & Research
-              </button>
-              <button onClick={() => { scrollTo("skills-section"); setShowMobileNav(false); }} className={`w-full flex items-center gap-3 transition px-4 py-2.5 rounded-xl text-sm font-medium text-left ${themeMode === "dark" ? "hover:bg-white/5 text-slate-300 hover:text-white" : "hover:bg-white/10 text-slate-200 hover:text-white"} cursor-pointer`}>
-                <Code size={16} className="text-[#781c1c]" /> Skills
-              </button>
-              <button onClick={() => { scrollTo("licenses-certifications-section"); setShowMobileNav(false); }} className={`w-full flex items-center gap-3 transition px-4 py-2.5 rounded-xl text-sm font-medium text-left ${themeMode === "dark" ? "hover:bg-white/5 text-slate-300 hover:text-white" : "hover:bg-white/10 text-slate-200 hover:text-white"} cursor-pointer`}>
-                <Award size={16} className="text-[#781c1c]" /> Certifications
-              </button>
-              <button onClick={() => { scrollTo("languages-section"); setShowMobileNav(false); }} className={`w-full flex items-center gap-3 transition px-4 py-2.5 rounded-xl text-sm font-medium text-left ${themeMode === "dark" ? "hover:bg-white/5 text-slate-300 hover:text-white" : "hover:bg-white/10 text-slate-200 hover:text-white"} cursor-pointer`}>
-                <Globe size={16} className="text-[#781c1c]" /> Languages known
-              </button>
-              <button onClick={() => { scrollTo("test-scores-section"); setShowMobileNav(false); }} className={`w-full flex items-center gap-3 transition px-4 py-2.5 rounded-xl text-sm font-medium text-left ${themeMode === "dark" ? "hover:bg-white/5 text-slate-300 hover:text-white" : "hover:bg-white/10 text-slate-200 hover:text-white"} cursor-pointer`}>
-                <Award size={16} className="text-[#781c1c]" /> Test Scores
-              </button>
-              <button onClick={() => { scrollTo("patents-section"); setShowMobileNav(false); }} className={`w-full flex items-center gap-3 transition px-4 py-2.5 rounded-xl text-sm font-medium text-left ${themeMode === "dark" ? "hover:bg-white/5 text-slate-300 hover:text-white" : "hover:bg-white/10 text-slate-200 hover:text-white"} cursor-pointer`}>
-                <FileText size={16} className="text-[#781c1c]" /> Patents
-              </button>
-              <button onClick={() => { scrollTo("media-handles-section"); setShowMobileNav(false); }} className={`w-full flex items-center gap-3 transition px-4 py-2.5 rounded-xl text-sm font-medium text-left ${themeMode === "dark" ? "hover:bg-white/5 text-slate-300 hover:text-white" : "hover:bg-white/10 text-slate-200 hover:text-white"} cursor-pointer`}>
-                <Link size={16} className="text-[#781c1c]" /> Media Handles
-              </button>
-              <button onClick={() => { scrollTo("resume-section"); setShowMobileNav(false); }} className={`w-full flex items-center gap-3 transition px-4 py-2.5 rounded-xl text-sm font-medium text-left ${themeMode === "dark" ? "hover:bg-white/5 text-slate-300 hover:text-white" : "hover:bg-white/10 text-slate-200 hover:text-white"} cursor-pointer`}>
-                <FileText size={16} className="text-[#781c1c]" /> Resume
-              </button>
-              
-              <div className="pt-4 border-t border-white/5 space-y-1">
+            <nav className="flex-1 py-4 space-y-1.5 overflow-y-auto scrollbar-thin">
+              {sidebarLinks.map((linkItem) => {
+                const Icon = linkItem.icon;
+                const isActive = activeSection === linkItem.id;
+                return (
+                  <button
+                    key={linkItem.id}
+                    onClick={() => {
+                      scrollTo(linkItem.id);
+                      setActiveSection(linkItem.id);
+                      setShowMobileNav(false);
+                    }}
+                    className={`w-full flex items-center gap-3.5 px-4 py-2.5 rounded-xl text-xs font-semibold tracking-wide transition-all duration-200 cursor-pointer ${
+                      isActive
+                        ? "mcc-active-tab font-bold"
+                        : themeMode === "dark"
+                          ? "text-slate-400 hover:text-white hover:bg-white/5"
+                          : "text-slate-700 hover:text-[#18233c] hover:bg-slate-100"
+                    }`}
+                  >
+                    <Icon
+                      size={16}
+                      className={
+                        isActive
+                          ? themeMode === "dark"
+                            ? "text-white"
+                            : "text-white"
+                          : "text-[#781c1c]"
+                      }
+                    />
+                    {linkItem.label}
+                  </button>
+                );
+              })}
+
+              <div className="pt-4 border-t border-slate-200 dark:border-white/5 space-y-1.5">
                 <button
-                  onClick={() => { window.location.href = "/dashboard/resumes"; setShowMobileNav(false); }}
-                  className={`w-full flex items-center gap-3 transition px-4 py-2.5 rounded-xl text-sm font-medium text-left ${
-                    themeMode === "dark" ? "hover:bg-white/5 text-slate-300 hover:text-white" : "hover:bg-white/10 text-slate-200 hover:text-white"
-                  } cursor-pointer`}
+                  onClick={() => {
+                    window.location.href = "/dashboard/resumes";
+                    setShowMobileNav(false);
+                  }}
+                  className={`w-full flex items-center gap-3.5 px-4 py-2.5 rounded-xl text-xs font-semibold tracking-wide transition-all duration-200 cursor-pointer ${
+                    themeMode === "dark"
+                      ? "text-slate-400 hover:text-white hover:bg-white/5"
+                      : "text-slate-700 hover:text-[#18233c] hover:bg-slate-100"
+                  }`}
                 >
-                  <Sparkles size={16} className="text-emerald-400" /> Resume Builder
+                  <Sparkles size={16} className="text-emerald-400" />
+                  Resume Builder
                 </button>
 
                 {/* Portfolio Link in Sidebar */}
-                <div className={`mx-2 my-2.5 p-3 rounded-xl border text-left ${
-                  themeMode === "dark" ? "bg-white/[0.03] border-white/10 text-slate-200" : "bg-white/10 border-white/10 text-slate-100"
+                <div className={`mx-2 my-2.5 p-4 rounded-2xl border text-left transition duration-200 ${
+                  themeMode === "dark" ? "bg-white/[0.03] border-white/10 text-slate-200" : "bg-[#781c1c]/5 border-[#781c1c]/10 text-slate-800"
                 }`}>
-                  <span className="text-[9px] uppercase font-mono tracking-widest text-[#d4af37] font-bold block mb-1">
+                  <span className={`text-[9px] uppercase font-mono tracking-widest font-black block mb-1.5 ${
+                    themeMode === "dark" ? "text-amber-400" : "text-[#781c1c]"
+                  }`}>
                     Portfolio Link
                   </span>
-                  <div className="text-[10px] font-mono break-all truncate opacity-85 mb-2">
+                  <div className="text-[10px] font-mono break-all truncate opacity-85 mb-3">
                     {typeof window !== "undefined" && user?.fullName
                       ? `${window.location.origin}/student/${user.registerNumber || user.fullName.replace(/\s+/g, "").toLowerCase()}`
                       : "http://localhost:3001/student/username"}
@@ -1557,49 +1615,53 @@ Report Generated: ${new Date().toLocaleDateString()}
                           setCopiedSlugLink(true);
                           setTimeout(() => setCopiedSlugLink(false), 2000);
                         } else {
-                          alert("Please save your Header details with your Full Name first.");
+                          alert("Please save your Header details first.");
                         }
                       }}
-                      className="bg-white/10 hover:bg-white/20 text-[9px] font-bold py-1 px-2 rounded-lg transition active:scale-95 flex items-center gap-1 cursor-pointer"
+                      className={`text-[9px] font-bold py-1.5 px-2.5 rounded-lg transition active:scale-95 flex items-center gap-1 cursor-pointer ${
+                        themeMode === "dark" ? "bg-white/10 hover:bg-white/20 text-white" : "bg-slate-200 hover:bg-slate-350 text-slate-800"
+                      }`}
                     >
                       {copiedSlugLink ? <CheckCircle size={10} className="text-emerald-400" /> : <Copy size={10} />}
                       {copiedSlugLink ? "Copied" : "Copy Link"}
                     </button>
-                    <a
-                      href={user?.fullName ? `/student/${user.registerNumber || user.fullName.replace(/\s+/g, "").toLowerCase()}` : "#"}
-                      target="_blank"
-                      className="bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-350 text-[9px] font-bold py-1 px-2 rounded-lg transition flex items-center gap-1"
+                    <button
+                      onClick={() => {
+                        if (user?.fullName) {
+                          const slug = user.registerNumber || user.fullName.replace(/\s+/g, "").toLowerCase();
+                          window.open(`/student/${slug}`, "_blank");
+                          setShowMobileNav(false);
+                        } else {
+                          alert("Please save your Header details first.");
+                        }
+                      }}
+                      className={`text-[9px] font-bold py-1.5 px-2.5 rounded-lg transition flex items-center gap-1 cursor-pointer ${
+                        themeMode === "dark" ? "bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-350" : "bg-[#781c1c] text-white hover:bg-[#5f1515]"
+                      }`}
                     >
-                      <ExternalLink size={10} /> View
-                    </a>
+                      <Eye size={10} /> View
+                    </button>
                   </div>
                 </div>
-                <button onClick={() => {
-                  if (user?.fullName) {
-                    const slug = user.registerNumber || user.fullName.replace(/\s+/g, "").toLowerCase();
-                    window.open(`/student/${slug}`, "_blank");
-                    setShowMobileNav(false);
-                  } else {
-                    alert("Please save your Header details first.");
-                  }
-                }} className={`w-full flex items-center gap-3 transition px-4 py-2.5 rounded-xl text-sm font-medium text-left ${themeMode === "dark" ? "hover:bg-white/5 text-slate-300 hover:text-white" : "hover:bg-white/10 text-slate-200 hover:text-white"} cursor-pointer`}>
-                  <Eye size={16} className="text-emerald-400" /> View Public Portfolio
-                </button>
               </div>
             </nav>
-            <div className="pt-4 border-t border-white/10 space-y-2">
+
+            {/* User Quick Controls */}
+            <div className="pt-4 border-t border-slate-200 dark:border-white/5 space-y-3 shrink-0">
+              {/* Role Badge */}
+              <div className={`px-3 py-2 rounded-xl text-[10px] font-mono font-bold flex items-center gap-2 ${
+                themeMode === "dark"
+                  ? "bg-emerald-500/10 text-emerald-350 border border-emerald-500/20"
+                  : "bg-emerald-50 text-emerald-700 border border-emerald-250"
+              }`}>
+                <CheckCircle size={11} className="text-emerald-400" />
+                Verified Student
+              </div>
+
               <button
-                onClick={toggleThemeMode}
-                className={`w-full flex items-center justify-center gap-2.5 py-2.5 rounded-xl text-xs font-bold transition cursor-pointer ${
-                  themeMode === "dark"
-                    ? "bg-white/10 hover:bg-white/20 text-yellow-300 border border-white/10"
-                    : "bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200"
-                }`}
+                onClick={handleLogout}
+                className="w-full flex items-center justify-center gap-3 bg-red-500/10 hover:bg-red-500/20 text-red-400 py-2.5 rounded-xl text-xs font-semibold transition cursor-pointer"
               >
-                {themeMode === "dark" ? <Sun size={15} /> : <Moon size={15} />}
-                <span>{themeMode === "dark" ? "Light Mode" : "Dark Mode"}</span>
-              </button>
-              <button onClick={handleLogout} className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-semibold bg-red-500/10 hover:bg-red-500/20 text-red-400 cursor-pointer">
                 <LogOut size={15} /> Log Out
               </button>
             </div>
@@ -1628,11 +1690,13 @@ Report Generated: ${new Date().toLocaleDateString()}
           <button
             onClick={toggleThemeMode}
             aria-label="Toggle theme"
-            className={`w-8 h-8 rounded-full flex items-center justify-center transition-all duration-200 cursor-pointer ${
-              themeMode === "dark" ? "bg-white/10 text-yellow-300" : "bg-slate-100 text-slate-600"
+            className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all duration-300 cursor-pointer shadow-md hover:scale-110 active:scale-95 border ${
+              themeMode === "dark"
+                ? "bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border-amber-500/30"
+                : "bg-indigo-900/40 hover:bg-indigo-900/60 text-white border-white/10"
             }`}
           >
-            {themeMode === "dark" ? <Sun size={15} /> : <Moon size={15} />}
+            {themeMode === "dark" ? <Sun size={18} /> : <Moon size={18} />}
           </button>
         </div>
 
@@ -1654,10 +1718,14 @@ Report Generated: ${new Date().toLocaleDateString()}
           <div className="hidden md:flex absolute top-4 right-5 z-20 items-center">
             <button
               onClick={toggleThemeMode}
-              className="mcc-theme-toggle"
+              className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all duration-300 cursor-pointer shadow-md hover:scale-110 active:scale-95 border ${
+                themeMode === "dark"
+                  ? "bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border-amber-500/30"
+                  : "bg-indigo-900/40 hover:bg-indigo-900/60 text-white border-white/10"
+              }`}
               title="Toggle Light/Dark Mode"
             >
-              {themeMode === "dark" ? <Sun size={16} /> : <Moon size={16} />}
+              {themeMode === "dark" ? <Sun size={18} /> : <Moon size={18} />}
             </button>
           </div>
           <div className="relative z-10 space-y-1 w-full text-left">
@@ -1686,7 +1754,7 @@ Report Generated: ${new Date().toLocaleDateString()}
         <div className="flex justify-between items-center pb-6 border-b border-white/10">
           <div>
             <span className="text-[10px] uppercase font-mono font-black tracking-widest text-[#781c1c] block mb-1 whitespace-nowrap">Madras Christian College</span>
-            <h2 className="font-serif text-3xl font-extrabold tracking-tight text-[#18233c]">Student Dashboard</h2>
+            <h2 className="font-serif text-3xl font-extrabold tracking-tight text-[#18233c] dark:text-white">Student Dashboard</h2>
             <p className={`text-xs mt-1 ${themeMode === "dark" ? "text-gray-400" : "text-slate-500"}`}>
               Configure and showcase your portfolio variables according to MCC standards.
             </p>
@@ -1741,7 +1809,7 @@ Report Generated: ${new Date().toLocaleDateString()}
         <div id="header-section" className={`border rounded-3xl p-8 transition duration-300 -mt-6 md:-mt-8 ${
           themeMode === "dark" ? "bg-white/5 border-white/10" : "bg-white border-slate-200 shadow-sm"
         }`}>
-          <h3 className="font-serif text-2xl font-black mb-4 flex items-center gap-2 text-[#18233c] border-b border-[#781c1c]/10 pb-3">
+          <h3 className="font-serif text-2xl font-black mb-4 flex items-center gap-2 text-[#18233c] dark:text-white border-b border-[#781c1c]/10 dark:border-white/10 pb-3">
             <User size={22} /> Section 1: Header Section Details
           </h3>
 
@@ -1958,7 +2026,7 @@ Report Generated: ${new Date().toLocaleDateString()}
         <div id="about-section" className={`border rounded-3xl p-8 transition duration-300 ${
           themeMode === "dark" ? "bg-white/5 border-white/10" : "bg-white border-slate-200 shadow-sm"
         }`}>
-          <h3 className="font-serif text-2xl font-black mb-4 flex items-center gap-2 text-[#18233c] border-b border-[#781c1c]/10 pb-3">
+          <h3 className="font-serif text-2xl font-black mb-4 flex items-center gap-2 text-[#18233c] dark:text-white border-b border-[#781c1c]/10 dark:border-white/10 pb-3">
             <FileText size={22} /> Section 2: About Section
           </h3>
 
@@ -2038,7 +2106,7 @@ Report Generated: ${new Date().toLocaleDateString()}
         <div id="experience-section" className={`border rounded-3xl p-8 transition duration-300 ${
           themeMode === "dark" ? "bg-white/5 border-white/10" : "bg-white border-slate-200 shadow-sm"
         }`}>
-          <h3 className="font-serif text-2xl font-black mb-4 flex items-center gap-2 text-[#18233c] border-b border-[#781c1c]/10 pb-3">
+          <h3 className="font-serif text-2xl font-black mb-4 flex items-center gap-2 text-[#18233c] dark:text-white border-b border-[#781c1c]/10 dark:border-white/10 pb-3">
             <Briefcase size={22} /> Section 3: Experience
           </h3>
 
@@ -2222,7 +2290,7 @@ Report Generated: ${new Date().toLocaleDateString()}
         <div id="academic-section" className={`border rounded-3xl p-8 transition duration-300 ${
           themeMode === "dark" ? "bg-white/5 border-white/10" : "bg-white border-slate-200 shadow-sm"
         }`}>
-          <h3 className="font-serif text-2xl font-black mb-4 flex items-center gap-2 text-[#18233c] border-b border-[#781c1c]/10 pb-3">
+          <h3 className="font-serif text-2xl font-black mb-4 flex items-center gap-2 text-[#18233c] dark:text-white border-b border-[#781c1c]/10 dark:border-white/10 pb-3">
             <Award size={22} /> Section 4: Academic Details
           </h3>
 
@@ -2464,7 +2532,7 @@ Report Generated: ${new Date().toLocaleDateString()}
         <div id="achievements-section" className={`border rounded-3xl p-8 transition duration-300 ${
           themeMode === "dark" ? "bg-white/5 border-white/10" : "bg-white border-slate-200 shadow-sm"
         }`}>
-          <h3 className="font-serif text-2xl font-black mb-4 flex items-center gap-2 text-[#18233c] border-b border-[#781c1c]/10 pb-3">
+          <h3 className="font-serif text-2xl font-black mb-4 flex items-center gap-2 text-[#18233c] dark:text-white border-b border-[#781c1c]/10 dark:border-white/10 pb-3">
             <Trophy size={22} /> Section 5: Achievements
           </h3>
 
@@ -2621,7 +2689,7 @@ Report Generated: ${new Date().toLocaleDateString()}
         <div id="projects-research-section" className={`border rounded-3xl p-8 transition duration-300 ${
           themeMode === "dark" ? "bg-white/5 border-white/10" : "bg-white border-slate-200 shadow-sm"
         }`}>
-          <h3 className="font-serif text-2xl font-black mb-4 flex items-center gap-2 text-[#18233c] border-b border-[#781c1c]/10 pb-3">
+          <h3 className="font-serif text-2xl font-black mb-4 flex items-center gap-2 text-[#18233c] dark:text-white border-b border-[#781c1c]/10 dark:border-white/10 pb-3">
             <GitBranch size={22} /> Section 6: Projects & Research
           </h3>
 
@@ -2806,7 +2874,7 @@ Report Generated: ${new Date().toLocaleDateString()}
         <div id="skills-section" className={`border rounded-3xl p-8 transition duration-300 ${
           themeMode === "dark" ? "bg-white/5 border-white/10" : "bg-white border-slate-200 shadow-sm"
         }`}>
-          <h3 className="font-serif text-2xl font-black mb-4 flex items-center gap-2 text-[#18233c] border-b border-[#781c1c]/10 pb-3">
+          <h3 className="font-serif text-2xl font-black mb-4 flex items-center gap-2 text-[#18233c] dark:text-white border-b border-[#781c1c]/10 dark:border-white/10 pb-3">
             <Code size={22} /> Section 7: Skills
           </h3>
 
@@ -2913,7 +2981,7 @@ Report Generated: ${new Date().toLocaleDateString()}
         <div id="licenses-certifications-section" className={`border rounded-3xl p-8 transition duration-300 ${
           themeMode === "dark" ? "bg-white/5 border-white/10" : "bg-white border-slate-200 shadow-sm"
         }`}>
-          <h3 className="font-serif text-2xl font-black mb-4 flex items-center gap-2 text-[#18233c] border-b border-[#781c1c]/10 pb-3">
+          <h3 className="font-serif text-2xl font-black mb-4 flex items-center gap-2 text-[#18233c] dark:text-white border-b border-[#781c1c]/10 dark:border-white/10 pb-3">
             <Award size={22} /> Section 8: Licenses & Certifications
           </h3>
 
@@ -3070,7 +3138,7 @@ Report Generated: ${new Date().toLocaleDateString()}
         <div id="languages-section" className={`border rounded-3xl p-8 transition duration-300 ${
           themeMode === "dark" ? "bg-white/5 border-white/10" : "bg-white border-slate-200 shadow-sm"
         }`}>
-          <h3 className="font-serif text-2xl font-black mb-4 flex items-center gap-2 text-[#18233c] border-b border-[#781c1c]/10 pb-3">
+          <h3 className="font-serif text-2xl font-black mb-4 flex items-center gap-2 text-[#18233c] dark:text-white border-b border-[#781c1c]/10 dark:border-white/10 pb-3">
             <Globe size={22} /> Section 9: Languages known
           </h3>
 
@@ -3182,7 +3250,7 @@ Report Generated: ${new Date().toLocaleDateString()}
         <div id="test-scores-section" className={`border rounded-3xl p-8 transition duration-300 ${
           themeMode === "dark" ? "bg-white/5 border-white/10" : "bg-white border-slate-200 shadow-sm"
         }`}>
-          <h3 className="font-serif text-2xl font-black mb-4 flex items-center gap-2 text-[#18233c] border-b border-[#781c1c]/10 pb-3">
+          <h3 className="font-serif text-2xl font-black mb-4 flex items-center gap-2 text-[#18233c] dark:text-white border-b border-[#781c1c]/10 dark:border-white/10 pb-3">
             <Award size={22} /> Section 10: Test Scores
           </h3>
 
@@ -3226,7 +3294,7 @@ Report Generated: ${new Date().toLocaleDateString()}
         <div id="patents-section" className={`border rounded-3xl p-8 transition duration-300 ${
           themeMode === "dark" ? "bg-white/5 border-white/10" : "bg-white border-slate-200 shadow-sm"
         }`}>
-          <h3 className="font-serif text-2xl font-black mb-4 flex items-center gap-2 text-[#18233c] border-b border-[#781c1c]/10 pb-3">
+          <h3 className="font-serif text-2xl font-black mb-4 flex items-center gap-2 text-[#18233c] dark:text-white border-b border-[#781c1c]/10 dark:border-white/10 pb-3">
             <FileText size={22} /> Section 11: Patents
           </h3>
 
@@ -3270,7 +3338,7 @@ Report Generated: ${new Date().toLocaleDateString()}
         <div id="media-handles-section" className={`border rounded-3xl p-8 transition duration-300 ${
           themeMode === "dark" ? "bg-white/5 border-white/10" : "bg-white border-slate-200 shadow-sm"
         }`}>
-          <h3 className="font-serif text-2xl font-black mb-4 flex items-center gap-2 text-[#18233c] border-b border-[#781c1c]/10 pb-3">
+          <h3 className="font-serif text-2xl font-black mb-4 flex items-center gap-2 text-[#18233c] dark:text-white border-b border-[#781c1c]/10 dark:border-white/10 pb-3">
             <Link size={22} /> Section 12: Other Media handles
           </h3>
 
@@ -3338,7 +3406,7 @@ Report Generated: ${new Date().toLocaleDateString()}
         <div id="resume-section" className={`border rounded-3xl p-8 transition duration-300 ${
           themeMode === "dark" ? "bg-white/5 border-white/10" : "bg-white border-slate-200 shadow-sm"
         }`}>
-          <h3 className="font-serif text-2xl font-black mb-4 flex items-center gap-2 text-[#18233c] border-b border-[#781c1c]/10 pb-3">
+          <h3 className="font-serif text-2xl font-black mb-4 flex items-center gap-2 text-[#18233c] dark:text-white border-b border-[#781c1c]/10 dark:border-white/10 pb-3">
             <FileText size={22} /> Section 13: Resume
           </h3>
 
@@ -3440,6 +3508,138 @@ Report Generated: ${new Date().toLocaleDateString()}
                 </div>
               </div>
             ))}
+          </div>
+        </div>
+
+        {/* ASSESSMENTS SECTION */}
+        <div id="assessments-section" className={`border rounded-3xl p-8 transition duration-300 ${
+          themeMode === "dark" ? "bg-[#0b0b0f] border-white/5 text-white" : "bg-white border-slate-200 text-slate-800"
+        }`}>
+          <div className="flex items-center gap-3.5 mb-6 pb-4 border-b border-slate-200/10">
+            <div className="w-10 h-10 rounded-2xl bg-[#781c1c]/10 flex items-center justify-center border border-[#781c1c]/25">
+              <BookOpen size={20} className="text-[#781c1c]" />
+            </div>
+            <div>
+              <h3 className="font-serif font-black uppercase text-lg tracking-tight">Department Assessments</h3>
+              <p className="text-xs text-slate-400 mt-0.5">MCQ Exams assigned to your registered department.</p>
+            </div>
+          </div>
+
+          <div className="grid md:grid-cols-2 gap-6">
+            {studentAssessments.length === 0 ? (
+              <div className="col-span-2 py-10 text-center text-slate-400 text-xs">
+                No assessments assigned to your department ({user?.department || "No Department"}) at this time.
+              </div>
+            ) : (
+              studentAssessments.map(a => {
+                const now = new Date();
+                const start = new Date(a.startDate);
+                const end = new Date(a.endDate);
+                const isUpcoming = now < start;
+                const isExpired = now > end;
+                const attempt = a.attempt;
+                
+                let statusBadge = null;
+                let actionBtn = null;
+
+                if (attempt?.isSubmitted) {
+                  if (attempt.status === "MALPRACTICE_TERMINATED") {
+                    statusBadge = (
+                      <span className="px-2.5 py-0.5 rounded-full bg-red-500/10 text-red-400 border border-red-500/20 text-[9px] font-mono font-bold uppercase">
+                        Terminated (Malpractice)
+                      </span>
+                    );
+                  } else {
+                    statusBadge = (
+                      <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[9px] font-mono font-bold uppercase">
+                        Completed
+                      </span>
+                    );
+                  }
+                } else if (a.isClosed || isExpired) {
+                  statusBadge = (
+                    <span className="px-2.5 py-0.5 rounded-full bg-slate-500/10 text-slate-400 border border-slate-500/20 text-[9px] font-mono font-bold uppercase">
+                      Closed
+                    </span>
+                  );
+                } else if (isUpcoming) {
+                  statusBadge = (
+                    <span className="px-2.5 py-0.5 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20 text-[9px] font-mono font-bold uppercase">
+                      Upcoming
+                    </span>
+                  );
+                } else {
+                  statusBadge = (
+                    <span className="px-2.5 py-0.5 rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/20 text-[9px] font-mono font-bold uppercase">
+                      Active
+                    </span>
+                  );
+                  actionBtn = (
+                    <button
+                      onClick={() => window.location.href = `/dashboard/assessments/${a.id}`}
+                      className="bg-[#781c1c] hover:bg-[#5f1515] text-white px-4 py-2 rounded-xl text-xs font-bold transition active:scale-95 cursor-pointer shadow-md animate-pulse"
+                    >
+                      {attempt ? "Resume Test" : "Start Test"}
+                    </button>
+                  );
+                }
+
+                return (
+                  <div key={a.id} className={`border rounded-2xl p-5 flex flex-col justify-between gap-4 transition duration-300 ${
+                    themeMode === "dark" ? "bg-white/[0.02] border-white/5" : "bg-slate-50 border-slate-200"
+                  }`}>
+                    <div className="space-y-2">
+                      <div className="flex justify-between items-start gap-2">
+                        <h4 className="font-bold text-sm text-slate-900 dark:text-white leading-tight">{a.title}</h4>
+                        {statusBadge}
+                      </div>
+                      <p className="text-[11px] text-slate-400 line-clamp-2">{a.description || "No description provided."}</p>
+                      
+                      <div className="grid grid-cols-2 gap-2 text-[10px] font-mono text-slate-450 pt-2">
+                        <div>Duration: {a.duration} mins</div>
+                        <div>Total Marks: {a.totalMarks}</div>
+                        <div className="col-span-2 text-slate-500">
+                          Start: {new Date(a.startDate).toLocaleString()}
+                        </div>
+                        <div className="col-span-2 text-slate-500">
+                          End: {new Date(a.endDate).toLocaleString()}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Results / Action Summary */}
+                    {attempt?.isSubmitted && attempt.status !== "MALPRACTICE_TERMINATED" && (
+                      <div className={`p-3 rounded-xl border text-[10px] font-mono space-y-1 ${
+                        themeMode === "dark" ? "bg-black/30 border-white/5 text-slate-350" : "bg-white border-slate-200 text-slate-700"
+                      }`}>
+                        <div className="font-bold text-slate-400 text-[9px] uppercase tracking-wider mb-1">Attempt Summary</div>
+                        <div className="flex justify-between">
+                          <span>Marks Obtained:</span>
+                          <span className="font-bold text-[#781c1c] dark:text-emerald-400">{attempt.score} / {a.totalMarks} ({attempt.percentage}%)</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>Status:</span>
+                          <span className="font-bold text-emerald-400 uppercase">{attempt.status}</span>
+                        </div>
+                      </div>
+                    )}
+
+                    {attempt?.status === "MALPRACTICE_TERMINATED" && (
+                      <div className="p-3 rounded-xl border border-red-500/20 bg-red-500/5 text-[10px] font-mono text-red-400">
+                        <span className="font-bold uppercase block mb-1">Attempt Flagged</span>
+                        This exam attempt was terminated automatically due to repeated proctoring/anti-malpractice warnings.
+                      </div>
+                    )}
+
+                    {actionBtn && (
+                      <div className="flex justify-end pt-2">
+                        {actionBtn}
+                      </div>
+                    )}
+                  </div>
+                );
+              })
+            )}
           </div>
         </div>
 

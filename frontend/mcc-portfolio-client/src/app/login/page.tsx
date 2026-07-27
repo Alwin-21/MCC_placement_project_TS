@@ -173,10 +173,10 @@ export default function LoginPage() {
       <button
         onClick={toggleThemeMode}
         aria-label="Toggle dark mode"
-        className={`fixed top-5 right-5 z-50 p-3 rounded-full transition-all duration-300 cursor-pointer shadow-lg backdrop-blur-md border ${
+        className={`fixed top-5 right-5 z-50 w-9 h-9 rounded-xl flex items-center justify-center transition-all duration-300 cursor-pointer shadow-md hover:scale-110 active:scale-95 border ${
           isDark
-            ? "bg-white/10 hover:bg-white/20 text-amber-300 border-white/15"
-            : "bg-white/90 hover:bg-slate-100 text-slate-700 border-slate-200"
+            ? "bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border-amber-500/30"
+            : "bg-indigo-900/40 hover:bg-indigo-900/60 text-white border-white/10"
         }`}
       >
         {isDark ? <Sun size={18} /> : <Moon size={18} />}
@@ -198,40 +198,29 @@ export default function LoginPage() {
           <div className="absolute inset-0 bg-black/15" />
         </div>
 
-        {/* Top Brand Logo */}
-        <div className="relative z-10">
-          <img
-            src={isDark ? "/mcc-logo-dark.png" : "/mcc-logo.png"}
-            alt="MCC Crest"
-            className="h-16 sm:h-18 md:h-22 lg:h-24 w-auto object-contain shrink-0"
-          />
-        </div>
 
-        {/* Hero Overlay Copy */}
-        <div className="relative z-10 max-w-lg space-y-6">
-          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/15 backdrop-blur-md border border-white/25 text-xs font-extrabold text-amber-300 shadow-md">
-            <Sparkles size={14} className="animate-pulse" />
-            <span>Official Student Portal</span>
-          </div>
-
-          <h2 className="text-4xl font-black text-white leading-tight tracking-tight drop-shadow-md">
+        {/* Transparent glass container for the content centered horizontally & vertically */}
+        <div
+          className="relative z-10 max-w-lg mx-auto my-auto rounded-3xl p-8 bg-black/[0.03] border border-white/10 shadow-lg shadow-black/10 space-y-6 animate-fade-in-up"
+          style={{ backdropFilter: "blur(0.5px)", WebkitBackdropFilter: "blur(0.5px)" }}
+        >
+          <h2
+            className="text-4xl font-black text-white leading-tight tracking-tight"
+            style={{
+              textShadow: "0 2px 4px rgba(0,0,0,0.9), -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000"
+            }}
+          >
             Showcase your academic & professional milestones.
           </h2>
 
-          <p className="text-sm text-slate-200 leading-relaxed font-medium drop-shadow-sm">
-            Access your verified student dashboard, build ATS-engineered resumes, manage certifications, and consult the AI Career Advisor.
+          <p
+            className="text-sm text-slate-100 leading-relaxed font-medium"
+            style={{
+              textShadow: "0 2px 4px rgba(0,0,0,0.9), -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000"
+            }}
+          >
+            Access your verified student dashboard, build professional resumes, manage certifications, and consult the AI Career Advisor.
           </p>
-
-          <div className="pt-2 flex items-center gap-6 text-xs text-slate-200 font-semibold">
-            <div className="flex items-center gap-2">
-              <CheckCircle size={16} className="text-emerald-400" />
-              <span>Faculty Verified</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <Award size={16} className="text-amber-400" />
-              <span>ATS Compliant</span>
-            </div>
-          </div>
         </div>
 
         {/* Footer Note */}
@@ -251,25 +240,7 @@ export default function LoginPage() {
             <ArrowLeft size={16} /> Back to Home
           </Link>
 
-          {/* Prominent Logo on Mobile Viewports */}
-          <div className="lg:hidden flex items-center gap-3.5 pb-2">
-            <img
-              src={isDark ? "/mcc-logo-dark.png" : "/mcc-logo.png"}
-              alt="MCC Crest"
-              className="h-14 w-auto object-contain shrink-0 transition-transform duration-300 group-hover:scale-105"
-            />
-            <div>
-              <span
-                className="text-lg font-black uppercase tracking-wider block"
-                style={{ color: isDark ? "#ffffff" : "#781c1c" }}
-              >
-                Portfolios
-              </span>
-              <span className="text-xs font-extrabold text-slate-700 dark:text-slate-300">
-                Madras Christian College
-              </span>
-            </div>
-          </div>
+
 
           {/* Login Form Container Card */}
           <div className="glass-card rounded-3xl p-8 md:p-10 shadow-2xl space-y-6 border border-slate-200/80 dark:border-white/10">

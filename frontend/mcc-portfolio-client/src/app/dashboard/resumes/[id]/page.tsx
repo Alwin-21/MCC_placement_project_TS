@@ -1683,12 +1683,14 @@ export default function ResumeEditorPage() {
           }`}>
             <button
               onClick={toggleThemeMode}
-              className={`p-2 transition cursor-pointer ${
-                isDark ? "text-amber-300 hover:bg-slate-700" : "text-slate-500 hover:bg-slate-200"
+              className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all duration-300 cursor-pointer shadow-md hover:scale-110 active:scale-95 border ${
+                isDark
+                  ? "bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border-amber-500/30"
+                  : "bg-indigo-900/40 hover:bg-indigo-900/60 text-white border-white/10"
               }`}
               title={isDark ? "Switch to Light Mode" : "Switch to Dark Mode"}
             >
-              {isDark ? <Sun size={13} /> : <Moon size={13} />}
+              {isDark ? <Sun size={18} /> : <Moon size={18} />}
             </button>
             <button
               onClick={handleSyncFromPortfolio}

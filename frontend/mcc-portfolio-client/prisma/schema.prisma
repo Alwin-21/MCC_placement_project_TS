@@ -344,6 +344,8 @@ model Users {
   Skills              Skills[]
   SportsAchievements  SportsAchievements[]
   StartupCompetitions StartupCompetitions[]
+  StudentAttempts     StudentAttempts[]
+  MalpracticeReports  MalpracticeReports[]
 }
 
 model EFMigrationsHistory {
@@ -351,4 +353,120 @@ model EFMigrationsHistory {
   ProductVersion String @db.VarChar(32)
 
   @@map("__EFMigrationsHistory")
+}
+
+model Assessments {
+  Id                  Int                  @id(map: "PK_Assessments") @default(autoincrement())
+  Title               String
+  Description         String
+  Instructions        String               @default("")
+  Duration            Int                  // Duration in minutes
+  TotalMarks          Int
+  StartDate           DateTime             @db.Timestamptz(6)
+  EndDate             DateTime             @db.Timestamptz(6)
+  Departments         String               // Semicolon-separated values, e.g. "Mathematics;Tamil;English"
+  IsPublished         Boolean              @default(false)
+  IsClosed            Boolean              @default(false)
+  CreatedAt           DateTime             @default(now()) @db.Timestamptz(6)
+  
+  AssessmentQuestions AssessmentQuestions[]
+  StudentAttempts     StudentAttempts[]
+  MalpracticeReports  MalpracticeReports[]
+}
+
+model Questions {
+  Id                  Int                  @id(map: "PK_Questions") @default(autoincrement())
+  QuestionText        String
+  OptionA             String
+  OptionB             String
+  OptionC             String
+  OptionD             String
+  CorrectAnswer       String               // "A", "B", "C", or "D"
+  Marks               Int                  @default(1)
+  
+  AssessmentQuestions AssessmentQuestions[]
+  StudentAnswers      StudentAnswers[]
+}
+
+model AssessmentQuestions {
+  Id                  Int                  @id(map: "PK_AssessmentQuestions") @default(autoincrement())
+  AssessmentId        Int
+  QuestionId          Int
+  
+  Assessments         Assessments          @relation(fields: [AssessmentId], references: [Id], onDelete: Cascade)
+  Questions           Questions            @relation(fields: [QuestionId], references: [Id], onDelete: Cascade)
+  
+  @@index([AssessmentId])
+  @@index([QuestionId])
+}
+
+model StudentAttempts {
+  Id                   Int                   @id(map: "PK_StudentAttempts") @default(autoincrement())
+  StudentId            Int
+  AssessmentId         Int
+  StartTime            DateTime              @default(now()) @db.Timestamptz(6)
+  EndTime              DateTime?             @db.Timestamptz(6)
+  IsSubmitted          Boolean               @default(false)
+  Score                Float?
+  TotalQuestions       Int                   @default(0)
+  AttemptedQuestions   Int                   @default(0)
+  UnattemptedQuestions Int                   @default(0)
+  CorrectAnswers       Int                   @default(0)
+  WrongAnswers         Int                   @default(0)
+  Percentage           Float?
+  Status               String                @default("IN_PROGRESS") // "IN_PROGRESS", "SUBMITTED", "MALPRACTICE_TERMINATED"
+  
+  Users                Users                 @relation(fields: [StudentId], references: [Id], onDelete: Cascade)
+  Assessments          Assessments           @relation(fields: [AssessmentId], references: [Id], onDelete: Cascade)
+  StudentAnswers       StudentAnswers[]
+  ProctoringWarnings   ProctoringWarnings[]
+  MalpracticeReports   MalpracticeReports[]
+  
+  @@index([StudentId])
+  @@index([AssessmentId])
+}
+
+model StudentAnswers {
+  Id                  Int                  @id(map: "PK_StudentAnswers") @default(autoincrement())
+  AttemptId           Int
+  QuestionId          Int
+  SelectedAnswer      String?              // "A", "B", "C", "D" or null
+  IsCorrect           Boolean              @default(false)
+  MarksObtained       Int                  @default(0)
+  
+  StudentAttempts     StudentAttempts      @relation(fields: [AttemptId], references: [Id], onDelete: Cascade)
+  Questions           Questions            @relation(fields: [QuestionId], references: [Id], onDelete: Cascade)
+  
+  @@index([AttemptId])
+  @@index([QuestionId])
+}
+
+model ProctoringWarnings {
+  Id                  Int                  @id(map: "PK_ProctoringWarnings") @default(autoincrement())
+  AttemptId           Int
+  WarningNumber       Int                  // 1, 2, 3, or 4
+  WarningType         String               // "NO_FACE", "MULTIPLE_FACES", "LOOKING_AWAY", "HEAD_TILT"
+  Timestamp           DateTime             @default(now()) @db.Timestamptz(6)
+  EventInfo           String               // Details on keypoint deviance
+  
+  StudentAttempts     StudentAttempts      @relation(fields: [AttemptId], references: [Id], onDelete: Cascade)
+  
+  @@index([AttemptId])
+}
+
+model MalpracticeReports {
+  Id                  Int                  @id(map: "PK_MalpracticeReports") @default(autoincrement())
+  StudentId           Int
+  AssessmentId        Int
+  AttemptId           Int
+  Timestamp           DateTime             @default(now()) @db.Timestamptz(6)
+  Details             String               // Detailed log trace of the 4 warnings
+  
+  Users                Users                @relation(fields: [StudentId], references: [Id], onDelete: Cascade)
+  Assessments          Assessments          @relation(fields: [AssessmentId], references: [Id], onDelete: Cascade)
+  StudentAttempts     StudentAttempts      @relation(fields: [AttemptId], references: [Id], onDelete: Cascade)
+  
+  @@index([StudentId])
+  @@index([AssessmentId])
+  @@index([AttemptId])
 }

@@ -47,6 +47,7 @@ import {
 } from "lucide-react";
 import api from "@/services/api";
 import { useTheme } from "@/hooks/useTheme";
+import AssessmentsManager from "./components/AssessmentsManager";
 
 type ActiveTab = 
   | "overview" 
@@ -57,7 +58,8 @@ type ActiveTab =
   | "notifications"
   | "audit-logs"
   | "backup-restore"
-  | "rbac";
+  | "rbac"
+  | "assessments";
 
 export default function AdminPage() {
   const router = useRouter();
@@ -906,6 +908,7 @@ export default function AdminPage() {
               { id: "notifications", label: "Notification Manager", icon: Bell,      superOnly: false },
               { id: "audit-logs",    label: "Security Audit Logs",  icon: Shield,    superOnly: true  },
               { id: "backup-restore",label: "System Backup/Restore",icon: Settings,  superOnly: true  },
+              { id: "assessments",    label: "Assessments Manager",  icon: BookOpen,  superOnly: false },
               { id: "rbac",          label: "Access Control",       icon: UserCog,   superOnly: true  },
             ] as const).filter((tab) => {
               if (isSuperAdmin) return true;
@@ -961,18 +964,6 @@ export default function AdminPage() {
             {isSuperAdmin ? "Super Administrator" : "Sub-Admin"}
           </div>
 
-          {/* Dark / Light Mode Toggle */}
-          <button
-            onClick={toggleThemeMode}
-            className={`w-full flex items-center justify-center gap-2.5 py-2.5 rounded-xl text-xs font-bold transition cursor-pointer ${
-              themeMode === "dark"
-                ? "bg-white/10 hover:bg-white/20 text-yellow-300 border border-white/10"
-                : "bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200"
-            }`}
-          >
-            {themeMode === "dark" ? <Sun size={15} /> : <Moon size={15} />}
-            <span>{themeMode === "dark" ? "Light Mode" : "Dark Mode"}</span>
-          </button>
 
           <Link
             href="/"
@@ -1025,6 +1016,7 @@ export default function AdminPage() {
                   { id: "notifications", label: "Notification Manager", icon: Bell,      superOnly: false },
                   { id: "audit-logs",    label: "Security Audit Logs",  icon: Shield,    superOnly: true  },
                   { id: "backup-restore",label: "System Backup/Restore",icon: Settings,  superOnly: true  },
+                  { id: "assessments",    label: "Assessments Manager",  icon: BookOpen,  superOnly: false },
                   { id: "rbac",          label: "Access Control",       icon: UserCog,   superOnly: true  },
                 ] as const).filter((tab) => {
                   if (isSuperAdmin) return true;
@@ -1066,17 +1058,6 @@ export default function AdminPage() {
             
             <div className="pt-4 border-t border-slate-800 shrink-0 space-y-2">
               <button
-                onClick={toggleThemeMode}
-                className={`w-full flex items-center justify-center gap-2.5 py-2.5 rounded-xl text-xs font-bold transition cursor-pointer ${
-                  themeMode === "dark"
-                    ? "bg-white/10 hover:bg-white/20 text-yellow-300 border border-white/10"
-                    : "bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200"
-                }`}
-              >
-                {themeMode === "dark" ? <Sun size={15} /> : <Moon size={15} />}
-                <span>{themeMode === "dark" ? "Light Mode" : "Dark Mode"}</span>
-              </button>
-              <button
                 onClick={() => {
                   localStorage.removeItem("adminToken");
                   localStorage.removeItem("admin");
@@ -1114,11 +1095,13 @@ export default function AdminPage() {
           <button
             onClick={toggleThemeMode}
             aria-label="Toggle theme"
-            className={`w-8 h-8 rounded-full flex items-center justify-center transition-all duration-200 cursor-pointer ${
-              themeMode === "dark" ? "bg-white/10 text-yellow-300" : "bg-slate-100 text-slate-600"
+            className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all duration-300 cursor-pointer shadow-md hover:scale-110 active:scale-95 border ${
+              themeMode === "dark"
+                ? "bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border-amber-500/30"
+                : "bg-indigo-900/40 hover:bg-indigo-900/60 text-white border-white/10"
             }`}
           >
-            {themeMode === "dark" ? <Sun size={15} /> : <Moon size={15} />}
+            {themeMode === "dark" ? <Sun size={18} /> : <Moon size={18} />}
           </button>
         </div>
 
@@ -1132,6 +1115,22 @@ export default function AdminPage() {
             />
             <div className="absolute inset-0 bg-gradient-to-t from-[#18233c] via-[#18233c]/50 to-transparent" />
           </div>
+
+          {/* Desktop Only: Theme Switcher Inside Top-Right Corner of Banner Card */}
+          <div className="hidden md:flex absolute top-4 right-5 z-20 items-center">
+            <button
+              onClick={toggleThemeMode}
+              className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all duration-300 cursor-pointer shadow-md hover:scale-110 active:scale-95 border ${
+                themeMode === "dark"
+                  ? "bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border-amber-500/30"
+                  : "bg-indigo-900/40 hover:bg-indigo-900/60 text-white border-white/10"
+              }`}
+              title="Toggle Light/Dark Mode"
+            >
+              {themeMode === "dark" ? <Sun size={18} /> : <Moon size={18} />}
+            </button>
+          </div>
+
           <div className="relative z-10 space-y-1 w-full text-left">
             <span 
               style={{ color: '#ffffff' }}
@@ -2727,6 +2726,13 @@ export default function AdminPage() {
               </div>
             </div>
           </div>
+        )}
+
+        {/* ==========================================
+            TAB: ASSESSMENTS MANAGER
+            ========================================== */}
+        {activeTab === "assessments" && (
+          <AssessmentsManager themeMode={themeMode} isSuperAdmin={isSuperAdmin} />
         )}
 
       </div>

@@ -46,11 +46,13 @@ export default function AdminLoginPage() {
       <button
         onClick={toggleThemeMode}
         aria-label="Toggle dark mode"
-        className={`fixed top-4 right-4 z-50 w-9 h-9 rounded-full flex items-center justify-center transition-all duration-200 cursor-pointer shadow-md ${
-          isDark ? "bg-white/10 hover:bg-white/20 text-yellow-300" : "bg-slate-100 hover:bg-slate-200 text-slate-600"
+        className={`fixed top-4 right-4 z-50 w-9 h-9 rounded-xl flex items-center justify-center transition-all duration-300 cursor-pointer shadow-md hover:scale-110 active:scale-95 border ${
+          isDark
+            ? "bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border-amber-500/30"
+            : "bg-indigo-900/40 hover:bg-indigo-900/60 text-white border-white/10"
         }`}
       >
-        {isDark ? <Sun size={16} /> : <Moon size={16} />}
+        {isDark ? <Sun size={18} /> : <Moon size={18} />}
       </button>
 
       {/* Decorative Branding Elements */}
