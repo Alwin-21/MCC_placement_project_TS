@@ -33,7 +33,8 @@ import {
   X,
   Copy,
   Sliders,
-  Upload
+  Upload,
+  ClipboardList
 } from "lucide-react";
 import api from "@/services/api";
 import { useTheme } from "@/hooks/useTheme";
@@ -1692,11 +1693,19 @@ Report Generated: ${new Date().toLocaleDateString()}
             </p>
           </div>
 
-          {/* Alert Bell */}
-          <div className="relative">
+          {/* Assessment & Alert Bell */}
+          <div className="flex items-center gap-3 relative">
+            <button
+              onClick={() => window.location.href = "/assessment"}
+              className="p-3 rounded-2xl bg-white/5 border border-white/10 hover:bg-white/10 transition relative text-amber-400 hover:text-amber-300 cursor-pointer flex items-center gap-2 text-xs font-semibold"
+              title="Assessments"
+            >
+              <ClipboardList size={18} />
+              <span className="hidden sm:inline">Assessments</span>
+            </button>
             <button
               onClick={() => setShowNotifications(!showNotifications)}
-              className="p-3 rounded-2xl bg-white/5 border border-white/10 hover:bg-white/10 transition relative"
+              className="p-3 rounded-2xl bg-white/5 border border-white/10 hover:bg-white/10 transition relative cursor-pointer"
             >
               <Bell size={18} />
               {notifications.some(n => !n.isRead) && (
