@@ -34,11 +34,27 @@ import {
   Copy,
   Sliders,
   Upload,
-  ClipboardList
+  Activity
 } from "lucide-react";
 import api from "@/services/api";
 import { useTheme } from "@/hooks/useTheme";
 import { parseImageAdjustments } from "@/utils/image";
+
+const sidebarLinks = [
+  { id: "header-section", label: "Header Section", icon: User },
+  { id: "about-section", label: "About Section", icon: FileText },
+  { id: "experience-section", label: "Experience", icon: Briefcase },
+  { id: "academic-section", label: "Academic Details", icon: Award },
+  { id: "achievements-section", label: "Achievements", icon: Trophy },
+  { id: "projects-research-section", label: "Projects & Research", icon: GitBranch },
+  { id: "skills-section", label: "Skills", icon: Code },
+  { id: "licenses-certifications-section", label: "Certifications", icon: Award },
+  { id: "languages-section", label: "Languages known", icon: Globe },
+  { id: "test-scores-section", label: "Test Scores", icon: Award },
+  { id: "patents-section", label: "Patents", icon: FileText },
+  { id: "media-handles-section", label: "Media Handles", icon: Link },
+  { id: "resume-section", label: "Resume", icon: FileText }
+];
 
 export default function DashboardPage() {
   const [user, setUser] = useState<any>(null);
@@ -53,6 +69,7 @@ export default function DashboardPage() {
   const [notifications, setNotifications] = useState<any[]>([]);
   const [showNotifications, setShowNotifications] = useState(false);
   const [showMobileNav, setShowMobileNav] = useState(false);
+  const [activeSection, setActiveSection] = useState("header-section");
 
   // File uploading loader
   const [uploadingField, setUploadingField] = useState<string | null>(null);
@@ -256,6 +273,57 @@ export default function DashboardPage() {
     }
 
     loadAllData();
+  }, []);
+
+  useEffect(() => {
+    const sections = [
+      "header-section",
+      "about-section",
+      "experience-section",
+      "academic-section",
+      "achievements-section",
+      "projects-research-section",
+      "skills-section",
+      "licenses-certifications-section",
+      "languages-section",
+      "test-scores-section",
+      "patents-section",
+      "media-handles-section",
+      "resume-section"
+    ];
+
+    const observerOptions = {
+      root: null,
+      rootMargin: "-20% 0px -55% 0px",
+      threshold: 0
+    };
+
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) {
+          setActiveSection(entry.target.id);
+        }
+      });
+    }, observerOptions);
+
+    sections.forEach((id) => {
+      const el = document.getElementById(id);
+      if (el) observer.observe(el);
+    });
+
+    if (typeof window !== "undefined" && window.location.hash) {
+      const hash = window.location.hash.substring(1);
+      setTimeout(() => {
+        scrollTo(hash);
+      }, 500);
+    }
+
+    return () => {
+      sections.forEach((id) => {
+        const el = document.getElementById(id);
+        if (el) observer.unobserve(el);
+      });
+    };
   }, []);
 
   const fetchUserMe = async () => {
@@ -1263,6 +1331,7 @@ Report Generated: ${new Date().toLocaleDateString()}
 
   // Nav sidebar scroll helpers
   const scrollTo = (id: string) => {
+    setActiveSection(id);
     document.getElementById(id)?.scrollIntoView({
       behavior: "smooth"
     });
@@ -1344,53 +1413,34 @@ Report Generated: ${new Date().toLocaleDateString()}
         </div>
 
         {/* 13 SECTIONS LINKS */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-1 scrollbar-thin">
-          <button onClick={() => scrollTo("header-section")} className={`w-full flex items-center gap-3 transition px-4 py-2.5 rounded-xl text-sm font-medium text-left ${themeMode === "dark" ? "hover:bg-white/5 text-slate-300 hover:text-white" : "hover:bg-white/10 text-slate-200 hover:text-white"}`}>
-            <User size={16} className="text-[#781c1c]" /> Header Section
-          </button>
-          <button onClick={() => scrollTo("about-section")} className={`w-full flex items-center gap-3 transition px-4 py-2.5 rounded-xl text-sm font-medium text-left ${themeMode === "dark" ? "hover:bg-white/5 text-slate-300 hover:text-white" : "hover:bg-white/10 text-slate-200 hover:text-white"}`}>
-            <FileText size={16} className="text-[#781c1c]" /> About Section
-          </button>
-          <button onClick={() => scrollTo("experience-section")} className={`w-full flex items-center gap-3 transition px-4 py-2.5 rounded-xl text-sm font-medium text-left ${themeMode === "dark" ? "hover:bg-white/5 text-slate-300 hover:text-white" : "hover:bg-white/10 text-slate-200 hover:text-white"}`}>
-            <Briefcase size={16} className="text-[#781c1c]" /> Experience
-          </button>
-          <button onClick={() => scrollTo("academic-section")} className={`w-full flex items-center gap-3 transition px-4 py-2.5 rounded-xl text-sm font-medium text-left ${themeMode === "dark" ? "hover:bg-white/5 text-slate-300 hover:text-white" : "hover:bg-white/10 text-slate-200 hover:text-white"}`}>
-            <Award size={16} className="text-[#781c1c]" /> Academic Details
-          </button>
-          <button onClick={() => scrollTo("achievements-section")} className={`w-full flex items-center gap-3 transition px-4 py-2.5 rounded-xl text-sm font-medium text-left ${themeMode === "dark" ? "hover:bg-white/5 text-slate-300 hover:text-white" : "hover:bg-white/10 text-slate-200 hover:text-white"}`}>
-            <Trophy size={16} className="text-[#781c1c]" /> Achievements
-          </button>
-          <button onClick={() => scrollTo("projects-research-section")} className={`w-full flex items-center gap-3 transition px-4 py-2.5 rounded-xl text-sm font-medium text-left ${themeMode === "dark" ? "hover:bg-white/5 text-slate-300 hover:text-white" : "hover:bg-white/10 text-slate-200 hover:text-white"}`}>
-            <GitBranch size={16} className="text-[#781c1c]" /> Projects & Research
-          </button>
-          <button onClick={() => scrollTo("skills-section")} className={`w-full flex items-center gap-3 transition px-4 py-2.5 rounded-xl text-sm font-medium text-left ${themeMode === "dark" ? "hover:bg-white/5 text-slate-300 hover:text-white" : "hover:bg-white/10 text-slate-200 hover:text-white"}`}>
-            <Code size={16} className="text-[#781c1c]" /> Skills
-          </button>
-          <button onClick={() => scrollTo("licenses-certifications-section")} className={`w-full flex items-center gap-3 transition px-4 py-2.5 rounded-xl text-sm font-medium text-left ${themeMode === "dark" ? "hover:bg-white/5 text-slate-300 hover:text-white" : "hover:bg-white/10 text-slate-200 hover:text-white"}`}>
-            <Award size={16} className="text-[#781c1c]" /> Certifications
-          </button>
-          <button onClick={() => scrollTo("languages-section")} className={`w-full flex items-center gap-3 transition px-4 py-2.5 rounded-xl text-sm font-medium text-left ${themeMode === "dark" ? "hover:bg-white/5 text-slate-300 hover:text-white" : "hover:bg-white/10 text-slate-200 hover:text-white"}`}>
-            <Globe size={16} className="text-[#781c1c]" /> Languages known
-          </button>
-          <button onClick={() => scrollTo("test-scores-section")} className={`w-full flex items-center gap-3 transition px-4 py-2.5 rounded-xl text-sm font-medium text-left ${themeMode === "dark" ? "hover:bg-white/5 text-slate-300 hover:text-white" : "hover:bg-white/10 text-slate-200 hover:text-white"}`}>
-            <Award size={16} className="text-[#781c1c]" /> Test Scores
-          </button>
-          <button onClick={() => scrollTo("patents-section")} className={`w-full flex items-center gap-3 transition px-4 py-2.5 rounded-xl text-sm font-medium text-left ${themeMode === "dark" ? "hover:bg-white/5 text-slate-300 hover:text-white" : "hover:bg-white/10 text-slate-200 hover:text-white"}`}>
-            <FileText size={16} className="text-[#781c1c]" /> Patents
-          </button>
-          <button onClick={() => scrollTo("media-handles-section")} className={`w-full flex items-center gap-3 transition px-4 py-2.5 rounded-xl text-sm font-medium text-left ${themeMode === "dark" ? "hover:bg-white/5 text-slate-300 hover:text-white" : "hover:bg-white/10 text-slate-200 hover:text-white"}`}>
-            <Link size={16} className="text-[#781c1c]" /> Media Handles
-          </button>
-          <button onClick={() => scrollTo("resume-section")} className={`w-full flex items-center gap-3 transition px-4 py-2.5 rounded-xl text-sm font-medium text-left ${themeMode === "dark" ? "hover:bg-white/5 text-slate-300 hover:text-white" : "hover:bg-white/10 text-slate-200 hover:text-white"}`}>
-            <FileText size={16} className="text-[#781c1c]" /> Resume
-          </button>
+        <div className="flex-1 overflow-y-auto p-4 space-y-1.5 scrollbar-thin">
+          {sidebarLinks.map((link) => {
+            const Icon = link.icon;
+            const isActive = activeSection === link.id;
+            return (
+              <button
+                key={link.id}
+                onClick={() => scrollTo(link.id)}
+                className={`w-full flex items-center gap-3.5 px-4 py-3 rounded-xl text-xs font-semibold tracking-wide transition-all duration-200 cursor-pointer ${
+                  isActive
+                    ? "mcc-active-tab font-bold"
+                    : themeMode === "dark"
+                      ? "text-slate-400 hover:text-white hover:bg-white/5"
+                      : "text-slate-700 hover:bg-slate-100"
+                }`}
+              >
+                <Icon size={16} className={isActive ? "text-white" : "text-slate-400"} />
+                {link.label}
+              </button>
+            );
+          })}
 
           <div className="pt-4 border-t border-white/5 space-y-1">
             <button
               onClick={() => window.location.href = "/dashboard/resumes"}
-              className={`w-full flex items-center gap-3 transition px-4 py-2.5 rounded-xl text-sm font-medium text-left ${
-                themeMode === "dark" ? "hover:bg-white/5 text-slate-300 hover:text-white" : "hover:bg-white/10 text-slate-200 hover:text-white"
-              } cursor-pointer`}
+              className={`w-full flex items-center gap-3.5 px-4 py-3 rounded-xl text-xs font-semibold tracking-wide transition-all duration-200 cursor-pointer ${
+                themeMode === "dark" ? "hover:bg-white/5 text-slate-400 hover:text-white" : "hover:bg-slate-100 text-slate-700"
+              }`}
             >
               <Sparkles size={16} className="text-emerald-400" /> Resume Builder
             </button>
@@ -1447,21 +1497,10 @@ Report Generated: ${new Date().toLocaleDateString()}
           </div>
         </div>
 
-        <div className="p-4 border-t border-white/10 space-y-2">
-          <button
-            onClick={toggleThemeMode}
-            className={`w-full flex items-center justify-center gap-2.5 py-2.5 rounded-xl text-xs font-bold transition cursor-pointer ${
-              themeMode === "dark"
-                ? "bg-white/10 hover:bg-white/20 text-yellow-300 border border-white/10"
-                : "bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200"
-            }`}
-          >
-            {themeMode === "dark" ? <Sun size={15} /> : <Moon size={15} />}
-            <span>{themeMode === "dark" ? "Light Mode" : "Dark Mode"}</span>
-          </button>
+        <div className="p-4 border-t border-white/10 flex items-center gap-3">
           <button
             onClick={handleLogout}
-            className="w-full flex items-center justify-center gap-3 bg-red-500/10 hover:bg-red-500/20 text-red-400 py-2.5 rounded-xl text-xs font-semibold transition cursor-pointer"
+            className="w-full flex items-center justify-center gap-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 py-2.5 rounded-xl text-xs font-semibold border border-red-500/20 transition cursor-pointer"
           >
             <LogOut size={15} /> Log Out
           </button>
@@ -1485,53 +1524,34 @@ Report Generated: ${new Date().toLocaleDateString()}
               </button>
             </div>
             
-            <nav className="flex-1 py-4 space-y-1 overflow-y-auto scrollbar-thin">
-              <button onClick={() => { scrollTo("header-section"); setShowMobileNav(false); }} className={`w-full flex items-center gap-3 transition px-4 py-2.5 rounded-xl text-sm font-medium text-left ${themeMode === "dark" ? "hover:bg-white/5 text-slate-300 hover:text-white" : "hover:bg-white/10 text-slate-200 hover:text-white"} cursor-pointer`}>
-                <User size={16} className="text-[#781c1c]" /> Header Section
-              </button>
-              <button onClick={() => { scrollTo("about-section"); setShowMobileNav(false); }} className={`w-full flex items-center gap-3 transition px-4 py-2.5 rounded-xl text-sm font-medium text-left ${themeMode === "dark" ? "hover:bg-white/5 text-slate-300 hover:text-white" : "hover:bg-white/10 text-slate-200 hover:text-white"} cursor-pointer`}>
-                <FileText size={16} className="text-[#781c1c]" /> About Section
-              </button>
-              <button onClick={() => { scrollTo("experience-section"); setShowMobileNav(false); }} className={`w-full flex items-center gap-3 transition px-4 py-2.5 rounded-xl text-sm font-medium text-left ${themeMode === "dark" ? "hover:bg-white/5 text-slate-300 hover:text-white" : "hover:bg-white/10 text-slate-200 hover:text-white"} cursor-pointer`}>
-                <Briefcase size={16} className="text-[#781c1c]" /> Experience
-              </button>
-              <button onClick={() => { scrollTo("academic-section"); setShowMobileNav(false); }} className={`w-full flex items-center gap-3 transition px-4 py-2.5 rounded-xl text-sm font-medium text-left ${themeMode === "dark" ? "hover:bg-white/5 text-slate-300 hover:text-white" : "hover:bg-white/10 text-slate-200 hover:text-white"} cursor-pointer`}>
-                <Award size={16} className="text-[#781c1c]" /> Academic Details
-              </button>
-              <button onClick={() => { scrollTo("achievements-section"); setShowMobileNav(false); }} className={`w-full flex items-center gap-3 transition px-4 py-2.5 rounded-xl text-sm font-medium text-left ${themeMode === "dark" ? "hover:bg-white/5 text-slate-300 hover:text-white" : "hover:bg-white/10 text-slate-200 hover:text-white"} cursor-pointer`}>
-                <Trophy size={16} className="text-[#781c1c]" /> Achievements
-              </button>
-              <button onClick={() => { scrollTo("projects-research-section"); setShowMobileNav(false); }} className={`w-full flex items-center gap-3 transition px-4 py-2.5 rounded-xl text-sm font-medium text-left ${themeMode === "dark" ? "hover:bg-white/5 text-slate-300 hover:text-white" : "hover:bg-white/10 text-slate-200 hover:text-white"} cursor-pointer`}>
-                <GitBranch size={16} className="text-[#781c1c]" /> Projects & Research
-              </button>
-              <button onClick={() => { scrollTo("skills-section"); setShowMobileNav(false); }} className={`w-full flex items-center gap-3 transition px-4 py-2.5 rounded-xl text-sm font-medium text-left ${themeMode === "dark" ? "hover:bg-white/5 text-slate-300 hover:text-white" : "hover:bg-white/10 text-slate-200 hover:text-white"} cursor-pointer`}>
-                <Code size={16} className="text-[#781c1c]" /> Skills
-              </button>
-              <button onClick={() => { scrollTo("licenses-certifications-section"); setShowMobileNav(false); }} className={`w-full flex items-center gap-3 transition px-4 py-2.5 rounded-xl text-sm font-medium text-left ${themeMode === "dark" ? "hover:bg-white/5 text-slate-300 hover:text-white" : "hover:bg-white/10 text-slate-200 hover:text-white"} cursor-pointer`}>
-                <Award size={16} className="text-[#781c1c]" /> Certifications
-              </button>
-              <button onClick={() => { scrollTo("languages-section"); setShowMobileNav(false); }} className={`w-full flex items-center gap-3 transition px-4 py-2.5 rounded-xl text-sm font-medium text-left ${themeMode === "dark" ? "hover:bg-white/5 text-slate-300 hover:text-white" : "hover:bg-white/10 text-slate-200 hover:text-white"} cursor-pointer`}>
-                <Globe size={16} className="text-[#781c1c]" /> Languages known
-              </button>
-              <button onClick={() => { scrollTo("test-scores-section"); setShowMobileNav(false); }} className={`w-full flex items-center gap-3 transition px-4 py-2.5 rounded-xl text-sm font-medium text-left ${themeMode === "dark" ? "hover:bg-white/5 text-slate-300 hover:text-white" : "hover:bg-white/10 text-slate-200 hover:text-white"} cursor-pointer`}>
-                <Award size={16} className="text-[#781c1c]" /> Test Scores
-              </button>
-              <button onClick={() => { scrollTo("patents-section"); setShowMobileNav(false); }} className={`w-full flex items-center gap-3 transition px-4 py-2.5 rounded-xl text-sm font-medium text-left ${themeMode === "dark" ? "hover:bg-white/5 text-slate-300 hover:text-white" : "hover:bg-white/10 text-slate-200 hover:text-white"} cursor-pointer`}>
-                <FileText size={16} className="text-[#781c1c]" /> Patents
-              </button>
-              <button onClick={() => { scrollTo("media-handles-section"); setShowMobileNav(false); }} className={`w-full flex items-center gap-3 transition px-4 py-2.5 rounded-xl text-sm font-medium text-left ${themeMode === "dark" ? "hover:bg-white/5 text-slate-300 hover:text-white" : "hover:bg-white/10 text-slate-200 hover:text-white"} cursor-pointer`}>
-                <Link size={16} className="text-[#781c1c]" /> Media Handles
-              </button>
-              <button onClick={() => { scrollTo("resume-section"); setShowMobileNav(false); }} className={`w-full flex items-center gap-3 transition px-4 py-2.5 rounded-xl text-sm font-medium text-left ${themeMode === "dark" ? "hover:bg-white/5 text-slate-300 hover:text-white" : "hover:bg-white/10 text-slate-200 hover:text-white"} cursor-pointer`}>
-                <FileText size={16} className="text-[#781c1c]" /> Resume
-              </button>
+            <nav className="flex-1 py-4 space-y-1.5 overflow-y-auto scrollbar-thin">
+              {sidebarLinks.map((link) => {
+                const Icon = link.icon;
+                const isActive = activeSection === link.id;
+                return (
+                  <button
+                    key={link.id}
+                    onClick={() => { scrollTo(link.id); setShowMobileNav(false); }}
+                    className={`w-full flex items-center gap-3.5 px-4 py-3 rounded-xl text-xs font-semibold tracking-wide transition-all duration-200 cursor-pointer ${
+                      isActive
+                        ? "mcc-active-tab font-bold"
+                        : themeMode === "dark"
+                          ? "text-slate-400 hover:text-white hover:bg-white/5"
+                          : "text-slate-700 hover:bg-slate-100"
+                    }`}
+                  >
+                    <Icon size={16} className={isActive ? "text-white" : "text-slate-400"} />
+                    {link.label}
+                  </button>
+                );
+              })}
               
               <div className="pt-4 border-t border-white/5 space-y-1">
                 <button
                   onClick={() => { window.location.href = "/dashboard/resumes"; setShowMobileNav(false); }}
-                  className={`w-full flex items-center gap-3 transition px-4 py-2.5 rounded-xl text-sm font-medium text-left ${
-                    themeMode === "dark" ? "hover:bg-white/5 text-slate-300 hover:text-white" : "hover:bg-white/10 text-slate-200 hover:text-white"
-                  } cursor-pointer`}
+                  className={`w-full flex items-center gap-3.5 px-4 py-3 rounded-xl text-xs font-semibold tracking-wide transition-all duration-200 cursor-pointer ${
+                    themeMode === "dark" ? "hover:bg-white/5 text-slate-400 hover:text-white" : "hover:bg-slate-100 text-slate-700"
+                  }`}
                 >
                   <Sparkles size={16} className="text-emerald-400" /> Resume Builder
                 </button>
@@ -1587,20 +1607,8 @@ Report Generated: ${new Date().toLocaleDateString()}
                   <Eye size={16} className="text-emerald-400" /> View Public Portfolio
                 </button>
               </div>
-            </nav>
-            <div className="pt-4 border-t border-white/10 space-y-2">
-              <button
-                onClick={toggleThemeMode}
-                className={`w-full flex items-center justify-center gap-2.5 py-2.5 rounded-xl text-xs font-bold transition cursor-pointer ${
-                  themeMode === "dark"
-                    ? "bg-white/10 hover:bg-white/20 text-yellow-300 border border-white/10"
-                    : "bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200"
-                }`}
-              >
-                {themeMode === "dark" ? <Sun size={15} /> : <Moon size={15} />}
-                <span>{themeMode === "dark" ? "Light Mode" : "Dark Mode"}</span>
-              </button>
-              <button onClick={handleLogout} className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-semibold bg-red-500/10 hover:bg-red-500/20 text-red-400 cursor-pointer">
+            </nav>            <div className="pt-4 border-t border-white/10 flex items-center gap-3">
+              <button onClick={handleLogout} className="w-full flex items-center justify-center gap-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 py-2.5 rounded-xl text-xs font-semibold border border-red-500/20 transition cursor-pointer">
                 <LogOut size={15} /> Log Out
               </button>
             </div>
@@ -1629,8 +1637,10 @@ Report Generated: ${new Date().toLocaleDateString()}
           <button
             onClick={toggleThemeMode}
             aria-label="Toggle theme"
-            className={`w-8 h-8 rounded-full flex items-center justify-center transition-all duration-200 cursor-pointer ${
-              themeMode === "dark" ? "bg-white/10 text-yellow-300" : "bg-slate-100 text-slate-600"
+            className={`p-2 rounded-full flex items-center justify-center transition-all duration-200 cursor-pointer border shadow-sm ${
+              themeMode === "dark"
+                ? "bg-white/10 hover:bg-white/20 text-amber-300 border-white/15"
+                : "bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-300"
             }`}
           >
             {themeMode === "dark" ? <Sun size={15} /> : <Moon size={15} />}
@@ -1655,8 +1665,12 @@ Report Generated: ${new Date().toLocaleDateString()}
           <div className="hidden md:flex absolute top-4 right-5 z-20 items-center">
             <button
               onClick={toggleThemeMode}
-              className="mcc-theme-toggle"
               title="Toggle Light/Dark Mode"
+              className={`p-2.5 rounded-full transition-all duration-300 cursor-pointer border shadow-sm flex items-center justify-center ${
+                themeMode === "dark"
+                  ? "bg-white/10 hover:bg-white/20 text-amber-300 border-white/15"
+                  : "bg-white/90 hover:bg-slate-100 text-slate-700 border-slate-200"
+              }`}
             >
               {themeMode === "dark" ? <Sun size={16} /> : <Moon size={16} />}
             </button>
@@ -1684,63 +1698,73 @@ Report Generated: ${new Date().toLocaleDateString()}
         </div>
         
         {/* HEADER BAR */}
-        <div className="flex justify-between items-center pb-6 border-b border-white/10">
+        <div className={`mb-10 flex items-center justify-between flex-wrap gap-4 border-b pb-6 ${
+          themeMode === "dark" ? "border-white/5" : "border-slate-200"
+        }`}>
           <div>
-            <span className="text-[10px] uppercase font-mono font-black tracking-widest text-[#781c1c] block mb-1 whitespace-nowrap">Madras Christian College</span>
-            <h2 className="font-serif text-3xl font-extrabold tracking-tight text-[#18233c]">Student Dashboard</h2>
-            <p className={`text-xs mt-1 ${themeMode === "dark" ? "text-gray-400" : "text-slate-500"}`}>
+            <span className="text-[10px] uppercase font-mono tracking-widest text-[#818cf8] font-bold whitespace-nowrap">
+              Madras Christian College
+            </span>
+            <h2 className={`text-2xl md:text-3xl font-black tracking-tight mt-0.5 capitalize ${
+              themeMode === "dark" ? "text-white" : "text-slate-900"
+            }`}>
+              Student Dashboard
+            </h2>
+            <p className={`text-xs mt-1 ${themeMode === "dark" ? "text-slate-400" : "text-slate-500"}`}>
               Configure and showcase your portfolio variables according to MCC standards.
             </p>
           </div>
 
-          {/* Assessment & Alert Bell */}
-          <div className="flex items-center gap-3 relative">
-            <button
-              onClick={() => window.location.href = "/assessment"}
-              className="p-3 rounded-2xl bg-white/5 border border-white/10 hover:bg-white/10 transition relative text-amber-400 hover:text-amber-300 cursor-pointer flex items-center gap-2 text-xs font-semibold"
-              title="Assessments"
-            >
-              <ClipboardList size={18} />
-              <span className="hidden sm:inline">Assessments</span>
-            </button>
-            <button
-              onClick={() => setShowNotifications(!showNotifications)}
-              className="p-3 rounded-2xl bg-white/5 border border-white/10 hover:bg-white/10 transition relative cursor-pointer"
-            >
-              <Bell size={18} />
-              {notifications.some(n => !n.isRead) && (
-                <span className="absolute top-2 right-2 w-2 h-2 bg-[#781c1c] rounded-full" />
-              )}
-            </button>
-            {showNotifications && (
-              <div className={`absolute right-0 mt-3 w-80 rounded-2xl border p-4 shadow-2xl z-50 transition-all duration-300 ${
-                themeMode === "dark" ? "bg-[#0b0b0f] border-white/15 text-white" : "bg-white border-slate-200 text-slate-800"
-              }`}>
-                <h4 className="font-bold text-xs border-b pb-2 mb-2 flex items-center justify-between border-white/5">
-                  <span>Campus Alerts & Announcements</span>
-                  <button onClick={() => setShowNotifications(false)} className="text-[10px] opacity-60 hover:opacity-100">Close</button>
-                </h4>
-                <div className="space-y-2 max-h-[250px] overflow-y-auto">
-                  {notifications.length > 0 ? (
-                    notifications.map((n) => (
-                      <div
-                        key={n.id}
-                        onClick={() => !n.isRead && markNotificationAsRead(n.id)}
-                        className={`p-3 rounded-xl border transition text-left cursor-pointer ${
-                          n.isRead ? "bg-white/[0.02] border-white/5 opacity-60" : "bg-[#781c1c]/10 border-[#781c1c]/20 hover:bg-[#781c1c]/15"
-                        }`}
-                      >
-                        <span className="font-semibold text-xs block leading-tight">{n.title}</span>
-                        <p className="text-[10px] opacity-70 mt-1 leading-relaxed">{n.message}</p>
-                        <span className="text-[8px] opacity-40 block mt-2 font-mono">{new Date(n.createdAt).toLocaleDateString()}</span>
-                      </div>
-                    ))
-                  ) : (
-                    <div className="text-center py-6 opacity-60 text-xs">No notifications.</div>
-                  )}
+          <div className="flex items-center gap-3">
+            <div className="bg-emerald-500/10 border border-emerald-500/20 px-4 py-2.5 rounded-xl flex items-center gap-2">
+              <Activity className="text-emerald-400 animate-pulse" size={14} />
+              <span className="text-[10px] uppercase font-mono text-emerald-400 font-bold">Server Connection:</span>
+              <span className={`text-[10px] font-bold ${themeMode === "dark" ? "text-white" : "text-slate-800"}`}>Online & Healthy</span>
+            </div>
+
+            {/* Alert Bell */}
+            <div className="relative">
+              <button
+                onClick={() => setShowNotifications(!showNotifications)}
+                className={`p-3 rounded-2xl border transition relative ${
+                  themeMode === "dark" ? "bg-white/5 border-white/10 hover:bg-white/10 text-white" : "bg-white border-slate-200 hover:bg-slate-50 text-slate-800 shadow-sm"
+                }`}
+              >
+                <Bell size={18} />
+                {notifications.some(n => !n.isRead) && (
+                  <span className="absolute top-2 right-2 w-2 h-2 bg-[#781c1c] rounded-full" />
+                )}
+              </button>
+              {showNotifications && (
+                <div className={`absolute right-0 mt-3 w-80 rounded-2xl border p-4 shadow-2xl z-50 transition-all duration-300 ${
+                  themeMode === "dark" ? "bg-[#0b0b0f] border-white/15 text-white" : "bg-white border-slate-200 text-slate-800"
+                }`}>
+                  <h4 className="font-bold text-xs border-b pb-2 mb-2 flex items-center justify-between border-white/5">
+                    <span>Campus Alerts & Announcements</span>
+                    <button onClick={() => setShowNotifications(false)} className="text-[10px] opacity-60 hover:opacity-100">Close</button>
+                  </h4>
+                  <div className="space-y-2 max-h-[250px] overflow-y-auto">
+                    {notifications.length > 0 ? (
+                      notifications.map((n) => (
+                        <div
+                          key={n.id}
+                          onClick={() => !n.isRead && markNotificationAsRead(n.id)}
+                          className={`p-3 rounded-xl border transition text-left cursor-pointer ${
+                            n.isRead ? "bg-white/[0.02] border-white/5 opacity-60" : "bg-[#781c1c]/10 border-[#781c1c]/20 hover:bg-[#781c1c]/15"
+                          }`}
+                        >
+                          <span className="font-semibold text-xs block leading-tight">{n.title}</span>
+                          <p className="text-[10px] opacity-70 mt-1 leading-relaxed">{n.message}</p>
+                          <span className="text-[8px] opacity-40 block mt-2 font-mono">{new Date(n.createdAt).toLocaleDateString()}</span>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="text-center py-4 text-xs opacity-50">No notifications</div>
+                    )}
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
+            </div>
           </div>
         </div>
 
@@ -1748,16 +1772,16 @@ Report Generated: ${new Date().toLocaleDateString()}
             SECTION 1: HEADER SETTINGS
             ========================================== */}
         <div id="header-section" className={`border rounded-3xl p-8 transition duration-300 -mt-6 md:-mt-8 ${
-          themeMode === "dark" ? "bg-white/5 border-white/10" : "bg-white border-slate-200 shadow-sm"
+          themeMode === "dark" ? "bg-[#0b0b0f] border-white/5" : "bg-white border-slate-200 shadow-sm"
         }`}>
-          <h3 className="font-serif text-2xl font-black mb-4 flex items-center gap-2 text-[#18233c] border-b border-[#781c1c]/10 pb-3">
+          <h3 className={`font-serif text-2xl font-black mb-4 flex items-center gap-2 border-b border-[#781c1c]/10 pb-3 ${themeMode === "dark" ? "text-white" : "text-[#18233c]"}`}>
             <User size={22} /> Section 1: Header Section Details
           </h3>
 
           <div className="grid md:grid-cols-2 gap-6">
             {/* Profile Photo upload */}
             <div className={`border rounded-2xl p-4 sm:p-5 flex flex-col justify-between gap-3 transition ${
-              themeMode === "dark" ? "bg-white/[0.02] border-white/10" : "bg-slate-50 border-slate-200"
+              themeMode === "dark" ? "bg-[#0b0b0f] border-white/5" : "bg-slate-50 border-slate-200"
             }`}>
               <div>
                 <label className="text-[10px] uppercase font-mono tracking-wider font-bold text-slate-500 block mb-1">
@@ -1844,7 +1868,7 @@ Report Generated: ${new Date().toLocaleDateString()}
                 value={fullName}
                 onChange={(e) => setFullName(e.target.value)}
                 className={`border rounded-xl px-4 py-3 text-sm outline-none transition ${
-                  themeMode === "dark" ? "bg-white/5 border-white/10 text-white" : "bg-white border-slate-200"
+                  themeMode === "dark" ? "bg-[#121217] border-white/5 text-white placeholder-gray-500" : "bg-white border-slate-200 text-slate-900"
                 }`}
               />
             </div>
@@ -1859,7 +1883,7 @@ Report Generated: ${new Date().toLocaleDateString()}
                 disabled
                 value={course}
                 className={`border rounded-xl px-4 py-3 text-sm outline-none cursor-not-allowed transition ${
-                  themeMode === "dark" ? "bg-white/5 border-white/10 text-slate-300" : "bg-slate-100 border-slate-200 text-slate-500"
+                  themeMode === "dark" ? "bg-[#121217] border-white/5 text-slate-400" : "bg-slate-100 border-slate-200 text-slate-500"
                 }`}
               />
             </div>
@@ -1874,7 +1898,7 @@ Report Generated: ${new Date().toLocaleDateString()}
                 value={yearOfStudy}
                 onChange={(e) => setYearOfStudy(e.target.value)}
                 className={`border rounded-xl px-4 py-3 text-sm outline-none transition cursor-pointer ${
-                  themeMode === "dark" ? "bg-white/5 border-white/10 text-white" : "bg-white border-slate-200"
+                  themeMode === "dark" ? "bg-[#121217] border-white/5 text-white placeholder-gray-500" : "bg-white border-slate-200 text-slate-900"
                 }`}
               >
                 <option value="">Select Year</option>
@@ -1896,7 +1920,7 @@ Report Generated: ${new Date().toLocaleDateString()}
                 value={currentLocation}
                 onChange={(e) => setCurrentLocation(e.target.value)}
                 className={`border rounded-xl px-4 py-3 text-sm outline-none transition ${
-                  themeMode === "dark" ? "bg-white/5 border-white/10 text-white" : "bg-white border-slate-200"
+                  themeMode === "dark" ? "bg-[#121217] border-white/5 text-white placeholder-gray-500" : "bg-white border-slate-200 text-slate-900"
                 }`}
               />
             </div>
@@ -1912,7 +1936,7 @@ Report Generated: ${new Date().toLocaleDateString()}
                 value={email}
                 disabled
                 className={`border rounded-xl px-4 py-3 text-sm outline-none cursor-not-allowed transition ${
-                  themeMode === "dark" ? "bg-white/5 border-white/10 text-slate-300" : "bg-slate-100 border-slate-200 text-slate-500"
+                  themeMode === "dark" ? "bg-[#121217] border-white/5 text-slate-400" : "bg-slate-100 border-slate-200 text-slate-500"
                 }`}
               />
             </div>
@@ -1929,7 +1953,7 @@ Report Generated: ${new Date().toLocaleDateString()}
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
                 className={`border rounded-xl px-4 py-3 text-sm outline-none transition ${
-                  themeMode === "dark" ? "bg-white/5 border-white/10 text-white" : "bg-white border-slate-200"
+                  themeMode === "dark" ? "bg-[#121217] border-white/5 text-white placeholder-gray-500" : "bg-white border-slate-200 text-slate-900"
                 }`}
               />
             </div>
@@ -1945,7 +1969,7 @@ Report Generated: ${new Date().toLocaleDateString()}
                 value={linkedInUrl}
                 onChange={(e) => setLinkedInUrl(e.target.value)}
                 className={`border rounded-xl px-4 py-3 text-sm outline-none transition ${
-                  themeMode === "dark" ? "bg-white/5 border-white/10 text-white" : "bg-white border-slate-200"
+                  themeMode === "dark" ? "bg-[#121217] border-white/5 text-white placeholder-gray-500" : "bg-white border-slate-200 text-slate-900"
                 }`}
               />
             </div>
@@ -1965,9 +1989,9 @@ Report Generated: ${new Date().toLocaleDateString()}
             SECTION 2: ABOUT SECTION
             ========================================== */}
         <div id="about-section" className={`border rounded-3xl p-8 transition duration-300 ${
-          themeMode === "dark" ? "bg-white/5 border-white/10" : "bg-white border-slate-200 shadow-sm"
+          themeMode === "dark" ? "bg-[#0b0b0f] border-white/5" : "bg-white border-slate-200 shadow-sm"
         }`}>
-          <h3 className="font-serif text-2xl font-black mb-4 flex items-center gap-2 text-[#18233c] border-b border-[#781c1c]/10 pb-3">
+          <h3 className={`font-serif text-2xl font-black mb-4 flex items-center gap-2 border-b border-[#781c1c]/10 pb-3 ${themeMode === "dark" ? "text-white" : "text-[#18233c]"}`}>
             <FileText size={22} /> Section 2: About Section
           </h3>
 
@@ -1991,7 +2015,7 @@ Report Generated: ${new Date().toLocaleDateString()}
                 value={bio}
                 onChange={(e) => setBio(e.target.value)}
                 className={`w-full border rounded-xl px-4 py-3 text-sm outline-none min-h-[80px] transition ${
-                  themeMode === "dark" ? "bg-white/5 border-white/10 text-white" : "bg-white border-slate-200"
+                  themeMode === "dark" ? "bg-[#121217] border-white/5 text-white placeholder-gray-500" : "bg-white border-slate-200 text-slate-900"
                 }`}
               />
             </div>
@@ -2008,7 +2032,7 @@ Report Generated: ${new Date().toLocaleDateString()}
                 value={personalStory}
                 onChange={(e) => setPersonalStory(e.target.value)}
                 className={`w-full border rounded-xl px-4 py-3 text-sm outline-none min-h-[80px] transition ${
-                  themeMode === "dark" ? "bg-white/5 border-white/10 text-white" : "bg-white border-slate-200"
+                  themeMode === "dark" ? "bg-[#121217] border-white/5 text-white placeholder-gray-500" : "bg-white border-slate-200 text-slate-900"
                 }`}
               />
             </div>
@@ -2025,7 +2049,7 @@ Report Generated: ${new Date().toLocaleDateString()}
                 value={sop}
                 onChange={(e) => setSop(e.target.value)}
                 className={`w-full border rounded-xl px-4 py-3 text-sm outline-none min-h-[80px] transition ${
-                  themeMode === "dark" ? "bg-white/5 border-white/10 text-white" : "bg-white border-slate-200"
+                  themeMode === "dark" ? "bg-[#121217] border-white/5 text-white placeholder-gray-500" : "bg-white border-slate-200 text-slate-900"
                 }`}
               />
             </div>
@@ -2045,15 +2069,15 @@ Report Generated: ${new Date().toLocaleDateString()}
             SECTION 3: EXPERIENCE
             ========================================== */}
         <div id="experience-section" className={`border rounded-3xl p-8 transition duration-300 ${
-          themeMode === "dark" ? "bg-white/5 border-white/10" : "bg-white border-slate-200 shadow-sm"
+          themeMode === "dark" ? "bg-[#0b0b0f] border-white/5" : "bg-white border-slate-200 shadow-sm"
         }`}>
-          <h3 className="font-serif text-2xl font-black mb-4 flex items-center gap-2 text-[#18233c] border-b border-[#781c1c]/10 pb-3">
+          <h3 className={`font-serif text-2xl font-black mb-4 flex items-center gap-2 border-b border-[#781c1c]/10 pb-3 ${themeMode === "dark" ? "text-white" : "text-[#18233c]"}`}>
             <Briefcase size={22} /> Section 3: Experience
           </h3>
 
           {/* Form in separate card container */}
           <div className={`p-6 rounded-2xl border mb-6 transition duration-300 ${
-            themeMode === "dark" ? "bg-white/[0.02] border-white/10" : "bg-slate-50 border-slate-200"
+            themeMode === "dark" ? "bg-[#0b0b0f] border-white/5" : "bg-slate-50 border-slate-200"
           }`}>
             <h4 className="text-xs font-bold font-mono uppercase tracking-wider text-slate-500 mb-4 flex items-center gap-1.5">
               {editingExpId ? "✏️ Edit Experience Entry" : "➕ Add New Experience"}
@@ -2076,7 +2100,7 @@ Report Generated: ${new Date().toLocaleDateString()}
                   value={expTitle}
                   onChange={(e) => setExpTitle(e.target.value)}
                   className={`border rounded-xl px-4 py-3 text-sm outline-none transition ${
-                    themeMode === "dark" ? "bg-white/5 border-white/10 text-white" : "bg-white border-slate-200"
+                    themeMode === "dark" ? "bg-[#121217] border-white/5 text-white placeholder-gray-500" : "bg-white border-slate-200 text-slate-900"
                   }`}
                 />
               </div>
@@ -2090,7 +2114,7 @@ Report Generated: ${new Date().toLocaleDateString()}
                   value={expCompany}
                   onChange={(e) => setExpCompany(e.target.value)}
                   className={`border rounded-xl px-4 py-3 text-sm outline-none transition ${
-                    themeMode === "dark" ? "bg-white/5 border-white/10 text-white" : "bg-white border-slate-200"
+                    themeMode === "dark" ? "bg-[#121217] border-white/5 text-white placeholder-gray-500" : "bg-white border-slate-200 text-slate-900"
                   }`}
                 />
               </div>
@@ -2103,7 +2127,7 @@ Report Generated: ${new Date().toLocaleDateString()}
                   value={expLocation}
                   onChange={(e) => setExpLocation(e.target.value)}
                   className={`border rounded-xl px-4 py-3 text-sm outline-none transition ${
-                    themeMode === "dark" ? "bg-white/5 border-white/10 text-white" : "bg-white border-slate-200"
+                    themeMode === "dark" ? "bg-[#121217] border-white/5 text-white placeholder-gray-500" : "bg-white border-slate-200 text-slate-900"
                   }`}
                 />
               </div>
@@ -2135,7 +2159,7 @@ Report Generated: ${new Date().toLocaleDateString()}
                   value={expStartDate}
                   onChange={(e) => setExpStartDate(e.target.value)}
                   className={`border rounded-xl px-4 py-3 text-sm outline-none transition ${
-                    themeMode === "dark" ? "bg-white/5 border-white/10 text-white" : "bg-white border-slate-200"
+                    themeMode === "dark" ? "bg-[#121217] border-white/5 text-white placeholder-gray-500" : "bg-white border-slate-200 text-slate-900"
                   }`}
                 />
               </div>
@@ -2151,7 +2175,7 @@ Report Generated: ${new Date().toLocaleDateString()}
                   className={`border rounded-xl px-4 py-3 text-sm outline-none transition ${
                     expIsCurrent
                       ? "bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed"
-                      : themeMode === "dark" ? "bg-white/5 border-white/10 text-white" : "bg-white border-slate-200"
+                      : themeMode === "dark" ? "bg-[#121217] border-white/5 text-white placeholder-gray-500" : "bg-white border-slate-200 text-slate-900"
                   }`}
                 />
               </div>
@@ -2174,7 +2198,7 @@ Report Generated: ${new Date().toLocaleDateString()}
                   value={expDesc}
                   onChange={(e) => setExpDesc(e.target.value)}
                   className={`border rounded-xl px-4 py-3 text-sm outline-none min-h-[100px] transition ${
-                    themeMode === "dark" ? "bg-white/5 border-white/10 text-white" : "bg-white border-slate-200"
+                    themeMode === "dark" ? "bg-[#121217] border-white/5 text-white placeholder-gray-500" : "bg-white border-slate-200 text-slate-900"
                   }`}
                 />
               </div>
@@ -2229,15 +2253,15 @@ Report Generated: ${new Date().toLocaleDateString()}
             SECTION 4: ACADEMIC DETAILS
             ========================================== */}
         <div id="academic-section" className={`border rounded-3xl p-8 transition duration-300 ${
-          themeMode === "dark" ? "bg-white/5 border-white/10" : "bg-white border-slate-200 shadow-sm"
+          themeMode === "dark" ? "bg-[#0b0b0f] border-white/5" : "bg-white border-slate-200 shadow-sm"
         }`}>
-          <h3 className="font-serif text-2xl font-black mb-4 flex items-center gap-2 text-[#18233c] border-b border-[#781c1c]/10 pb-3">
+          <h3 className={`font-serif text-2xl font-black mb-4 flex items-center gap-2 border-b border-[#781c1c]/10 pb-3 ${themeMode === "dark" ? "text-white" : "text-[#18233c]"}`}>
             <Award size={22} /> Section 4: Academic Details
           </h3>
 
           {/* Form in separate card container */}
           <div className={`p-6 rounded-2xl border mb-6 transition duration-300 ${
-            themeMode === "dark" ? "bg-white/[0.02] border-white/10" : "bg-slate-50 border-slate-200"
+            themeMode === "dark" ? "bg-[#0b0b0f] border-white/5" : "bg-slate-50 border-slate-200"
           }`}>
             <h4 className="text-xs font-bold font-mono uppercase tracking-wider text-slate-500 mb-4 flex items-center gap-1.5">
               {editingAcademicId ? "✏️ Edit Academic Record Details" : "➕ Add New Academic Record"}
@@ -2287,7 +2311,7 @@ Report Generated: ${new Date().toLocaleDateString()}
                     value={academicDegree}
                     onChange={(e) => setAcademicDegree(e.target.value)}
                     className={`border rounded-xl px-4 py-3 text-sm outline-none transition ${
-                      themeMode === "dark" ? "bg-white/5 border-white/10 text-white" : "bg-white border-slate-200"
+                      themeMode === "dark" ? "bg-[#121217] border-white/5 text-white placeholder-gray-500" : "bg-white border-slate-200 text-slate-900"
                     }`}
                   />
                 </div>
@@ -2301,7 +2325,7 @@ Report Generated: ${new Date().toLocaleDateString()}
                   value={academicField}
                   onChange={(e) => setAcademicField(e.target.value)}
                   className={`border rounded-xl px-4 py-3 text-sm outline-none transition ${
-                    themeMode === "dark" ? "bg-white/5 border-white/10 text-white" : "bg-white border-slate-200"
+                    themeMode === "dark" ? "bg-[#121217] border-white/5 text-white placeholder-gray-500" : "bg-white border-slate-200 text-slate-900"
                   }`}
                 />
               </div>
@@ -2315,7 +2339,7 @@ Report Generated: ${new Date().toLocaleDateString()}
                   value={academicInstitution}
                   onChange={(e) => setAcademicInstitution(e.target.value)}
                   className={`border rounded-xl px-4 py-3 text-sm outline-none transition ${
-                    themeMode === "dark" ? "bg-white/5 border-white/10 text-white" : "bg-white border-slate-200"
+                    themeMode === "dark" ? "bg-[#121217] border-white/5 text-white placeholder-gray-500" : "bg-white border-slate-200 text-slate-900"
                   }`}
                 />
               </div>
@@ -2343,7 +2367,7 @@ Report Generated: ${new Date().toLocaleDateString()}
                   value={academicGrade}
                   onChange={(e) => setAcademicGrade(e.target.value)}
                   className={`border rounded-xl px-4 py-3 text-sm outline-none transition ${
-                    themeMode === "dark" ? "bg-white/5 border-white/10 text-white" : "bg-white border-slate-200"
+                    themeMode === "dark" ? "bg-[#121217] border-white/5 text-white placeholder-gray-500" : "bg-white border-slate-200 text-slate-900"
                   }`}
                 />
                 {academicDegreeType === "11th Marksheet" && (
@@ -2377,7 +2401,7 @@ Report Generated: ${new Date().toLocaleDateString()}
                   value={academicStartYear}
                   onChange={(e) => setAcademicStartYear(e.target.value)}
                   className={`border rounded-xl px-4 py-3 text-sm outline-none transition ${
-                    themeMode === "dark" ? "bg-white/5 border-white/10 text-white" : "bg-white border-slate-200"
+                    themeMode === "dark" ? "bg-[#121217] border-white/5 text-white placeholder-gray-500" : "bg-white border-slate-200 text-slate-900"
                   }`}
                 />
               </div>
@@ -2391,13 +2415,13 @@ Report Generated: ${new Date().toLocaleDateString()}
                   value={academicEndYear}
                   onChange={(e) => setAcademicEndYear(e.target.value)}
                   className={`border rounded-xl px-4 py-3 text-sm outline-none transition ${
-                    themeMode === "dark" ? "bg-white/5 border-white/10 text-white" : "bg-white border-slate-200"
+                    themeMode === "dark" ? "bg-[#121217] border-white/5 text-white placeholder-gray-500" : "bg-white border-slate-200 text-slate-900"
                   }`}
                 />
               </div>
 
               <div className={`border rounded-2xl px-5 py-3 flex flex-col justify-center gap-2 md:col-span-2 transition ${
-                themeMode === "dark" ? "bg-white/[0.02] border-white/10" : "bg-slate-50 border-slate-200"
+                themeMode === "dark" ? "bg-[#0b0b0f] border-white/5" : "bg-slate-50 border-slate-200"
               }`}>
                 <label className="text-[10px] uppercase font-mono tracking-wider font-bold text-slate-500 mb-1.5">Transcript / Marksheet Proof (PDF / Image)</label>
                 <div className="flex items-center gap-4 mt-1">
@@ -2471,15 +2495,15 @@ Report Generated: ${new Date().toLocaleDateString()}
             SECTION 5: ACHIEVEMENTS
             ========================================== */}
         <div id="achievements-section" className={`border rounded-3xl p-8 transition duration-300 ${
-          themeMode === "dark" ? "bg-white/5 border-white/10" : "bg-white border-slate-200 shadow-sm"
+          themeMode === "dark" ? "bg-[#0b0b0f] border-white/5" : "bg-white border-slate-200 shadow-sm"
         }`}>
-          <h3 className="font-serif text-2xl font-black mb-4 flex items-center gap-2 text-[#18233c] border-b border-[#781c1c]/10 pb-3">
+          <h3 className={`font-serif text-2xl font-black mb-4 flex items-center gap-2 border-b border-[#781c1c]/10 pb-3 ${themeMode === "dark" ? "text-white" : "text-[#18233c]"}`}>
             <Trophy size={22} /> Section 5: Achievements
           </h3>
 
           {/* Form in separate card container */}
           <div className={`p-6 rounded-2xl border mb-6 transition duration-300 ${
-            themeMode === "dark" ? "bg-white/[0.02] border-white/10" : "bg-slate-50 border-slate-200"
+            themeMode === "dark" ? "bg-[#0b0b0f] border-white/5" : "bg-slate-50 border-slate-200"
           }`}>
             <h4 className="text-xs font-bold font-mono uppercase tracking-wider text-slate-500 mb-4 flex items-center gap-1.5">
               {editingAchId ? "✏️ Edit Achievement Details" : "➕ Add New Achievement"}
@@ -2502,7 +2526,7 @@ Report Generated: ${new Date().toLocaleDateString()}
                   value={achievementTitle}
                   onChange={(e) => setAchievementTitle(e.target.value)}
                   className={`border rounded-xl px-4 py-3 text-sm outline-none transition ${
-                    themeMode === "dark" ? "bg-white/5 border-white/10 text-white" : "bg-white border-slate-200"
+                    themeMode === "dark" ? "bg-[#121217] border-white/5 text-white placeholder-gray-500" : "bg-white border-slate-200 text-slate-900"
                   }`}
                 />
               </div>
@@ -2532,13 +2556,13 @@ Report Generated: ${new Date().toLocaleDateString()}
                   value={achievementDate}
                   onChange={(e) => setAchievementDate(e.target.value)}
                   className={`border rounded-xl px-4 py-3 text-sm outline-none transition ${
-                    themeMode === "dark" ? "bg-white/5 border-white/10 text-white" : "bg-white border-slate-200"
+                    themeMode === "dark" ? "bg-[#121217] border-white/5 text-white placeholder-gray-500" : "bg-white border-slate-200 text-slate-900"
                   }`}
                 />
               </div>
 
               <div className={`border rounded-2xl px-5 py-3 flex flex-col justify-center gap-2 transition ${
-                themeMode === "dark" ? "bg-white/[0.02] border-white/10" : "bg-slate-50 border-slate-200"
+                themeMode === "dark" ? "bg-[#0b0b0f] border-white/5" : "bg-slate-50 border-slate-200"
               }`}>
                 <label className="text-[10px] uppercase font-mono tracking-wider font-bold text-slate-500 mb-1.5">Certificate / Proof File (PDF / Image)</label>
                 <div className="flex items-center gap-4 mt-1">
@@ -2577,7 +2601,7 @@ Report Generated: ${new Date().toLocaleDateString()}
                   value={achievementDescription}
                   onChange={(e) => setAchievementDescription(e.target.value)}
                   className={`border rounded-xl px-4 py-3 text-sm outline-none min-h-[100px] transition ${
-                    themeMode === "dark" ? "bg-white/5 border-white/10 text-white" : "bg-white border-slate-200"
+                    themeMode === "dark" ? "bg-[#121217] border-white/5 text-white placeholder-gray-500" : "bg-white border-slate-200 text-slate-900"
                   }`}
                 />
               </div>
@@ -2628,15 +2652,15 @@ Report Generated: ${new Date().toLocaleDateString()}
             SECTION 6: PROJECTS & RESEARCH
             ========================================== */}
         <div id="projects-research-section" className={`border rounded-3xl p-8 transition duration-300 ${
-          themeMode === "dark" ? "bg-white/5 border-white/10" : "bg-white border-slate-200 shadow-sm"
+          themeMode === "dark" ? "bg-[#0b0b0f] border-white/5" : "bg-white border-slate-200 shadow-sm"
         }`}>
-          <h3 className="font-serif text-2xl font-black mb-4 flex items-center gap-2 text-[#18233c] border-b border-[#781c1c]/10 pb-3">
+          <h3 className={`font-serif text-2xl font-black mb-4 flex items-center gap-2 border-b border-[#781c1c]/10 pb-3 ${themeMode === "dark" ? "text-white" : "text-[#18233c]"}`}>
             <GitBranch size={22} /> Section 6: Projects & Research
           </h3>
 
           {/* Form in separate card container */}
           <div className={`p-6 rounded-2xl border mb-6 transition duration-300 ${
-            themeMode === "dark" ? "bg-white/[0.02] border-white/10" : "bg-slate-50 border-slate-200"
+            themeMode === "dark" ? "bg-[#0b0b0f] border-white/5" : "bg-slate-50 border-slate-200"
           }`}>
             <h4 className="text-xs font-bold font-mono uppercase tracking-wider text-slate-500 mb-4 flex items-center gap-1.5">
               {editingProjId ? "✏️ Edit Project/Research Details" : "➕ Add New Project/Research"}
@@ -2659,7 +2683,7 @@ Report Generated: ${new Date().toLocaleDateString()}
                   value={projTitle}
                   onChange={(e) => setProjTitle(e.target.value)}
                   className={`border rounded-xl px-4 py-3 text-sm outline-none transition ${
-                    themeMode === "dark" ? "bg-white/5 border-white/10 text-white" : "bg-white border-slate-200"
+                    themeMode === "dark" ? "bg-[#121217] border-white/5 text-white placeholder-gray-500" : "bg-white border-slate-200 text-slate-900"
                   }`}
                 />
               </div>
@@ -2689,7 +2713,7 @@ Report Generated: ${new Date().toLocaleDateString()}
                   value={projTechnologies}
                   onChange={(e) => setProjTechnologies(e.target.value)}
                   className={`border rounded-xl px-4 py-3 text-sm outline-none transition ${
-                    themeMode === "dark" ? "bg-white/5 border-white/10 text-white" : "bg-white border-slate-200"
+                    themeMode === "dark" ? "bg-[#121217] border-white/5 text-white placeholder-gray-500" : "bg-white border-slate-200 text-slate-900"
                   }`}
                 />
               </div>
@@ -2702,7 +2726,7 @@ Report Generated: ${new Date().toLocaleDateString()}
                   value={projUrl}
                   onChange={(e) => setProjUrl(e.target.value)}
                   className={`border rounded-xl px-4 py-3 text-sm outline-none transition ${
-                    themeMode === "dark" ? "bg-white/5 border-white/10 text-white" : "bg-white border-slate-200"
+                    themeMode === "dark" ? "bg-[#121217] border-white/5 text-white placeholder-gray-500" : "bg-white border-slate-200 text-slate-900"
                   }`}
                 />
               </div>
@@ -2716,7 +2740,7 @@ Report Generated: ${new Date().toLocaleDateString()}
                     value={projDate}
                     onChange={(e) => setProjDate(e.target.value)}
                     className={`border rounded-xl px-4 py-3 text-sm outline-none transition ${
-                      themeMode === "dark" ? "bg-white/5 border-white/10 text-white" : "bg-white border-slate-200"
+                      themeMode === "dark" ? "bg-[#121217] border-white/5 text-white placeholder-gray-500" : "bg-white border-slate-200 text-slate-900"
                     }`}
                   />
                 </div>
@@ -2733,7 +2757,7 @@ Report Generated: ${new Date().toLocaleDateString()}
                   value={projDescription}
                   onChange={(e) => setProjDescription(e.target.value)}
                   className={`border rounded-xl px-4 py-3 text-sm outline-none min-h-[120px] transition ${
-                    themeMode === "dark" ? "bg-white/5 border-white/10 text-white" : "bg-white border-slate-200"
+                    themeMode === "dark" ? "bg-[#121217] border-white/5 text-white placeholder-gray-500" : "bg-white border-slate-200 text-slate-900"
                   }`}
                 />
               </div>
@@ -2813,15 +2837,15 @@ Report Generated: ${new Date().toLocaleDateString()}
             SECTION 7: SKILLS
             ========================================== */}
         <div id="skills-section" className={`border rounded-3xl p-8 transition duration-300 ${
-          themeMode === "dark" ? "bg-white/5 border-white/10" : "bg-white border-slate-200 shadow-sm"
+          themeMode === "dark" ? "bg-[#0b0b0f] border-white/5" : "bg-white border-slate-200 shadow-sm"
         }`}>
-          <h3 className="font-serif text-2xl font-black mb-4 flex items-center gap-2 text-[#18233c] border-b border-[#781c1c]/10 pb-3">
+          <h3 className={`font-serif text-2xl font-black mb-4 flex items-center gap-2 border-b border-[#781c1c]/10 pb-3 ${themeMode === "dark" ? "text-white" : "text-[#18233c]"}`}>
             <Code size={22} /> Section 7: Skills
           </h3>
 
           {/* Form in separate card container */}
           <div className={`p-6 rounded-2xl border mb-6 transition duration-300 ${
-            themeMode === "dark" ? "bg-white/[0.02] border-white/10" : "bg-slate-50 border-slate-200"
+            themeMode === "dark" ? "bg-[#0b0b0f] border-white/5" : "bg-slate-50 border-slate-200"
           }`}>
             <h4 className="text-xs font-bold font-mono uppercase tracking-wider text-slate-500 mb-4 flex items-center gap-1.5">
               {editingSkillId ? "✏️ Edit Skill Details" : "➕ Add New Skill"}
@@ -2844,7 +2868,7 @@ Report Generated: ${new Date().toLocaleDateString()}
                   value={skillName}
                   onChange={(e) => setSkillName(e.target.value)}
                   className={`border rounded-xl px-4 py-3 text-sm outline-none transition ${
-                    themeMode === "dark" ? "bg-white/5 border-white/10 text-white" : "bg-white border-slate-200"
+                    themeMode === "dark" ? "bg-[#121217] border-white/5 text-white placeholder-gray-500" : "bg-white border-slate-200 text-slate-900"
                   }`}
                 />
               </div>
@@ -2920,15 +2944,15 @@ Report Generated: ${new Date().toLocaleDateString()}
             SECTION 8: LICENSES & CERTIFICATIONS
             ========================================== */}
         <div id="licenses-certifications-section" className={`border rounded-3xl p-8 transition duration-300 ${
-          themeMode === "dark" ? "bg-white/5 border-white/10" : "bg-white border-slate-200 shadow-sm"
+          themeMode === "dark" ? "bg-[#0b0b0f] border-white/5" : "bg-white border-slate-200 shadow-sm"
         }`}>
-          <h3 className="font-serif text-2xl font-black mb-4 flex items-center gap-2 text-[#18233c] border-b border-[#781c1c]/10 pb-3">
+          <h3 className={`font-serif text-2xl font-black mb-4 flex items-center gap-2 border-b border-[#781c1c]/10 pb-3 ${themeMode === "dark" ? "text-white" : "text-[#18233c]"}`}>
             <Award size={22} /> Section 8: Licenses & Certifications
           </h3>
 
           {/* Form in separate card container */}
           <div className={`p-6 rounded-2xl border mb-6 transition duration-300 ${
-            themeMode === "dark" ? "bg-white/[0.02] border-white/10" : "bg-slate-50 border-slate-200"
+            themeMode === "dark" ? "bg-[#0b0b0f] border-white/5" : "bg-slate-50 border-slate-200"
           }`}>
             <h4 className="text-xs font-bold font-mono uppercase tracking-wider text-slate-500 mb-4 flex items-center gap-1.5">
               {editingCertId ? "✏️ Edit Certification Details" : "➕ Add New Certification"}
@@ -2951,7 +2975,7 @@ Report Generated: ${new Date().toLocaleDateString()}
                   value={certificationTitle}
                   onChange={(e) => setCertificationTitle(e.target.value)}
                   className={`border rounded-xl px-4 py-3 text-sm outline-none transition ${
-                    themeMode === "dark" ? "bg-white/5 border-white/10 text-white" : "bg-white border-slate-200"
+                    themeMode === "dark" ? "bg-[#121217] border-white/5 text-white placeholder-gray-500" : "bg-white border-slate-200 text-slate-900"
                   }`}
                 />
               </div>
@@ -2965,7 +2989,7 @@ Report Generated: ${new Date().toLocaleDateString()}
                   value={issuer}
                   onChange={(e) => setIssuer(e.target.value)}
                   className={`border rounded-xl px-4 py-3 text-sm outline-none transition ${
-                    themeMode === "dark" ? "bg-white/5 border-white/10 text-white" : "bg-white border-slate-200"
+                    themeMode === "dark" ? "bg-[#121217] border-white/5 text-white placeholder-gray-500" : "bg-white border-slate-200 text-slate-900"
                   }`}
                 />
               </div>
@@ -2996,13 +3020,13 @@ Report Generated: ${new Date().toLocaleDateString()}
                   value={issueDate}
                   onChange={(e) => setIssueDate(e.target.value)}
                   className={`border rounded-xl px-4 py-3 text-sm outline-none transition ${
-                    themeMode === "dark" ? "bg-white/5 border-white/10 text-white" : "bg-white border-slate-200"
+                    themeMode === "dark" ? "bg-[#121217] border-white/5 text-white placeholder-gray-500" : "bg-white border-slate-200 text-slate-900"
                   }`}
                 />
               </div>
 
               <div className={`border rounded-2xl px-5 py-3 flex flex-col justify-center gap-2 md:col-span-2 transition ${
-                themeMode === "dark" ? "bg-white/[0.02] border-white/10" : "bg-slate-50 border-slate-200"
+                themeMode === "dark" ? "bg-[#0b0b0f] border-white/5" : "bg-slate-50 border-slate-200"
               }`}>
                 <label className="text-[10px] uppercase font-mono tracking-wider font-bold text-slate-500 mb-1.5">Certificate PDF / Image Proof</label>
                 <div className="flex items-center gap-4 mt-1">
@@ -3077,9 +3101,9 @@ Report Generated: ${new Date().toLocaleDateString()}
             SECTION 9: LANGUAGES KNOWN
             ========================================== */}
         <div id="languages-section" className={`border rounded-3xl p-8 transition duration-300 ${
-          themeMode === "dark" ? "bg-white/5 border-white/10" : "bg-white border-slate-200 shadow-sm"
+          themeMode === "dark" ? "bg-[#0b0b0f] border-white/5" : "bg-white border-slate-200 shadow-sm"
         }`}>
-          <h3 className="font-serif text-2xl font-black mb-4 flex items-center gap-2 text-[#18233c] border-b border-[#781c1c]/10 pb-3">
+          <h3 className={`font-serif text-2xl font-black mb-4 flex items-center gap-2 border-b border-[#781c1c]/10 pb-3 ${themeMode === "dark" ? "text-white" : "text-[#18233c]"}`}>
             <Globe size={22} /> Section 9: Languages known
           </h3>
 
@@ -3189,9 +3213,9 @@ Report Generated: ${new Date().toLocaleDateString()}
             SECTION 10: TEST SCORES
             ========================================== */}
         <div id="test-scores-section" className={`border rounded-3xl p-8 transition duration-300 ${
-          themeMode === "dark" ? "bg-white/5 border-white/10" : "bg-white border-slate-200 shadow-sm"
+          themeMode === "dark" ? "bg-[#0b0b0f] border-white/5" : "bg-white border-slate-200 shadow-sm"
         }`}>
-          <h3 className="font-serif text-2xl font-black mb-4 flex items-center gap-2 text-[#18233c] border-b border-[#781c1c]/10 pb-3">
+          <h3 className={`font-serif text-2xl font-black mb-4 flex items-center gap-2 border-b border-[#781c1c]/10 pb-3 ${themeMode === "dark" ? "text-white" : "text-[#18233c]"}`}>
             <Award size={22} /> Section 10: Test Scores
           </h3>
 
@@ -3214,7 +3238,7 @@ Report Generated: ${new Date().toLocaleDateString()}
               value={testScores}
               onChange={(e) => setTestScores(e.target.value)}
               className={`w-full border rounded-xl px-4 py-3 text-sm outline-none min-h-[80px] transition ${
-                themeMode === "dark" ? "bg-white/5 border-white/10 text-white" : "bg-white border-slate-200"
+                themeMode === "dark" ? "bg-[#121217] border-white/5 text-white placeholder-gray-500" : "bg-white border-slate-200 text-slate-900"
               }`}
             />
           </div>
@@ -3233,9 +3257,9 @@ Report Generated: ${new Date().toLocaleDateString()}
             SECTION 11: PATENTS
             ========================================== */}
         <div id="patents-section" className={`border rounded-3xl p-8 transition duration-300 ${
-          themeMode === "dark" ? "bg-white/5 border-white/10" : "bg-white border-slate-200 shadow-sm"
+          themeMode === "dark" ? "bg-[#0b0b0f] border-white/5" : "bg-white border-slate-200 shadow-sm"
         }`}>
-          <h3 className="font-serif text-2xl font-black mb-4 flex items-center gap-2 text-[#18233c] border-b border-[#781c1c]/10 pb-3">
+          <h3 className={`font-serif text-2xl font-black mb-4 flex items-center gap-2 border-b border-[#781c1c]/10 pb-3 ${themeMode === "dark" ? "text-white" : "text-[#18233c]"}`}>
             <FileText size={22} /> Section 11: Patents
           </h3>
 
@@ -3258,7 +3282,7 @@ Report Generated: ${new Date().toLocaleDateString()}
               value={patents}
               onChange={(e) => setPatents(e.target.value)}
               className={`w-full border rounded-xl px-4 py-3 text-sm outline-none min-h-[80px] transition ${
-                themeMode === "dark" ? "bg-white/5 border-white/10 text-white" : "bg-white border-slate-200"
+                themeMode === "dark" ? "bg-[#121217] border-white/5 text-white placeholder-gray-500" : "bg-white border-slate-200 text-slate-900"
               }`}
             />
           </div>
@@ -3277,9 +3301,9 @@ Report Generated: ${new Date().toLocaleDateString()}
             SECTION 12: OTHER MEDIA HANDLES
             ========================================== */}
         <div id="media-handles-section" className={`border rounded-3xl p-8 transition duration-300 ${
-          themeMode === "dark" ? "bg-white/5 border-white/10" : "bg-white border-slate-200 shadow-sm"
+          themeMode === "dark" ? "bg-[#0b0b0f] border-white/5" : "bg-white border-slate-200 shadow-sm"
         }`}>
-          <h3 className="font-serif text-2xl font-black mb-4 flex items-center gap-2 text-[#18233c] border-b border-[#781c1c]/10 pb-3">
+          <h3 className={`font-serif text-2xl font-black mb-4 flex items-center gap-2 border-b border-[#781c1c]/10 pb-3 ${themeMode === "dark" ? "text-white" : "text-[#18233c]"}`}>
             <Link size={22} /> Section 12: Other Media handles
           </h3>
 
@@ -3299,7 +3323,7 @@ Report Generated: ${new Date().toLocaleDateString()}
                 value={instagramUrl}
                 onChange={(e) => setInstagramUrl(e.target.value)}
                 className={`border rounded-xl px-4 py-3 text-sm outline-none transition ${
-                  themeMode === "dark" ? "bg-white/5 border-white/10 text-white" : "bg-white border-slate-200"
+                  themeMode === "dark" ? "bg-[#121217] border-white/5 text-white placeholder-gray-500" : "bg-white border-slate-200 text-slate-900"
                 }`}
               />
             </div>
@@ -3312,7 +3336,7 @@ Report Generated: ${new Date().toLocaleDateString()}
                 value={blogUrl}
                 onChange={(e) => setBlogUrl(e.target.value)}
                 className={`border rounded-xl px-4 py-3 text-sm outline-none transition ${
-                  themeMode === "dark" ? "bg-white/5 border-white/10 text-white" : "bg-white border-slate-200"
+                  themeMode === "dark" ? "bg-[#121217] border-white/5 text-white placeholder-gray-500" : "bg-white border-slate-200 text-slate-900"
                 }`}
               />
             </div>
@@ -3325,7 +3349,7 @@ Report Generated: ${new Date().toLocaleDateString()}
                 value={otherHandles}
                 onChange={(e) => setOtherHandles(e.target.value)}
                 className={`border rounded-xl px-4 py-3 text-sm outline-none transition ${
-                  themeMode === "dark" ? "bg-white/5 border-white/10 text-white" : "bg-white border-slate-200"
+                  themeMode === "dark" ? "bg-[#121217] border-white/5 text-white placeholder-gray-500" : "bg-white border-slate-200 text-slate-900"
                 }`}
               />
             </div>
@@ -3345,15 +3369,15 @@ Report Generated: ${new Date().toLocaleDateString()}
             SECTION 13: RESUME
             ========================================== */}
         <div id="resume-section" className={`border rounded-3xl p-8 transition duration-300 ${
-          themeMode === "dark" ? "bg-white/5 border-white/10" : "bg-white border-slate-200 shadow-sm"
+          themeMode === "dark" ? "bg-[#0b0b0f] border-white/5" : "bg-white border-slate-200 shadow-sm"
         }`}>
-          <h3 className="font-serif text-2xl font-black mb-4 flex items-center gap-2 text-[#18233c] border-b border-[#781c1c]/10 pb-3">
+          <h3 className={`font-serif text-2xl font-black mb-4 flex items-center gap-2 border-b border-[#781c1c]/10 pb-3 ${themeMode === "dark" ? "text-white" : "text-[#18233c]"}`}>
             <FileText size={22} /> Section 13: Resume
           </h3>
 
           {/* Form in separate card container */}
           <div className={`p-6 rounded-2xl border mb-6 transition duration-300 ${
-            themeMode === "dark" ? "bg-white/[0.02] border-white/10" : "bg-slate-50 border-slate-200"
+            themeMode === "dark" ? "bg-[#0b0b0f] border-white/5" : "bg-slate-50 border-slate-200"
           }`}>
             <h4 className="text-xs font-bold font-mono uppercase tracking-wider text-slate-500 mb-4 flex items-center gap-1.5">
               {editingResumeId ? "✏️ Edit Resume Details" : "➕ Add New Resume Document"}
@@ -3382,7 +3406,7 @@ Report Generated: ${new Date().toLocaleDateString()}
               </div>
 
               <div className={`border rounded-2xl px-5 py-3 flex flex-col justify-center gap-2 transition ${
-                themeMode === "dark" ? "bg-white/[0.02] border-white/10" : "bg-slate-50 border-slate-200"
+                themeMode === "dark" ? "bg-[#0b0b0f] border-white/5" : "bg-slate-50 border-slate-200"
               }`}>
                 <label className="text-[10px] uppercase font-mono tracking-wider font-bold text-slate-500 mb-1.5">Upload Resume Document (PDF only) *</label>
                 <div className="flex items-center gap-4 mt-1">
