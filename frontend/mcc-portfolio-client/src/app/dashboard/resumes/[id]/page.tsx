@@ -1684,7 +1684,7 @@ export default function ResumeEditorPage() {
             <button
               onClick={toggleThemeMode}
               className={`p-2 transition cursor-pointer ${
-                isDark ? "text-amber-300 hover:bg-slate-700" : "text-slate-500 hover:bg-slate-200"
+                isDark ? "text-amber-300 hover:bg-slate-700" : "text-slate-700 hover:bg-slate-200"
               }`}
               title={isDark ? "Switch to Light Mode" : "Switch to Dark Mode"}
             >
