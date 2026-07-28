@@ -207,10 +207,10 @@ export default function RegisterPage() {
       <button
         onClick={toggleThemeMode}
         aria-label="Toggle dark mode"
-        className={`fixed top-5 right-5 z-50 p-3 rounded-full transition-all duration-300 cursor-pointer shadow-lg backdrop-blur-md border ${
+        className={`fixed top-5 right-5 z-50 p-2.5 rounded-full transition-all duration-300 cursor-pointer shadow-lg backdrop-blur-md border flex items-center justify-center ${
           isDark
             ? "bg-white/10 hover:bg-white/20 text-amber-300 border-white/15"
-            : "bg-white/90 hover:bg-slate-100 text-slate-700 border-slate-200"
+            : "bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-300"
         }`}
       >
         {isDark ? <Sun size={18} /> : <Moon size={18} />}
@@ -225,47 +225,25 @@ export default function RegisterPage() {
             muted
             playsInline
             preload="auto"
-            src="/DJI_0007.mp4"
+            src="/new.mp4"
             className="w-full h-full object-cover filter brightness-105 contrast-105"
           />
-          {/* Minimal overlay to keep video fully visible */}
-          <div className="absolute inset-0 bg-black/15" />
+          {/* Deeper contrast overlay to keep fonts perfectly clear */}
+          <div className="absolute inset-0 bg-black/45" />
         </div>
 
-        {/* Top Brand Logo */}
-        <div className="relative z-10">
-          <img
-            src={isDark ? "/mcc-logo-dark.png" : "/mcc-logo.png"}
-            alt="MCC Crest"
-            className="h-16 sm:h-18 md:h-22 lg:h-24 w-auto object-contain shrink-0"
-          />
-        </div>
+        {/* Placeholder to push copy down */}
+        <div className="relative z-10" />
 
-        {/* Hero Overlay Copy */}
-        <div className="relative z-10 max-w-sm space-y-6">
-          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/15 backdrop-blur-md border border-white/25 text-xs font-extrabold text-amber-300 shadow-md">
-            <Sparkles size={14} className="animate-pulse" />
-            <span>Join Verified Student Registry</span>
-          </div>
-
+        {/* Hero Overlay Copy - Dark Glass Container for high contrast */}
+        <div className="relative z-10 max-w-sm p-10 rounded-3xl bg-[#090d16]/50 border border-white/10 backdrop-blur-md shadow-2xl space-y-6">
           <h2 className="text-4xl font-black text-white leading-tight tracking-tight drop-shadow-md">
-            Build your academic portfolio & ATS resume.
+            Build your <span className="text-red-400">academic</span> portfolio.
           </h2>
 
-          <p className="text-sm text-slate-200 leading-relaxed font-medium drop-shadow-sm">
+          <p className="text-sm text-slate-100 leading-relaxed font-medium">
             Create an official student account to publish verified academic records, research, GitHub repositories, and certifications.
           </p>
-
-          <div className="pt-2 flex items-center gap-6 text-xs text-slate-200 font-semibold">
-            <div className="flex items-center gap-2">
-              <CheckCircle size={16} className="text-emerald-400" />
-              <span>Institutional Access</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <Award size={16} className="text-amber-400" />
-              <span>Placement Ready</span>
-            </div>
-          </div>
         </div>
 
         {/* Footer Note */}
@@ -287,20 +265,12 @@ export default function RegisterPage() {
 
           {/* Prominent Logo on Mobile Viewports */}
           <div className="lg:hidden flex items-center gap-3.5 pb-2">
-            <img
-              src={isDark ? "/mcc-logo-dark.png" : "/mcc-logo.png"}
-              alt="MCC Crest"
-              className="h-14 w-auto object-contain shrink-0 transition-transform duration-300 group-hover:scale-105"
-            />
             <div>
               <span
                 className="text-lg font-black uppercase tracking-wider block"
                 style={{ color: isDark ? "#ffffff" : "#781c1c" }}
               >
                 Portfolios
-              </span>
-              <span className="text-xs font-extrabold text-slate-700 dark:text-slate-300">
-                Madras Christian College
               </span>
             </div>
           </div>
