@@ -53,7 +53,8 @@ const sidebarLinks = [
   { id: "test-scores-section", label: "Test Scores", icon: Award },
   { id: "patents-section", label: "Patents", icon: FileText },
   { id: "media-handles-section", label: "Media Handles", icon: Link },
-  { id: "resume-section", label: "Resume", icon: FileText }
+  { id: "resume-section", label: "Resume", icon: FileText },
+  { id: "assessments-section", label: "Assessments", icon: BookOpen }
 ];
 
 export default function DashboardPage() {
@@ -216,6 +217,9 @@ export default function DashboardPage() {
   const [resumeUrl, setResumeUrl] = useState("");
   const [editingResumeId, setEditingResumeId] = useState<number | null>(null);
 
+  // ASSESSMENTS MODULE
+  const [studentAssessments, setStudentAssessments] = useState<any[]>([]);
+
   // Copy Link State
   const [copiedIdLink, setCopiedIdLink] = useState(false);
   const [copiedSlugLink, setCopiedSlugLink] = useState(false);
@@ -356,6 +360,16 @@ export default function DashboardPage() {
     fetchNotifications();
     fetchThemesList();
     fetchAiAnalysis();
+    fetchStudentAssessments();
+  };
+
+  const fetchStudentAssessments = async () => {
+    try {
+      const res = await api.get("/Assessments/student");
+      setStudentAssessments(res.data || []);
+    } catch (err) {
+      console.error("Failed to load student assessments", err);
+    }
   };
 
   // ==========================================
@@ -3476,7 +3490,103 @@ Report Generated: ${new Date().toLocaleDateString()}
           </div>
         </div>
 
+        {/* ==========================================
+             SECTION 14: ASSESSMENTS
+        ========================================== */}
+        <div id="assessments-section" className={`p-6 rounded-3xl border shadow-sm transition ${
+          themeMode === "dark" ? "bg-[#0f1623]/60 border-white/5" : "bg-white border-slate-200"
+        }`}>
+          <div className="flex items-center gap-3 mb-6">
+            <div className="w-10 h-10 rounded-2xl bg-[#781c1c] flex items-center justify-center shadow-lg">
+              <BookOpen size={20} className="text-white" />
+            </div>
+            <div>
+              <h2 className={`text-lg font-serif font-black uppercase tracking-tight ${
+                themeMode === "dark" ? "text-white" : "text-[#18233c]"
+              }`}>Assessments</h2>
+              <p className="text-[10px] text-slate-400 font-mono uppercase tracking-wider">Department-Assigned Exams &amp; Tests</p>
+            </div>
+          </div>
 
+          {studentAssessments.length === 0 ? (
+            <div className={`rounded-2xl border p-8 text-center ${
+              themeMode === "dark" ? "bg-white/[0.02] border-white/5" : "bg-slate-50 border-slate-200"
+            }`}>
+              <BookOpen size={32} className="text-slate-400 mx-auto mb-2" />
+              <p className="text-sm font-semibold text-slate-400">No Assessments Assigned</p>
+              <p className="text-xs text-slate-500 mt-1">Your department has no published assessments yet.</p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {studentAssessments.map((a: any) => {
+                const now = new Date();
+                const start = new Date(a.startDate);
+                const end = new Date(a.endDate);
+                const isLive = !a.isClosed && now >= start && now <= end;
+                const isUpcoming = now < start;
+                const isExpired = now > end || a.isClosed;
+                const attempt = a.attempt;
+                const isSubmitted = attempt?.isSubmitted;
+                const isMalpractice = attempt?.status === "MALPRACTICE_TERMINATED";
+
+                let statusBadge = <span className={`px-2 py-0.5 rounded-full text-[9px] font-mono font-bold border ${
+                  themeMode === "dark" ? "bg-slate-500/10 border-slate-500/20 text-slate-400" : "bg-slate-100 border-slate-200 text-slate-500"
+                }`}>UPCOMING</span>;
+                if (isMalpractice) statusBadge = <span className="px-2 py-0.5 rounded-full text-[9px] font-mono font-bold bg-red-500/10 border border-red-500/20 text-red-400">MALPRACTICE TERMINATED</span>;
+                else if (isSubmitted) statusBadge = <span className="px-2 py-0.5 rounded-full text-[9px] font-mono font-bold bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">SUBMITTED</span>;
+                else if (isExpired) statusBadge = <span className="px-2 py-0.5 rounded-full text-[9px] font-mono font-bold bg-slate-500/10 border border-slate-500/20 text-slate-400">CLOSED</span>;
+                else if (isLive && !attempt) statusBadge = <span className="px-2 py-0.5 rounded-full text-[9px] font-mono font-bold bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse inline-block"></span>LIVE</span>;
+                else if (isLive && attempt && !isSubmitted) statusBadge = <span className="px-2 py-0.5 rounded-full text-[9px] font-mono font-bold bg-amber-500/10 border border-amber-500/20 text-amber-400">IN PROGRESS</span>;
+
+                return (
+                  <div key={a.id} className={`border rounded-2xl p-5 transition ${
+                    themeMode === "dark" ? "bg-white/[0.02] border-white/5" : "bg-slate-50 border-slate-200"
+                  }`}>
+                    <div className="flex flex-wrap gap-4 justify-between items-start">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1">{statusBadge}</div>
+                        <h4 className={`font-bold text-sm mt-1 ${
+                          themeMode === "dark" ? "text-white" : "text-[#18233c]"
+                        }`}>{a.title}</h4>
+                        {a.description && <p className="text-xs text-slate-400 mt-0.5 truncate max-w-xs">{a.description}</p>}
+                        <div className="flex flex-wrap gap-3 mt-2 text-[10px] font-mono text-slate-400">
+                          <span>⏱ {a.duration} min</span>
+                          <span>📋 {a.totalMarks} marks</span>
+                          <span>📅 {new Date(a.startDate).toLocaleDateString()} – {new Date(a.endDate).toLocaleDateString()}</span>
+                        </div>
+                        {isSubmitted && !isMalpractice && attempt && (
+                          <div className="mt-3 p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-xs">
+                            <div className="font-bold text-emerald-400">Score: {attempt.score} / {a.totalMarks} &nbsp;|&nbsp; {attempt.percentage?.toFixed(1)}%</div>
+                          </div>
+                        )}
+                        {isMalpractice && (
+                          <div className="mt-3 p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-xs">
+                            <div className="font-bold text-red-400">⚠ This attempt was terminated due to a proctoring violation.</div>
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex flex-col items-end gap-2">
+                        {isLive && !isSubmitted && (
+                          <button
+                            onClick={() => window.location.href = `/dashboard/assessments/${a.id}`}
+                            className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold bg-[#781c1c] text-white hover:bg-[#5f1515] transition cursor-pointer hover:scale-105 active:scale-95"
+                          >
+                            {attempt ? "Resume Test" : "Start Test"}
+                          </button>
+                        )}
+                        {isUpcoming && (
+                          <div className="text-[10px] font-mono text-slate-400 bg-white/5 border border-white/10 px-3 py-1.5 rounded-xl">
+                            Opens: {start.toLocaleString()}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
 
         {/* Photo Adjustment Modal */}
         {showPhotoAdjustModal && (
