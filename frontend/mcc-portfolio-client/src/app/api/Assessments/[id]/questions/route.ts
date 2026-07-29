@@ -35,7 +35,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   }
 }
 
-// POST /api/Assessments/[id]/questions — bulk import / save
+// POST /api/Assessments/[id]/questions — bulk import
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const userPayload = getUserFromRequest(request);

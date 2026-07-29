@@ -324,10 +324,10 @@ export default function ResumesDashboardPage() {
           <button
             onClick={toggleThemeMode}
             aria-label="Toggle theme"
-            className={`p-2 rounded-full flex items-center justify-center transition-all duration-200 cursor-pointer border shadow-sm ${
+            className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all duration-300 cursor-pointer shadow-md hover:scale-110 active:scale-95 border ${
               themeMode === "dark"
-                ? "bg-white/10 hover:bg-white/20 text-amber-300 border-white/15"
-                : "bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-300"
+                ? "bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border-amber-500/30"
+                : "bg-indigo-900/40 hover:bg-indigo-900/60 text-white border-white/10"
             }`}
           >
             {themeMode === "dark" ? <Sun size={18} /> : <Moon size={18} />}
@@ -352,12 +352,12 @@ export default function ResumesDashboardPage() {
             <div className="hidden md:flex absolute top-4 right-5 z-20 items-center">
               <button
                 onClick={toggleThemeMode}
-                title="Toggle Light/Dark Mode"
-                className={`p-2.5 rounded-full transition-all duration-300 cursor-pointer border shadow-sm flex items-center justify-center ${
+                className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all duration-300 cursor-pointer shadow-md hover:scale-110 active:scale-95 border ${
                   themeMode === "dark"
-                    ? "bg-white/10 hover:bg-white/20 text-amber-300 border-white/15"
-                    : "bg-white/90 hover:bg-slate-100 text-slate-700 border-slate-200"
+                    ? "bg-white/10 hover:bg-white/20 text-amber-400 border-white/25"
+                    : "bg-white/20 hover:bg-white/30 text-amber-300 border-white/30"
                 }`}
+                title="Toggle Light/Dark Mode"
               >
                 {themeMode === "dark" ? <Sun size={18} /> : <Moon size={18} />}
               </button>

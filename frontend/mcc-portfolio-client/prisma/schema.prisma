@@ -454,7 +454,6 @@ model MalpracticeReport {
   GeneratedAt  DateTime           @db.Timestamptz(6)
   Attempt      AssessmentAttempts @relation(fields: [AttemptId], references: [Id], onDelete: Cascade)
   User         Users              @relation("MalpracticeUser", fields: [UserId], references: [Id])
-
   @@index([UserId])
   @@index([AssessmentId])
 }
