@@ -9,7 +9,7 @@ export async function POST(request: Request) {
       return NextResponse.json("Unauthorized", { status: 401 });
     }
 
-    const studentId = parseInt(userPayload.nameid);
+    const userId = parseInt(userPayload.nameid);
     const body = await request.json();
     const { assessmentId } = body;
 
@@ -19,10 +19,9 @@ export async function POST(request: Request) {
 
     const aid = parseInt(assessmentId);
 
-    // Check if there is already an active or completed attempt
-    const existing = await prisma.studentAttempts.findFirst({
+    const existing = await prisma.assessmentAttempts.findFirst({
       where: {
-        StudentId: studentId,
+        UserId: userId,
         AssessmentId: aid
       }
     });
@@ -30,14 +29,12 @@ export async function POST(request: Request) {
     if (existing) {
       return NextResponse.json({
         id: existing.Id,
-        startTime: existing.StartTime,
-        isSubmitted: existing.IsSubmitted,
+        startedAt: existing.StartedAt,
         status: existing.Status,
-        score: existing.Score
+        marksObtained: existing.MarksObtained
       });
     }
 
-    // Verify assessment exists and is open for student
     const assessment = await prisma.assessments.findUnique({
       where: { Id: aid },
       include: {
@@ -49,7 +46,7 @@ export async function POST(request: Request) {
       return NextResponse.json("Assessment not found", { status: 404 });
     }
 
-    if (!assessment.IsPublished || assessment.IsClosed) {
+    if (assessment.Status !== "Published") {
       return NextResponse.json("Assessment is currently closed or unpublished", { status: 400 });
     }
 
@@ -58,25 +55,24 @@ export async function POST(request: Request) {
       return NextResponse.json("Assessment is outside the active testing window", { status: 400 });
     }
 
-    const attempt = await prisma.studentAttempts.create({
+    const attempt = await prisma.assessmentAttempts.create({
       data: {
-        StudentId: studentId,
+        UserId: userId,
         AssessmentId: aid,
-        StartTime: now,
-        IsSubmitted: false,
-        Status: "IN_PROGRESS",
-        TotalQuestions: assessment.AssessmentQuestions.length
+        StartedAt: now,
+        Status: "InProgress",
+        TotalQuestions: assessment.AssessmentQuestions.length,
+        TotalMarks: assessment.TotalMarks
       }
     });
 
     return NextResponse.json({
       id: attempt.Id,
-      startTime: attempt.StartTime,
-      isSubmitted: attempt.IsSubmitted,
+      startedAt: attempt.StartedAt,
       status: attempt.Status
     });
   } catch (err: any) {
-    console.error("POST Start Attempt Error:", err);
+    console.error("POST Attempt Error:", err);
     return NextResponse.json({ message: "Internal server error" }, { status: 500 });
   }
 }

@@ -207,17 +207,10 @@ export default function RegisterPage() {
       <button
         onClick={toggleThemeMode}
         aria-label="Toggle dark mode"
-<<<<<<< HEAD
-        className={`fixed top-5 right-5 z-50 w-9 h-9 rounded-xl flex items-center justify-center transition-all duration-300 cursor-pointer shadow-md hover:scale-110 active:scale-95 border ${
-          isDark
-            ? "bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border-amber-500/30"
-            : "bg-indigo-900/40 hover:bg-indigo-900/60 text-white border-white/10"
-=======
         className={`fixed top-5 right-5 z-50 p-2.5 rounded-full transition-all duration-300 cursor-pointer shadow-lg backdrop-blur-md border flex items-center justify-center ${
           isDark
             ? "bg-white/10 hover:bg-white/20 text-amber-300 border-white/15"
             : "bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-300"
->>>>>>> 40a9e30e1da64064e79b351472bee8ee265619c7
         }`}
       >
         {isDark ? <Sun size={18} /> : <Moon size={18} />}
@@ -239,29 +232,6 @@ export default function RegisterPage() {
           <div className="absolute inset-0 bg-black/45" />
         </div>
 
-<<<<<<< HEAD
-
-        {/* Transparent glass container for the content centered horizontally & vertically */}
-        <div
-          className="relative z-10 max-w-sm mx-auto my-auto rounded-3xl p-8 bg-black/[0.03] border border-white/10 shadow-lg shadow-black/10 space-y-6 animate-fade-in-up"
-          style={{ backdropFilter: "blur(0.5px)", WebkitBackdropFilter: "blur(0.5px)" }}
-        >
-          <h2
-            className="text-4xl font-black text-white leading-tight tracking-tight"
-            style={{
-              textShadow: "0 2px 4px rgba(0,0,0,0.9), -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000"
-            }}
-          >
-            Build your academic portfolio & professional resume.
-          </h2>
-
-          <p
-            className="text-sm text-slate-100 leading-relaxed font-medium"
-            style={{
-              textShadow: "0 2px 4px rgba(0,0,0,0.9), -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000"
-            }}
-          >
-=======
         {/* Placeholder to push copy down */}
         <div className="relative z-10" />
 
@@ -272,7 +242,6 @@ export default function RegisterPage() {
           </h2>
 
           <p className="text-sm text-slate-100 leading-relaxed font-medium">
->>>>>>> 40a9e30e1da64064e79b351472bee8ee265619c7
             Create an official student account to publish verified academic records, research, GitHub repositories, and certifications.
           </p>
         </div>
@@ -294,9 +263,6 @@ export default function RegisterPage() {
             <ArrowLeft size={16} /> Back to Home
           </Link>
 
-<<<<<<< HEAD
-
-=======
           {/* Prominent Logo on Mobile Viewports */}
           <div className="lg:hidden flex items-center gap-3.5 pb-2">
             <div>
@@ -308,7 +274,6 @@ export default function RegisterPage() {
               </span>
             </div>
           </div>
->>>>>>> 40a9e30e1da64064e79b351472bee8ee265619c7
 
           {/* Registration Form Card Container */}
           <div className="glass-card rounded-3xl p-8 md:p-10 shadow-2xl space-y-6 border border-slate-200/80 dark:border-white/10">

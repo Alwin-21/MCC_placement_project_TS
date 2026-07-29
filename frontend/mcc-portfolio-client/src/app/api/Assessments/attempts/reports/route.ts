@@ -1,84 +1,90 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/utils/db";
-import { getUserFromRequest } from "@/utils/auth";
+import { getUserFromRequest, hasModulePermission } from "@/utils/auth";
 
 export async function GET(request: Request) {
   try {
     const userPayload = getUserFromRequest(request);
-    if (!userPayload || (userPayload.role !== "Admin" && userPayload.role !== "Moderator")) {
+    if (!userPayload || !hasModulePermission(userPayload, "assessments", "read")) {
       return NextResponse.json("Unauthorized", { status: 401 });
     }
 
-    // Fetch all student attempts with details
-    const attempts = await prisma.studentAttempts.findMany({
+    const attempts = await prisma.assessmentAttempts.findMany({
       include: {
-        Users: {
+        User: {
           select: {
             FullName: true,
             RegisterNumber: true,
             Department: true
           }
         },
-        Assessments: {
+        Assessment: {
           select: {
             Title: true,
             TotalMarks: true
           }
         },
-        ProctoringWarnings: true
+        ProctoringSession: {
+          include: {
+            Warnings: true
+          }
+        }
       },
-      orderBy: { StartTime: "desc" }
+      orderBy: { StartedAt: "desc" }
     });
 
-    const formattedAttempts = attempts.map(att => ({
+    const formattedAttempts = attempts.map((att: any) => ({
       id: att.Id,
-      studentName: att.Users.FullName,
-      registerNumber: att.Users.RegisterNumber,
-      department: att.Users.Department,
-      assessmentTitle: att.Assessments.Title,
-      assessmentTotalMarks: att.Assessments.TotalMarks,
-      startTime: att.StartTime,
-      endTime: att.EndTime,
-      score: att.Score,
+      studentName: att.User?.FullName || "Student",
+      registerNumber: att.User?.RegisterNumber || "",
+      department: att.User?.Department || "",
+      assessmentTitle: att.Assessment?.Title || "",
+      assessmentTotalMarks: att.Assessment?.TotalMarks || 0,
+      startTime: att.StartedAt,
+      endTime: att.SubmittedAt,
+      score: att.MarksObtained,
       percentage: att.Percentage,
       status: att.Status,
-      warningsCount: att.ProctoringWarnings.length,
-      warnings: att.ProctoringWarnings.map(w => ({
+      warningsCount: att.ProctoringSession?.WarningCount || 0,
+      warnings: (att.ProctoringSession?.Warnings || []).map((w: any) => ({
         id: w.Id,
-        warningNumber: w.WarningNumber,
+        warningNumber: w.WarningNum,
         warningType: w.WarningType,
         timestamp: w.Timestamp,
-        eventInfo: w.EventInfo
+        eventInfo: w.Details
       }))
     }));
 
-    // Fetch all malpractice reports
-    const malpractice = await prisma.malpracticeReports.findMany({
+    const malpractice = await prisma.malpracticeReport.findMany({
       include: {
-        Users: {
+        User: {
           select: {
             FullName: true,
             RegisterNumber: true,
             Department: true
           }
         },
-        Assessments: {
-          select: {
-            Title: true
+        Attempt: {
+          include: {
+            Assessment: {
+              select: {
+                Title: true
+              }
+            }
           }
         }
       },
-      orderBy: { Timestamp: "desc" }
+      orderBy: { GeneratedAt: "desc" }
     });
 
-    const formattedMalpractice = malpractice.map(m => ({
+    const formattedMalpractice = malpractice.map((m: any) => ({
       id: m.Id,
-      studentName: m.Users.FullName,
-      registerNumber: m.Users.RegisterNumber,
-      department: m.Users.Department,
-      assessmentTitle: m.Assessments.Title,
-      timestamp: m.Timestamp,
-      details: m.Details,
+      studentName: m.User?.FullName || "Student",
+      registerNumber: m.User?.RegisterNumber || "",
+      department: m.User?.Department || "",
+      assessmentTitle: m.Attempt?.Assessment?.Title || "",
+      timestamp: m.GeneratedAt,
+      details: m.Reason,
       attemptId: m.AttemptId
     }));
 

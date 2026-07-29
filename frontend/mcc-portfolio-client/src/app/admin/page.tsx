@@ -55,11 +55,7 @@ import {
 } from "lucide-react";
 import api from "@/services/api";
 import { useTheme } from "@/hooks/useTheme";
-<<<<<<< HEAD
-import AssessmentsManager from "./components/AssessmentsManager";
-=======
 import AssessmentAdminModule from "@/components/admin/AssessmentAdminModule";
->>>>>>> 40a9e30e1da64064e79b351472bee8ee265619c7
 
 type ActiveTab = 
   | "overview" 
@@ -1106,18 +1102,6 @@ export default function AdminPage() {
         {/* Navigation Items */}
         <nav className="p-4 space-y-1.5 overflow-y-auto flex-1">
             {([
-<<<<<<< HEAD
-              { id: "overview",       label: "Dashboard Overview",  icon: Activity,  superOnly: false },
-              { id: "students",       label: "Student Directory",    icon: Users,     superOnly: false },
-              { id: "institution",   label: "Institution Details",  icon: Building,  superOnly: false },
-              { id: "analytics",     label: "Department Analytics", icon: BarChart2, superOnly: false },
-              { id: "reports",       label: "Analytics & Export",   icon: FileText,  superOnly: false },
-              { id: "notifications", label: "Notification Manager", icon: Bell,      superOnly: false },
-              { id: "audit-logs",    label: "Security Audit Logs",  icon: Shield,    superOnly: true  },
-              { id: "backup-restore",label: "System Backup/Restore",icon: Settings,  superOnly: true  },
-              { id: "assessments",    label: "Assessments Manager",  icon: BookOpen,  superOnly: false },
-              { id: "rbac",          label: "Access Control",       icon: UserCog,   superOnly: true  },
-=======
               { id: "overview",       label: "Dashboard Overview",  icon: Activity,       superOnly: false },
               { id: "students",       label: "Student Directory",    icon: Users,          superOnly: false },
               { id: "assessments",    label: "Assessment Module",    icon: ClipboardList,  superOnly: false },
@@ -1128,7 +1112,6 @@ export default function AdminPage() {
               { id: "audit-logs",    label: "Security Audit Logs",  icon: Shield,         superOnly: true  },
               { id: "backup-restore",label: "System Backup/Restore",icon: Settings,       superOnly: true  },
               { id: "rbac",          label: "Access Control",       icon: UserCog,        superOnly: true  },
->>>>>>> 40a9e30e1da64064e79b351472bee8ee265619c7
             ] as const).filter((tab) => {
               if (isSuperAdmin) return true;
               // Sub-admins: only show what they can at least read
@@ -1183,10 +1166,6 @@ export default function AdminPage() {
             {isSuperAdmin ? "Super Administrator" : "Sub-Admin"}
           </div>
 
-<<<<<<< HEAD
-
-=======
->>>>>>> 40a9e30e1da64064e79b351472bee8ee265619c7
           <Link
             href="/"
             className={`flex items-center justify-between text-[11px] transition px-2 ${
@@ -1230,16 +1209,16 @@ export default function AdminPage() {
             {/* Navigation Items */}
             <nav className="py-4 space-y-1.5 overflow-y-auto flex-1 scrollbar-thin">
                 {([
-                  { id: "overview",       label: "Dashboard Overview",  icon: Activity,  superOnly: false },
-                  { id: "students",       label: "Student Directory",    icon: Users,     superOnly: false },
-                  { id: "institution",   label: "Institution Details",  icon: Building,  superOnly: false },
-                  { id: "analytics",     label: "Department Analytics", icon: BarChart2, superOnly: false },
-                  { id: "reports",       label: "Analytics & Export",   icon: FileText,  superOnly: false },
-                  { id: "notifications", label: "Notification Manager", icon: Bell,      superOnly: false },
-                  { id: "audit-logs",    label: "Security Audit Logs",  icon: Shield,    superOnly: true  },
-                  { id: "backup-restore",label: "System Backup/Restore",icon: Settings,  superOnly: true  },
-                  { id: "assessments",    label: "Assessments Manager",  icon: BookOpen,  superOnly: false },
-                  { id: "rbac",          label: "Access Control",       icon: UserCog,   superOnly: true  },
+                  { id: "overview",       label: "Dashboard Overview",  icon: Activity,       superOnly: false },
+                  { id: "students",       label: "Student Directory",    icon: Users,          superOnly: false },
+                  { id: "assessments",    label: "Assessment Module",    icon: ClipboardList,  superOnly: false },
+                  { id: "institution",   label: "Institution Details",  icon: Building,       superOnly: false },
+                  { id: "analytics",     label: "Department Analytics", icon: BarChart2,      superOnly: false },
+                  { id: "reports",       label: "Analytics & Export",   icon: FileText,       superOnly: false },
+                  { id: "notifications", label: "Notification Manager", icon: Bell,           superOnly: false },
+                  { id: "audit-logs",    label: "Security Audit Logs",  icon: Shield,         superOnly: true  },
+                  { id: "backup-restore",label: "System Backup/Restore",icon: Settings,       superOnly: true  },
+                  { id: "rbac",          label: "Access Control",       icon: UserCog,        superOnly: true  },
                 ] as const).filter((tab) => {
                   if (isSuperAdmin) return true;
                   if (tab.superOnly) return false;
@@ -1278,11 +1257,7 @@ export default function AdminPage() {
                 })}
               </nav>
             
-<<<<<<< HEAD
-            <div className="pt-4 border-t border-slate-800 shrink-0 space-y-2">
-=======
             <div className="pt-4 border-t border-slate-800 shrink-0 flex items-center gap-3">
->>>>>>> 40a9e30e1da64064e79b351472bee8ee265619c7
               <button
                 onClick={() => {
                   localStorage.removeItem("adminToken");
@@ -1321,17 +1296,10 @@ export default function AdminPage() {
           <button
             onClick={toggleThemeMode}
             aria-label="Toggle theme"
-<<<<<<< HEAD
-            className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all duration-300 cursor-pointer shadow-md hover:scale-110 active:scale-95 border ${
-              themeMode === "dark"
-                ? "bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border-amber-500/30"
-                : "bg-indigo-900/40 hover:bg-indigo-900/60 text-white border-white/10"
-=======
             className={`p-2 rounded-full flex items-center justify-center transition-all duration-200 cursor-pointer border shadow-sm ${
               themeMode === "dark"
                 ? "bg-white/10 hover:bg-white/20 text-amber-300 border-white/15"
                 : "bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-300"
->>>>>>> 40a9e30e1da64064e79b351472bee8ee265619c7
             }`}
           >
             {themeMode === "dark" ? <Sun size={18} /> : <Moon size={18} />}
@@ -1353,16 +1321,6 @@ export default function AdminPage() {
           <div className="hidden md:flex absolute top-4 right-5 z-20 items-center">
             <button
               onClick={toggleThemeMode}
-<<<<<<< HEAD
-              className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all duration-300 cursor-pointer shadow-md hover:scale-110 active:scale-95 border ${
-                themeMode === "dark"
-                  ? "bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border-amber-500/30"
-                  : "bg-indigo-900/40 hover:bg-indigo-900/60 text-white border-white/10"
-              }`}
-              title="Toggle Light/Dark Mode"
-            >
-              {themeMode === "dark" ? <Sun size={18} /> : <Moon size={18} />}
-=======
               title="Toggle Light/Dark Mode"
               className={`p-2.5 rounded-full transition-all duration-300 cursor-pointer border shadow-sm flex items-center justify-center ${
                 themeMode === "dark"
@@ -1371,7 +1329,6 @@ export default function AdminPage() {
               }`}
             >
               {themeMode === "dark" ? <Sun size={16} /> : <Moon size={16} />}
->>>>>>> 40a9e30e1da64064e79b351472bee8ee265619c7
             </button>
           </div>
 
@@ -2976,7 +2933,7 @@ export default function AdminPage() {
             TAB: ASSESSMENTS MANAGER
             ========================================== */}
         {activeTab === "assessments" && (
-          <AssessmentsManager themeMode={themeMode} isSuperAdmin={isSuperAdmin} />
+          <AssessmentAdminModule />
         )}
 
       </div>

@@ -11,21 +11,19 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
     const { id } = await params;
     const attemptId = parseInt(id);
-    const body = await request.json(); // { warningNumber: number, warningType: string, eventInfo: string, currentAnswers?: any }
+    const body = await request.json();
     const { warningNumber, warningType, eventInfo, currentAnswers } = body;
 
     if (!warningNumber || !warningType) {
       return NextResponse.json("Missing required fields (warningNumber, warningType).", { status: 400 });
     }
 
-    const attempt = await prisma.studentAttempts.findUnique({
+    const attempt = await prisma.assessmentAttempts.findUnique({
       where: { Id: attemptId },
       include: {
-        Assessments: {
+        Assessment: {
           include: {
-            AssessmentQuestions: {
-              include: { Questions: true }
-            }
+            AssessmentQuestions: true
           }
         }
       }
@@ -35,19 +33,30 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       return NextResponse.json("Attempt not found", { status: 404 });
     }
 
-    if (attempt.IsSubmitted) {
+    if (["Submitted", "AutoSubmitted", "Terminated"].includes(attempt.Status)) {
       return NextResponse.json("Attempt is already submitted or closed", { status: 400 });
     }
 
-    // Save warning entry
+    let session = await prisma.proctoringSession.findUnique({ where: { AttemptId: attemptId } });
+    if (!session) {
+      session = await prisma.proctoringSession.create({
+        data: { AttemptId: attemptId, WarningCount: 0 }
+      });
+    }
+
     const warning = await prisma.proctoringWarnings.create({
       data: {
-        AttemptId: attemptId,
-        WarningNumber: warningNumber,
+        SessionId: session.Id,
+        WarningNum: warningNumber,
         WarningType: warningType,
-        EventInfo: eventInfo || "",
+        Details: eventInfo || "",
         Timestamp: new Date()
       }
+    });
+
+    await prisma.proctoringSession.update({
+      where: { Id: session.Id },
+      data: { WarningCount: warningNumber }
     });
 
     let terminated = false;
@@ -55,17 +64,16 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     if (warningNumber >= 4) {
       terminated = true;
 
-      // Evaluate score so far if currentAnswers is provided
       let attemptedCount = 0;
       let correctCount = 0;
       let scoreObtained = 0;
-      const questions = attempt.Assessments.AssessmentQuestions.map(aq => aq.Questions);
+      const questions = attempt.Assessment.AssessmentQuestions;
       const answersDataToSave: any[] = [];
 
       for (const q of questions) {
         const selected = currentAnswers ? currentAnswers[q.Id.toString()] : null;
         const isAttempted = selected !== undefined && selected !== null && selected !== "";
-        const isCorrect = isAttempted && selected.trim().toUpperCase() === q.CorrectAnswer.trim().toUpperCase();
+        const isCorrect = isAttempted && selected.trim().toUpperCase() === q.CorrectOption.trim().toUpperCase();
 
         if (isAttempted) attemptedCount++;
         if (isCorrect) {
@@ -76,17 +84,16 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         answersDataToSave.push({
           AttemptId: attemptId,
           QuestionId: q.Id,
-          SelectedAnswer: isAttempted ? selected : null,
-          IsCorrect: isCorrect,
-          MarksObtained: isCorrect ? q.Marks : 0
+          SelectedOption: isAttempted ? selected : "",
+          IsCorrect: isCorrect
         });
       }
 
-      const unattemptedCount = questions.length - attemptedCount;
       const wrongCount = attemptedCount - correctCount;
+      const totalMarksVal = attempt.TotalMarks || 1;
+      const percentage = parseFloat(((scoreObtained / totalMarksVal) * 100).toFixed(2));
 
       await prisma.$transaction(async (tx) => {
-        // Save student answers so far
         if (answersDataToSave.length > 0) {
           await tx.studentAnswers.deleteMany({
             where: { AttemptId: attemptId }
@@ -96,38 +103,35 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
           });
         }
 
-        // Close attempt as malpractice terminated
-        await tx.studentAttempts.update({
+        await tx.assessmentAttempts.update({
           where: { Id: attemptId },
           data: {
-            IsSubmitted: true,
-            EndTime: new Date(),
-            Score: scoreObtained,
+            SubmittedAt: new Date(),
+            MarksObtained: scoreObtained,
             AttemptedQuestions: attemptedCount,
-            UnattemptedQuestions: unattemptedCount,
             CorrectAnswers: correctCount,
             WrongAnswers: wrongCount,
-            Status: "MALPRACTICE_TERMINATED"
+            Percentage: percentage,
+            Status: "Terminated",
+            IsMalpractice: true
           }
         });
 
-        // Fetch student's details
         const student = await tx.users.findUnique({
-          where: { Id: attempt.StudentId }
+          where: { Id: attempt.UserId }
         });
 
         const studentDetails = student 
           ? `Student ${student.FullName} (Reg: ${student.RegisterNumber})`
-          : `Student ID ${attempt.StudentId}`;
+          : `Student ID ${attempt.UserId}`;
 
-        // Create malpractice report
-        await tx.malpracticeReports.create({
+        await tx.malpracticeReport.create({
           data: {
-            StudentId: attempt.StudentId,
+            UserId: attempt.UserId,
             AssessmentId: attempt.AssessmentId,
             AttemptId: attemptId,
-            Timestamp: new Date(),
-            Details: `Assessment auto-terminated due to Warning 4. Warned for: ${warningType}. Log: ${eventInfo}. ${studentDetails}`
+            Reason: warningType,
+            GeneratedAt: new Date()
           }
         });
       });
@@ -139,7 +143,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       terminated
     });
   } catch (err: any) {
-    console.error("POST Proctoring Warning error:", err);
+    console.error("POST Warning Error:", err);
     return NextResponse.json({ message: "Internal server error" }, { status: 500 });
   }
 }
