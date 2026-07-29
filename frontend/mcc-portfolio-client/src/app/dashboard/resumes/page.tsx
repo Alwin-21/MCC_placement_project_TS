@@ -145,7 +145,7 @@ export default function ResumesDashboardPage() {
   };
 
   return (
-    <div className={`flex h-screen h-[100dvh] overflow-hidden ${themeMode === "dark" ? "bg-[#09090d] text-white" : "bg-slate-50 text-slate-900"}`}>
+    <div className={`flex h-screen h-[100dvh] overflow-hidden ${themeMode === "dark" ? "bg-[#0d0d12] text-white" : "bg-[#fcfaf6] text-[#0f172a]"}`}>
       
       {/* DESKTOP SIDEBAR */}
       <div className={`hidden md:flex flex-col w-72 shrink-0 border-r select-none mcc-sidebar`}>
@@ -185,21 +185,10 @@ export default function ResumesDashboardPage() {
           </button>
         </nav>
 
-        <div className="p-4 border-t border-white/10 space-y-2">
-          <button
-            onClick={toggleThemeMode}
-            className={`w-full flex items-center justify-center gap-2.5 py-2.5 rounded-xl text-xs font-bold transition cursor-pointer ${
-              themeMode === "dark"
-                ? "bg-white/10 hover:bg-white/20 text-yellow-300 border border-white/10"
-                : "bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200"
-            }`}
-          >
-            {themeMode === "dark" ? <Sun size={15} /> : <Moon size={15} />}
-            <span>{themeMode === "dark" ? "Light Mode" : "Dark Mode"}</span>
-          </button>
+        <div className="p-4 border-t border-white/10 flex items-center gap-3">
           <button
             onClick={handleLogout}
-            className="w-full flex items-center justify-center gap-3 bg-red-500/10 hover:bg-red-500/20 text-red-400 py-2.5 rounded-xl text-xs font-semibold transition cursor-pointer"
+            className="w-full flex items-center justify-center gap-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 py-2.5 rounded-xl text-xs font-semibold border border-red-500/20 transition cursor-pointer"
           >
             <LogOut size={15} /> Log Out
           </button>
@@ -252,19 +241,8 @@ export default function ResumesDashboardPage() {
                 <ArrowLeft size={16} /> Back to Dashboard
               </button>
             </nav>
-            <div className="pt-4 border-t border-white/10 space-y-2">
-              <button
-                onClick={toggleThemeMode}
-                className={`w-full flex items-center justify-center gap-2.5 py-2.5 rounded-xl text-xs font-bold transition cursor-pointer ${
-                  themeMode === "dark"
-                    ? "bg-white/10 hover:bg-white/20 text-yellow-300 border border-white/10"
-                    : "bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200"
-                }`}
-              >
-                {themeMode === "dark" ? <Sun size={15} /> : <Moon size={15} />}
-                <span>{themeMode === "dark" ? "Light Mode" : "Dark Mode"}</span>
-              </button>
-              <button onClick={handleLogout} className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-medium bg-red-500/10 hover:bg-red-500/20 text-red-400 cursor-pointer">
+            <div className="pt-4 border-t border-white/10 flex items-center gap-3">
+              <button onClick={handleLogout} className="w-full flex items-center justify-center gap-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 py-2.5 rounded-xl text-xs font-medium border border-red-500/20 transition cursor-pointer">
                 <LogOut size={15} /> Log Out
               </button>
             </div>
@@ -293,8 +271,10 @@ export default function ResumesDashboardPage() {
           <button
             onClick={toggleThemeMode}
             aria-label="Toggle theme"
-            className={`w-8 h-8 rounded-full flex items-center justify-center transition-all duration-200 cursor-pointer ${
-              themeMode === "dark" ? "bg-white/10 text-yellow-300" : "bg-slate-100 text-slate-600"
+            className={`p-2 rounded-full flex items-center justify-center transition-all duration-200 cursor-pointer border shadow-sm ${
+              themeMode === "dark"
+                ? "bg-white/10 hover:bg-white/20 text-amber-300 border-white/15"
+                : "bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-300"
             }`}
           >
             {themeMode === "dark" ? <Sun size={15} /> : <Moon size={15} />}
@@ -314,6 +294,22 @@ export default function ResumesDashboardPage() {
               />
               <div className="absolute inset-0 bg-gradient-to-t from-[#18233c] via-[#18233c]/40 to-transparent" />
             </div>
+
+            {/* Desktop Only: Theme Switcher Inside Top-Right Corner of Banner Card */}
+            <div className="hidden md:flex absolute top-4 right-5 z-20 items-center">
+              <button
+                onClick={toggleThemeMode}
+                title="Toggle Light/Dark Mode"
+                className={`p-2.5 rounded-full transition-all duration-300 cursor-pointer border shadow-sm flex items-center justify-center ${
+                  themeMode === "dark"
+                    ? "bg-white/10 hover:bg-white/20 text-amber-300 border-white/15"
+                    : "bg-white/90 hover:bg-slate-100 text-slate-700 border-slate-200"
+                }`}
+              >
+                {themeMode === "dark" ? <Sun size={16} /> : <Moon size={16} />}
+              </button>
+            </div>
+
             <div className="relative z-10 flex justify-between items-end w-full text-left">
               <div className="space-y-1">
                 <span 
@@ -364,7 +360,7 @@ export default function ResumesDashboardPage() {
             </div>
           ) : resumes.length === 0 ? (
             <div className={`border-2 border-dashed rounded-3xl p-12 text-center max-w-xl mx-auto mt-8 transition ${
-              themeMode === "dark" ? "border-white/10 bg-white/[0.01]" : "border-slate-200 bg-white shadow-sm"
+              themeMode === "dark" ? "border-white/5 bg-[#0b0b0f]" : "border-slate-200 bg-white shadow-sm"
             }`}>
               <FileText className="mx-auto text-slate-400 dark:text-white/20 mb-4" size={48} />
               <h3 className="text-lg font-bold mb-2">No resumes found</h3>
@@ -385,7 +381,7 @@ export default function ResumesDashboardPage() {
                   key={resume.id}
                   className={`border rounded-2xl p-5 flex flex-col justify-between transition-all duration-300 hover:scale-[1.01] hover:shadow-lg ${
                     themeMode === "dark"
-                      ? "bg-white/[0.02] border-white/5 hover:border-white/10"
+                      ? "bg-[#0b0b0f] border-white/5 hover:border-white/10"
                       : "bg-white border-slate-200 hover:border-slate-300 shadow-sm"
                   }`}
                 >

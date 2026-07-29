@@ -1156,32 +1156,19 @@ export default function AdminPage() {
           themeMode === "dark" ? "border-white/5" : "border-[#781c1c]/10"
         }`}>
           {/* Role Badge */}
-          <div className={`px-3 py-2 rounded-xl text-[10px] font-mono font-bold flex items-center gap-2 ${
+          <div className={`px-3 py-2 rounded-xl text-[10px] font-mono font-bold flex items-center justify-center gap-2 ${
             isSuperAdmin
               ? "bg-violet-500/10 text-violet-300 border border-violet-500/20"
               : "bg-blue-500/10 text-blue-300 border border-blue-500/20"
           }`}>
-            <Shield size={11} />
+            <Shield size={11} className="shrink-0" />
             {isSuperAdmin ? "Super Administrator" : "Sub-Admin"}
           </div>
-
-          {/* Dark / Light Mode Toggle */}
-          <button
-            onClick={toggleThemeMode}
-            className={`w-full flex items-center justify-center gap-2.5 py-2.5 rounded-xl text-xs font-bold transition cursor-pointer ${
-              themeMode === "dark"
-                ? "bg-white/10 hover:bg-white/20 text-yellow-300 border border-white/10"
-                : "bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200"
-            }`}
-          >
-            {themeMode === "dark" ? <Sun size={15} /> : <Moon size={15} />}
-            <span>{themeMode === "dark" ? "Light Mode" : "Dark Mode"}</span>
-          </button>
 
           <Link
             href="/"
             className={`flex items-center justify-between text-[11px] transition px-2 ${
-              themeMode === "dark" ? "text-gray-400 hover:text-white" : "text-slate-300 hover:text-white"
+              themeMode === "dark" ? "text-gray-400 hover:text-white" : "text-slate-500 hover:text-[#781c1c]"
             }`}
           >
             <span className="flex items-center gap-2"><ArrowLeft size={12} /> Leave Admin Panel</span>
@@ -1268,18 +1255,7 @@ export default function AdminPage() {
                 })}
               </nav>
             
-            <div className="pt-4 border-t border-slate-800 shrink-0 space-y-2">
-              <button
-                onClick={toggleThemeMode}
-                className={`w-full flex items-center justify-center gap-2.5 py-2.5 rounded-xl text-xs font-bold transition cursor-pointer ${
-                  themeMode === "dark"
-                    ? "bg-white/10 hover:bg-white/20 text-yellow-300 border border-white/10"
-                    : "bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200"
-                }`}
-              >
-                {themeMode === "dark" ? <Sun size={15} /> : <Moon size={15} />}
-                <span>{themeMode === "dark" ? "Light Mode" : "Dark Mode"}</span>
-              </button>
+            <div className="pt-4 border-t border-slate-800 shrink-0 flex items-center gap-3">
               <button
                 onClick={() => {
                   localStorage.removeItem("adminToken");
@@ -1318,8 +1294,10 @@ export default function AdminPage() {
           <button
             onClick={toggleThemeMode}
             aria-label="Toggle theme"
-            className={`w-8 h-8 rounded-full flex items-center justify-center transition-all duration-200 cursor-pointer ${
-              themeMode === "dark" ? "bg-white/10 text-yellow-300" : "bg-slate-100 text-slate-600"
+            className={`p-2 rounded-full flex items-center justify-center transition-all duration-200 cursor-pointer border shadow-sm ${
+              themeMode === "dark"
+                ? "bg-white/10 hover:bg-white/20 text-amber-300 border-white/15"
+                : "bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-300"
             }`}
           >
             {themeMode === "dark" ? <Sun size={15} /> : <Moon size={15} />}
@@ -1336,6 +1314,22 @@ export default function AdminPage() {
             />
             <div className="absolute inset-0 bg-gradient-to-t from-[#18233c] via-[#18233c]/50 to-transparent" />
           </div>
+
+          {/* Desktop Only: Theme Switcher Inside Top-Right Corner of Banner Card */}
+          <div className="hidden md:flex absolute top-4 right-5 z-20 items-center">
+            <button
+              onClick={toggleThemeMode}
+              title="Toggle Light/Dark Mode"
+              className={`p-2.5 rounded-full transition-all duration-300 cursor-pointer border shadow-sm flex items-center justify-center ${
+                themeMode === "dark"
+                  ? "bg-white/10 hover:bg-white/20 text-amber-300 border-white/15"
+                  : "bg-white/90 hover:bg-slate-100 text-slate-700 border-slate-200"
+              }`}
+            >
+              {themeMode === "dark" ? <Sun size={16} /> : <Moon size={16} />}
+            </button>
+          </div>
+
           <div className="relative z-10 space-y-1 w-full text-left">
             <span 
               style={{ color: '#ffffff' }}

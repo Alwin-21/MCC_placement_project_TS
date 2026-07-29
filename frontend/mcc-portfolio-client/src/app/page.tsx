@@ -23,7 +23,7 @@ export default function HomePage() {
             : "bg-white/95 sm:bg-transparent border-b border-slate-200 sm:border-b-0 shadow-sm sm:shadow-none"
         }`}
       >
-        <div className="max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-3 sm:py-4 flex items-center justify-between gap-4 relative z-20">
+        <div className="max-w-full w-full px-4 sm:px-8 md:px-12 lg:px-16 py-3 sm:py-4 flex items-center justify-between gap-4 relative z-20">
           {/* Left: Prominent MCC Crest Logo + Aligned Brand Title */}
           <Link href="/" className="flex items-center gap-3 sm:gap-4 group shrink-0">
             {/* Mobile Logo (Theme Responsive) */}
@@ -38,7 +38,6 @@ export default function HomePage() {
               alt="Madras Christian College Crest"
               className="hidden sm:block h-24 md:h-28 lg:h-32 w-auto object-contain shrink-0 transition-all duration-300 group-hover:scale-105"
             />
-
             {/* Vertical Divider */}
             <div
               className="h-12 sm:h-16 w-[2px] hidden sm:block shrink-0"
@@ -46,17 +45,12 @@ export default function HomePage() {
                 background: "linear-gradient(to bottom, rgba(255,255,255,0.1), rgba(255,255,255,0.3), rgba(255,255,255,0.1))"
               }}
             />
-
             {/* Brand Title (Kept at exact size requested) */}
             <div className="flex flex-col space-y-0.5">
-              <span className="text-sm sm:text-xl md:text-2xl font-black uppercase tracking-wider leading-none text-white transition-transform group-hover:scale-105">
+              <span className={`text-sm sm:text-xl md:text-2xl font-black uppercase tracking-wider leading-none transition-transform group-hover:scale-105 ${
+                isDark ? "text-white" : "text-slate-900 sm:text-white"
+              }`}>
                 Portfolios
-              </span>
-              <span className="text-[11px] sm:text-xs font-extrabold tracking-wide text-slate-300">
-                Madras Christian College
-              </span>
-              <span className="text-[10px] sm:text-[11px] font-semibold text-slate-400 hidden sm:block">
-                Student Ecosystem
               </span>
             </div>
           </Link>
@@ -67,10 +61,10 @@ export default function HomePage() {
             <button
               onClick={toggleThemeMode}
               aria-label="Toggle dark mode"
-              className={`p-2.5 sm:p-3 rounded-2xl transition-all duration-300 cursor-pointer border shadow-sm ${
+              className={`p-2.5 rounded-full transition-all duration-300 cursor-pointer border shadow-sm flex items-center justify-center ${
                 isDark
                   ? "bg-white/10 hover:bg-white/20 text-amber-300 border-white/15"
-                  : "bg-slate-100 sm:bg-white/90 hover:bg-slate-200 text-slate-900 border-slate-300 sm:border-white/40"
+                  : "bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-300"
               }`}
             >
               {isDark ? <Sun size={18} /> : <Moon size={18} />}
@@ -89,7 +83,7 @@ export default function HomePage() {
             muted
             playsInline
             preload="auto"
-            src="/DJI_0007.mp4"
+            src="/new.mp4"
             className="w-full h-full object-cover filter brightness-105 contrast-105"
           />
 
@@ -106,7 +100,7 @@ export default function HomePage() {
         </div>
 
         {/* Floating Ultra-Translucent Glass Center Card (Enlarged for Desktop) */}
-        <div className="relative z-10 max-w-3xl lg:max-w-4xl mx-auto my-auto text-center px-2 sm:px-4 w-full animate-fade-in-up mt-6 sm:mt-12">
+        <div className="relative z-10 max-w-3xl lg:max-w-4xl mx-auto my-auto text-center px-2 sm:px-4 w-full animate-fade-in-up mt-12 sm:mt-24 lg:mt-36 lg:translate-y-4">
           <div className="rounded-3xl p-6 sm:p-14 lg:p-16 bg-black/[0.03] border border-white/10 shadow-lg shadow-black/10" style={{ backdropFilter: "blur(0.5px)", WebkitBackdropFilter: "blur(0.5px)" }}>
             {/* Main Headline */}
             <h1
@@ -165,22 +159,6 @@ export default function HomePage() {
         <div className="max-w-7xl mx-auto w-full px-3 sm:px-6 lg:px-8 py-2 sm:py-4 flex flex-col sm:flex-row items-center justify-between gap-2 sm:gap-4 text-center sm:text-left">
           {/* Left Brand & Copyright */}
           <div className="flex flex-col sm:flex-row items-center gap-1.5 sm:gap-4 shrink-0">
-            <img
-              src={isDark ? "/mcc-logo-dark.png" : "/mcc-logo.png"}
-              alt="MCC Logo"
-              className="h-6 sm:h-10 w-auto object-contain shrink-0 transition-all duration-300"
-            />
-
-            {/* Vertical Divider matching Header */}
-            <div
-              className="h-6 sm:h-8 w-[2px] hidden sm:block shrink-0"
-              style={{
-                background: isDark
-                  ? "linear-gradient(to bottom, rgba(255,255,255,0.1), rgba(255,255,255,0.3), rgba(255,255,255,0.1))"
-                  : "linear-gradient(to bottom, rgba(120,28,28,0.2), rgba(120,28,28,0.6), rgba(120,28,28,0.2))"
-              }}
-            />
-
             <div className="flex flex-col space-y-0.5 text-center sm:text-left">
               <div
                 className="text-[10px] sm:text-sm font-black uppercase tracking-wider leading-none"
