@@ -2934,7 +2934,7 @@ export default function AdminPage() {
             TAB: ASSESSMENTS MANAGER
             ========================================== */}
         {activeTab === "assessments" && (
-          <AssessmentsManager themeMode={themeMode} isSuperAdmin={isSuperAdmin} />
+          <AssessmentAdminModule />
         )}
 
       </div>
