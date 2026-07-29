@@ -34,7 +34,8 @@ import {
   Copy,
   Sliders,
   Upload,
-  Activity
+  Activity,
+  ClipboardList
 } from "lucide-react";
 import api from "@/services/api";
 import { useTheme } from "@/hooks/useTheme";
@@ -1437,6 +1438,15 @@ Report Generated: ${new Date().toLocaleDateString()}
 
           <div className="pt-4 border-t border-white/5 space-y-1">
             <button
+              onClick={() => window.location.href = "/assessment"}
+              className={`w-full flex items-center gap-3.5 px-4 py-3 rounded-xl text-xs font-semibold tracking-wide transition-all duration-200 cursor-pointer ${
+                themeMode === "dark" ? "hover:bg-white/5 text-indigo-400 hover:text-indigo-300 font-bold" : "hover:bg-indigo-50 text-indigo-700 font-bold"
+              }`}
+            >
+              <ClipboardList size={16} className="text-indigo-400" /> Department Assessments
+            </button>
+
+            <button
               onClick={() => window.location.href = "/dashboard/resumes"}
               className={`w-full flex items-center gap-3.5 px-4 py-3 rounded-xl text-xs font-semibold tracking-wide transition-all duration-200 cursor-pointer ${
                 themeMode === "dark" ? "hover:bg-white/5 text-slate-400 hover:text-white" : "hover:bg-slate-100 text-slate-700"
@@ -1716,6 +1726,13 @@ Report Generated: ${new Date().toLocaleDateString()}
           </div>
 
           <div className="flex items-center gap-3">
+            <button
+              onClick={() => window.location.href = "/assessment"}
+              className="bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs px-4 py-2.5 rounded-xl shadow-lg shadow-indigo-600/30 flex items-center gap-2 transition cursor-pointer"
+            >
+              <ClipboardList size={15} /> Department Assessments
+            </button>
+
             <div className="bg-emerald-500/10 border border-emerald-500/20 px-4 py-2.5 rounded-xl flex items-center gap-2">
               <Activity className="text-emerald-400 animate-pulse" size={14} />
               <span className="text-[10px] uppercase font-mono text-emerald-400 font-bold">Server Connection:</span>
