@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import {
   ClipboardList, Clock, ChevronLeft, ChevronRight, CheckCircle,
   AlertTriangle, Camera, CameraOff, Trophy, Target, XCircle,
-  BookOpen, ArrowRight, RotateCcw, Home
+  BookOpen, ArrowRight, RotateCcw, ArrowLeft, Bell, Sun, Moon
 } from "lucide-react";
 import api from "@/services/api";
 import { useTheme } from "@/hooks/useTheme";
@@ -102,10 +102,19 @@ export default function AssessmentPage() {
     setLoadingList(true);
     try {
       const res = await api.get("/Assessments/student");
-      setAssessments(res.data);
+      setAssessments(res.data || []);
     } catch (err) { console.error(err); }
     finally { setLoadingList(false); }
   };
+
+  // Pending count calculation
+  const pendingCount = assessments.filter(a => {
+    const now = new Date();
+    const start = new Date(a.startDate);
+    const end = new Date(a.endDate);
+    const isLive = !a.isCompleted && (a.isAvailable || (now >= start && now <= end));
+    return isLive;
+  }).length;
 
   // ── Timer ──
   useEffect(() => {
@@ -180,7 +189,6 @@ export default function AssessmentPage() {
     ctx.drawImage(video, 0, 0, 64, 48);
     const data = ctx.getImageData(0, 0, 64, 48).data;
 
-    // Check average brightness (face detection heuristic)
     let totalBrightness = 0;
     const pixels: number[] = [];
     for (let i = 0; i < data.length; i += 4) {
@@ -191,7 +199,6 @@ export default function AssessmentPage() {
     }
     const avgBrightness = totalBrightness / pixels.length;
 
-    // Detect motion (pixel difference from last frame)
     let motionScore = 0;
     if (prevPixels.current.length === pixels.length) {
       let diffSum = 0;
@@ -203,17 +210,13 @@ export default function AssessmentPage() {
     prevPixels.current = pixels;
 
     const now = Date.now();
-    const cooldown = 10000; // 10 seconds between warnings
+    const cooldown = 10000;
 
     if (now - lastWarningTime.current < cooldown) return;
 
-    // Trigger warning conditions:
-    // 1. Very dark / no face visible
     if (avgBrightness < 20) {
       triggerWarning("FaceNotDetected", "Camera appears covered or face not visible.");
-    }
-    // 2. Sudden large movement (looking away)
-    else if (motionScore > 35) {
+    } else if (motionScore > 35) {
       triggerWarning("LookingAway", "Sudden movement detected. Please face the camera.");
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -263,7 +266,6 @@ export default function AssessmentPage() {
   const handleStart = async (assessment: Assessment) => {
     setActiveAssessment(assessment);
     if (assessment.isCompleted) {
-      // View result directly
       setView("result");
       fetchResult(assessment.id);
       return;
@@ -274,7 +276,6 @@ export default function AssessmentPage() {
   const handleBeginExam = async () => {
     if (!activeAssessment) return;
     try {
-      // Check for existing attempt first
       const existingRes = await api.get(`/Assessments/${activeAssessment.id}/attempt`);
       if (existingRes.data && existingRes.data.attemptId) {
         if (existingRes.data.isCompleted) {
@@ -286,7 +287,6 @@ export default function AssessmentPage() {
         setQuestions(existingRes.data.questions);
         setStartedAt(new Date(existingRes.data.startedAt));
       } else {
-        // Start new attempt
         const res = await api.post(`/Assessments/${activeAssessment.id}/attempt`, {});
         setAttemptId(res.data.attemptId);
         setQuestions(res.data.questions.map((q: any) => ({ ...q, selectedOption: "" })));
@@ -294,7 +294,6 @@ export default function AssessmentPage() {
       }
       setCurrentQIndex(0);
       setView("exam");
-      // Request camera
       startCamera();
     } catch (err: any) {
       if (err.response?.status === 409) {
@@ -363,6 +362,20 @@ export default function AssessmentPage() {
     finally { setLoadingResult(false); }
   };
 
+  // Back button action inside header
+  const handleBack = () => {
+    stopCamera();
+    if (view === "exam") {
+      if (!confirm("Are you sure you want to leave the exam hall? Timer will continue running.")) return;
+      setView("list");
+    } else if (view === "instructions" || view === "result") {
+      setView("list");
+      setResult(null);
+    } else {
+      router.back();
+    }
+  };
+
   // ── Cleanup on unmount ──
   useEffect(() => {
     return () => { stopCamera(); };
@@ -377,23 +390,26 @@ export default function AssessmentPage() {
 
   return (
     <div className={`min-h-screen ${bg} transition-colors duration-300`}>
-      {/* ── HEADER ── */}
+      {/* ── HEADER WITH BACK BUTTON & PENDING BADGE ── */}
       <div className={`sticky top-0 z-40 border-b px-4 md:px-8 py-3 flex items-center justify-between backdrop-blur-md ${isDark ? "border-white/5 bg-[#0d0d12]/90" : "border-slate-200 bg-white/90"}`}>
         <div className="flex items-center gap-3">
-          <button onClick={() => { stopCamera(); router.push("/dashboard"); }}
-            className={`p-2 rounded-xl transition ${isDark ? "hover:bg-white/5" : "hover:bg-slate-100"}`}>
-            <Home size={16} className={subText} />
+          {/* Back button replacing Home button */}
+          <button onClick={handleBack}
+            aria-label="Back"
+            className={`p-2 rounded-xl transition cursor-pointer ${isDark ? "hover:bg-white/5 text-gray-300" : "hover:bg-slate-100 text-slate-700"}`}>
+            <ArrowLeft size={18} />
           </button>
           <div className="flex items-center gap-2">
             <ClipboardList size={18} className="text-[#781c1c]" />
             <span className="font-bold text-sm">
-              {view === "list" ? "My Assessments" :
+              {view === "list" ? "Assessments" :
                view === "instructions" ? activeAssessment?.title :
                view === "exam" ? activeAssessment?.title :
                "Assessment Result"}
             </span>
           </div>
         </div>
+
         <div className="flex items-center gap-3">
           {view === "exam" && (
             <div className={`flex items-center gap-2 px-3 py-1.5 rounded-xl font-mono font-black text-sm ${
@@ -412,6 +428,20 @@ export default function AssessmentPage() {
               <AlertTriangle size={12} /> {warningCount}/4
             </div>
           )}
+
+          {/* Theme Changer Icon Button */}
+          <button
+            onClick={toggleThemeMode}
+            title="Toggle Light/Dark Mode"
+            aria-label="Toggle Theme"
+            className={`p-2 rounded-full transition-all duration-200 cursor-pointer border shadow-sm flex items-center justify-center ${
+              isDark
+                ? "bg-white/10 hover:bg-white/20 text-amber-300 border-white/15"
+                : "bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-300"
+            }`}
+          >
+            {isDark ? <Sun size={15} /> : <Moon size={15} />}
+          </button>
         </div>
       </div>
 
@@ -434,11 +464,13 @@ export default function AssessmentPage() {
 
       {/* ── LIST VIEW ── */}
       {view === "list" && (
-        <div className="max-w-4xl mx-auto px-4 md:px-8 py-8 md:py-12">
-          <div className="mb-8">
+        <div className="max-w-5xl md:max-w-6xl mx-auto px-4 md:px-8 py-8 md:py-12">
+          <div className="mb-10">
             <span className="text-[10px] uppercase font-mono tracking-widest text-[#781c1c] font-bold">Madras Christian College</span>
-            <h1 className={`text-2xl md:text-3xl font-black tracking-tight mt-1 ${isDark ? "text-white" : "text-slate-900"}`}>My Assessments</h1>
-            <p className={`text-xs mt-1 ${subText}`}>Department-specific assessments assigned to you.</p>
+            <h1 className={`text-2xl md:text-4xl font-black tracking-tight mt-1 ${isDark ? "text-white" : "text-slate-900"}`}>
+              Welcome, {user?.fullName || "Student"} 👋
+            </h1>
+            <p className={`text-xs sm:text-sm mt-1.5 ${subText}`}>Department-specific assessments assigned to you.</p>
           </div>
 
           {loadingList ? (
@@ -446,14 +478,14 @@ export default function AssessmentPage() {
               <div className="w-8 h-8 border-2 border-[#781c1c] border-t-transparent rounded-full animate-spin" />
             </div>
           ) : assessments.length === 0 ? (
-            <div className={`rounded-2xl border p-16 text-center ${card}`}>
-              <ClipboardList size={48} className="mx-auto mb-4 opacity-20" />
-              <p className="text-sm font-medium text-gray-400">No assessments assigned to your department yet.</p>
+            <div className={`rounded-3xl border p-16 text-center ${card}`}>
+              <ClipboardList size={52} className="mx-auto mb-4 opacity-20" />
+              <p className="text-base font-semibold text-gray-400">No assessments assigned to your department yet.</p>
               <p className="text-xs text-gray-500 mt-1">Check back later or contact your administrator.</p>
             </div>
           ) : (
-            <div className="space-y-4">
-              {assessments.map((assessment) => {
+            <div className="space-y-6 md:space-y-8">
+              {assessments.map((assessment, index) => {
                 const now = new Date();
                 const start = new Date(assessment.startDate);
                 const end = new Date(assessment.endDate);
@@ -462,60 +494,63 @@ export default function AssessmentPage() {
                 const isExpired = end < now;
 
                 return (
-                  <div key={assessment.id} className={`rounded-2xl border p-5 md:p-6 transition-all duration-200 ${card} ${!assessment.isCompleted && isLive ? "hover:shadow-lg" : ""}`}>
-                    <div className="flex items-start justify-between gap-4 flex-wrap">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-2 flex-wrap">
-                          <h2 className={`font-bold text-base ${isDark ? "text-white" : "text-slate-900"}`}>{assessment.title}</h2>
+                  <div key={assessment.id} className={`rounded-3xl border p-6 sm:p-8 md:p-10 transition-all duration-300 shadow-xl ${card} ${!assessment.isCompleted && isLive ? "hover:shadow-2xl border-rose-500/30 ring-1 ring-rose-500/20" : ""}`}>
+                    <div className="flex items-start justify-between gap-6 flex-wrap">
+                      <div className="flex-1 min-w-0 space-y-3">
+                        <div className="flex items-center gap-3 flex-wrap">
+                          <span className="text-xs font-mono font-black uppercase tracking-wider px-3 py-1 rounded-xl bg-[#781c1c]/10 text-[#781c1c] border border-[#781c1c]/20">
+                            Assessment {index + 1}
+                          </span>
+                          <h2 className={`font-black text-xl sm:text-2xl tracking-tight ${isDark ? "text-white" : "text-slate-900"}`}>{assessment.title}</h2>
                           {assessment.isCompleted ? (
-                            <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 uppercase tracking-wider">
+                            <span className="text-xs font-bold px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 uppercase tracking-wider">
                               Completed
                             </span>
                           ) : isLive ? (
-                            <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-green-500/10 text-green-400 border border-green-500/20 uppercase tracking-wider animate-pulse">
+                            <span className="text-xs font-bold px-3 py-1 rounded-full bg-green-500/10 text-green-400 border border-green-500/20 uppercase tracking-wider animate-pulse">
                               ● Live
                             </span>
                           ) : isUpcoming ? (
-                            <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/20 uppercase tracking-wider">
+                            <span className="text-xs font-bold px-3 py-1 rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/20 uppercase tracking-wider">
                               Upcoming
                             </span>
                           ) : (
-                            <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-slate-500/10 text-slate-400 border border-slate-500/20 uppercase tracking-wider">
+                            <span className="text-xs font-bold px-3 py-1 rounded-full bg-slate-500/10 text-slate-400 border border-slate-500/20 uppercase tracking-wider">
                               Expired
                             </span>
                           )}
                         </div>
-                        <p className={`text-xs mb-3 line-clamp-2 ${subText}`}>{assessment.description || "No description provided."}</p>
-                        <div className={`flex items-center gap-4 text-[10px] ${subText} flex-wrap`}>
-                          <span className="flex items-center gap-1"><Clock size={10} /> {assessment.durationMinutes} min</span>
-                          <span className="flex items-center gap-1"><Target size={10} /> {assessment.totalMarks} marks</span>
-                          <span className="flex items-center gap-1"><BookOpen size={10} />
+                        <p className={`text-sm sm:text-base leading-relaxed line-clamp-3 ${subText}`}>{assessment.description || "No description provided."}</p>
+                        <div className={`inline-flex items-center gap-5 text-xs sm:text-sm p-3.5 sm:p-4 rounded-2xl border ${isDark ? "bg-white/[0.02] border-white/5 text-slate-300" : "bg-slate-50 border-slate-200 text-slate-700"} flex-wrap font-mono`}>
+                          <span className="flex items-center gap-1.5"><Clock size={14} className="text-[#781c1c]" /> {assessment.durationMinutes} minutes</span>
+                          <span className="flex items-center gap-1.5"><Target size={14} className="text-[#781c1c]" /> {assessment.totalMarks} marks</span>
+                          <span className="flex items-center gap-1.5"><BookOpen size={14} className="text-[#781c1c]" />
                             {start.toLocaleDateString("en-IN", { day: "2-digit", month: "short" })} –
                             {" "}{end.toLocaleDateString("en-IN", { day: "2-digit", month: "short" })}
                           </span>
                         </div>
                       </div>
-                      <div className="shrink-0">
+                      <div className="shrink-0 self-center">
                         {assessment.isCompleted ? (
                           <button
                             onClick={() => handleStart(assessment)}
-                            className={`px-4 py-2 text-xs font-bold rounded-xl border transition ${isDark ? "border-white/10 hover:bg-white/5" : "border-slate-200 hover:bg-slate-50"}`}
+                            className={`px-6 py-3.5 text-xs sm:text-sm font-bold rounded-2xl border transition cursor-pointer ${isDark ? "border-white/10 hover:bg-white/5" : "border-slate-200 hover:bg-slate-50"}`}
                           >
                             View Result
                           </button>
                         ) : isLive ? (
                           <button
                             onClick={() => handleStart(assessment)}
-                            className="px-5 py-2.5 text-xs font-bold rounded-xl bg-[#781c1c] hover:bg-[#5f1515] text-white transition shadow-sm"
+                            className="px-7 py-3.5 sm:px-8 sm:py-4 text-xs sm:text-sm font-black rounded-2xl bg-[#781c1c] hover:bg-[#5f1515] text-white transition shadow-lg shadow-rose-950 cursor-pointer active:scale-98"
                           >
-                            {assessment.isStarted ? "Resume Exam" : "Start Exam"} <ArrowRight size={12} className="inline ml-1" />
+                            {assessment.isStarted ? "Resume Exam" : "Start Exam"} <ArrowRight size={14} className="inline ml-1" />
                           </button>
                         ) : isUpcoming ? (
-                          <div className="px-4 py-2 text-xs font-medium text-blue-400 rounded-xl bg-blue-500/10 border border-blue-500/20">
+                          <div className="px-5 py-3 text-xs sm:text-sm font-semibold text-blue-400 rounded-2xl bg-blue-500/10 border border-blue-500/20">
                             Opens {start.toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" })}
                           </div>
                         ) : (
-                          <div className={`px-4 py-2 text-xs rounded-xl ${isDark ? "bg-white/5 text-gray-400" : "bg-slate-100 text-slate-500"}`}>
+                          <div className={`px-5 py-3 text-xs sm:text-sm rounded-2xl ${isDark ? "bg-white/5 text-gray-400" : "bg-slate-100 text-slate-500"}`}>
                             Expired
                           </div>
                         )}
@@ -574,11 +609,11 @@ export default function AssessmentPage() {
 
             <div className="flex gap-3">
               <button onClick={() => setView("list")}
-                className={`flex-1 py-3 rounded-xl text-xs font-bold border transition ${isDark ? "border-white/10 hover:bg-white/5" : "border-slate-200 hover:bg-slate-50"}`}>
+                className={`flex-1 py-3 rounded-xl text-xs font-bold border transition cursor-pointer ${isDark ? "border-white/10 hover:bg-white/5" : "border-slate-200 hover:bg-slate-50"}`}>
                 Back
               </button>
               <button onClick={handleBeginExam}
-                className="flex-1 py-3 rounded-xl text-xs font-bold bg-[#781c1c] hover:bg-[#5f1515] text-white transition shadow-sm">
+                className="flex-1 py-3 rounded-xl text-xs font-bold bg-[#781c1c] hover:bg-[#5f1515] text-white transition shadow-sm cursor-pointer">
                 Begin Exam →
               </button>
             </div>
@@ -589,7 +624,7 @@ export default function AssessmentPage() {
       {/* ── EXAM VIEW ── */}
       {view === "exam" && !terminated && questions.length > 0 && (
         <div className="max-w-5xl mx-auto px-3 md:px-8 py-4 md:py-6">
-          <div className="flex gap-4 flex-col lg:flex-row">
+          <div className="flex gap-4 flex-col-reverse lg:flex-row">
             {/* Question Panel */}
             <div className="flex-1">
               <div className={`rounded-2xl border p-5 md:p-6 mb-4 ${card}`}>
@@ -624,7 +659,7 @@ export default function AssessmentPage() {
                       <button
                         key={opt}
                         onClick={() => selectOption(opt)}
-                        className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl border text-sm text-left transition-all duration-200 ${
+                        className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl border text-sm text-left transition-all duration-200 cursor-pointer ${
                           isSelected
                             ? "border-[#781c1c] bg-[#781c1c]/10 text-[#781c1c]"
                             : isDark
@@ -648,7 +683,7 @@ export default function AssessmentPage() {
                 <button
                   onClick={() => setCurrentQIndex((i) => Math.max(0, i - 1))}
                   disabled={currentQIndex === 0}
-                  className={`flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-xs font-bold border transition disabled:opacity-40 ${isDark ? "border-white/10 hover:bg-white/5" : "border-slate-200 hover:bg-slate-50"}`}
+                  className={`flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-xs font-bold border transition cursor-pointer disabled:opacity-40 ${isDark ? "border-white/10 hover:bg-white/5" : "border-slate-200 hover:bg-slate-50"}`}
                 >
                   <ChevronLeft size={14} /> Previous
                 </button>
@@ -656,14 +691,14 @@ export default function AssessmentPage() {
                 {currentQIndex < questions.length - 1 ? (
                   <button
                     onClick={() => setCurrentQIndex((i) => Math.min(questions.length - 1, i + 1))}
-                    className={`flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-xs font-bold border transition ${isDark ? "border-white/10 hover:bg-white/5" : "border-slate-200 hover:bg-slate-50"}`}
+                    className={`flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-xs font-bold border transition cursor-pointer ${isDark ? "border-white/10 hover:bg-white/5" : "border-slate-200 hover:bg-slate-50"}`}
                   >
                     Next <ChevronRight size={14} />
                   </button>
                 ) : (
                   <button
                     onClick={handleSubmit}
-                    className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-xs font-bold bg-[#781c1c] hover:bg-[#5f1515] text-white transition"
+                    className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-xs font-bold bg-[#781c1c] hover:bg-[#5f1515] text-white transition cursor-pointer"
                   >
                     Submit <CheckCircle size={14} />
                   </button>
@@ -708,12 +743,12 @@ export default function AssessmentPage() {
               {/* Question navigator */}
               <div className={`rounded-2xl border p-3 ${card}`}>
                 <span className={`text-[9px] font-mono uppercase tracking-widest font-bold block mb-2 ${subText}`}>Question Navigator</span>
-                <div className="grid grid-cols-5 gap-1.5">
+                <div className="grid grid-cols-5 sm:grid-cols-8 lg:grid-cols-5 gap-1.5">
                   {questions.map((q, i) => (
                     <button
                       key={q.id}
                       onClick={() => setCurrentQIndex(i)}
-                      className={`aspect-square rounded-lg text-[10px] font-bold transition-all ${
+                      className={`aspect-square rounded-lg text-[10px] font-bold transition-all cursor-pointer ${
                         i === currentQIndex
                           ? "bg-[#781c1c] text-white ring-2 ring-[#781c1c]/40"
                           : q.selectedOption
@@ -733,7 +768,7 @@ export default function AssessmentPage() {
 
               {/* Submit button */}
               <button onClick={handleSubmit}
-                className="w-full py-3 rounded-xl text-xs font-black bg-[#781c1c] hover:bg-[#5f1515] text-white transition">
+                className="w-full py-3 rounded-xl text-xs font-black bg-[#781c1c] hover:bg-[#5f1515] text-white transition cursor-pointer">
                 Submit Assessment
               </button>
             </div>
@@ -847,7 +882,7 @@ export default function AssessmentPage() {
               {/* Back button */}
               <button
                 onClick={() => { setView("list"); setResult(null); setAttemptId(null); setQuestions([]); fetchAssessments(); }}
-                className={`w-full py-3 rounded-xl text-xs font-bold border transition ${isDark ? "border-white/10 hover:bg-white/5" : "border-slate-200 hover:bg-slate-50"}`}
+                className={`w-full py-3 rounded-xl text-xs font-bold border transition cursor-pointer ${isDark ? "border-white/10 hover:bg-white/5" : "border-slate-200 hover:bg-slate-50"}`}
               >
                 <RotateCcw size={13} className="inline mr-2" /> Back to Assessments
               </button>
