@@ -47,13 +47,9 @@ export default function HomePage() {
             />
             {/* Brand Title (Kept at exact size requested) */}
             <div className="flex flex-col space-y-0.5">
-<<<<<<< HEAD
-              <span className="text-sm sm:text-xl md:text-2xl font-black uppercase tracking-wider leading-none text-slate-900 dark:text-white sm:text-white transition-transform group-hover:scale-105">
-=======
               <span className={`text-sm sm:text-xl md:text-2xl font-black uppercase tracking-wider leading-none transition-transform group-hover:scale-105 ${
                 isDark ? "text-white" : "text-slate-900 sm:text-white"
               }`}>
->>>>>>> 40a9e30e1da64064e79b351472bee8ee265619c7
                 Portfolios
               </span>
             </div>
@@ -65,17 +61,10 @@ export default function HomePage() {
             <button
               onClick={toggleThemeMode}
               aria-label="Toggle dark mode"
-<<<<<<< HEAD
               className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all duration-300 cursor-pointer shadow-md hover:scale-110 active:scale-95 border ${
                 isDark
                   ? "bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border-amber-500/30"
                   : "bg-indigo-900/40 hover:bg-indigo-900/60 text-white border-white/10"
-=======
-              className={`p-2.5 rounded-full transition-all duration-300 cursor-pointer border shadow-sm flex items-center justify-center ${
-                isDark
-                  ? "bg-white/10 hover:bg-white/20 text-amber-300 border-white/15"
-                  : "bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-300"
->>>>>>> 40a9e30e1da64064e79b351472bee8ee265619c7
               }`}
             >
               {isDark ? <Sun size={18} /> : <Moon size={18} />}
@@ -111,11 +100,7 @@ export default function HomePage() {
         </div>
 
         {/* Floating Ultra-Translucent Glass Center Card (Enlarged for Desktop) */}
-<<<<<<< HEAD
-        <div className="relative z-10 max-w-3xl lg:max-w-4xl mx-auto mt-auto mb-8 sm:mb-12 text-center px-2 sm:px-4 w-full animate-fade-in-up">
-=======
         <div className="relative z-10 max-w-3xl lg:max-w-4xl mx-auto my-auto text-center px-2 sm:px-4 w-full animate-fade-in-up mt-12 sm:mt-24 lg:mt-36 lg:translate-y-4">
->>>>>>> 40a9e30e1da64064e79b351472bee8ee265619c7
           <div className="rounded-3xl p-6 sm:p-14 lg:p-16 bg-black/[0.03] border border-white/10 shadow-lg shadow-black/10" style={{ backdropFilter: "blur(0.5px)", WebkitBackdropFilter: "blur(0.5px)" }}>
             {/* Main Headline */}
             <h1
