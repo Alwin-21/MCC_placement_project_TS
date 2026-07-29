@@ -3,6 +3,12 @@ import { prisma } from "@/utils/db";
 import { verifyPassword, generateToken } from "@/utils/auth";
 import { logActionAndNotify } from "@/utils/audit";
 
+export async function GET() {
+  return NextResponse.json({
+    message: "This is an API endpoint that accepts POST requests for user authentication. To log in using the web UI, please navigate to /login."
+  });
+}
+
 export async function POST(request: Request) {
   try {
     const body = await request.json();
