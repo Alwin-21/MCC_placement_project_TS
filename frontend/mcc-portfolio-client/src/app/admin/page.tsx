@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
@@ -43,11 +43,23 @@ import {
   Key,
   ToggleLeft,
   ToggleRight,
-  Lock
+  Lock,
+  ClipboardList,
+  Upload,
+  BookMarked,
+  AlertTriangle,
+  BarChart,
+  Clock,
+  ChevronDown,
+  Filter
 } from "lucide-react";
 import api from "@/services/api";
 import { useTheme } from "@/hooks/useTheme";
+<<<<<<< HEAD
 import AssessmentsManager from "./components/AssessmentsManager";
+=======
+import AssessmentAdminModule from "@/components/admin/AssessmentAdminModule";
+>>>>>>> 40a9e30e1da64064e79b351472bee8ee265619c7
 
 type ActiveTab = 
   | "overview" 
@@ -112,7 +124,33 @@ export default function AdminPage() {
     { id: "analytics",     label: "Department Analytics", alwaysRead: true  },
     { id: "reports",       label: "Analytics & Export",   alwaysRead: false },
     { id: "notifications", label: "Notification Manager", alwaysRead: false },
+    { id: "assessments",   label: "Assessment Module",    alwaysRead: false },
   ];
+
+  // ==========================================
+  // ASSESSMENT MODULE STATE
+  // ==========================================
+  const [assessments, setAssessments] = useState<any[]>([]);
+  const [assessmentLoading, setAssessmentLoading] = useState(false);
+  const [selectedAssessment, setSelectedAssessment] = useState<any>(null);
+  const [assessmentAttempts, setAssessmentAttempts] = useState<any[]>([]);
+  const [assessmentReport, setAssessmentReport] = useState<any>(null);
+  const [assessmentView, setAssessmentView] = useState<"list" | "create" | "edit" | "questions" | "attempts" | "report">("list");
+  const [importPreview, setImportPreview] = useState<any[]>([]);
+  const [importErrors, setImportErrors] = useState<number[]>([]);
+  const [importLoading, setImportLoading] = useState(false);
+  const [selectedAttempt, setSelectedAttempt] = useState<any>(null);
+  const csvFileRef = useRef<HTMLInputElement>(null);
+  const [assessmentForm, setAssessmentForm] = useState({
+    title: "",
+    description: "",
+    instructions: "",
+    durationMinutes: 60,
+    totalMarks: 100,
+    startDate: "",
+    endDate: "",
+    departments: [] as string[],
+  });
 
   const [searchQuery, setSearchQuery] = useState("");
   const [filter, setFilter] = useState<"all" | "pending" | "approved">("all");
@@ -208,6 +246,14 @@ export default function AdminPage() {
     }
     loadAllData();
   }, []);
+
+  // Fetch assessments whenever the assessments tab is activated
+  useEffect(() => {
+    if (activeTab === "assessments") {
+      fetchAssessments();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab]);
 
   // toggleThemeMode is now provided by useTheme hook — no local implementation needed
 
@@ -861,6 +907,166 @@ export default function AdminPage() {
     return true;
   });
 
+  // ==========================================
+  // ASSESSMENT MODULE HANDLERS
+  // ==========================================
+  const fetchAssessments = async () => {
+    setAssessmentLoading(true);
+    try {
+      const res = await api.get("/Assessments");
+      setAssessments(res.data);
+    } catch (err) { console.error(err); }
+    finally { setAssessmentLoading(false); }
+  };
+
+  const fetchAssessmentAttempts = async (assessmentId: number) => {
+    try {
+      const res = await api.get(`/Assessments/${assessmentId}/attempts`);
+      setAssessmentAttempts(res.data);
+    } catch (err) { console.error(err); }
+  };
+
+  const fetchAssessmentReport = async (assessmentId: number) => {
+    try {
+      const res = await api.get(`/Assessments/${assessmentId}/report`);
+      setAssessmentReport(res.data);
+    } catch (err) { console.error(err); }
+  };
+
+  const handleCreateAssessment = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!assessmentForm.title.trim()) { alert("Title is required."); return; }
+    try {
+      await api.post("/Assessments", assessmentForm);
+      alert("Assessment created successfully.");
+      setAssessmentView("list");
+      fetchAssessments();
+    } catch (err: any) { alert(`Failed: ${err.response?.data?.message || err.message}`); }
+  };
+
+  const handleUpdateAssessment = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedAssessment) return;
+    try {
+      await api.put(`/Assessments/${selectedAssessment.id}`, assessmentForm);
+      alert("Assessment updated.");
+      setAssessmentView("list");
+      fetchAssessments();
+    } catch (err: any) { alert(`Failed: ${err.response?.data?.message || err.message}`); }
+  };
+
+  const handleDeleteAssessment = async (id: number, title: string) => {
+    if (!confirm(`Delete assessment "${title}"? All questions and attempts will be deleted.`)) return;
+    try {
+      await api.delete(`/Assessments/${id}`);
+      alert("Deleted.");
+      setAssessmentView("list");
+      fetchAssessments();
+    } catch (err: any) { alert(`Failed: ${err.response?.data?.message || err.message}`); }
+  };
+
+  const handlePublishToggle = async (id: number) => {
+    try {
+      const res = await api.post(`/Assessments/${id}/publish`);
+      alert(`Assessment ${res.data.status}.`);
+      fetchAssessments();
+    } catch (err: any) { alert(`Failed: ${err.response?.data?.message || err.message}`); }
+  };
+
+  const handleCloseAssessment = async (id: number) => {
+    if (!confirm("Close this assessment? Students will no longer be able to take it.")) return;
+    try {
+      await api.post(`/Assessments/${id}/close`);
+      alert("Assessment closed.");
+      fetchAssessments();
+    } catch (err: any) { alert(`Failed: ${err.response?.data?.message || err.message}`); }
+  };
+
+  const handleExportQuestions = async (id: number) => {
+    const adminToken = localStorage.getItem("adminToken");
+    try {
+      const res = await fetch(`/api/Assessments/${id}/questions/export`, {
+        headers: { Authorization: `Bearer ${adminToken}` },
+      });
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url; a.download = `assessment_${id}_questions.csv`;
+      document.body.appendChild(a); a.click(); a.remove();
+      URL.revokeObjectURL(url);
+    } catch (err: any) { alert("Export failed."); }
+  };
+
+  const handleCSVImport = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      const text = evt.target?.result as string;
+      const lines = text.split(/\r?\n/).filter((l) => l.trim());
+      if (lines.length < 2) { alert("CSV must have a header row and at least one question row."); return; }
+      const headers = lines[0].split(",").map((h) => h.trim().replace(/^"|"$/g, "").toLowerCase());
+      const colMap: any = {};
+      ["questiontext","optiona","optionb","optionc","optiond","correctoption","marks"].forEach((k) => {
+        const idx = headers.findIndex((h) => h === k);
+        if (idx >= 0) colMap[k] = idx;
+      });
+
+      const parseRow = (row: string): string[] => {
+        const result: string[] = [];
+        let cur = ""; let inQ = false;
+        for (let i = 0; i < row.length; i++) {
+          const ch = row[i];
+          if (ch === '"') { inQ = !inQ; } 
+          else if (ch === "," && !inQ) { result.push(cur); cur = ""; }
+          else { cur += ch; }
+        }
+        result.push(cur);
+        return result.map((v) => v.trim().replace(/^"|"$/g, ""));
+      };
+
+      const errors: number[] = [];
+      const parsed = lines.slice(1).map((line, idx) => {
+        const cols = parseRow(line);
+        const q = {
+          questionText: cols[colMap.questiontext] || "",
+          optionA: cols[colMap.optiona] || "",
+          optionB: cols[colMap.optionb] || "",
+          optionC: cols[colMap.optionc] || "",
+          optionD: cols[colMap.optiond] || "",
+          correctOption: (cols[colMap.correctoption] || "").toUpperCase(),
+          marks: parseInt(cols[colMap.marks]) || 0,
+        };
+        const valid = q.questionText && q.optionA && q.optionB && q.optionC && q.optionD &&
+          ["A","B","C","D"].includes(q.correctOption) && q.marks > 0;
+        if (!valid) errors.push(idx);
+        return q;
+      });
+      setImportPreview(parsed);
+      setImportErrors(errors);
+    };
+    reader.readAsText(file);
+    if (csvFileRef.current) csvFileRef.current.value = "";
+  };
+
+  const handleImportSave = async () => {
+    if (!selectedAssessment) return;
+    const validRows = importPreview.filter((_, i) => !importErrors.includes(i));
+    if (validRows.length === 0) { alert("No valid rows to import."); return; }
+    setImportLoading(true);
+    try {
+      const res = await api.post(`/Assessments/${selectedAssessment.id}/questions`, {
+        questions: validRows,
+        replace: false,
+      });
+      alert(`Imported ${res.data.created} questions successfully.`);
+      setImportPreview([]);
+      setImportErrors([]);
+      fetchAssessments();
+    } catch (err: any) { alert(`Import failed: ${err.response?.data?.message || err.message}`); }
+    finally { setImportLoading(false); }
+  };
+
   if (loading && !metrics) {
     return (
       <div className="min-h-screen bg-[#0d0d12] text-[#f3f4f6] flex flex-col items-center justify-center">
@@ -900,6 +1106,7 @@ export default function AdminPage() {
         {/* Navigation Items */}
         <nav className="p-4 space-y-1.5 overflow-y-auto flex-1">
             {([
+<<<<<<< HEAD
               { id: "overview",       label: "Dashboard Overview",  icon: Activity,  superOnly: false },
               { id: "students",       label: "Student Directory",    icon: Users,     superOnly: false },
               { id: "institution",   label: "Institution Details",  icon: Building,  superOnly: false },
@@ -910,6 +1117,18 @@ export default function AdminPage() {
               { id: "backup-restore",label: "System Backup/Restore",icon: Settings,  superOnly: true  },
               { id: "assessments",    label: "Assessments Manager",  icon: BookOpen,  superOnly: false },
               { id: "rbac",          label: "Access Control",       icon: UserCog,   superOnly: true  },
+=======
+              { id: "overview",       label: "Dashboard Overview",  icon: Activity,       superOnly: false },
+              { id: "students",       label: "Student Directory",    icon: Users,          superOnly: false },
+              { id: "assessments",    label: "Assessment Module",    icon: ClipboardList,  superOnly: false },
+              { id: "institution",   label: "Institution Details",  icon: Building,       superOnly: false },
+              { id: "analytics",     label: "Department Analytics", icon: BarChart2,      superOnly: false },
+              { id: "reports",       label: "Analytics & Export",   icon: FileText,       superOnly: false },
+              { id: "notifications", label: "Notification Manager", icon: Bell,           superOnly: false },
+              { id: "audit-logs",    label: "Security Audit Logs",  icon: Shield,         superOnly: true  },
+              { id: "backup-restore",label: "System Backup/Restore",icon: Settings,       superOnly: true  },
+              { id: "rbac",          label: "Access Control",       icon: UserCog,        superOnly: true  },
+>>>>>>> 40a9e30e1da64064e79b351472bee8ee265619c7
             ] as const).filter((tab) => {
               if (isSuperAdmin) return true;
               // Sub-admins: only show what they can at least read
@@ -955,20 +1174,23 @@ export default function AdminPage() {
           themeMode === "dark" ? "border-white/5" : "border-[#781c1c]/10"
         }`}>
           {/* Role Badge */}
-          <div className={`px-3 py-2 rounded-xl text-[10px] font-mono font-bold flex items-center gap-2 ${
+          <div className={`px-3 py-2 rounded-xl text-[10px] font-mono font-bold flex items-center justify-center gap-2 ${
             isSuperAdmin
               ? "bg-violet-500/10 text-violet-300 border border-violet-500/20"
               : "bg-blue-500/10 text-blue-300 border border-blue-500/20"
           }`}>
-            <Shield size={11} />
+            <Shield size={11} className="shrink-0" />
             {isSuperAdmin ? "Super Administrator" : "Sub-Admin"}
           </div>
 
+<<<<<<< HEAD
 
+=======
+>>>>>>> 40a9e30e1da64064e79b351472bee8ee265619c7
           <Link
             href="/"
             className={`flex items-center justify-between text-[11px] transition px-2 ${
-              themeMode === "dark" ? "text-gray-400 hover:text-white" : "text-slate-300 hover:text-white"
+              themeMode === "dark" ? "text-gray-400 hover:text-white" : "text-slate-500 hover:text-[#781c1c]"
             }`}
           >
             <span className="flex items-center gap-2"><ArrowLeft size={12} /> Leave Admin Panel</span>
@@ -1056,7 +1278,11 @@ export default function AdminPage() {
                 })}
               </nav>
             
+<<<<<<< HEAD
             <div className="pt-4 border-t border-slate-800 shrink-0 space-y-2">
+=======
+            <div className="pt-4 border-t border-slate-800 shrink-0 flex items-center gap-3">
+>>>>>>> 40a9e30e1da64064e79b351472bee8ee265619c7
               <button
                 onClick={() => {
                   localStorage.removeItem("adminToken");
@@ -1095,10 +1321,17 @@ export default function AdminPage() {
           <button
             onClick={toggleThemeMode}
             aria-label="Toggle theme"
+<<<<<<< HEAD
             className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all duration-300 cursor-pointer shadow-md hover:scale-110 active:scale-95 border ${
               themeMode === "dark"
                 ? "bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border-amber-500/30"
                 : "bg-indigo-900/40 hover:bg-indigo-900/60 text-white border-white/10"
+=======
+            className={`p-2 rounded-full flex items-center justify-center transition-all duration-200 cursor-pointer border shadow-sm ${
+              themeMode === "dark"
+                ? "bg-white/10 hover:bg-white/20 text-amber-300 border-white/15"
+                : "bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-300"
+>>>>>>> 40a9e30e1da64064e79b351472bee8ee265619c7
             }`}
           >
             {themeMode === "dark" ? <Sun size={18} /> : <Moon size={18} />}
@@ -1120,6 +1353,7 @@ export default function AdminPage() {
           <div className="hidden md:flex absolute top-4 right-5 z-20 items-center">
             <button
               onClick={toggleThemeMode}
+<<<<<<< HEAD
               className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all duration-300 cursor-pointer shadow-md hover:scale-110 active:scale-95 border ${
                 themeMode === "dark"
                   ? "bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border-amber-500/30"
@@ -1128,6 +1362,16 @@ export default function AdminPage() {
               title="Toggle Light/Dark Mode"
             >
               {themeMode === "dark" ? <Sun size={18} /> : <Moon size={18} />}
+=======
+              title="Toggle Light/Dark Mode"
+              className={`p-2.5 rounded-full transition-all duration-300 cursor-pointer border shadow-sm flex items-center justify-center ${
+                themeMode === "dark"
+                  ? "bg-white/10 hover:bg-white/20 text-amber-300 border-white/15"
+                  : "bg-white/90 hover:bg-slate-100 text-slate-700 border-slate-200"
+              }`}
+            >
+              {themeMode === "dark" ? <Sun size={16} /> : <Moon size={16} />}
+>>>>>>> 40a9e30e1da64064e79b351472bee8ee265619c7
             </button>
           </div>
 
@@ -3134,6 +3378,12 @@ export default function AdminPage() {
 
             </div>
           </div>
+        </div>
+      )}
+
+      {activeTab === "assessments" && (
+        <div className="p-4 md:p-8 relative z-10 overflow-y-auto max-h-screen">
+          <AssessmentAdminModule />
         </div>
       )}
     </div>

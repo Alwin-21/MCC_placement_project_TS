@@ -33,7 +33,9 @@ import {
   X,
   Copy,
   Sliders,
-  Upload
+  Upload,
+  Activity,
+  ClipboardList
 } from "lucide-react";
 import api from "@/services/api";
 import { useTheme } from "@/hooks/useTheme";
@@ -97,6 +99,7 @@ export default function DashboardPage() {
   const [notifications, setNotifications] = useState<any[]>([]);
   const [showNotifications, setShowNotifications] = useState(false);
   const [showMobileNav, setShowMobileNav] = useState(false);
+  const [activeSection, setActiveSection] = useState("header-section");
 
   // File uploading loader
   const [uploadingField, setUploadingField] = useState<string | null>(null);
@@ -243,7 +246,11 @@ export default function DashboardPage() {
   const [resumeUrl, setResumeUrl] = useState("");
   const [editingResumeId, setEditingResumeId] = useState<number | null>(null);
 
+<<<<<<< HEAD
   // Student Assessments State
+=======
+  // ASSESSMENTS MODULE
+>>>>>>> 40a9e30e1da64064e79b351472bee8ee265619c7
   const [studentAssessments, setStudentAssessments] = useState<any[]>([]);
 
   // Copy Link State
@@ -305,6 +312,57 @@ export default function DashboardPage() {
     loadAllData();
   }, []);
 
+  useEffect(() => {
+    const sections = [
+      "header-section",
+      "about-section",
+      "experience-section",
+      "academic-section",
+      "achievements-section",
+      "projects-research-section",
+      "skills-section",
+      "licenses-certifications-section",
+      "languages-section",
+      "test-scores-section",
+      "patents-section",
+      "media-handles-section",
+      "resume-section"
+    ];
+
+    const observerOptions = {
+      root: null,
+      rootMargin: "-20% 0px -55% 0px",
+      threshold: 0
+    };
+
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) {
+          setActiveSection(entry.target.id);
+        }
+      });
+    }, observerOptions);
+
+    sections.forEach((id) => {
+      const el = document.getElementById(id);
+      if (el) observer.observe(el);
+    });
+
+    if (typeof window !== "undefined" && window.location.hash) {
+      const hash = window.location.hash.substring(1);
+      setTimeout(() => {
+        scrollTo(hash);
+      }, 500);
+    }
+
+    return () => {
+      sections.forEach((id) => {
+        const el = document.getElementById(id);
+        if (el) observer.unobserve(el);
+      });
+    };
+  }, []);
+
   const fetchUserMe = async () => {
     try {
       const res = await api.get("/Users/me");
@@ -336,6 +394,18 @@ export default function DashboardPage() {
     fetchThemesList();
     fetchAiAnalysis();
     fetchStudentAssessments();
+<<<<<<< HEAD
+=======
+  };
+
+  const fetchStudentAssessments = async () => {
+    try {
+      const res = await api.get("/Assessments/student");
+      setStudentAssessments(res.data || []);
+    } catch (err) {
+      console.error("Failed to load student assessments", err);
+    }
+>>>>>>> 40a9e30e1da64064e79b351472bee8ee265619c7
   };
 
   // ==========================================
@@ -1320,6 +1390,7 @@ Report Generated: ${new Date().toLocaleDateString()}
 
   // Nav sidebar scroll helpers
   const scrollTo = (id: string) => {
+    setActiveSection(id);
     document.getElementById(id)?.scrollIntoView({
       behavior: "smooth"
     });
@@ -1399,6 +1470,7 @@ Report Generated: ${new Date().toLocaleDateString()}
           />
         </div>
 
+<<<<<<< HEAD
         {/* Navigation Items */}
         <nav className="p-4 space-y-1.5 overflow-y-auto flex-1 scrollbar-thin">
           {sidebarLinks.map((linkItem) => {
@@ -1411,11 +1483,23 @@ Report Generated: ${new Date().toLocaleDateString()}
                   scrollTo(linkItem.id);
                   setActiveSection(linkItem.id);
                 }}
+=======
+        {/* 13 SECTIONS LINKS */}
+        <div className="flex-1 overflow-y-auto p-4 space-y-1.5 scrollbar-thin">
+          {sidebarLinks.map((link) => {
+            const Icon = link.icon;
+            const isActive = activeSection === link.id;
+            return (
+              <button
+                key={link.id}
+                onClick={() => scrollTo(link.id)}
+>>>>>>> 40a9e30e1da64064e79b351472bee8ee265619c7
                 className={`w-full flex items-center gap-3.5 px-4 py-3 rounded-xl text-xs font-semibold tracking-wide transition-all duration-200 cursor-pointer ${
                   isActive
                     ? "mcc-active-tab font-bold"
                     : themeMode === "dark"
                       ? "text-slate-400 hover:text-white hover:bg-white/5"
+<<<<<<< HEAD
                       : "text-slate-700 hover:text-[#18233c] hover:bg-slate-100"
                 }`}
               >
@@ -1430,17 +1514,37 @@ Report Generated: ${new Date().toLocaleDateString()}
                   }
                 />
                 {linkItem.label}
+=======
+                      : "text-slate-700 hover:bg-slate-100"
+                }`}
+              >
+                <Icon size={16} className={isActive ? "text-white" : "text-slate-400"} />
+                {link.label}
+>>>>>>> 40a9e30e1da64064e79b351472bee8ee265619c7
               </button>
             );
           })}
 
           <div className="pt-4 border-t border-slate-200 dark:border-white/5 space-y-1.5">
             <button
+              onClick={() => window.location.href = "/assessment"}
+              className={`w-full flex items-center gap-3.5 px-4 py-3 rounded-xl text-xs font-semibold tracking-wide transition-all duration-200 cursor-pointer ${
+                themeMode === "dark" ? "hover:bg-white/5 text-indigo-400 hover:text-indigo-300 font-bold" : "hover:bg-indigo-50 text-indigo-700 font-bold"
+              }`}
+            >
+              <ClipboardList size={16} className="text-indigo-400" /> Department Assessments
+            </button>
+
+            <button
               onClick={() => window.location.href = "/dashboard/resumes"}
               className={`w-full flex items-center gap-3.5 px-4 py-3 rounded-xl text-xs font-semibold tracking-wide transition-all duration-200 cursor-pointer ${
+<<<<<<< HEAD
                 themeMode === "dark"
                   ? "text-slate-400 hover:text-white hover:bg-white/5"
                   : "text-slate-700 hover:text-[#18233c] hover:bg-slate-100"
+=======
+                themeMode === "dark" ? "hover:bg-white/5 text-slate-400 hover:text-white" : "hover:bg-slate-100 text-slate-700"
+>>>>>>> 40a9e30e1da64064e79b351472bee8ee265619c7
               }`}
             >
               <Sparkles size={16} className="text-emerald-400" />
@@ -1515,9 +1619,13 @@ Report Generated: ${new Date().toLocaleDateString()}
             Verified Student
           </div>
 
+<<<<<<< HEAD
+=======
+        <div className="p-4 border-t border-white/10 flex items-center gap-3">
+>>>>>>> 40a9e30e1da64064e79b351472bee8ee265619c7
           <button
             onClick={handleLogout}
-            className="w-full flex items-center justify-center gap-3 bg-red-500/10 hover:bg-red-500/20 text-red-400 py-2.5 rounded-xl text-xs font-semibold transition cursor-pointer"
+            className="w-full flex items-center justify-center gap-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 py-2.5 rounded-xl text-xs font-semibold border border-red-500/20 transition cursor-pointer"
           >
             <LogOut size={15} /> Log Out
           </button>
@@ -1541,6 +1649,7 @@ Report Generated: ${new Date().toLocaleDateString()}
             </div>
             
             <nav className="flex-1 py-4 space-y-1.5 overflow-y-auto scrollbar-thin">
+<<<<<<< HEAD
               {sidebarLinks.map((linkItem) => {
                 const Icon = linkItem.icon;
                 const isActive = activeSection === linkItem.id;
@@ -1553,10 +1662,21 @@ Report Generated: ${new Date().toLocaleDateString()}
                       setShowMobileNav(false);
                     }}
                     className={`w-full flex items-center gap-3.5 px-4 py-2.5 rounded-xl text-xs font-semibold tracking-wide transition-all duration-200 cursor-pointer ${
+=======
+              {sidebarLinks.map((link) => {
+                const Icon = link.icon;
+                const isActive = activeSection === link.id;
+                return (
+                  <button
+                    key={link.id}
+                    onClick={() => { scrollTo(link.id); setShowMobileNav(false); }}
+                    className={`w-full flex items-center gap-3.5 px-4 py-3 rounded-xl text-xs font-semibold tracking-wide transition-all duration-200 cursor-pointer ${
+>>>>>>> 40a9e30e1da64064e79b351472bee8ee265619c7
                       isActive
                         ? "mcc-active-tab font-bold"
                         : themeMode === "dark"
                           ? "text-slate-400 hover:text-white hover:bg-white/5"
+<<<<<<< HEAD
                           : "text-slate-700 hover:text-[#18233c] hover:bg-slate-100"
                     }`}
                   >
@@ -1585,6 +1705,22 @@ Report Generated: ${new Date().toLocaleDateString()}
                     themeMode === "dark"
                       ? "text-slate-400 hover:text-white hover:bg-white/5"
                       : "text-slate-700 hover:text-[#18233c] hover:bg-slate-100"
+=======
+                          : "text-slate-700 hover:bg-slate-100"
+                    }`}
+                  >
+                    <Icon size={16} className={isActive ? "text-white" : "text-slate-400"} />
+                    {link.label}
+                  </button>
+                );
+              })}
+              
+              <div className="pt-4 border-t border-white/5 space-y-1">
+                <button
+                  onClick={() => { window.location.href = "/dashboard/resumes"; setShowMobileNav(false); }}
+                  className={`w-full flex items-center gap-3.5 px-4 py-3 rounded-xl text-xs font-semibold tracking-wide transition-all duration-200 cursor-pointer ${
+                    themeMode === "dark" ? "hover:bg-white/5 text-slate-400 hover:text-white" : "hover:bg-slate-100 text-slate-700"
+>>>>>>> 40a9e30e1da64064e79b351472bee8ee265619c7
                   }`}
                 >
                   <Sparkles size={16} className="text-emerald-400" />
@@ -1644,6 +1780,7 @@ Report Generated: ${new Date().toLocaleDateString()}
                   </div>
                 </div>
               </div>
+<<<<<<< HEAD
             </nav>
 
             {/* User Quick Controls */}
@@ -1662,6 +1799,10 @@ Report Generated: ${new Date().toLocaleDateString()}
                 onClick={handleLogout}
                 className="w-full flex items-center justify-center gap-3 bg-red-500/10 hover:bg-red-500/20 text-red-400 py-2.5 rounded-xl text-xs font-semibold transition cursor-pointer"
               >
+=======
+            </nav>            <div className="pt-4 border-t border-white/10 flex items-center gap-3">
+              <button onClick={handleLogout} className="w-full flex items-center justify-center gap-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 py-2.5 rounded-xl text-xs font-semibold border border-red-500/20 transition cursor-pointer">
+>>>>>>> 40a9e30e1da64064e79b351472bee8ee265619c7
                 <LogOut size={15} /> Log Out
               </button>
             </div>
@@ -1690,10 +1831,17 @@ Report Generated: ${new Date().toLocaleDateString()}
           <button
             onClick={toggleThemeMode}
             aria-label="Toggle theme"
+<<<<<<< HEAD
             className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all duration-300 cursor-pointer shadow-md hover:scale-110 active:scale-95 border ${
               themeMode === "dark"
                 ? "bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border-amber-500/30"
                 : "bg-indigo-900/40 hover:bg-indigo-900/60 text-white border-white/10"
+=======
+            className={`p-2 rounded-full flex items-center justify-center transition-all duration-200 cursor-pointer border shadow-sm ${
+              themeMode === "dark"
+                ? "bg-white/10 hover:bg-white/20 text-amber-300 border-white/15"
+                : "bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-300"
+>>>>>>> 40a9e30e1da64064e79b351472bee8ee265619c7
             }`}
           >
             {themeMode === "dark" ? <Sun size={18} /> : <Moon size={18} />}
@@ -1718,12 +1866,20 @@ Report Generated: ${new Date().toLocaleDateString()}
           <div className="hidden md:flex absolute top-4 right-5 z-20 items-center">
             <button
               onClick={toggleThemeMode}
+<<<<<<< HEAD
               className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all duration-300 cursor-pointer shadow-md hover:scale-110 active:scale-95 border ${
                 themeMode === "dark"
                   ? "bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border-amber-500/30"
                   : "bg-indigo-900/40 hover:bg-indigo-900/60 text-white border-white/10"
               }`}
+=======
+>>>>>>> 40a9e30e1da64064e79b351472bee8ee265619c7
               title="Toggle Light/Dark Mode"
+              className={`p-2.5 rounded-full transition-all duration-300 cursor-pointer border shadow-sm flex items-center justify-center ${
+                themeMode === "dark"
+                  ? "bg-white/10 hover:bg-white/20 text-amber-300 border-white/15"
+                  : "bg-white/90 hover:bg-slate-100 text-slate-700 border-slate-200"
+              }`}
             >
               {themeMode === "dark" ? <Sun size={18} /> : <Moon size={18} />}
             </button>
@@ -1751,55 +1907,86 @@ Report Generated: ${new Date().toLocaleDateString()}
         </div>
         
         {/* HEADER BAR */}
-        <div className="flex justify-between items-center pb-6 border-b border-white/10">
+        <div className={`mb-10 flex items-center justify-between flex-wrap gap-4 border-b pb-6 ${
+          themeMode === "dark" ? "border-white/5" : "border-slate-200"
+        }`}>
           <div>
+<<<<<<< HEAD
             <span className="text-[10px] uppercase font-mono font-black tracking-widest text-[#781c1c] block mb-1 whitespace-nowrap">Madras Christian College</span>
             <h2 className="font-serif text-3xl font-extrabold tracking-tight text-[#18233c] dark:text-white">Student Dashboard</h2>
             <p className={`text-xs mt-1 ${themeMode === "dark" ? "text-gray-400" : "text-slate-500"}`}>
+=======
+            <span className="text-[10px] uppercase font-mono tracking-widest text-[#818cf8] font-bold whitespace-nowrap">
+              Madras Christian College
+            </span>
+            <h2 className={`text-2xl md:text-3xl font-black tracking-tight mt-0.5 capitalize ${
+              themeMode === "dark" ? "text-white" : "text-slate-900"
+            }`}>
+              Student Dashboard
+            </h2>
+            <p className={`text-xs mt-1 ${themeMode === "dark" ? "text-slate-400" : "text-slate-500"}`}>
+>>>>>>> 40a9e30e1da64064e79b351472bee8ee265619c7
               Configure and showcase your portfolio variables according to MCC standards.
             </p>
           </div>
 
-          {/* Alert Bell */}
-          <div className="relative">
+          <div className="flex items-center gap-3">
             <button
-              onClick={() => setShowNotifications(!showNotifications)}
-              className="p-3 rounded-2xl bg-white/5 border border-white/10 hover:bg-white/10 transition relative"
+              onClick={() => window.location.href = "/assessment"}
+              className="bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs px-4 py-2.5 rounded-xl shadow-lg shadow-indigo-600/30 flex items-center gap-2 transition cursor-pointer"
             >
-              <Bell size={18} />
-              {notifications.some(n => !n.isRead) && (
-                <span className="absolute top-2 right-2 w-2 h-2 bg-[#781c1c] rounded-full" />
-              )}
+              <ClipboardList size={15} /> Department Assessments
             </button>
-            {showNotifications && (
-              <div className={`absolute right-0 mt-3 w-80 rounded-2xl border p-4 shadow-2xl z-50 transition-all duration-300 ${
-                themeMode === "dark" ? "bg-[#0b0b0f] border-white/15 text-white" : "bg-white border-slate-200 text-slate-800"
-              }`}>
-                <h4 className="font-bold text-xs border-b pb-2 mb-2 flex items-center justify-between border-white/5">
-                  <span>Campus Alerts & Announcements</span>
-                  <button onClick={() => setShowNotifications(false)} className="text-[10px] opacity-60 hover:opacity-100">Close</button>
-                </h4>
-                <div className="space-y-2 max-h-[250px] overflow-y-auto">
-                  {notifications.length > 0 ? (
-                    notifications.map((n) => (
-                      <div
-                        key={n.id}
-                        onClick={() => !n.isRead && markNotificationAsRead(n.id)}
-                        className={`p-3 rounded-xl border transition text-left cursor-pointer ${
-                          n.isRead ? "bg-white/[0.02] border-white/5 opacity-60" : "bg-[#781c1c]/10 border-[#781c1c]/20 hover:bg-[#781c1c]/15"
-                        }`}
-                      >
-                        <span className="font-semibold text-xs block leading-tight">{n.title}</span>
-                        <p className="text-[10px] opacity-70 mt-1 leading-relaxed">{n.message}</p>
-                        <span className="text-[8px] opacity-40 block mt-2 font-mono">{new Date(n.createdAt).toLocaleDateString()}</span>
-                      </div>
-                    ))
-                  ) : (
-                    <div className="text-center py-6 opacity-60 text-xs">No notifications.</div>
-                  )}
+
+            <div className="bg-emerald-500/10 border border-emerald-500/20 px-4 py-2.5 rounded-xl flex items-center gap-2">
+              <Activity className="text-emerald-400 animate-pulse" size={14} />
+              <span className="text-[10px] uppercase font-mono text-emerald-400 font-bold">Server Connection:</span>
+              <span className={`text-[10px] font-bold ${themeMode === "dark" ? "text-white" : "text-slate-800"}`}>Online & Healthy</span>
+            </div>
+
+            {/* Alert Bell */}
+            <div className="relative">
+              <button
+                onClick={() => setShowNotifications(!showNotifications)}
+                className={`p-3 rounded-2xl border transition relative ${
+                  themeMode === "dark" ? "bg-white/5 border-white/10 hover:bg-white/10 text-white" : "bg-white border-slate-200 hover:bg-slate-50 text-slate-800 shadow-sm"
+                }`}
+              >
+                <Bell size={18} />
+                {notifications.some(n => !n.isRead) && (
+                  <span className="absolute top-2 right-2 w-2 h-2 bg-[#781c1c] rounded-full" />
+                )}
+              </button>
+              {showNotifications && (
+                <div className={`absolute right-0 mt-3 w-80 rounded-2xl border p-4 shadow-2xl z-50 transition-all duration-300 ${
+                  themeMode === "dark" ? "bg-[#0b0b0f] border-white/15 text-white" : "bg-white border-slate-200 text-slate-800"
+                }`}>
+                  <h4 className="font-bold text-xs border-b pb-2 mb-2 flex items-center justify-between border-white/5">
+                    <span>Campus Alerts & Announcements</span>
+                    <button onClick={() => setShowNotifications(false)} className="text-[10px] opacity-60 hover:opacity-100">Close</button>
+                  </h4>
+                  <div className="space-y-2 max-h-[250px] overflow-y-auto">
+                    {notifications.length > 0 ? (
+                      notifications.map((n) => (
+                        <div
+                          key={n.id}
+                          onClick={() => !n.isRead && markNotificationAsRead(n.id)}
+                          className={`p-3 rounded-xl border transition text-left cursor-pointer ${
+                            n.isRead ? "bg-white/[0.02] border-white/5 opacity-60" : "bg-[#781c1c]/10 border-[#781c1c]/20 hover:bg-[#781c1c]/15"
+                          }`}
+                        >
+                          <span className="font-semibold text-xs block leading-tight">{n.title}</span>
+                          <p className="text-[10px] opacity-70 mt-1 leading-relaxed">{n.message}</p>
+                          <span className="text-[8px] opacity-40 block mt-2 font-mono">{new Date(n.createdAt).toLocaleDateString()}</span>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="text-center py-4 text-xs opacity-50">No notifications</div>
+                    )}
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
+            </div>
           </div>
         </div>
 
@@ -1807,16 +1994,20 @@ Report Generated: ${new Date().toLocaleDateString()}
             SECTION 1: HEADER SETTINGS
             ========================================== */}
         <div id="header-section" className={`border rounded-3xl p-8 transition duration-300 -mt-6 md:-mt-8 ${
-          themeMode === "dark" ? "bg-white/5 border-white/10" : "bg-white border-slate-200 shadow-sm"
+          themeMode === "dark" ? "bg-[#0b0b0f] border-white/5" : "bg-white border-slate-200 shadow-sm"
         }`}>
+<<<<<<< HEAD
           <h3 className="font-serif text-2xl font-black mb-4 flex items-center gap-2 text-[#18233c] dark:text-white border-b border-[#781c1c]/10 dark:border-white/10 pb-3">
+=======
+          <h3 className={`font-serif text-2xl font-black mb-4 flex items-center gap-2 border-b border-[#781c1c]/10 pb-3 ${themeMode === "dark" ? "text-white" : "text-[#18233c]"}`}>
+>>>>>>> 40a9e30e1da64064e79b351472bee8ee265619c7
             <User size={22} /> Section 1: Header Section Details
           </h3>
 
           <div className="grid md:grid-cols-2 gap-6">
             {/* Profile Photo upload */}
             <div className={`border rounded-2xl p-4 sm:p-5 flex flex-col justify-between gap-3 transition ${
-              themeMode === "dark" ? "bg-white/[0.02] border-white/10" : "bg-slate-50 border-slate-200"
+              themeMode === "dark" ? "bg-[#0b0b0f] border-white/5" : "bg-slate-50 border-slate-200"
             }`}>
               <div>
                 <label className="text-[10px] uppercase font-mono tracking-wider font-bold text-slate-500 block mb-1">
@@ -1903,7 +2094,7 @@ Report Generated: ${new Date().toLocaleDateString()}
                 value={fullName}
                 onChange={(e) => setFullName(e.target.value)}
                 className={`border rounded-xl px-4 py-3 text-sm outline-none transition ${
-                  themeMode === "dark" ? "bg-white/5 border-white/10 text-white" : "bg-white border-slate-200"
+                  themeMode === "dark" ? "bg-[#121217] border-white/5 text-white placeholder-gray-500" : "bg-white border-slate-200 text-slate-900"
                 }`}
               />
             </div>
@@ -1918,7 +2109,7 @@ Report Generated: ${new Date().toLocaleDateString()}
                 disabled
                 value={course}
                 className={`border rounded-xl px-4 py-3 text-sm outline-none cursor-not-allowed transition ${
-                  themeMode === "dark" ? "bg-white/5 border-white/10 text-slate-300" : "bg-slate-100 border-slate-200 text-slate-500"
+                  themeMode === "dark" ? "bg-[#121217] border-white/5 text-slate-400" : "bg-slate-100 border-slate-200 text-slate-500"
                 }`}
               />
             </div>
@@ -1933,7 +2124,7 @@ Report Generated: ${new Date().toLocaleDateString()}
                 value={yearOfStudy}
                 onChange={(e) => setYearOfStudy(e.target.value)}
                 className={`border rounded-xl px-4 py-3 text-sm outline-none transition cursor-pointer ${
-                  themeMode === "dark" ? "bg-white/5 border-white/10 text-white" : "bg-white border-slate-200"
+                  themeMode === "dark" ? "bg-[#121217] border-white/5 text-white placeholder-gray-500" : "bg-white border-slate-200 text-slate-900"
                 }`}
               >
                 <option value="">Select Year</option>
@@ -1955,7 +2146,7 @@ Report Generated: ${new Date().toLocaleDateString()}
                 value={currentLocation}
                 onChange={(e) => setCurrentLocation(e.target.value)}
                 className={`border rounded-xl px-4 py-3 text-sm outline-none transition ${
-                  themeMode === "dark" ? "bg-white/5 border-white/10 text-white" : "bg-white border-slate-200"
+                  themeMode === "dark" ? "bg-[#121217] border-white/5 text-white placeholder-gray-500" : "bg-white border-slate-200 text-slate-900"
                 }`}
               />
             </div>
@@ -1971,7 +2162,7 @@ Report Generated: ${new Date().toLocaleDateString()}
                 value={email}
                 disabled
                 className={`border rounded-xl px-4 py-3 text-sm outline-none cursor-not-allowed transition ${
-                  themeMode === "dark" ? "bg-white/5 border-white/10 text-slate-300" : "bg-slate-100 border-slate-200 text-slate-500"
+                  themeMode === "dark" ? "bg-[#121217] border-white/5 text-slate-400" : "bg-slate-100 border-slate-200 text-slate-500"
                 }`}
               />
             </div>
@@ -1988,7 +2179,7 @@ Report Generated: ${new Date().toLocaleDateString()}
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
                 className={`border rounded-xl px-4 py-3 text-sm outline-none transition ${
-                  themeMode === "dark" ? "bg-white/5 border-white/10 text-white" : "bg-white border-slate-200"
+                  themeMode === "dark" ? "bg-[#121217] border-white/5 text-white placeholder-gray-500" : "bg-white border-slate-200 text-slate-900"
                 }`}
               />
             </div>
@@ -2004,7 +2195,7 @@ Report Generated: ${new Date().toLocaleDateString()}
                 value={linkedInUrl}
                 onChange={(e) => setLinkedInUrl(e.target.value)}
                 className={`border rounded-xl px-4 py-3 text-sm outline-none transition ${
-                  themeMode === "dark" ? "bg-white/5 border-white/10 text-white" : "bg-white border-slate-200"
+                  themeMode === "dark" ? "bg-[#121217] border-white/5 text-white placeholder-gray-500" : "bg-white border-slate-200 text-slate-900"
                 }`}
               />
             </div>
@@ -2024,9 +2215,13 @@ Report Generated: ${new Date().toLocaleDateString()}
             SECTION 2: ABOUT SECTION
             ========================================== */}
         <div id="about-section" className={`border rounded-3xl p-8 transition duration-300 ${
-          themeMode === "dark" ? "bg-white/5 border-white/10" : "bg-white border-slate-200 shadow-sm"
+          themeMode === "dark" ? "bg-[#0b0b0f] border-white/5" : "bg-white border-slate-200 shadow-sm"
         }`}>
+<<<<<<< HEAD
           <h3 className="font-serif text-2xl font-black mb-4 flex items-center gap-2 text-[#18233c] dark:text-white border-b border-[#781c1c]/10 dark:border-white/10 pb-3">
+=======
+          <h3 className={`font-serif text-2xl font-black mb-4 flex items-center gap-2 border-b border-[#781c1c]/10 pb-3 ${themeMode === "dark" ? "text-white" : "text-[#18233c]"}`}>
+>>>>>>> 40a9e30e1da64064e79b351472bee8ee265619c7
             <FileText size={22} /> Section 2: About Section
           </h3>
 
@@ -2050,7 +2245,7 @@ Report Generated: ${new Date().toLocaleDateString()}
                 value={bio}
                 onChange={(e) => setBio(e.target.value)}
                 className={`w-full border rounded-xl px-4 py-3 text-sm outline-none min-h-[80px] transition ${
-                  themeMode === "dark" ? "bg-white/5 border-white/10 text-white" : "bg-white border-slate-200"
+                  themeMode === "dark" ? "bg-[#121217] border-white/5 text-white placeholder-gray-500" : "bg-white border-slate-200 text-slate-900"
                 }`}
               />
             </div>
@@ -2067,7 +2262,7 @@ Report Generated: ${new Date().toLocaleDateString()}
                 value={personalStory}
                 onChange={(e) => setPersonalStory(e.target.value)}
                 className={`w-full border rounded-xl px-4 py-3 text-sm outline-none min-h-[80px] transition ${
-                  themeMode === "dark" ? "bg-white/5 border-white/10 text-white" : "bg-white border-slate-200"
+                  themeMode === "dark" ? "bg-[#121217] border-white/5 text-white placeholder-gray-500" : "bg-white border-slate-200 text-slate-900"
                 }`}
               />
             </div>
@@ -2084,7 +2279,7 @@ Report Generated: ${new Date().toLocaleDateString()}
                 value={sop}
                 onChange={(e) => setSop(e.target.value)}
                 className={`w-full border rounded-xl px-4 py-3 text-sm outline-none min-h-[80px] transition ${
-                  themeMode === "dark" ? "bg-white/5 border-white/10 text-white" : "bg-white border-slate-200"
+                  themeMode === "dark" ? "bg-[#121217] border-white/5 text-white placeholder-gray-500" : "bg-white border-slate-200 text-slate-900"
                 }`}
               />
             </div>
@@ -2104,15 +2299,19 @@ Report Generated: ${new Date().toLocaleDateString()}
             SECTION 3: EXPERIENCE
             ========================================== */}
         <div id="experience-section" className={`border rounded-3xl p-8 transition duration-300 ${
-          themeMode === "dark" ? "bg-white/5 border-white/10" : "bg-white border-slate-200 shadow-sm"
+          themeMode === "dark" ? "bg-[#0b0b0f] border-white/5" : "bg-white border-slate-200 shadow-sm"
         }`}>
+<<<<<<< HEAD
           <h3 className="font-serif text-2xl font-black mb-4 flex items-center gap-2 text-[#18233c] dark:text-white border-b border-[#781c1c]/10 dark:border-white/10 pb-3">
+=======
+          <h3 className={`font-serif text-2xl font-black mb-4 flex items-center gap-2 border-b border-[#781c1c]/10 pb-3 ${themeMode === "dark" ? "text-white" : "text-[#18233c]"}`}>
+>>>>>>> 40a9e30e1da64064e79b351472bee8ee265619c7
             <Briefcase size={22} /> Section 3: Experience
           </h3>
 
           {/* Form in separate card container */}
           <div className={`p-6 rounded-2xl border mb-6 transition duration-300 ${
-            themeMode === "dark" ? "bg-white/[0.02] border-white/10" : "bg-slate-50 border-slate-200"
+            themeMode === "dark" ? "bg-[#0b0b0f] border-white/5" : "bg-slate-50 border-slate-200"
           }`}>
             <h4 className="text-xs font-bold font-mono uppercase tracking-wider text-slate-500 mb-4 flex items-center gap-1.5">
               {editingExpId ? "✏️ Edit Experience Entry" : "➕ Add New Experience"}
@@ -2135,7 +2334,7 @@ Report Generated: ${new Date().toLocaleDateString()}
                   value={expTitle}
                   onChange={(e) => setExpTitle(e.target.value)}
                   className={`border rounded-xl px-4 py-3 text-sm outline-none transition ${
-                    themeMode === "dark" ? "bg-white/5 border-white/10 text-white" : "bg-white border-slate-200"
+                    themeMode === "dark" ? "bg-[#121217] border-white/5 text-white placeholder-gray-500" : "bg-white border-slate-200 text-slate-900"
                   }`}
                 />
               </div>
@@ -2149,7 +2348,7 @@ Report Generated: ${new Date().toLocaleDateString()}
                   value={expCompany}
                   onChange={(e) => setExpCompany(e.target.value)}
                   className={`border rounded-xl px-4 py-3 text-sm outline-none transition ${
-                    themeMode === "dark" ? "bg-white/5 border-white/10 text-white" : "bg-white border-slate-200"
+                    themeMode === "dark" ? "bg-[#121217] border-white/5 text-white placeholder-gray-500" : "bg-white border-slate-200 text-slate-900"
                   }`}
                 />
               </div>
@@ -2162,7 +2361,7 @@ Report Generated: ${new Date().toLocaleDateString()}
                   value={expLocation}
                   onChange={(e) => setExpLocation(e.target.value)}
                   className={`border rounded-xl px-4 py-3 text-sm outline-none transition ${
-                    themeMode === "dark" ? "bg-white/5 border-white/10 text-white" : "bg-white border-slate-200"
+                    themeMode === "dark" ? "bg-[#121217] border-white/5 text-white placeholder-gray-500" : "bg-white border-slate-200 text-slate-900"
                   }`}
                 />
               </div>
@@ -2194,7 +2393,7 @@ Report Generated: ${new Date().toLocaleDateString()}
                   value={expStartDate}
                   onChange={(e) => setExpStartDate(e.target.value)}
                   className={`border rounded-xl px-4 py-3 text-sm outline-none transition ${
-                    themeMode === "dark" ? "bg-white/5 border-white/10 text-white" : "bg-white border-slate-200"
+                    themeMode === "dark" ? "bg-[#121217] border-white/5 text-white placeholder-gray-500" : "bg-white border-slate-200 text-slate-900"
                   }`}
                 />
               </div>
@@ -2210,7 +2409,7 @@ Report Generated: ${new Date().toLocaleDateString()}
                   className={`border rounded-xl px-4 py-3 text-sm outline-none transition ${
                     expIsCurrent
                       ? "bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed"
-                      : themeMode === "dark" ? "bg-white/5 border-white/10 text-white" : "bg-white border-slate-200"
+                      : themeMode === "dark" ? "bg-[#121217] border-white/5 text-white placeholder-gray-500" : "bg-white border-slate-200 text-slate-900"
                   }`}
                 />
               </div>
@@ -2233,7 +2432,7 @@ Report Generated: ${new Date().toLocaleDateString()}
                   value={expDesc}
                   onChange={(e) => setExpDesc(e.target.value)}
                   className={`border rounded-xl px-4 py-3 text-sm outline-none min-h-[100px] transition ${
-                    themeMode === "dark" ? "bg-white/5 border-white/10 text-white" : "bg-white border-slate-200"
+                    themeMode === "dark" ? "bg-[#121217] border-white/5 text-white placeholder-gray-500" : "bg-white border-slate-200 text-slate-900"
                   }`}
                 />
               </div>
@@ -2288,15 +2487,19 @@ Report Generated: ${new Date().toLocaleDateString()}
             SECTION 4: ACADEMIC DETAILS
             ========================================== */}
         <div id="academic-section" className={`border rounded-3xl p-8 transition duration-300 ${
-          themeMode === "dark" ? "bg-white/5 border-white/10" : "bg-white border-slate-200 shadow-sm"
+          themeMode === "dark" ? "bg-[#0b0b0f] border-white/5" : "bg-white border-slate-200 shadow-sm"
         }`}>
+<<<<<<< HEAD
           <h3 className="font-serif text-2xl font-black mb-4 flex items-center gap-2 text-[#18233c] dark:text-white border-b border-[#781c1c]/10 dark:border-white/10 pb-3">
+=======
+          <h3 className={`font-serif text-2xl font-black mb-4 flex items-center gap-2 border-b border-[#781c1c]/10 pb-3 ${themeMode === "dark" ? "text-white" : "text-[#18233c]"}`}>
+>>>>>>> 40a9e30e1da64064e79b351472bee8ee265619c7
             <Award size={22} /> Section 4: Academic Details
           </h3>
 
           {/* Form in separate card container */}
           <div className={`p-6 rounded-2xl border mb-6 transition duration-300 ${
-            themeMode === "dark" ? "bg-white/[0.02] border-white/10" : "bg-slate-50 border-slate-200"
+            themeMode === "dark" ? "bg-[#0b0b0f] border-white/5" : "bg-slate-50 border-slate-200"
           }`}>
             <h4 className="text-xs font-bold font-mono uppercase tracking-wider text-slate-500 mb-4 flex items-center gap-1.5">
               {editingAcademicId ? "✏️ Edit Academic Record Details" : "➕ Add New Academic Record"}
@@ -2346,7 +2549,7 @@ Report Generated: ${new Date().toLocaleDateString()}
                     value={academicDegree}
                     onChange={(e) => setAcademicDegree(e.target.value)}
                     className={`border rounded-xl px-4 py-3 text-sm outline-none transition ${
-                      themeMode === "dark" ? "bg-white/5 border-white/10 text-white" : "bg-white border-slate-200"
+                      themeMode === "dark" ? "bg-[#121217] border-white/5 text-white placeholder-gray-500" : "bg-white border-slate-200 text-slate-900"
                     }`}
                   />
                 </div>
@@ -2360,7 +2563,7 @@ Report Generated: ${new Date().toLocaleDateString()}
                   value={academicField}
                   onChange={(e) => setAcademicField(e.target.value)}
                   className={`border rounded-xl px-4 py-3 text-sm outline-none transition ${
-                    themeMode === "dark" ? "bg-white/5 border-white/10 text-white" : "bg-white border-slate-200"
+                    themeMode === "dark" ? "bg-[#121217] border-white/5 text-white placeholder-gray-500" : "bg-white border-slate-200 text-slate-900"
                   }`}
                 />
               </div>
@@ -2374,7 +2577,7 @@ Report Generated: ${new Date().toLocaleDateString()}
                   value={academicInstitution}
                   onChange={(e) => setAcademicInstitution(e.target.value)}
                   className={`border rounded-xl px-4 py-3 text-sm outline-none transition ${
-                    themeMode === "dark" ? "bg-white/5 border-white/10 text-white" : "bg-white border-slate-200"
+                    themeMode === "dark" ? "bg-[#121217] border-white/5 text-white placeholder-gray-500" : "bg-white border-slate-200 text-slate-900"
                   }`}
                 />
               </div>
@@ -2402,7 +2605,7 @@ Report Generated: ${new Date().toLocaleDateString()}
                   value={academicGrade}
                   onChange={(e) => setAcademicGrade(e.target.value)}
                   className={`border rounded-xl px-4 py-3 text-sm outline-none transition ${
-                    themeMode === "dark" ? "bg-white/5 border-white/10 text-white" : "bg-white border-slate-200"
+                    themeMode === "dark" ? "bg-[#121217] border-white/5 text-white placeholder-gray-500" : "bg-white border-slate-200 text-slate-900"
                   }`}
                 />
                 {academicDegreeType === "11th Marksheet" && (
@@ -2436,7 +2639,7 @@ Report Generated: ${new Date().toLocaleDateString()}
                   value={academicStartYear}
                   onChange={(e) => setAcademicStartYear(e.target.value)}
                   className={`border rounded-xl px-4 py-3 text-sm outline-none transition ${
-                    themeMode === "dark" ? "bg-white/5 border-white/10 text-white" : "bg-white border-slate-200"
+                    themeMode === "dark" ? "bg-[#121217] border-white/5 text-white placeholder-gray-500" : "bg-white border-slate-200 text-slate-900"
                   }`}
                 />
               </div>
@@ -2450,13 +2653,13 @@ Report Generated: ${new Date().toLocaleDateString()}
                   value={academicEndYear}
                   onChange={(e) => setAcademicEndYear(e.target.value)}
                   className={`border rounded-xl px-4 py-3 text-sm outline-none transition ${
-                    themeMode === "dark" ? "bg-white/5 border-white/10 text-white" : "bg-white border-slate-200"
+                    themeMode === "dark" ? "bg-[#121217] border-white/5 text-white placeholder-gray-500" : "bg-white border-slate-200 text-slate-900"
                   }`}
                 />
               </div>
 
               <div className={`border rounded-2xl px-5 py-3 flex flex-col justify-center gap-2 md:col-span-2 transition ${
-                themeMode === "dark" ? "bg-white/[0.02] border-white/10" : "bg-slate-50 border-slate-200"
+                themeMode === "dark" ? "bg-[#0b0b0f] border-white/5" : "bg-slate-50 border-slate-200"
               }`}>
                 <label className="text-[10px] uppercase font-mono tracking-wider font-bold text-slate-500 mb-1.5">Transcript / Marksheet Proof (PDF / Image)</label>
                 <div className="flex items-center gap-4 mt-1">
@@ -2530,15 +2733,19 @@ Report Generated: ${new Date().toLocaleDateString()}
             SECTION 5: ACHIEVEMENTS
             ========================================== */}
         <div id="achievements-section" className={`border rounded-3xl p-8 transition duration-300 ${
-          themeMode === "dark" ? "bg-white/5 border-white/10" : "bg-white border-slate-200 shadow-sm"
+          themeMode === "dark" ? "bg-[#0b0b0f] border-white/5" : "bg-white border-slate-200 shadow-sm"
         }`}>
+<<<<<<< HEAD
           <h3 className="font-serif text-2xl font-black mb-4 flex items-center gap-2 text-[#18233c] dark:text-white border-b border-[#781c1c]/10 dark:border-white/10 pb-3">
+=======
+          <h3 className={`font-serif text-2xl font-black mb-4 flex items-center gap-2 border-b border-[#781c1c]/10 pb-3 ${themeMode === "dark" ? "text-white" : "text-[#18233c]"}`}>
+>>>>>>> 40a9e30e1da64064e79b351472bee8ee265619c7
             <Trophy size={22} /> Section 5: Achievements
           </h3>
 
           {/* Form in separate card container */}
           <div className={`p-6 rounded-2xl border mb-6 transition duration-300 ${
-            themeMode === "dark" ? "bg-white/[0.02] border-white/10" : "bg-slate-50 border-slate-200"
+            themeMode === "dark" ? "bg-[#0b0b0f] border-white/5" : "bg-slate-50 border-slate-200"
           }`}>
             <h4 className="text-xs font-bold font-mono uppercase tracking-wider text-slate-500 mb-4 flex items-center gap-1.5">
               {editingAchId ? "✏️ Edit Achievement Details" : "➕ Add New Achievement"}
@@ -2561,7 +2768,7 @@ Report Generated: ${new Date().toLocaleDateString()}
                   value={achievementTitle}
                   onChange={(e) => setAchievementTitle(e.target.value)}
                   className={`border rounded-xl px-4 py-3 text-sm outline-none transition ${
-                    themeMode === "dark" ? "bg-white/5 border-white/10 text-white" : "bg-white border-slate-200"
+                    themeMode === "dark" ? "bg-[#121217] border-white/5 text-white placeholder-gray-500" : "bg-white border-slate-200 text-slate-900"
                   }`}
                 />
               </div>
@@ -2591,13 +2798,13 @@ Report Generated: ${new Date().toLocaleDateString()}
                   value={achievementDate}
                   onChange={(e) => setAchievementDate(e.target.value)}
                   className={`border rounded-xl px-4 py-3 text-sm outline-none transition ${
-                    themeMode === "dark" ? "bg-white/5 border-white/10 text-white" : "bg-white border-slate-200"
+                    themeMode === "dark" ? "bg-[#121217] border-white/5 text-white placeholder-gray-500" : "bg-white border-slate-200 text-slate-900"
                   }`}
                 />
               </div>
 
               <div className={`border rounded-2xl px-5 py-3 flex flex-col justify-center gap-2 transition ${
-                themeMode === "dark" ? "bg-white/[0.02] border-white/10" : "bg-slate-50 border-slate-200"
+                themeMode === "dark" ? "bg-[#0b0b0f] border-white/5" : "bg-slate-50 border-slate-200"
               }`}>
                 <label className="text-[10px] uppercase font-mono tracking-wider font-bold text-slate-500 mb-1.5">Certificate / Proof File (PDF / Image)</label>
                 <div className="flex items-center gap-4 mt-1">
@@ -2636,7 +2843,7 @@ Report Generated: ${new Date().toLocaleDateString()}
                   value={achievementDescription}
                   onChange={(e) => setAchievementDescription(e.target.value)}
                   className={`border rounded-xl px-4 py-3 text-sm outline-none min-h-[100px] transition ${
-                    themeMode === "dark" ? "bg-white/5 border-white/10 text-white" : "bg-white border-slate-200"
+                    themeMode === "dark" ? "bg-[#121217] border-white/5 text-white placeholder-gray-500" : "bg-white border-slate-200 text-slate-900"
                   }`}
                 />
               </div>
@@ -2687,15 +2894,19 @@ Report Generated: ${new Date().toLocaleDateString()}
             SECTION 6: PROJECTS & RESEARCH
             ========================================== */}
         <div id="projects-research-section" className={`border rounded-3xl p-8 transition duration-300 ${
-          themeMode === "dark" ? "bg-white/5 border-white/10" : "bg-white border-slate-200 shadow-sm"
+          themeMode === "dark" ? "bg-[#0b0b0f] border-white/5" : "bg-white border-slate-200 shadow-sm"
         }`}>
+<<<<<<< HEAD
           <h3 className="font-serif text-2xl font-black mb-4 flex items-center gap-2 text-[#18233c] dark:text-white border-b border-[#781c1c]/10 dark:border-white/10 pb-3">
+=======
+          <h3 className={`font-serif text-2xl font-black mb-4 flex items-center gap-2 border-b border-[#781c1c]/10 pb-3 ${themeMode === "dark" ? "text-white" : "text-[#18233c]"}`}>
+>>>>>>> 40a9e30e1da64064e79b351472bee8ee265619c7
             <GitBranch size={22} /> Section 6: Projects & Research
           </h3>
 
           {/* Form in separate card container */}
           <div className={`p-6 rounded-2xl border mb-6 transition duration-300 ${
-            themeMode === "dark" ? "bg-white/[0.02] border-white/10" : "bg-slate-50 border-slate-200"
+            themeMode === "dark" ? "bg-[#0b0b0f] border-white/5" : "bg-slate-50 border-slate-200"
           }`}>
             <h4 className="text-xs font-bold font-mono uppercase tracking-wider text-slate-500 mb-4 flex items-center gap-1.5">
               {editingProjId ? "✏️ Edit Project/Research Details" : "➕ Add New Project/Research"}
@@ -2718,7 +2929,7 @@ Report Generated: ${new Date().toLocaleDateString()}
                   value={projTitle}
                   onChange={(e) => setProjTitle(e.target.value)}
                   className={`border rounded-xl px-4 py-3 text-sm outline-none transition ${
-                    themeMode === "dark" ? "bg-white/5 border-white/10 text-white" : "bg-white border-slate-200"
+                    themeMode === "dark" ? "bg-[#121217] border-white/5 text-white placeholder-gray-500" : "bg-white border-slate-200 text-slate-900"
                   }`}
                 />
               </div>
@@ -2748,7 +2959,7 @@ Report Generated: ${new Date().toLocaleDateString()}
                   value={projTechnologies}
                   onChange={(e) => setProjTechnologies(e.target.value)}
                   className={`border rounded-xl px-4 py-3 text-sm outline-none transition ${
-                    themeMode === "dark" ? "bg-white/5 border-white/10 text-white" : "bg-white border-slate-200"
+                    themeMode === "dark" ? "bg-[#121217] border-white/5 text-white placeholder-gray-500" : "bg-white border-slate-200 text-slate-900"
                   }`}
                 />
               </div>
@@ -2761,7 +2972,7 @@ Report Generated: ${new Date().toLocaleDateString()}
                   value={projUrl}
                   onChange={(e) => setProjUrl(e.target.value)}
                   className={`border rounded-xl px-4 py-3 text-sm outline-none transition ${
-                    themeMode === "dark" ? "bg-white/5 border-white/10 text-white" : "bg-white border-slate-200"
+                    themeMode === "dark" ? "bg-[#121217] border-white/5 text-white placeholder-gray-500" : "bg-white border-slate-200 text-slate-900"
                   }`}
                 />
               </div>
@@ -2775,7 +2986,7 @@ Report Generated: ${new Date().toLocaleDateString()}
                     value={projDate}
                     onChange={(e) => setProjDate(e.target.value)}
                     className={`border rounded-xl px-4 py-3 text-sm outline-none transition ${
-                      themeMode === "dark" ? "bg-white/5 border-white/10 text-white" : "bg-white border-slate-200"
+                      themeMode === "dark" ? "bg-[#121217] border-white/5 text-white placeholder-gray-500" : "bg-white border-slate-200 text-slate-900"
                     }`}
                   />
                 </div>
@@ -2792,7 +3003,7 @@ Report Generated: ${new Date().toLocaleDateString()}
                   value={projDescription}
                   onChange={(e) => setProjDescription(e.target.value)}
                   className={`border rounded-xl px-4 py-3 text-sm outline-none min-h-[120px] transition ${
-                    themeMode === "dark" ? "bg-white/5 border-white/10 text-white" : "bg-white border-slate-200"
+                    themeMode === "dark" ? "bg-[#121217] border-white/5 text-white placeholder-gray-500" : "bg-white border-slate-200 text-slate-900"
                   }`}
                 />
               </div>
@@ -2872,15 +3083,19 @@ Report Generated: ${new Date().toLocaleDateString()}
             SECTION 7: SKILLS
             ========================================== */}
         <div id="skills-section" className={`border rounded-3xl p-8 transition duration-300 ${
-          themeMode === "dark" ? "bg-white/5 border-white/10" : "bg-white border-slate-200 shadow-sm"
+          themeMode === "dark" ? "bg-[#0b0b0f] border-white/5" : "bg-white border-slate-200 shadow-sm"
         }`}>
+<<<<<<< HEAD
           <h3 className="font-serif text-2xl font-black mb-4 flex items-center gap-2 text-[#18233c] dark:text-white border-b border-[#781c1c]/10 dark:border-white/10 pb-3">
+=======
+          <h3 className={`font-serif text-2xl font-black mb-4 flex items-center gap-2 border-b border-[#781c1c]/10 pb-3 ${themeMode === "dark" ? "text-white" : "text-[#18233c]"}`}>
+>>>>>>> 40a9e30e1da64064e79b351472bee8ee265619c7
             <Code size={22} /> Section 7: Skills
           </h3>
 
           {/* Form in separate card container */}
           <div className={`p-6 rounded-2xl border mb-6 transition duration-300 ${
-            themeMode === "dark" ? "bg-white/[0.02] border-white/10" : "bg-slate-50 border-slate-200"
+            themeMode === "dark" ? "bg-[#0b0b0f] border-white/5" : "bg-slate-50 border-slate-200"
           }`}>
             <h4 className="text-xs font-bold font-mono uppercase tracking-wider text-slate-500 mb-4 flex items-center gap-1.5">
               {editingSkillId ? "✏️ Edit Skill Details" : "➕ Add New Skill"}
@@ -2903,7 +3118,7 @@ Report Generated: ${new Date().toLocaleDateString()}
                   value={skillName}
                   onChange={(e) => setSkillName(e.target.value)}
                   className={`border rounded-xl px-4 py-3 text-sm outline-none transition ${
-                    themeMode === "dark" ? "bg-white/5 border-white/10 text-white" : "bg-white border-slate-200"
+                    themeMode === "dark" ? "bg-[#121217] border-white/5 text-white placeholder-gray-500" : "bg-white border-slate-200 text-slate-900"
                   }`}
                 />
               </div>
@@ -2979,15 +3194,19 @@ Report Generated: ${new Date().toLocaleDateString()}
             SECTION 8: LICENSES & CERTIFICATIONS
             ========================================== */}
         <div id="licenses-certifications-section" className={`border rounded-3xl p-8 transition duration-300 ${
-          themeMode === "dark" ? "bg-white/5 border-white/10" : "bg-white border-slate-200 shadow-sm"
+          themeMode === "dark" ? "bg-[#0b0b0f] border-white/5" : "bg-white border-slate-200 shadow-sm"
         }`}>
+<<<<<<< HEAD
           <h3 className="font-serif text-2xl font-black mb-4 flex items-center gap-2 text-[#18233c] dark:text-white border-b border-[#781c1c]/10 dark:border-white/10 pb-3">
+=======
+          <h3 className={`font-serif text-2xl font-black mb-4 flex items-center gap-2 border-b border-[#781c1c]/10 pb-3 ${themeMode === "dark" ? "text-white" : "text-[#18233c]"}`}>
+>>>>>>> 40a9e30e1da64064e79b351472bee8ee265619c7
             <Award size={22} /> Section 8: Licenses & Certifications
           </h3>
 
           {/* Form in separate card container */}
           <div className={`p-6 rounded-2xl border mb-6 transition duration-300 ${
-            themeMode === "dark" ? "bg-white/[0.02] border-white/10" : "bg-slate-50 border-slate-200"
+            themeMode === "dark" ? "bg-[#0b0b0f] border-white/5" : "bg-slate-50 border-slate-200"
           }`}>
             <h4 className="text-xs font-bold font-mono uppercase tracking-wider text-slate-500 mb-4 flex items-center gap-1.5">
               {editingCertId ? "✏️ Edit Certification Details" : "➕ Add New Certification"}
@@ -3010,7 +3229,7 @@ Report Generated: ${new Date().toLocaleDateString()}
                   value={certificationTitle}
                   onChange={(e) => setCertificationTitle(e.target.value)}
                   className={`border rounded-xl px-4 py-3 text-sm outline-none transition ${
-                    themeMode === "dark" ? "bg-white/5 border-white/10 text-white" : "bg-white border-slate-200"
+                    themeMode === "dark" ? "bg-[#121217] border-white/5 text-white placeholder-gray-500" : "bg-white border-slate-200 text-slate-900"
                   }`}
                 />
               </div>
@@ -3024,7 +3243,7 @@ Report Generated: ${new Date().toLocaleDateString()}
                   value={issuer}
                   onChange={(e) => setIssuer(e.target.value)}
                   className={`border rounded-xl px-4 py-3 text-sm outline-none transition ${
-                    themeMode === "dark" ? "bg-white/5 border-white/10 text-white" : "bg-white border-slate-200"
+                    themeMode === "dark" ? "bg-[#121217] border-white/5 text-white placeholder-gray-500" : "bg-white border-slate-200 text-slate-900"
                   }`}
                 />
               </div>
@@ -3055,13 +3274,13 @@ Report Generated: ${new Date().toLocaleDateString()}
                   value={issueDate}
                   onChange={(e) => setIssueDate(e.target.value)}
                   className={`border rounded-xl px-4 py-3 text-sm outline-none transition ${
-                    themeMode === "dark" ? "bg-white/5 border-white/10 text-white" : "bg-white border-slate-200"
+                    themeMode === "dark" ? "bg-[#121217] border-white/5 text-white placeholder-gray-500" : "bg-white border-slate-200 text-slate-900"
                   }`}
                 />
               </div>
 
               <div className={`border rounded-2xl px-5 py-3 flex flex-col justify-center gap-2 md:col-span-2 transition ${
-                themeMode === "dark" ? "bg-white/[0.02] border-white/10" : "bg-slate-50 border-slate-200"
+                themeMode === "dark" ? "bg-[#0b0b0f] border-white/5" : "bg-slate-50 border-slate-200"
               }`}>
                 <label className="text-[10px] uppercase font-mono tracking-wider font-bold text-slate-500 mb-1.5">Certificate PDF / Image Proof</label>
                 <div className="flex items-center gap-4 mt-1">
@@ -3136,9 +3355,13 @@ Report Generated: ${new Date().toLocaleDateString()}
             SECTION 9: LANGUAGES KNOWN
             ========================================== */}
         <div id="languages-section" className={`border rounded-3xl p-8 transition duration-300 ${
-          themeMode === "dark" ? "bg-white/5 border-white/10" : "bg-white border-slate-200 shadow-sm"
+          themeMode === "dark" ? "bg-[#0b0b0f] border-white/5" : "bg-white border-slate-200 shadow-sm"
         }`}>
+<<<<<<< HEAD
           <h3 className="font-serif text-2xl font-black mb-4 flex items-center gap-2 text-[#18233c] dark:text-white border-b border-[#781c1c]/10 dark:border-white/10 pb-3">
+=======
+          <h3 className={`font-serif text-2xl font-black mb-4 flex items-center gap-2 border-b border-[#781c1c]/10 pb-3 ${themeMode === "dark" ? "text-white" : "text-[#18233c]"}`}>
+>>>>>>> 40a9e30e1da64064e79b351472bee8ee265619c7
             <Globe size={22} /> Section 9: Languages known
           </h3>
 
@@ -3248,9 +3471,13 @@ Report Generated: ${new Date().toLocaleDateString()}
             SECTION 10: TEST SCORES
             ========================================== */}
         <div id="test-scores-section" className={`border rounded-3xl p-8 transition duration-300 ${
-          themeMode === "dark" ? "bg-white/5 border-white/10" : "bg-white border-slate-200 shadow-sm"
+          themeMode === "dark" ? "bg-[#0b0b0f] border-white/5" : "bg-white border-slate-200 shadow-sm"
         }`}>
+<<<<<<< HEAD
           <h3 className="font-serif text-2xl font-black mb-4 flex items-center gap-2 text-[#18233c] dark:text-white border-b border-[#781c1c]/10 dark:border-white/10 pb-3">
+=======
+          <h3 className={`font-serif text-2xl font-black mb-4 flex items-center gap-2 border-b border-[#781c1c]/10 pb-3 ${themeMode === "dark" ? "text-white" : "text-[#18233c]"}`}>
+>>>>>>> 40a9e30e1da64064e79b351472bee8ee265619c7
             <Award size={22} /> Section 10: Test Scores
           </h3>
 
@@ -3273,7 +3500,7 @@ Report Generated: ${new Date().toLocaleDateString()}
               value={testScores}
               onChange={(e) => setTestScores(e.target.value)}
               className={`w-full border rounded-xl px-4 py-3 text-sm outline-none min-h-[80px] transition ${
-                themeMode === "dark" ? "bg-white/5 border-white/10 text-white" : "bg-white border-slate-200"
+                themeMode === "dark" ? "bg-[#121217] border-white/5 text-white placeholder-gray-500" : "bg-white border-slate-200 text-slate-900"
               }`}
             />
           </div>
@@ -3292,9 +3519,13 @@ Report Generated: ${new Date().toLocaleDateString()}
             SECTION 11: PATENTS
             ========================================== */}
         <div id="patents-section" className={`border rounded-3xl p-8 transition duration-300 ${
-          themeMode === "dark" ? "bg-white/5 border-white/10" : "bg-white border-slate-200 shadow-sm"
+          themeMode === "dark" ? "bg-[#0b0b0f] border-white/5" : "bg-white border-slate-200 shadow-sm"
         }`}>
+<<<<<<< HEAD
           <h3 className="font-serif text-2xl font-black mb-4 flex items-center gap-2 text-[#18233c] dark:text-white border-b border-[#781c1c]/10 dark:border-white/10 pb-3">
+=======
+          <h3 className={`font-serif text-2xl font-black mb-4 flex items-center gap-2 border-b border-[#781c1c]/10 pb-3 ${themeMode === "dark" ? "text-white" : "text-[#18233c]"}`}>
+>>>>>>> 40a9e30e1da64064e79b351472bee8ee265619c7
             <FileText size={22} /> Section 11: Patents
           </h3>
 
@@ -3317,7 +3548,7 @@ Report Generated: ${new Date().toLocaleDateString()}
               value={patents}
               onChange={(e) => setPatents(e.target.value)}
               className={`w-full border rounded-xl px-4 py-3 text-sm outline-none min-h-[80px] transition ${
-                themeMode === "dark" ? "bg-white/5 border-white/10 text-white" : "bg-white border-slate-200"
+                themeMode === "dark" ? "bg-[#121217] border-white/5 text-white placeholder-gray-500" : "bg-white border-slate-200 text-slate-900"
               }`}
             />
           </div>
@@ -3336,9 +3567,13 @@ Report Generated: ${new Date().toLocaleDateString()}
             SECTION 12: OTHER MEDIA HANDLES
             ========================================== */}
         <div id="media-handles-section" className={`border rounded-3xl p-8 transition duration-300 ${
-          themeMode === "dark" ? "bg-white/5 border-white/10" : "bg-white border-slate-200 shadow-sm"
+          themeMode === "dark" ? "bg-[#0b0b0f] border-white/5" : "bg-white border-slate-200 shadow-sm"
         }`}>
+<<<<<<< HEAD
           <h3 className="font-serif text-2xl font-black mb-4 flex items-center gap-2 text-[#18233c] dark:text-white border-b border-[#781c1c]/10 dark:border-white/10 pb-3">
+=======
+          <h3 className={`font-serif text-2xl font-black mb-4 flex items-center gap-2 border-b border-[#781c1c]/10 pb-3 ${themeMode === "dark" ? "text-white" : "text-[#18233c]"}`}>
+>>>>>>> 40a9e30e1da64064e79b351472bee8ee265619c7
             <Link size={22} /> Section 12: Other Media handles
           </h3>
 
@@ -3358,7 +3593,7 @@ Report Generated: ${new Date().toLocaleDateString()}
                 value={instagramUrl}
                 onChange={(e) => setInstagramUrl(e.target.value)}
                 className={`border rounded-xl px-4 py-3 text-sm outline-none transition ${
-                  themeMode === "dark" ? "bg-white/5 border-white/10 text-white" : "bg-white border-slate-200"
+                  themeMode === "dark" ? "bg-[#121217] border-white/5 text-white placeholder-gray-500" : "bg-white border-slate-200 text-slate-900"
                 }`}
               />
             </div>
@@ -3371,7 +3606,7 @@ Report Generated: ${new Date().toLocaleDateString()}
                 value={blogUrl}
                 onChange={(e) => setBlogUrl(e.target.value)}
                 className={`border rounded-xl px-4 py-3 text-sm outline-none transition ${
-                  themeMode === "dark" ? "bg-white/5 border-white/10 text-white" : "bg-white border-slate-200"
+                  themeMode === "dark" ? "bg-[#121217] border-white/5 text-white placeholder-gray-500" : "bg-white border-slate-200 text-slate-900"
                 }`}
               />
             </div>
@@ -3384,7 +3619,7 @@ Report Generated: ${new Date().toLocaleDateString()}
                 value={otherHandles}
                 onChange={(e) => setOtherHandles(e.target.value)}
                 className={`border rounded-xl px-4 py-3 text-sm outline-none transition ${
-                  themeMode === "dark" ? "bg-white/5 border-white/10 text-white" : "bg-white border-slate-200"
+                  themeMode === "dark" ? "bg-[#121217] border-white/5 text-white placeholder-gray-500" : "bg-white border-slate-200 text-slate-900"
                 }`}
               />
             </div>
@@ -3404,15 +3639,19 @@ Report Generated: ${new Date().toLocaleDateString()}
             SECTION 13: RESUME
             ========================================== */}
         <div id="resume-section" className={`border rounded-3xl p-8 transition duration-300 ${
-          themeMode === "dark" ? "bg-white/5 border-white/10" : "bg-white border-slate-200 shadow-sm"
+          themeMode === "dark" ? "bg-[#0b0b0f] border-white/5" : "bg-white border-slate-200 shadow-sm"
         }`}>
+<<<<<<< HEAD
           <h3 className="font-serif text-2xl font-black mb-4 flex items-center gap-2 text-[#18233c] dark:text-white border-b border-[#781c1c]/10 dark:border-white/10 pb-3">
+=======
+          <h3 className={`font-serif text-2xl font-black mb-4 flex items-center gap-2 border-b border-[#781c1c]/10 pb-3 ${themeMode === "dark" ? "text-white" : "text-[#18233c]"}`}>
+>>>>>>> 40a9e30e1da64064e79b351472bee8ee265619c7
             <FileText size={22} /> Section 13: Resume
           </h3>
 
           {/* Form in separate card container */}
           <div className={`p-6 rounded-2xl border mb-6 transition duration-300 ${
-            themeMode === "dark" ? "bg-white/[0.02] border-white/10" : "bg-slate-50 border-slate-200"
+            themeMode === "dark" ? "bg-[#0b0b0f] border-white/5" : "bg-slate-50 border-slate-200"
           }`}>
             <h4 className="text-xs font-bold font-mono uppercase tracking-wider text-slate-500 mb-4 flex items-center gap-1.5">
               {editingResumeId ? "✏️ Edit Resume Details" : "➕ Add New Resume Document"}
@@ -3441,7 +3680,7 @@ Report Generated: ${new Date().toLocaleDateString()}
               </div>
 
               <div className={`border rounded-2xl px-5 py-3 flex flex-col justify-center gap-2 transition ${
-                themeMode === "dark" ? "bg-white/[0.02] border-white/10" : "bg-slate-50 border-slate-200"
+                themeMode === "dark" ? "bg-[#0b0b0f] border-white/5" : "bg-slate-50 border-slate-200"
               }`}>
                 <label className="text-[10px] uppercase font-mono tracking-wider font-bold text-slate-500 mb-1.5">Upload Resume Document (PDF only) *</label>
                 <div className="flex items-center gap-4 mt-1">
@@ -3511,6 +3750,7 @@ Report Generated: ${new Date().toLocaleDateString()}
           </div>
         </div>
 
+<<<<<<< HEAD
         {/* ASSESSMENTS SECTION */}
         <div id="assessments-section" className={`border rounded-3xl p-8 transition duration-300 ${
           themeMode === "dark" ? "bg-[#0b0b0f] border-white/5 text-white" : "bg-white border-slate-200 text-slate-800"
@@ -3643,7 +3883,105 @@ Report Generated: ${new Date().toLocaleDateString()}
           </div>
         </div>
 
+=======
+        {/* ==========================================
+             SECTION 14: ASSESSMENTS
+        ========================================== */}
+        <div id="assessments-section" className={`p-6 rounded-3xl border shadow-sm transition ${
+          themeMode === "dark" ? "bg-[#0f1623]/60 border-white/5" : "bg-white border-slate-200"
+        }`}>
+          <div className="flex items-center gap-3 mb-6">
+            <div className="w-10 h-10 rounded-2xl bg-[#781c1c] flex items-center justify-center shadow-lg">
+              <BookOpen size={20} className="text-white" />
+            </div>
+            <div>
+              <h2 className={`text-lg font-serif font-black uppercase tracking-tight ${
+                themeMode === "dark" ? "text-white" : "text-[#18233c]"
+              }`}>Assessments</h2>
+              <p className="text-[10px] text-slate-400 font-mono uppercase tracking-wider">Department-Assigned Exams &amp; Tests</p>
+            </div>
+          </div>
+>>>>>>> 40a9e30e1da64064e79b351472bee8ee265619c7
 
+          {studentAssessments.length === 0 ? (
+            <div className={`rounded-2xl border p-8 text-center ${
+              themeMode === "dark" ? "bg-white/[0.02] border-white/5" : "bg-slate-50 border-slate-200"
+            }`}>
+              <BookOpen size={32} className="text-slate-400 mx-auto mb-2" />
+              <p className="text-sm font-semibold text-slate-400">No Assessments Assigned</p>
+              <p className="text-xs text-slate-500 mt-1">Your department has no published assessments yet.</p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {studentAssessments.map((a: any) => {
+                const now = new Date();
+                const start = new Date(a.startDate);
+                const end = new Date(a.endDate);
+                const isLive = !a.isClosed && now >= start && now <= end;
+                const isUpcoming = now < start;
+                const isExpired = now > end || a.isClosed;
+                const attempt = a.attempt;
+                const isSubmitted = attempt?.isSubmitted;
+                const isMalpractice = attempt?.status === "MALPRACTICE_TERMINATED";
+
+                let statusBadge = <span className={`px-2 py-0.5 rounded-full text-[9px] font-mono font-bold border ${
+                  themeMode === "dark" ? "bg-slate-500/10 border-slate-500/20 text-slate-400" : "bg-slate-100 border-slate-200 text-slate-500"
+                }`}>UPCOMING</span>;
+                if (isMalpractice) statusBadge = <span className="px-2 py-0.5 rounded-full text-[9px] font-mono font-bold bg-red-500/10 border border-red-500/20 text-red-400">MALPRACTICE TERMINATED</span>;
+                else if (isSubmitted) statusBadge = <span className="px-2 py-0.5 rounded-full text-[9px] font-mono font-bold bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">SUBMITTED</span>;
+                else if (isExpired) statusBadge = <span className="px-2 py-0.5 rounded-full text-[9px] font-mono font-bold bg-slate-500/10 border border-slate-500/20 text-slate-400">CLOSED</span>;
+                else if (isLive && !attempt) statusBadge = <span className="px-2 py-0.5 rounded-full text-[9px] font-mono font-bold bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse inline-block"></span>LIVE</span>;
+                else if (isLive && attempt && !isSubmitted) statusBadge = <span className="px-2 py-0.5 rounded-full text-[9px] font-mono font-bold bg-amber-500/10 border border-amber-500/20 text-amber-400">IN PROGRESS</span>;
+
+                return (
+                  <div key={a.id} className={`border rounded-2xl p-5 transition ${
+                    themeMode === "dark" ? "bg-white/[0.02] border-white/5" : "bg-slate-50 border-slate-200"
+                  }`}>
+                    <div className="flex flex-wrap gap-4 justify-between items-start">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1">{statusBadge}</div>
+                        <h4 className={`font-bold text-sm mt-1 ${
+                          themeMode === "dark" ? "text-white" : "text-[#18233c]"
+                        }`}>{a.title}</h4>
+                        {a.description && <p className="text-xs text-slate-400 mt-0.5 truncate max-w-xs">{a.description}</p>}
+                        <div className="flex flex-wrap gap-3 mt-2 text-[10px] font-mono text-slate-400">
+                          <span>⏱ {a.duration} min</span>
+                          <span>📋 {a.totalMarks} marks</span>
+                          <span>📅 {new Date(a.startDate).toLocaleDateString()} – {new Date(a.endDate).toLocaleDateString()}</span>
+                        </div>
+                        {isSubmitted && !isMalpractice && attempt && (
+                          <div className="mt-3 p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-xs">
+                            <div className="font-bold text-emerald-400">Score: {attempt.score} / {a.totalMarks} &nbsp;|&nbsp; {attempt.percentage?.toFixed(1)}%</div>
+                          </div>
+                        )}
+                        {isMalpractice && (
+                          <div className="mt-3 p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-xs">
+                            <div className="font-bold text-red-400">⚠ This attempt was terminated due to a proctoring violation.</div>
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex flex-col items-end gap-2">
+                        {isLive && !isSubmitted && (
+                          <button
+                            onClick={() => window.location.href = `/dashboard/assessments/${a.id}`}
+                            className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold bg-[#781c1c] text-white hover:bg-[#5f1515] transition cursor-pointer hover:scale-105 active:scale-95"
+                          >
+                            {attempt ? "Resume Test" : "Start Test"}
+                          </button>
+                        )}
+                        {isUpcoming && (
+                          <div className="text-[10px] font-mono text-slate-400 bg-white/5 border border-white/10 px-3 py-1.5 rounded-xl">
+                            Opens: {start.toLocaleString()}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
 
         {/* Photo Adjustment Modal */}
         {showPhotoAdjustModal && (
