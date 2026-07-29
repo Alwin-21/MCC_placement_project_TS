@@ -1278,7 +1278,7 @@ export default function AdminPage() {
       {/* ==========================================
           MAIN CONTENT AREA
           ========================================== */}
-      <div className="flex-1 min-w-0 p-4 md:p-8 lg:p-12 relative z-10 overflow-y-auto max-h-screen">
+      <div className="flex-1 min-w-0 p-6 md:p-8 relative z-10 overflow-y-auto overflow-x-hidden h-screen">
         
         {/* MOBILE TOP HEADER BAR */}
         <div className="md:hidden flex items-center justify-between p-4 bg-white dark:bg-[#09090d] border border-slate-200 dark:border-white/5 rounded-2xl select-none mb-6 shadow-xs">
@@ -1307,75 +1307,7 @@ export default function AdminPage() {
           </button>
         </div>
 
-        {/* BANNER SHOWCASE */}
-        <div className="relative rounded-2xl sm:rounded-3xl overflow-hidden min-h-[140px] sm:min-h-[160px] md:h-44 bg-[#18233c] text-white flex items-end p-4 sm:p-6 md:p-8 border border-amber-600/20 shadow-md mb-6 md:mb-8 mcc-welcome-banner">
-          <div className="absolute inset-0 z-0">
-            <img 
-              src="/mcc-main-gate.jpg" 
-              alt="MCC Historic Archway" 
-              className="w-full h-full object-cover opacity-30 filter brightness-75 contrast-125"
-            />
-            <div className="absolute inset-0 bg-gradient-to-t from-[#18233c] via-[#18233c]/50 to-transparent" />
-          </div>
 
-          {/* Desktop Only: Theme Switcher Inside Top-Right Corner of Banner Card */}
-          <div className="hidden md:flex absolute top-4 right-5 z-20 items-center">
-            <button
-              onClick={toggleThemeMode}
-              title="Toggle Light/Dark Mode"
-              className={`p-2.5 rounded-full transition-all duration-300 cursor-pointer border shadow-sm flex items-center justify-center ${
-                themeMode === "dark"
-                  ? "bg-white/10 hover:bg-white/20 text-amber-300 border-white/15"
-                  : "bg-white/90 hover:bg-slate-100 text-slate-700 border-slate-200"
-              }`}
-            >
-              {themeMode === "dark" ? <Sun size={16} /> : <Moon size={16} />}
-            </button>
-          </div>
-
-          <div className="relative z-10 space-y-1 w-full text-left">
-            <span 
-              style={{ color: '#ffffff' }}
-              className="text-[9px] sm:text-[9.5px] uppercase font-mono font-black tracking-wider sm:tracking-widest bg-[#781c1c] px-2.5 sm:px-3.5 py-1 sm:py-1.5 rounded-full border border-amber-500/20 inline-block max-w-full truncate"
-            >
-              Super Admin Console
-            </span>
-            <h1 
-              style={{ color: '#ffffff' }}
-              className="font-serif text-lg sm:text-2xl md:text-3xl font-black mt-1.5 sm:mt-2 leading-tight break-words"
-            >
-              Placement &amp; Portfolio Administration
-            </h1>
-            <p 
-              style={{ color: 'rgba(255, 255, 255, 0.85)' }}
-              className="text-[11px] sm:text-xs leading-normal"
-            >
-              Review and approve student directories, customize templates, and examine security audit logs.
-            </p>
-          </div>
-        </div>
-        
-        {/* Title Bar */}
-        <div className={`mb-10 flex items-center justify-between flex-wrap gap-4 border-b pb-6 ${
-          themeMode === "dark" ? "border-white/5" : "border-slate-200"
-        }`}>
-          <div>
-            <span className="text-[10px] uppercase font-mono tracking-widest text-[#818cf8] font-bold whitespace-nowrap">
-              Madras Christian College
-            </span>
-            <h2 className={`text-2xl md:text-3xl font-black tracking-tight mt-0.5 capitalize ${
-              themeMode === "dark" ? "text-white" : "text-slate-900"
-            }`}>
-              {activeTab === "overview" ? "Ecosystem Overview" : activeTab.replace("-", " ")}
-            </h2>
-          </div>
-
-          <div className="bg-emerald-500/10 border border-emerald-500/20 px-4 py-2.5 rounded-xl flex items-center gap-2">
-            <Activity className="text-emerald-400 animate-pulse" size={14} />
-            <span className="text-[10px] uppercase font-mono text-emerald-400 font-bold">Server Connection:</span>
-            <span className={`text-[10px] font-bold ${themeMode === "dark" ? "text-white" : "text-slate-800"}`}>Online & Healthy</span>
-          </div>
-        </div>
 
         {/* ==========================================
             TAB: OVERVIEW & PORTFOLIO APPROVALS
@@ -2934,7 +2866,7 @@ export default function AdminPage() {
             TAB: ASSESSMENTS MANAGER
             ========================================== */}
         {activeTab === "assessments" && (
-          <AssessmentAdminModule />
+          <AssessmentAdminModule themeMode={themeMode} toggleThemeMode={toggleThemeMode} />
         )}
 
       </div>
@@ -3339,11 +3271,7 @@ export default function AdminPage() {
         </div>
       )}
 
-      {activeTab === "assessments" && (
-        <div className="p-4 md:p-8 relative z-10 overflow-y-auto max-h-screen">
-          <AssessmentAdminModule />
-        </div>
-      )}
+
     </div>
   );
 }
