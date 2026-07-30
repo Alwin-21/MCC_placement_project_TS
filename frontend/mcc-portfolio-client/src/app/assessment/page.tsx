@@ -75,6 +75,7 @@ export default function AssessmentPage() {
   const [warningCount, setWarningCount] = useState(0);
   const [showWarningModal, setShowWarningModal] = useState(false);
   const [warningMessage, setWarningMessage] = useState("");
+  const [warningType, setWarningType] = useState<string>("");
   const [terminated, setTerminated] = useState(false);
   const lastWarningTime = useRef<number>(0);
   const prevPixels = useRef<number[]>([]);
@@ -410,13 +411,49 @@ export default function AssessmentPage() {
       streamRef.current = null;
     }
     if (proctorInterval.current) clearInterval(proctorInterval.current);
+    if (proctoringEngineRef.current) {
+      proctoringEngineRef.current.stop();
+      proctoringEngineRef.current = null;
+    }
     setCameraActive(false);
   };
 
-  const startProctoring = () => {
-    proctorInterval.current = setInterval(() => {
-      detectSuspiciousBehavior();
-    }, 3000);
+  const proctoringEngineRef = useRef<import("@/utils/proctoringEngine").ProctoringEngine | null>(null);
+
+  const startProctoring = async () => {
+    // Dynamically import to avoid SSR issues
+    const { ProctoringEngine } = await import("@/utils/proctoringEngine");
+
+    if (proctoringEngineRef.current) {
+      proctoringEngineRef.current.stop();
+    }
+
+    const engine = new ProctoringEngine({
+      videoElement: videoRef.current,
+      canvasElement: canvasRef.current,
+      sampleIntervalMs: 1200,
+      warningCooldownMs: 8000,
+      onWarningTriggered: async (event) => {
+        const warningLabels: Record<string, string> = {
+          LookingAway: "⚠️ Looking Away",
+          NoFace: "⚠️ Face Not Detected",
+          MultipleFaces: "⚠️ Multiple Faces",
+          PhoneDetected: "⚠️ Phone Detected",
+          CameraObstructed: "⚠️ Camera Obstructed",
+          TabSwitchOrWindowBlur: "⚠️ Tab Switch Detected",
+        };
+        const label = warningLabels[event.warningType] || "⚠️ Proctoring Alert";
+        const message = `${label} — ${event.details}`;
+        await triggerWarning(event.warningType, event.details);
+      },
+      onMaxWarningsExceeded: async (event) => {
+        await triggerWarning(event.warningType, event.details);
+      },
+    });
+
+    proctoringEngineRef.current = engine;
+    engine.setElements(videoRef.current, canvasRef.current);
+    engine.start();
   };
 
   const detectSuspiciousBehavior = useCallback(() => {
@@ -477,15 +514,16 @@ export default function AssessmentPage() {
 
       const newCount = res.data.warningNum;
       setWarningCount(newCount);
+      setWarningType(type);
 
       if (res.data.shouldTerminate || newCount >= 4) {
-        setWarningMessage("⚠️ Final Warning (4/4): Your assessment has been terminated due to repeated proctoring violations.");
+        setWarningMessage("Your assessment has been terminated due to repeated proctoring violations. Your answers have been saved.");
         setShowWarningModal(true);
-        setTimeout(() => handleTerminate(), 3000);
+        setTimeout(() => handleTerminate(), 4000);
       } else {
-        setWarningMessage(`Warning ${newCount}/3: ${details} Repeated violations will terminate your assessment.`);
+        setWarningMessage(`${details} Repeated violations will automatically terminate your assessment.`);
         setShowWarningModal(true);
-        setTimeout(() => setShowWarningModal(false), 4000);
+        setTimeout(() => setShowWarningModal(false), 5000);
       }
     } catch (err) { console.error("Proctoring warning error:", err); }
   };
@@ -692,21 +730,65 @@ export default function AssessmentPage() {
       </div>
 
       {/* ── WARNING MODAL ── */}
-      {showWarningModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-          <div className={`w-full max-w-md mx-4 rounded-2xl p-6 border shadow-2xl ${warningCount >= 4 ? "border-rose-500/30 bg-rose-950" : "border-orange-500/30 bg-[#1a1008]"}`}>
-            <div className="flex items-start gap-3">
-              <AlertTriangle size={24} className={warningCount >= 4 ? "text-rose-400 shrink-0" : "text-orange-400 shrink-0"} />
-              <div>
-                <h3 className={`font-black text-base mb-1 ${warningCount >= 4 ? "text-rose-300" : "text-orange-300"}`}>
-                  Proctoring Alert – Warning {warningCount}/4
-                </h3>
-                <p className={`text-sm ${warningCount >= 4 ? "text-rose-200" : "text-orange-200"}`}>{warningMessage}</p>
+      {showWarningModal && (() => {
+        const isFatal = warningCount >= 4;
+        const warningIconMap: Record<string, string> = {
+          LookingAway: "👀",
+          NoFace: "🚫",
+          MultipleFaces: "👥",
+          PhoneDetected: "📱",
+          CameraObstructed: "📷",
+          TabSwitchOrWindowBlur: "🔀",
+        };
+        const warningTitleMap: Record<string, string> = {
+          LookingAway: "Looking Away Detected",
+          NoFace: "Face Not Detected",
+          MultipleFaces: "Multiple Persons Detected",
+          PhoneDetected: "Device Detected",
+          CameraObstructed: "Camera Obstructed",
+          TabSwitchOrWindowBlur: "Tab Switch Detected",
+        };
+        const icon = warningIconMap[warningType] || "⚠️";
+        const title = warningTitleMap[warningType] || "Proctoring Alert";
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
+            <div className={`w-full max-w-sm mx-4 rounded-3xl border shadow-2xl overflow-hidden ${
+              isFatal ? "border-rose-500/40 bg-gradient-to-b from-rose-950 to-[#0a0008]" : "border-orange-500/40 bg-gradient-to-b from-[#1a0e08] to-[#0d0a05]"
+            }`}>
+              {/* Colored top bar */}
+              <div className={`h-1.5 w-full ${isFatal ? "bg-rose-500" : "bg-orange-500"}`} />
+              <div className="p-6">
+                <div className="flex items-center gap-3 mb-3">
+                  <span className="text-3xl">{icon}</span>
+                  <div>
+                    <p className={`text-[10px] uppercase font-mono font-extrabold tracking-wider ${
+                      isFatal ? "text-rose-400" : "text-orange-400"
+                    }`}>
+                      Warning {warningCount} of 4
+                    </p>
+                    <h3 className={`font-black text-base ${
+                      isFatal ? "text-rose-200" : "text-orange-200"
+                    }`}>{title}</h3>
+                  </div>
+                </div>
+                <p className={`text-sm leading-relaxed ${
+                  isFatal ? "text-rose-300" : "text-orange-200/90"
+                }`}>{warningMessage}</p>
+                {!isFatal && (
+                  <div className="mt-4 px-3 py-2 rounded-xl bg-orange-500/10 border border-orange-500/20 text-[11px] text-orange-200/80">
+                    ⚠️ <b>{4 - warningCount} more warning(s)</b> will terminate your assessment automatically.
+                  </div>
+                )}
+                {isFatal && (
+                  <div className="mt-4 px-3 py-2 rounded-xl bg-rose-500/10 border border-rose-500/20 text-[11px] text-rose-200 font-bold">
+                    🔴 Assessment is being terminated. Your answers so far have been saved.
+                  </div>
+                )}
               </div>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* ── LIST VIEW ── */}
       {view === "list" && (
