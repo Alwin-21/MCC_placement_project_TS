@@ -939,11 +939,11 @@ export default function AssessmentPage() {
 
       {/* ── LIST VIEW ── */}
       {view === "list" && (
-        <div className="max-w-5xl md:max-w-6xl mx-auto px-4 md:px-8 py-8 md:py-12">
+        <div className="w-full max-w-[1600px] mx-auto px-4 md:px-8 lg:px-12 py-8 md:py-12">
           <div className="mb-10">
             <span className="text-[10px] uppercase font-mono tracking-widest text-[#781c1c] font-bold">Madras Christian College</span>
-            <h1 className={`text-2xl md:text-4xl font-black tracking-tight mt-1 ${isDark ? "text-white" : "text-slate-900"}`}>
-              Welcome, {user?.fullName || "Student"} 👋
+            <h1 className={`text-2xl md:text-4xl font-serif font-black tracking-tight mt-1 ${isDark ? "text-white" : "text-slate-900"}`}>
+              Welcome, {user?.fullName || "Student"}
             </h1>
             <p className={`text-xs sm:text-sm mt-1.5 ${subText}`}>Department-specific assessments assigned to you.</p>
           </div>
@@ -968,14 +968,23 @@ export default function AssessmentPage() {
                 const isUpcoming = start > now;
 
                 return (
-                  <div key={assessment.id} className={`rounded-3xl border p-6 sm:p-8 md:p-10 transition-all duration-300 shadow-xl ${card} ${!assessment.isCompleted && isLive ? "hover:shadow-2xl border-rose-500/30 ring-1 ring-rose-500/20" : ""}`}>
+                  <div
+                    key={assessment.id}
+                    className={`group rounded-3xl border p-6 sm:p-8 md:p-10 transition-all duration-300 shadow-xl ${
+                      isDark
+                        ? "bg-[#0b0b0f] border-white/5 hover:bg-[#781c1c]/10 hover:border-[#781c1c]/50 hover:shadow-2xl hover:shadow-[#781c1c]/20"
+                        : "bg-white border-slate-200 hover:bg-[#781c1c]/[0.03] hover:border-[#781c1c]/40 hover:shadow-2xl hover:shadow-[#781c1c]/10"
+                    }`}
+                  >
                     <div className="flex items-start justify-between gap-6 flex-wrap">
                       <div className="flex-1 min-w-0 space-y-3">
                         <div className="flex items-center gap-3 flex-wrap">
                           <span className="text-xs font-mono font-black uppercase tracking-wider px-3 py-1 rounded-xl bg-[#781c1c]/10 text-[#781c1c] border border-[#781c1c]/20">
                             Assessment {index + 1}
                           </span>
-                          <h2 className={`font-black text-xl sm:text-2xl tracking-tight ${isDark ? "text-white" : "text-slate-900"}`}>{assessment.title}</h2>
+                          <h2 className={`font-serif font-black text-xl sm:text-2xl tracking-tight transition-colors duration-200 ${isDark ? "text-white group-hover:text-rose-200" : "text-slate-900 group-hover:text-[#781c1c]"}`}>
+                            {assessment.title}
+                          </h2>
                           {assessment.isCompleted ? (
                             <span className="text-xs font-bold px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 uppercase tracking-wider">
                               Completed
@@ -995,7 +1004,7 @@ export default function AssessmentPage() {
                           )}
                         </div>
                         <p className={`text-sm sm:text-base leading-relaxed line-clamp-3 ${subText}`}>{assessment.description || "No description provided."}</p>
-                        <div className={`inline-flex items-center gap-5 text-xs sm:text-sm p-3.5 sm:p-4 rounded-2xl border ${isDark ? "bg-white/[0.02] border-white/5 text-slate-300" : "bg-slate-50 border-slate-200 text-slate-700"} flex-wrap font-mono`}>
+                        <div className={`inline-flex items-center gap-5 text-xs sm:text-sm p-3.5 sm:p-4 rounded-2xl border transition-colors duration-200 ${isDark ? "bg-white/[0.02] border-white/5 text-slate-300 group-hover:border-[#781c1c]/30" : "bg-slate-50 border-slate-200 text-slate-700 group-hover:border-[#781c1c]/20"} flex-wrap font-mono`}>
                           <span className="flex items-center gap-1.5"><Clock size={14} className="text-[#781c1c]" /> {assessment.durationMinutes} minutes</span>
                           <span className="flex items-center gap-1.5"><Target size={14} className="text-[#781c1c]" /> {assessment.totalMarks} marks</span>
                           <span className="flex items-center gap-1.5"><BookOpen size={14} className="text-[#781c1c]" />
