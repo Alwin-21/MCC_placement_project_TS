@@ -5,7 +5,8 @@ import { useRouter } from "next/navigation";
 import {
   ClipboardList, Clock, ChevronLeft, ChevronRight, CheckCircle,
   AlertTriangle, Camera, CameraOff, Trophy, Target, XCircle,
-  BookOpen, ArrowRight, RotateCcw, ArrowLeft, Bell, Sun, Moon
+  BookOpen, ArrowRight, RotateCcw, ArrowLeft, Bell, Sun, Moon,
+  ShieldCheck, Lock, RefreshCw, Eye, Lightbulb, Video, Sparkles
 } from "lucide-react";
 import api from "@/services/api";
 import { useTheme } from "@/hooks/useTheme";
@@ -79,6 +80,173 @@ export default function AssessmentPage() {
   const prevPixels = useRef<number[]>([]);
   const proctorInterval = useRef<NodeJS.Timeout | null>(null);
   const [cameraPermission, setCameraPermission] = useState<"pending" | "granted" | "denied">("pending");
+
+  // Pre-Exam Camera Diagnostic & Constraint State
+  const previewVideoRef = useRef<HTMLVideoElement>(null);
+  const previewCanvasRef = useRef<HTMLCanvasElement>(null);
+
+  const [cameraCheck, setCameraCheck] = useState<{
+    permission: "idle" | "checking" | "passed" | "failed";
+    lighting: "idle" | "checking" | "passed" | "failed";
+    resolution: "idle" | "checking" | "passed" | "failed";
+    framing: "idle" | "checking" | "passed" | "failed";
+    brightnessValue: number;
+    resolutionText: string;
+    overallStatus: "idle" | "checking" | "passed" | "failed";
+    errorMessage: string;
+  }>({
+    permission: "idle",
+    lighting: "idle",
+    resolution: "idle",
+    framing: "idle",
+    brightnessValue: 0,
+    resolutionText: "",
+    overallStatus: "idle",
+    errorMessage: "",
+  });
+
+  const runCameraDiagnostic = async () => {
+    setCameraCheck({
+      permission: "checking",
+      lighting: "checking",
+      resolution: "checking",
+      framing: "checking",
+      brightnessValue: 0,
+      resolutionText: "",
+      overallStatus: "checking",
+      errorMessage: "",
+    });
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: "user" },
+      });
+
+      streamRef.current = stream;
+      setCameraActive(true);
+
+      if (previewVideoRef.current) {
+        previewVideoRef.current.srcObject = stream;
+        try {
+          await previewVideoRef.current.play();
+        } catch (e) {
+          console.warn("Video play interrupted:", e);
+        }
+      }
+
+      // Wait brief moment for stream metadata stabilization
+      await new Promise((resolve) => setTimeout(resolve, 800));
+
+      const video = previewVideoRef.current;
+      if (!video) {
+        setCameraCheck((prev) => ({
+          ...prev,
+          permission: "failed",
+          overallStatus: "failed",
+          errorMessage: "Webcam video feed could not be initialized.",
+        }));
+        return;
+      }
+
+      // 1. Resolution Check
+      const w = video.videoWidth || 320;
+      const h = video.videoHeight || 240;
+      const resPassed = w >= 320 && h >= 240;
+      const resText = `${w}x${h}`;
+
+      // 2. Lighting & Brightness Sampling
+      const canvas = previewCanvasRef.current || document.createElement("canvas");
+      canvas.width = 64;
+      canvas.height = 48;
+      const ctx = canvas.getContext("2d");
+      let avgBrightness = 0;
+      let brightnessPercentage = 0;
+      let lightingPassed = false;
+      let lightingError = "";
+
+      if (ctx && video.readyState >= 2) {
+        ctx.drawImage(video, 0, 0, 64, 48);
+        const imgData = ctx.getImageData(0, 0, 64, 48).data;
+        let total = 0;
+        let count = 0;
+        for (let i = 0; i < imgData.length; i += 4) {
+          const r = imgData[i];
+          const g = imgData[i + 1];
+          const b = imgData[i + 2];
+          const lum = 0.299 * r + 0.587 * g + 0.114 * b;
+          total += lum;
+          count++;
+        }
+        avgBrightness = count > 0 ? total / count : 0;
+        brightnessPercentage = Math.round((avgBrightness / 255) * 100);
+
+        if (avgBrightness < 35) {
+          lightingPassed = false;
+          lightingError = `Room environment is too dark (${brightnessPercentage}% brightness). Please turn on room lighting or uncover your camera lens.`;
+        } else if (avgBrightness > 240) {
+          lightingPassed = false;
+          lightingError = `Excessive background glare or direct light source detected (${brightnessPercentage}%). Please adjust your lighting positioning.`;
+        } else {
+          lightingPassed = true;
+        }
+      } else {
+        lightingPassed = true; // Fallback if context unavailable
+        brightnessPercentage = 50;
+      }
+
+      // 3. Framing & Active Stream Check
+      const framingPassed = !video.paused && !video.ended && video.readyState >= 2;
+
+      const allPassed = resPassed && lightingPassed && framingPassed;
+
+      let finalError = "";
+      if (!resPassed) {
+        finalError = `Webcam resolution (${resText}) does not meet minimum requirements (320x240).`;
+      } else if (!lightingPassed) {
+        finalError = lightingError;
+      } else if (!framingPassed) {
+        finalError = "Webcam video feed is frozen or unreadable.";
+      }
+
+      setCameraCheck({
+        permission: "passed",
+        lighting: lightingPassed ? "passed" : "failed",
+        resolution: resPassed ? "passed" : "failed",
+        framing: framingPassed ? "passed" : "failed",
+        brightnessValue: brightnessPercentage,
+        resolutionText: resText,
+        overallStatus: allPassed ? "passed" : "failed",
+        errorMessage: finalError,
+      });
+      setCameraPermission("granted");
+    } catch (err: any) {
+      let msg = "Camera permissions denied or webcam hardware unavailable. Please allow camera access in your browser settings to proceed.";
+      if (err.name === "NotAllowedError" || err.name === "PermissionDeniedError") {
+        msg = "Camera permission was denied. Please click the camera/lock icon in your browser address bar and select 'Allow'.";
+      } else if (err.name === "NotFoundError" || err.name === "DevicesNotFoundError") {
+        msg = "No camera hardware detected. Please connect a working webcam to your device.";
+      }
+      setCameraCheck({
+        permission: "failed",
+        lighting: "failed",
+        resolution: "failed",
+        framing: "failed",
+        brightnessValue: 0,
+        resolutionText: "N/A",
+        overallStatus: "failed",
+        errorMessage: msg,
+      });
+      setCameraPermission("denied");
+    }
+  };
+
+  // Run camera diagnostic automatically whenever Instructions view opens
+  useEffect(() => {
+    if (view === "instructions") {
+      runCameraDiagnostic();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [view]);
 
   // Result
   const [result, setResult] = useState<any>(null);
@@ -275,6 +443,10 @@ export default function AssessmentPage() {
 
   const handleBeginExam = async () => {
     if (!activeAssessment) return;
+    if (cameraCheck.overallStatus !== "passed") {
+      alert("Camera setup check failed. Please resolve the camera or lighting constraints shown above before starting the exam.");
+      return;
+    }
     try {
       const existingRes = await api.get(`/Assessments/${activeAssessment.id}/attempt`);
       if (existingRes.data && existingRes.data.attemptId) {
@@ -596,26 +768,193 @@ export default function AssessmentPage() {
               </div>
             </div>
 
-            {/* Proctoring notice */}
-            <div className={`rounded-xl p-4 mb-6 ${isDark ? "bg-white/[0.03] border border-white/5" : "bg-slate-50 border border-slate-200"}`}>
-              <h3 className={`text-xs font-bold mb-2 flex items-center gap-1 ${isDark ? "text-white" : "text-slate-900"}`}>
-                <Camera size={12} /> Proctoring System
-              </h3>
-              <p className={`text-xs ${subText}`}>
-                This assessment uses webcam-based proctoring. Your camera will be activated when you begin.
-                4 warnings (face not visible, excessive movement) will result in automatic termination and malpractice reporting.
-              </p>
+            {/* ── WEBCAM PRE-CHECK & CONSTRAINTS DIAGNOSTIC ── */}
+            <div className={`rounded-2xl border p-5 mb-6 space-y-4 ${isDark ? "bg-white/[0.02] border-white/10" : "bg-slate-50/80 border-slate-200"}`}>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="w-7 h-7 rounded-lg bg-[#781c1c]/10 text-[#781c1c] flex items-center justify-center">
+                    <Camera size={16} />
+                  </div>
+                  <div>
+                    <h3 className={`text-xs font-bold ${isDark ? "text-white" : "text-slate-900"}`}>
+                      Camera & System Pre-Exam Diagnostic
+                    </h3>
+                    <p className={`text-[10px] ${subText}`}>
+                      Webcam proctoring constraints verification
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={runCameraDiagnostic}
+                  className={`px-3 py-1.5 rounded-lg text-[10px] font-extrabold flex items-center gap-1 border transition cursor-pointer ${
+                    isDark
+                      ? "border-white/10 bg-white/5 hover:bg-white/10 text-white"
+                      : "border-slate-300 bg-white hover:bg-slate-100 text-slate-700"
+                  }`}
+                >
+                  <RefreshCw size={11} className={cameraCheck.overallStatus === "checking" ? "animate-spin" : ""} />
+                  Re-Test Camera Setup
+                </button>
+              </div>
+
+              {/* Live Video Preview Box with Framing Overlay */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-center">
+                <div className="relative aspect-video rounded-xl overflow-hidden bg-black border border-slate-700/60 shadow-inner flex items-center justify-center">
+                  <video
+                    ref={previewVideoRef}
+                    autoPlay
+                    muted
+                    playsInline
+                    className="w-full h-full object-cover transform -scale-x-100"
+                  />
+                  <canvas ref={previewCanvasRef} className="hidden" />
+
+                  {/* Face Bounding Guide Overlay */}
+                  <div className="absolute inset-0 border-2 border-dashed border-white/30 rounded-[45%] mx-auto my-3 w-32 h-40 pointer-events-none flex items-center justify-center">
+                    <span className="text-[9px] font-mono text-white/60 bg-black/50 px-2 py-0.5 rounded-full">
+                      Center Face Here
+                    </span>
+                  </div>
+
+                  {/* Overlay Badges */}
+                  <div className="absolute top-2 left-2 flex gap-1.5">
+                    {cameraCheck.overallStatus === "passed" && (
+                      <span className="bg-emerald-500/90 text-white text-[9px] font-extrabold px-2 py-0.5 rounded-full flex items-center gap-1 backdrop-blur-sm shadow">
+                        <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" /> Live Stream
+                      </span>
+                    )}
+                    {cameraCheck.overallStatus === "failed" && (
+                      <span className="bg-rose-500/90 text-white text-[9px] font-extrabold px-2 py-0.5 rounded-full flex items-center gap-1 backdrop-blur-sm shadow">
+                        <CameraOff size={10} /> Stream Stopped
+                      </span>
+                    )}
+                    {cameraCheck.overallStatus === "checking" && (
+                      <span className="bg-amber-500/90 text-white text-[9px] font-extrabold px-2 py-0.5 rounded-full flex items-center gap-1 backdrop-blur-sm shadow">
+                        <RefreshCw size={10} className="animate-spin" /> Sampling...
+                      </span>
+                    )}
+                  </div>
+
+                  {cameraCheck.overallStatus === "passed" && (
+                    <div className="absolute bottom-2 right-2 flex gap-1.5 text-[9px] font-mono font-bold text-white bg-black/60 px-2 py-0.5 rounded-md border border-white/10">
+                      <span>💡 {cameraCheck.brightnessValue}%</span>
+                      <span>•</span>
+                      <span>📐 {cameraCheck.resolutionText}</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Constraint Checklist Cards */}
+                <div className="space-y-2 text-xs">
+                  {[
+                    {
+                      title: "Camera Permissions & Hardware",
+                      status: cameraCheck.permission,
+                      detail: cameraCheck.permission === "passed" ? "Webcam active & authorized" : cameraCheck.permission === "failed" ? "Permission blocked / No camera" : "Requesting access...",
+                      icon: Camera,
+                    },
+                    {
+                      title: "Room Environment Lighting",
+                      status: cameraCheck.lighting,
+                      detail: cameraCheck.lighting === "passed" ? `Optimal brightness (${cameraCheck.brightnessValue}%)` : cameraCheck.lighting === "failed" ? `Lighting invalid (${cameraCheck.brightnessValue}%)` : "Measuring brightness...",
+                      icon: Lightbulb,
+                    },
+                    {
+                      title: "Video Stream & Resolution",
+                      status: cameraCheck.resolution,
+                      detail: cameraCheck.resolution === "passed" ? `Valid resolution (${cameraCheck.resolutionText})` : cameraCheck.resolution === "failed" ? "Low resolution / Unreadable feed" : "Evaluating resolution...",
+                      icon: Video,
+                    },
+                    {
+                      title: "Face Visibility & Positioning",
+                      status: cameraCheck.framing,
+                      detail: cameraCheck.framing === "passed" ? "Active feed ready for proctoring" : cameraCheck.framing === "failed" ? "Video feed frozen or unreadable" : "Checking video feed...",
+                      icon: Eye,
+                    },
+                  ].map((item, idx) => (
+                    <div
+                      key={idx}
+                      className={`flex items-center justify-between p-2.5 rounded-xl border transition-all ${
+                        item.status === "passed"
+                          ? isDark ? "bg-emerald-500/5 border-emerald-500/20 text-emerald-300" : "bg-emerald-50 border-emerald-200 text-emerald-900"
+                          : item.status === "failed"
+                            ? isDark ? "bg-rose-500/10 border-rose-500/30 text-rose-300" : "bg-rose-50 border-rose-200 text-rose-900"
+                            : isDark ? "bg-white/5 border-white/5 text-gray-400" : "bg-white border-slate-200 text-slate-600"
+                      }`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <item.icon size={13} className="shrink-0" />
+                        <div>
+                          <p className="font-bold text-[11px] leading-tight">{item.title}</p>
+                          <p className="text-[10px] opacity-80">{item.detail}</p>
+                        </div>
+                      </div>
+                      <div className="shrink-0">
+                        {item.status === "passed" && <CheckCircle size={15} className="text-emerald-500" />}
+                        {item.status === "failed" && <XCircle size={15} className="text-rose-500" />}
+                        {item.status === "checking" && <RefreshCw size={13} className="animate-spin text-amber-500" />}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Overall Failure Alert Box */}
+              {cameraCheck.overallStatus === "failed" && (
+                <div className={`p-4 rounded-xl border flex items-start gap-3 ${isDark ? "bg-rose-500/10 border-rose-500/30 text-rose-200" : "bg-rose-50 border-rose-200 text-rose-900"}`}>
+                  <XCircle size={18} className="text-rose-500 shrink-0 mt-0.5" />
+                  <div className="space-y-1 text-xs">
+                    <p className="font-extrabold text-rose-500 uppercase tracking-wider text-[10px]">
+                      Camera Constraint Check Failed
+                    </p>
+                    <p className="font-medium leading-relaxed">{cameraCheck.errorMessage}</p>
+                    <p className="text-[11px] opacity-90 pt-1">
+                      💡 <b>Action Required:</b> Ensure camera permission is set to "Allow", adjust room lighting, uncover your lens, and click <b>"Re-Test Camera Setup"</b> to unlock the exam.
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* Overall Success Alert Box */}
+              {cameraCheck.overallStatus === "passed" && (
+                <div className={`p-3.5 rounded-xl border flex items-center gap-3 ${isDark ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-200" : "bg-emerald-50 border-emerald-200 text-emerald-900"}`}>
+                  <ShieldCheck size={18} className="text-emerald-500 shrink-0" />
+                  <div className="text-xs">
+                    <p className="font-bold text-emerald-500">All Camera Constraints Verified</p>
+                    <p className="text-[11px] opacity-90">Your camera and room environment meet all proctoring guidelines. You may now start the exam.</p>
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className="flex gap-3">
               <button onClick={() => setView("list")}
-                className={`flex-1 py-3 rounded-xl text-xs font-bold border transition cursor-pointer ${isDark ? "border-white/10 hover:bg-white/5" : "border-slate-200 hover:bg-slate-50"}`}>
+                className={`flex-1 py-3 rounded-xl text-xs font-bold border transition cursor-pointer ${isDark ? "border-white/10 hover:bg-white/5 text-gray-300" : "border-slate-200 hover:bg-slate-50 text-slate-700"}`}>
                 Back
               </button>
-              <button onClick={handleBeginExam}
-                className="flex-1 py-3 rounded-xl text-xs font-bold bg-[#781c1c] hover:bg-[#5f1515] text-white transition shadow-sm cursor-pointer">
-                Begin Exam →
-              </button>
+              {cameraCheck.overallStatus === "passed" ? (
+                <button onClick={handleBeginExam}
+                  className="flex-1 py-3 rounded-xl text-xs font-bold bg-[#781c1c] hover:bg-[#5f1515] text-white transition shadow-lg shadow-[#781c1c]/20 cursor-pointer flex items-center justify-center gap-1.5">
+                  Begin Exam →
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (cameraCheck.overallStatus === "failed") {
+                      alert("Camera setup check failed: " + cameraCheck.errorMessage);
+                    } else {
+                      runCameraDiagnostic();
+                    }
+                  }}
+                  className={`flex-1 py-3 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-not-allowed ${
+                    isDark ? "bg-white/10 text-gray-500 border border-white/5" : "bg-slate-200 text-slate-400"
+                  }`}
+                >
+                  <Lock size={12} /> Begin Exam (Camera Required)
+                </button>
+              )}
             </div>
           </div>
         </div>
