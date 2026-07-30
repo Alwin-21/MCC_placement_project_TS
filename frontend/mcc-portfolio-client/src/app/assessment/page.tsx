@@ -137,7 +137,7 @@ export default function AssessmentPage() {
     let centerLumSum = 0, centerCount = 0;
     let rightLumSum = 0, rightCount = 0;
 
-    const centerPixels: number[] = [];
+    const allPixels: number[] = [];
 
     for (let y = 0; y < 48; y++) {
       for (let x = 0; x < 64; x++) {
@@ -149,31 +149,20 @@ export default function AssessmentPage() {
 
         totalLuminance += lum;
         totalPixels++;
-
-        if (x < 19) {
-          leftLumSum += lum;
-          leftCount++;
-        } else if (x > 44) {
-          rightLumSum += lum;
-          rightCount++;
-        } else {
-          centerLumSum += lum;
-          centerCount++;
-          centerPixels.push(lum);
-        }
+        allPixels.push(lum);
       }
     }
 
     const avgLuminance = totalPixels > 0 ? totalLuminance / totalPixels : 0;
     const brightnessPercentage = Math.round((avgLuminance / 255) * 100);
 
-    // 1. Lighting Check
+    // 1. Lighting Check (Acceptable range 25% - 95%)
     let lightingPassed = true;
     let lightingErr = "";
-    if (avgLuminance < 35) {
+    if (avgLuminance < 25) {
       lightingPassed = false;
       lightingErr = `Room environment is too dark (${brightnessPercentage}% brightness). Please turn on room lights or uncover camera.`;
-    } else if (avgLuminance > 240) {
+    } else if (avgLuminance > 242) {
       lightingPassed = false;
       lightingErr = `Excessive direct glare detected (${brightnessPercentage}%). Please adjust light positioning.`;
     }
@@ -184,27 +173,19 @@ export default function AssessmentPage() {
     const resPassed = w >= 320 && h >= 240;
     const resText = `${w}x${h}`;
 
-    // 3. Center Face & Presence Variance Analysis
-    const centerAvg = centerCount > 0 ? centerLumSum / centerCount : 0;
-    let centerVarianceSum = 0;
-    for (let p of centerPixels) {
-      centerVarianceSum += Math.abs(p - centerAvg);
+    // 3. Framing & Feed Activity Analysis
+    let totalVarianceSum = 0;
+    for (let p of allPixels) {
+      totalVarianceSum += Math.abs(p - avgLuminance);
     }
-    const centerVariance = centerPixels.length > 0 ? centerVarianceSum / centerPixels.length : 0;
-
-    const leftAvg = leftCount > 0 ? leftLumSum / leftCount : 0;
-    const rightAvg = rightCount > 0 ? rightLumSum / rightCount : 0;
-
-    // Check if face is missing from center or shifted heavily off-center
-    const isShiftedOffCenter = Math.abs(leftAvg - rightAvg) > 28 || Math.abs(centerAvg - (leftAvg + rightAvg) / 2) > 22;
-    const isCenterEmpty = centerVariance < 7.5; // low feature contrast in center
+    const frameVariance = allPixels.length > 0 ? totalVarianceSum / allPixels.length : 0;
 
     let framingPassed = true;
     let framingErr = "";
 
-    if (isCenterEmpty || isShiftedOffCenter) {
+    if (frameVariance < 1.8) {
       framingPassed = false;
-      framingErr = "Face is not centered in the camera frame. Please position your face inside the center target guide.";
+      framingErr = "Webcam lens appears covered or video feed is obscured. Please position your face inside the target circle.";
     }
 
     const allPassed = resPassed && lightingPassed && framingPassed;
