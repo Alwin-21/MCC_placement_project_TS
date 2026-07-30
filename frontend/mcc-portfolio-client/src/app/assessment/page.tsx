@@ -5,13 +5,18 @@ import { useRouter } from "next/navigation";
 import {
   ClipboardList, Clock, ChevronLeft, ChevronRight, CheckCircle,
   AlertTriangle, Camera, CameraOff, Trophy, Target, XCircle,
-  BookOpen, ArrowRight, RotateCcw, ArrowLeft, Bell, Sun, Moon,
-  ShieldCheck, Lock, RefreshCw, Eye, Lightbulb, Video, Sparkles
+  BookOpen, ArrowRight, RotateCcw, ArrowLeft, Sun, Moon,
+  ShieldCheck, Lock, RefreshCw, Eye, Lightbulb, Video,
+  Monitor, Globe, Maximize2, ShieldAlert, Check, HelpCircle, Save, AlertCircle
 } from "lucide-react";
 import api from "@/services/api";
 import { useTheme } from "@/hooks/useTheme";
+import { useExamSecurity } from "@/hooks/useExamSecurity";
+import { useAutoSave } from "@/hooks/useAutoSave";
+import { ExamRiskEngine, ViolationLogEntry, ViolationType, AUTO_SUBMIT_THRESHOLD } from "@/utils/examRiskEngine";
+import { collectDeviceInfo, checkBrowserCompatibility } from "@/utils/deviceInfo";
 
-type ViewState = "list" | "instructions" | "exam" | "result";
+type ViewState = "list" | "compatibility" | "instructions" | "exam" | "result";
 
 interface Question {
   id: number;
@@ -66,7 +71,12 @@ export default function AssessmentPage() {
   const [startedAt, setStartedAt] = useState<Date | null>(null);
   const [timeLeft, setTimeLeft] = useState(0); // seconds
 
-  // Proctoring
+  // Risk Engine & Proctoring State
+  const [riskScore, setRiskScore] = useState<number>(0);
+  const [violationLog, setViolationLog] = useState<ViolationLogEntry[]>([]);
+  const riskEngineRef = useRef<ExamRiskEngine | null>(null);
+
+  // Proctoring Video / Canvas
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -75,18 +85,40 @@ export default function AssessmentPage() {
   const [warningCount, setWarningCount] = useState(0);
   const [showWarningModal, setShowWarningModal] = useState(false);
   const [warningMessage, setWarningMessage] = useState("");
-  const [warningType, setWarningType] = useState<string>("");
   const [terminated, setTerminated] = useState(false);
   const lastWarningTime = useRef<number>(0);
   const prevPixels = useRef<number[]>([]);
   const proctorInterval = useRef<NodeJS.Timeout | null>(null);
-  const proctoringEngineRef = useRef<any>(null);
-  // Live-value refs so engine callbacks never capture stale closures
-  const attemptIdRef = useRef<number | null>(null);
-  const activeAssessmentRef = useRef<Assessment | null>(null);
   const [cameraPermission, setCameraPermission] = useState<"pending" | "granted" | "denied">("pending");
 
-  // Pre-Exam Camera Diagnostic & Constraint State
+  // Modals & Popups
+  const [showSubmitModal, setShowSubmitModal] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [timerModal, setTimerModal] = useState<{ open: boolean; title: string; message: string }>({
+    open: false, title: "", message: ""
+  });
+  const timerWarningsFired = useRef<Record<number, boolean>>({});
+
+  // System Compatibility Check State
+  const [compatCheck, setCompatCheck] = useState<{
+    camera: "checking" | "passed" | "failed";
+    screen: "checking" | "passed" | "failed";
+    browser: "checking" | "passed" | "failed";
+    connection: "checking" | "passed" | "failed";
+    fullscreen: "checking" | "passed" | "failed";
+    errors: string[];
+    allPassed: boolean;
+  }>({
+    camera: "checking",
+    screen: "checking",
+    browser: "checking",
+    connection: "checking",
+    fullscreen: "checking",
+    errors: [],
+    allPassed: false,
+  });
+
+  // Pre-Exam Camera Diagnostic State
   const previewVideoRef = useRef<HTMLVideoElement>(null);
   const previewCanvasRef = useRef<HTMLCanvasElement>(null);
 
@@ -110,27 +142,75 @@ export default function AssessmentPage() {
     errorMessage: "",
   });
 
-  // Continuous Diagnostic Frame Analyzer (Runs every 400ms on Instructions View)
+  // ── SECURITY HOOK (Keyboard/DevTools/Fullscreen/TabSwitch) ────────────────
+  const handleSecurityViolation = useCallback((type: ViolationType, details: string, browserEvent?: string) => {
+    if (riskEngineRef.current) {
+      const entry = riskEngineRef.current.logViolation(type, details, 1.0, browserEvent);
+      if (entry) {
+        setRiskScore(riskEngineRef.current.getCumulativeRisk());
+        setViolationLog(riskEngineRef.current.getLog());
+        triggerWarning(type, details);
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const { isFullscreen, requestFullscreen, exitFullscreen } = useExamSecurity({
+    active: view === "exam" && !terminated,
+    onViolation: handleSecurityViolation,
+  });
+
+  // ── AUTOSAVE HOOK ─────────────────────────────────────────────────────────
+  const saveAnswerApi = useCallback(async (questionId: number, selectedOption: string) => {
+    if (!attemptId || !activeAssessment) return;
+    await api.post(`/Assessments/${activeAssessment.id}/attempt/answer`, {
+      attemptId,
+      questionId,
+      selectedOption,
+    });
+  }, [attemptId, activeAssessment]);
+
+  const { queueSave, flushQueue, isSaving, lastSavedAt, saveError } = useAutoSave({
+    active: view === "exam" && !terminated,
+    saveFn: saveAnswerApi,
+  });
+
+  // ── RISK ENGINE AUTO-TERMINATE ───────────────────────────────────────────
+  const handleRiskAutoSubmit = useCallback((log: ViolationLogEntry[]) => {
+    setWarningMessage(`⚠️ Exam Auto-Terminated: Cumulative security risk score (${AUTO_SUBMIT_THRESHOLD}) exceeded due to repeated violations.`);
+    setShowWarningModal(true);
+    setTimeout(() => handleTerminate("Cumulative security risk threshold exceeded."), 3000);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Initialize Risk Engine on exam start
+  useEffect(() => {
+    if (view === "exam") {
+      riskEngineRef.current = new ExamRiskEngine(
+        (entry) => {
+          setRiskScore(riskEngineRef.current?.getCumulativeRisk() || 0);
+          setViolationLog(riskEngineRef.current?.getLog() || []);
+        },
+        handleRiskAutoSubmit
+      );
+    } else {
+      riskEngineRef.current = null;
+    }
+  }, [view, handleRiskAutoSubmit]);
+
+  // ── CONTINUOUS DIAGNOSTIC FRAME ANALYZER (Instructions View) ──────────────
   const sampleDiagnosticFrame = useCallback(() => {
     const video = previewVideoRef.current;
     const stream = streamRef.current;
 
-    // Check if video element or stream active
     if (!video) return;
 
-    // Auto-resume video stream if paused by browser
     if ((video.paused || video.ended || video.readyState < 2) && stream && stream.active) {
-      if (!video.srcObject) {
-        video.srcObject = stream;
-      }
+      if (!video.srcObject) video.srcObject = stream;
       video.muted = true;
       video.playsInline = true;
       video.play().catch(() => {});
-
-      // Give stream 1 cycle to resume without returning early false failure
-      if (video.readyState < 2) {
-        return;
-      }
+      if (video.readyState < 2) return;
     }
 
     if (video.paused || video.ended || video.readyState < 2) {
@@ -159,7 +239,6 @@ export default function AssessmentPage() {
     let totalPixels = 0;
     const allPixels: number[] = [];
 
-    // Face / Skin-tone Spatial Mass Tracking
     let totalFacePixels = 0;
     let sumFaceX = 0;
     let centerTargetFacePixels = 0;
@@ -176,12 +255,10 @@ export default function AssessmentPage() {
         totalPixels++;
         allPixels.push(lum);
 
-        // Precise human skin-tone & face feature detector (distinguishes human skin from walls/furniture)
         const isSkinTone = r > 48 && g > 28 && b > 18 && r > g && (r - g) >= 8 && (r - b) >= 12 && Math.abs(g - b) <= 36;
         if (isSkinTone) {
           totalFacePixels++;
           sumFaceX += x;
-          // Center target oval region (x: 18 to 46, y: 6 to 42)
           if (x >= 18 && x <= 46 && y >= 6 && y <= 42) {
             centerTargetFacePixels++;
           }
@@ -192,7 +269,6 @@ export default function AssessmentPage() {
     const avgLuminance = totalPixels > 0 ? totalLuminance / totalPixels : 0;
     const brightnessPercentage = Math.round((avgLuminance / 255) * 100);
 
-    // 1. Lighting Check (Acceptable range 25% - 95%)
     let lightingPassed = true;
     let lightingErr = "";
     if (avgLuminance < 25) {
@@ -203,13 +279,11 @@ export default function AssessmentPage() {
       lightingErr = `Excessive direct glare detected (${brightnessPercentage}%). Please adjust light positioning.`;
     }
 
-    // 2. Resolution Check
     const w = video.videoWidth || 320;
     const h = video.videoHeight || 240;
     const resPassed = w >= 320 && h >= 240;
     const resText = `${w}x${h}`;
 
-    // 3. Face Centering & Spatial Mass Analysis
     let totalVarianceSum = 0;
     for (let p of allPixels) {
       totalVarianceSum += Math.abs(p - avgLuminance);
@@ -219,7 +293,6 @@ export default function AssessmentPage() {
     let framingPassed = true;
     let framingErr = "";
 
-    // Calculate face horizontal centroid (0..64)
     const centroidX = totalFacePixels > 0 ? sumFaceX / totalFacePixels : 32;
     const centerRatio = totalFacePixels > 0 ? centerTargetFacePixels / totalFacePixels : 0;
 
@@ -227,15 +300,12 @@ export default function AssessmentPage() {
       framingPassed = false;
       framingErr = "Webcam lens appears covered or video feed is obscured.";
     } else if (totalFacePixels < 30 || centerTargetFacePixels < 18) {
-      // Case 3: Face completely missing or out of camera view
       framingPassed = false;
       framingErr = "Face not detected in camera frame. Please position yourself directly in front of the camera.";
     } else if (centroidX < 23 || centroidX > 41 || centerRatio < 0.50) {
-      // Case 2: Face shifted off-center / half-way out of circle
       framingPassed = false;
       framingErr = "Face is shifted off-center. Please align your face inside the target circle.";
     } else {
-      // Case 1: Face centered inside target oval
       framingPassed = true;
     }
 
@@ -324,7 +394,46 @@ export default function AssessmentPage() {
     return () => {
       if (diagnosticInterval) clearInterval(diagnosticInterval);
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [view]);
+
+  // ── SYSTEM COMPATIBILITY CHECK ────────────────────────────────────────────
+  const runSystemCompatibilityCheck = async () => {
+    setCompatCheck((prev) => ({ ...prev, camera: "checking", screen: "checking", browser: "checking", connection: "checking", fullscreen: "checking" }));
+
+    const issues = checkBrowserCompatibility();
+    const isOnline = typeof navigator !== "undefined" ? navigator.onLine : true;
+
+    let cameraOk = false;
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+      stream.getTracks().forEach((t) => t.stop());
+      cameraOk = true;
+    } catch {
+      cameraOk = false;
+    }
+
+    const screenOk = typeof screen !== "undefined" ? screen.width >= 1024 && screen.height >= 600 : true;
+    const browserOk = issues.length === 0;
+    const fsOk = typeof document !== "undefined" && !!(document.documentElement.requestFullscreen || (document.documentElement as any).webkitRequestFullscreen);
+
+    const allPassed = cameraOk && screenOk && browserOk && isOnline && fsOk;
+
+    setCompatCheck({
+      camera: cameraOk ? "passed" : "failed",
+      screen: screenOk ? "passed" : "failed",
+      browser: browserOk ? "passed" : "failed",
+      connection: isOnline ? "passed" : "failed",
+      fullscreen: fsOk ? "passed" : "failed",
+      errors: issues,
+      allPassed,
+    });
+  };
+
+  useEffect(() => {
+    if (view === "compatibility") {
+      runSystemCompatibilityCheck();
+    }
   }, [view]);
 
   // Result
@@ -342,7 +451,7 @@ export default function AssessmentPage() {
       setUser(parsed);
     }
     fetchAssessments();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const fetchAssessments = async () => {
@@ -354,16 +463,7 @@ export default function AssessmentPage() {
     finally { setLoadingList(false); }
   };
 
-  // Pending count calculation
-  const pendingCount = assessments.filter(a => {
-    const now = new Date();
-    const start = new Date(a.startDate);
-    const end = new Date(a.endDate);
-    const isLive = !a.isCompleted && (a.isAvailable || (now >= start && now <= end));
-    return isLive;
-  }).length;
-
-  // ── Timer ──
+  // ── Timer & Warnings (15m, 10m, 5m, 1m) ─────────────────────────────────
   useEffect(() => {
     if (view !== "exam" || !startedAt || !activeAssessment) return;
     const durationSec = activeAssessment.durationMinutes * 60;
@@ -378,11 +478,28 @@ export default function AssessmentPage() {
           handleAutoSubmit();
           return 0;
         }
+
+        // Trigger timed modal warnings
+        const minsLeft = Math.floor(prev / 60);
+        const secsMod = prev % 60;
+
+        if (secsMod === 0 && [15, 10, 5, 1].includes(minsLeft) && !timerWarningsFired.current[minsLeft]) {
+          timerWarningsFired.current[minsLeft] = true;
+          setTimerModal({
+            open: true,
+            title: `⏰ Timer Warning: ${minsLeft} Minute${minsLeft > 1 ? "s" : ""} Remaining`,
+            message: `You have ${minsLeft} minute${minsLeft > 1 ? "s" : ""} left to complete your assessment. Make sure to answer all questions and submit before time expires.`,
+          });
+          setTimeout(() => {
+            setTimerModal((tm) => ({ ...tm, open: false }));
+          }, 5000);
+        }
+
         return prev - 1;
       });
     }, 1000);
     return () => clearInterval(interval);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [view, startedAt, activeAssessment]);
 
   const formatTime = (secs: number) => {
@@ -415,83 +532,58 @@ export default function AssessmentPage() {
       streamRef.current = null;
     }
     if (proctorInterval.current) clearInterval(proctorInterval.current);
-    if (proctoringEngineRef.current) {
-      proctoringEngineRef.current.stop();
-      proctoringEngineRef.current = null;
-    }
     setCameraActive(false);
   };
 
-  // Keep live refs in sync with state
-  useEffect(() => { attemptIdRef.current = attemptId; }, [attemptId]);
-  useEffect(() => { activeAssessmentRef.current = activeAssessment; }, [activeAssessment]);
-
   const startProctoring = () => {
-    // Import synchronously using require (client-side only, no SSR issues)
-    import("@/utils/proctoringEngine").then(({ ProctoringEngine }) => {
-      if (proctoringEngineRef.current) {
-        proctoringEngineRef.current.stop();
-      }
-
-      // Use a ref-based triggerWarning so callbacks always see live attemptId/activeAssessment
-      const handleViolation = async (type: string, details: string) => {
-        const currentAttemptId = attemptIdRef.current;
-        const currentAssessment = activeAssessmentRef.current;
-        if (!currentAttemptId || !currentAssessment) return;
-
-        const now = Date.now();
-        if (now - lastWarningTime.current < 8000) return;
-        lastWarningTime.current = now;
-
-        try {
-          const res = await api.post(`/Assessments/${currentAssessment.id}/attempt/proctoring`, {
-            attemptId: currentAttemptId,
-            warningType: type,
-            details,
-          });
-          const newCount = res.data.warningNum;
-          setWarningCount(newCount);
-          setWarningType(type);
-
-          if (res.data.shouldTerminate || newCount >= 4) {
-            setWarningMessage("Your assessment has been terminated due to repeated proctoring violations. Your answers have been saved.");
-            setShowWarningModal(true);
-            setTimeout(() => {
-              if (proctoringEngineRef.current) {
-                proctoringEngineRef.current.stop();
-                proctoringEngineRef.current = null;
-              }
-              stopCamera();
-              setTerminated(true);
-              api.post(`/Assessments/${currentAssessment.id}/attempt/terminate`, {
-                attemptId: currentAttemptId,
-                reason: "Four proctoring violations.",
-              }).catch(console.error);
-              setView("result");
-              fetchResult(currentAssessment.id);
-            }, 4000);
-          } else {
-            setWarningMessage(`${details} Repeated violations will automatically terminate your assessment.`);
-            setShowWarningModal(true);
-            setTimeout(() => setShowWarningModal(false), 5000);
-          }
-        } catch (err) { console.error("Proctoring warning error:", err); }
-      };
-
-      const engine = new ProctoringEngine({
-        videoElement: videoRef.current,
-        canvasElement: canvasRef.current,
-        sampleIntervalMs: 1200,
-        warningCooldownMs: 8000,
-        onWarningTriggered: (event) => handleViolation(event.warningType, event.details),
-        onMaxWarningsExceeded: (event) => handleViolation(event.warningType, event.details),
-      });
-
-      proctoringEngineRef.current = engine;
-      engine.setElements(videoRef.current, canvasRef.current);
-      engine.start();
-    });
+    proctorInterval.current = setInterval(() => {
+      detectSuspiciousBehavior();
+    }, 3000);
   };
+
+  const detectSuspiciousBehavior = useCallback(() => {
+    if (!videoRef.current || !canvasRef.current) return;
+    const video = videoRef.current;
+    const canvas = canvasRef.current;
+    const ctx = canvas.getContext("2d");
+    if (!ctx || video.readyState < 2) return;
+
+    canvas.width = 64;
+    canvas.height = 48;
+    ctx.drawImage(video, 0, 0, 64, 48);
+    const data = ctx.getImageData(0, 0, 64, 48).data;
+
+    let totalBrightness = 0;
+    const pixels: number[] = [];
+    for (let i = 0; i < data.length; i += 4) {
+      const r = data[i], g = data[i + 1], b = data[i + 2];
+      const brightness = (r + g + b) / 3;
+      totalBrightness += brightness;
+      pixels.push(brightness);
+    }
+    const avgBrightness = totalBrightness / pixels.length;
+
+    let motionScore = 0;
+    if (prevPixels.current.length === pixels.length) {
+      let diffSum = 0;
+      for (let i = 0; i < pixels.length; i++) {
+        diffSum += Math.abs(pixels[i] - prevPixels.current[i]);
+      }
+      motionScore = diffSum / pixels.length;
+    }
+    prevPixels.current = pixels;
+
+    const now = Date.now();
+    const cooldown = 10000;
+
+    if (now - lastWarningTime.current < cooldown) return;
+
+    if (avgBrightness < 20) {
+      handleSecurityViolation("CameraObstructed", "Camera appears covered or pitch dark.");
+    } else if (motionScore > 35) {
+      handleSecurityViolation("LookingAway", "Sudden movement detected. Please face the camera.");
+    }
+  }, [handleSecurityViolation]);
 
   const triggerWarning = async (type: string, details: string) => {
     if (!attemptId || !activeAssessment) return;
@@ -506,35 +598,35 @@ export default function AssessmentPage() {
 
       const newCount = res.data.warningNum;
       setWarningCount(newCount);
-      setWarningType(type);
 
       if (res.data.shouldTerminate || newCount >= 4) {
-        setWarningMessage("Your assessment has been terminated due to repeated proctoring violations. Your answers have been saved.");
+        setWarningMessage("⚠️ Final Warning (4/4): Your assessment has been terminated due to repeated proctoring violations.");
         setShowWarningModal(true);
-        setTimeout(() => handleTerminate(), 4000);
+        setTimeout(() => handleTerminate("Four proctoring violations recorded."), 3000);
       } else {
-        setWarningMessage(`${details} Repeated violations will automatically terminate your assessment.`);
+        setWarningMessage(`Warning ${newCount}/4: ${details} Repeated violations will terminate your assessment.`);
         setShowWarningModal(true);
-        setTimeout(() => setShowWarningModal(false), 5000);
+        setTimeout(() => setShowWarningModal(false), 4000);
       }
     } catch (err) { console.error("Proctoring warning error:", err); }
   };
 
-  const handleTerminate = async () => {
+  const handleTerminate = async (reason?: string) => {
     if (!attemptId || !activeAssessment) return;
     stopCamera();
+    exitFullscreen();
     setTerminated(true);
     try {
       await api.post(`/Assessments/${activeAssessment.id}/attempt/terminate`, {
         attemptId,
-        reason: "Four proctoring violations: suspicious behavior detected.",
+        reason: reason || "Proctoring violations: suspicious behavior detected.",
       });
     } catch (err) { console.error(err); }
     setView("result");
     fetchResult();
   };
 
-  // ── Start Assessment ──
+  // ── Start Assessment Handlers ──
   const handleStart = async (assessment: Assessment) => {
     setActiveAssessment(assessment);
     if (assessment.isCompleted) {
@@ -542,7 +634,7 @@ export default function AssessmentPage() {
       fetchResult(assessment.id);
       return;
     }
-    setView("instructions");
+    setView("compatibility");
   };
 
   const handleBeginExam = async () => {
@@ -551,7 +643,10 @@ export default function AssessmentPage() {
       alert("Camera setup check failed. Please resolve the camera or lighting constraints shown above before starting the exam.");
       return;
     }
+
     try {
+      let createdAttemptId: number;
+
       const existingRes = await api.get(`/Assessments/${activeAssessment.id}/attempt`);
       if (existingRes.data && existingRes.data.attemptId) {
         if (existingRes.data.isCompleted) {
@@ -559,19 +654,32 @@ export default function AssessmentPage() {
           fetchResult(activeAssessment.id);
           return;
         }
-        attemptIdRef.current = existingRes.data.attemptId;
-        activeAssessmentRef.current = activeAssessment;
+        createdAttemptId = existingRes.data.attemptId;
         setAttemptId(existingRes.data.attemptId);
         setQuestions(existingRes.data.questions);
         setStartedAt(new Date(existingRes.data.startedAt));
       } else {
         const res = await api.post(`/Assessments/${activeAssessment.id}/attempt`, {});
-        attemptIdRef.current = res.data.attemptId;
-        activeAssessmentRef.current = activeAssessment;
+        createdAttemptId = res.data.attemptId;
         setAttemptId(res.data.attemptId);
         setQuestions(res.data.questions.map((q: any) => ({ ...q, selectedOption: "" })));
         setStartedAt(new Date(res.data.startedAt));
       }
+
+      // Collect forensic device information & store via API
+      try {
+        const deviceInfo = collectDeviceInfo();
+        await api.post(`/Assessments/${activeAssessment.id}/attempt/device-info`, {
+          attemptId: createdAttemptId,
+          deviceInfo,
+        });
+      } catch (e) {
+        console.warn("Failed to store device info:", e);
+      }
+
+      // Enforce Fullscreen mode on begin
+      await requestFullscreen();
+
       setCurrentQIndex(0);
       setView("exam");
       startCamera();
@@ -587,17 +695,6 @@ export default function AssessmentPage() {
   };
 
   // ── Save Answer ──
-  const saveAnswer = async (questionId: number, selectedOption: string) => {
-    if (!attemptId || !activeAssessment) return;
-    try {
-      await api.post(`/Assessments/${activeAssessment.id}/attempt/answer`, {
-        attemptId,
-        questionId,
-        selectedOption,
-      });
-    } catch (err) { console.error("Save answer error:", err); }
-  };
-
   const selectOption = (option: string) => {
     const q = questions[currentQIndex];
     if (!q) return;
@@ -605,24 +702,33 @@ export default function AssessmentPage() {
       i === currentQIndex ? { ...ques, selectedOption: option } : ques
     );
     setQuestions(updated);
-    saveAnswer(q.id, option);
+    queueSave(q.id, option);
   };
 
   // ── Submit ──
-  const handleSubmit = async () => {
-    if (!confirm("Are you sure you want to submit the assessment?")) return;
+  const confirmSubmit = async () => {
     if (!attemptId || !activeAssessment) return;
+    setIsSubmitting(true);
+    await flushQueue();
     stopCamera();
+    exitFullscreen();
     try {
       await api.post(`/Assessments/${activeAssessment.id}/attempt/submit`, { attemptId, autoSubmit: false });
+      setShowSubmitModal(false);
       setView("result");
       fetchResult(activeAssessment.id);
-    } catch (err: any) { alert("Submit failed: " + (err.response?.data?.message || err.message)); }
+    } catch (err: any) {
+      alert("Submit failed: " + (err.response?.data?.message || err.message));
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleAutoSubmit = async () => {
     if (!attemptId || !activeAssessment) return;
+    await flushQueue();
     stopCamera();
+    exitFullscreen();
     try {
       await api.post(`/Assessments/${activeAssessment.id}/attempt/submit`, { attemptId, autoSubmit: true });
     } catch (err) { console.error(err); }
@@ -644,11 +750,13 @@ export default function AssessmentPage() {
 
   // Back button action inside header
   const handleBack = () => {
-    stopCamera();
     if (view === "exam") {
       if (!confirm("Are you sure you want to leave the exam hall? Timer will continue running.")) return;
+      stopCamera();
+      exitFullscreen();
       setView("list");
-    } else if (view === "instructions" || view === "result") {
+    } else if (view === "compatibility" || view === "instructions" || view === "result") {
+      stopCamera();
       setView("list");
       setResult(null);
     } else {
@@ -656,10 +764,10 @@ export default function AssessmentPage() {
     }
   };
 
-  // ── Cleanup on unmount ──
+  // Cleanup on unmount
   useEffect(() => {
     return () => { stopCamera(); };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const isDark = themeMode === "dark";
@@ -670,10 +778,9 @@ export default function AssessmentPage() {
 
   return (
     <div className={`min-h-screen ${bg} transition-colors duration-300`}>
-      {/* ── HEADER WITH BACK BUTTON & PENDING BADGE ── */}
+      {/* ── HEADER WITH BACK BUTTON & CONTROLS ── */}
       <div className={`sticky top-0 z-40 border-b px-4 md:px-8 py-3 flex items-center justify-between backdrop-blur-md ${isDark ? "border-white/5 bg-[#0d0d12]/90" : "border-slate-200 bg-white/90"}`}>
         <div className="flex items-center gap-3">
-          {/* Back button replacing Home button */}
           <button onClick={handleBack}
             aria-label="Back"
             className={`p-2 rounded-xl transition cursor-pointer ${isDark ? "hover:bg-white/5 text-gray-300" : "hover:bg-slate-100 text-slate-700"}`}>
@@ -683,6 +790,7 @@ export default function AssessmentPage() {
             <ClipboardList size={18} className="text-[#781c1c]" />
             <span className="font-bold text-sm">
               {view === "list" ? "Assessments" :
+               view === "compatibility" ? "System Compatibility Check" :
                view === "instructions" ? activeAssessment?.title :
                view === "exam" ? activeAssessment?.title :
                "Assessment Result"}
@@ -698,18 +806,33 @@ export default function AssessmentPage() {
               <Clock size={14} /> {formatTime(timeLeft)}
             </div>
           )}
+
+          {view === "exam" && isSaving && (
+            <div className="flex items-center gap-1.5 text-[10px] font-bold text-amber-400">
+              <RefreshCw size={11} className="animate-spin" /> Autosaving...
+            </div>
+          )}
+
+          {view === "exam" && lastSavedAt && !isSaving && (
+            <div className="flex items-center gap-1.5 text-[10px] font-bold text-emerald-400">
+              <Save size={11} /> Saved
+            </div>
+          )}
+
           {view === "exam" && cameraActive && (
             <div className="flex items-center gap-1.5 text-[10px] font-bold text-emerald-400">
               <Camera size={12} /> Recording
             </div>
           )}
-          {view === "exam" && warningCount > 0 && (
-            <div className="flex items-center gap-1.5 text-[10px] font-bold text-orange-400">
-              <AlertTriangle size={12} /> {warningCount}/4
+
+          {view === "exam" && riskScore > 0 && (
+            <div className={`flex items-center gap-1 text-[10px] font-mono font-bold px-2 py-1 rounded-lg border ${
+              riskScore > 100 ? "bg-rose-500/20 text-rose-400 border-rose-500/30" : "bg-amber-500/20 text-amber-400 border-amber-500/30"
+            }`}>
+              <ShieldAlert size={12} /> Risk: {riskScore}/{AUTO_SUBMIT_THRESHOLD}
             </div>
           )}
 
-          {/* Theme Changer Icon Button */}
           <button
             onClick={toggleThemeMode}
             title="Toggle Light/Dark Mode"
@@ -725,66 +848,94 @@ export default function AssessmentPage() {
         </div>
       </div>
 
-      {/* ── WARNING MODAL ── */}
-      {showWarningModal && (() => {
-        const isFatal = warningCount >= 4;
-        const warningIconMap: Record<string, string> = {
-          LookingAway: "👀",
-          NoFace: "🚫",
-          MultipleFaces: "👥",
-          PhoneDetected: "📱",
-          CameraObstructed: "📷",
-          TabSwitchOrWindowBlur: "🔀",
-        };
-        const warningTitleMap: Record<string, string> = {
-          LookingAway: "Looking Away Detected",
-          NoFace: "Face Not Detected",
-          MultipleFaces: "Multiple Persons Detected",
-          PhoneDetected: "Device Detected",
-          CameraObstructed: "Camera Obstructed",
-          TabSwitchOrWindowBlur: "Tab Switch Detected",
-        };
-        const icon = warningIconMap[warningType] || "⚠️";
-        const title = warningTitleMap[warningType] || "Proctoring Alert";
-        return (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
-            <div className={`w-full max-w-sm mx-4 rounded-3xl border shadow-2xl overflow-hidden ${
-              isFatal ? "border-rose-500/40 bg-gradient-to-b from-rose-950 to-[#0a0008]" : "border-orange-500/40 bg-gradient-to-b from-[#1a0e08] to-[#0d0a05]"
-            }`}>
-              {/* Colored top bar */}
-              <div className={`h-1.5 w-full ${isFatal ? "bg-rose-500" : "bg-orange-500"}`} />
-              <div className="p-6">
-                <div className="flex items-center gap-3 mb-3">
-                  <span className="text-3xl">{icon}</span>
-                  <div>
-                    <p className={`text-[10px] uppercase font-mono font-extrabold tracking-wider ${
-                      isFatal ? "text-rose-400" : "text-orange-400"
-                    }`}>
-                      Warning {warningCount} of 4
-                    </p>
-                    <h3 className={`font-black text-base ${
-                      isFatal ? "text-rose-200" : "text-orange-200"
-                    }`}>{title}</h3>
-                  </div>
-                </div>
-                <p className={`text-sm leading-relaxed ${
-                  isFatal ? "text-rose-300" : "text-orange-200/90"
-                }`}>{warningMessage}</p>
-                {!isFatal && (
-                  <div className="mt-4 px-3 py-2 rounded-xl bg-orange-500/10 border border-orange-500/20 text-[11px] text-orange-200/80">
-                    ⚠️ <b>{4 - warningCount} more warning(s)</b> will terminate your assessment automatically.
-                  </div>
-                )}
-                {isFatal && (
-                  <div className="mt-4 px-3 py-2 rounded-xl bg-rose-500/10 border border-rose-500/20 text-[11px] text-rose-200 font-bold">
-                    🔴 Assessment is being terminated. Your answers so far have been saved.
-                  </div>
-                )}
+      {/* ── TIMED WARNING MODAL (15m, 10m, 5m, 1m) ── */}
+      {timerModal.open && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm animate-fadeIn">
+          <div className={`w-full max-w-md mx-4 rounded-2xl p-6 border shadow-2xl ${isDark ? "bg-[#16120b] border-amber-500/30" : "bg-amber-50 border-amber-300"}`}>
+            <div className="flex items-start gap-3">
+              <Clock size={24} className="text-amber-400 shrink-0 mt-1" />
+              <div>
+                <h3 className="font-black text-base text-amber-300 mb-1">{timerModal.title}</h3>
+                <p className="text-sm text-amber-200/90 leading-relaxed">{timerModal.message}</p>
+                <button
+                  onClick={() => setTimerModal((tm) => ({ ...tm, open: false }))}
+                  className="mt-4 px-4 py-2 bg-amber-500 text-black text-xs font-black rounded-xl hover:bg-amber-400 cursor-pointer"
+                >
+                  Dismiss
+                </button>
               </div>
             </div>
           </div>
-        );
-      })()}
+        </div>
+      )}
+
+      {/* ── SECURITY PROCTORING WARNING MODAL ── */}
+      {showWarningModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm animate-fadeIn">
+          <div className={`w-full max-w-md mx-4 rounded-2xl p-6 border shadow-2xl ${warningCount >= 4 ? "border-rose-500/30 bg-rose-950" : "border-orange-500/30 bg-[#1a1008]"}`}>
+            <div className="flex items-start gap-3">
+              <AlertTriangle size={24} className={warningCount >= 4 ? "text-rose-400 shrink-0" : "text-orange-400 shrink-0"} />
+              <div>
+                <h3 className={`font-black text-base mb-1 ${warningCount >= 4 ? "text-rose-300" : "text-orange-300"}`}>
+                  Proctoring Alert – Violation Logged
+                </h3>
+                <p className={`text-sm ${warningCount >= 4 ? "text-rose-200" : "text-orange-200"}`}>{warningMessage}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── STYLED SUBMIT CONFIRMATION MODAL ── */}
+      {showSubmitModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-md animate-fadeIn">
+          <div className={`w-full max-w-md mx-4 rounded-3xl p-6 md:p-8 border shadow-2xl ${card}`}>
+            <div className="text-center space-y-3">
+              <div className="w-14 h-14 rounded-2xl bg-[#781c1c]/10 text-[#781c1c] mx-auto flex items-center justify-center">
+                <CheckCircle size={28} />
+              </div>
+              <h3 className={`text-xl font-black ${isDark ? "text-white" : "text-slate-900"}`}>Submit Assessment?</h3>
+              <p className={`text-xs md:text-sm ${subText}`}>
+                Once submitted, your answers will be evaluated and you will not be able to modify them.
+              </p>
+
+              <div className={`p-4 rounded-2xl border text-xs font-mono space-y-2 ${isDark ? "bg-white/[0.03] border-white/10" : "bg-slate-50 border-slate-200"}`}>
+                <div className="flex justify-between">
+                  <span>Total Questions:</span>
+                  <span className="font-bold">{questions.length}</span>
+                </div>
+                <div className="flex justify-between text-emerald-400">
+                  <span>Answered:</span>
+                  <span className="font-bold">{answered}</span>
+                </div>
+                <div className="flex justify-between text-amber-400">
+                  <span>Unanswered / Skipped:</span>
+                  <span className="font-bold">{questions.length - answered}</span>
+                </div>
+              </div>
+
+              <div className="flex gap-3 pt-3">
+                <button
+                  disabled={isSubmitting}
+                  onClick={() => setShowSubmitModal(false)}
+                  className={`flex-1 py-3.5 rounded-2xl text-xs font-bold border transition cursor-pointer ${
+                    isDark ? "border-white/10 hover:bg-white/5 text-gray-300" : "border-slate-300 hover:bg-slate-100 text-slate-700"
+                  }`}
+                >
+                  Cancel
+                </button>
+                <button
+                  disabled={isSubmitting}
+                  onClick={confirmSubmit}
+                  className="flex-1 py-3.5 rounded-2xl text-xs font-black bg-[#781c1c] hover:bg-[#5f1515] text-white transition shadow-lg shadow-[#781c1c]/20 cursor-pointer flex items-center justify-center gap-1.5"
+                >
+                  {isSubmitting ? <RefreshCw size={14} className="animate-spin" /> : "Confirm & Submit"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── LIST VIEW ── */}
       {view === "list" && (
@@ -815,7 +966,6 @@ export default function AssessmentPage() {
                 const end = new Date(assessment.endDate);
                 const isLive = start <= now && end >= now;
                 const isUpcoming = start > now;
-                const isExpired = end < now;
 
                 return (
                   <div key={assessment.id} className={`rounded-3xl border p-6 sm:p-8 md:p-10 transition-all duration-300 shadow-xl ${card} ${!assessment.isCompleted && isLive ? "hover:shadow-2xl border-rose-500/30 ring-1 ring-rose-500/20" : ""}`}>
@@ -888,12 +1038,96 @@ export default function AssessmentPage() {
         </div>
       )}
 
+      {/* ── SYSTEM COMPATIBILITY CHECK VIEW ── */}
+      {view === "compatibility" && activeAssessment && (
+        <div className="max-w-2xl mx-auto px-4 md:px-8 py-8 md:py-12">
+          <div className={`rounded-3xl border p-6 md:p-8 ${card} space-y-6 shadow-2xl`}>
+            <div>
+              <span className="text-[10px] uppercase font-mono tracking-widest text-[#781c1c] font-bold">Phase 1 of 2 — Verification</span>
+              <h2 className={`text-xl md:text-2xl font-black mt-1 ${isDark ? "text-white" : "text-slate-900"}`}>System & Environment Compatibility Check</h2>
+              <p className={`text-xs md:text-sm mt-1 ${subText}`}>
+                Before entering the assessment instructions, we must verify your browser and system meet security requirements.
+              </p>
+            </div>
+
+            <div className="space-y-3">
+              {[
+                { title: "Webcam Hardware & Access", status: compatCheck.camera, desc: "Camera hardware detected and accessible", icon: Camera },
+                { title: "Screen Resolution (Min 1024×600)", status: compatCheck.screen, desc: "Sufficient display resolution for proctoring grid", icon: Monitor },
+                { title: "Supported Browser & Engine", status: compatCheck.browser, desc: "Modern Chromium / Firefox / Safari browser detected", icon: Globe },
+                { title: "Active Network Connection", status: compatCheck.connection, desc: "Stable internet connection available", icon: RefreshCw },
+                { title: "Fullscreen Security Support", status: compatCheck.fullscreen, desc: "Browser supports locked fullscreen mode", icon: Maximize2 },
+              ].map((item, i) => (
+                <div
+                  key={i}
+                  className={`flex items-center justify-between p-4 rounded-2xl border transition-all ${
+                    item.status === "passed"
+                      ? isDark ? "bg-emerald-500/5 border-emerald-500/20 text-emerald-300" : "bg-emerald-50 border-emerald-200 text-emerald-900"
+                      : item.status === "failed"
+                        ? isDark ? "bg-rose-500/10 border-rose-500/30 text-rose-300" : "bg-rose-50 border-rose-200 text-rose-900"
+                        : isDark ? "bg-white/5 border-white/5 text-gray-400" : "bg-white border-slate-200 text-slate-600"
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <item.icon size={18} className="shrink-0" />
+                    <div>
+                      <h4 className="font-bold text-xs md:text-sm">{item.title}</h4>
+                      <p className="text-[11px] opacity-80">{item.desc}</p>
+                    </div>
+                  </div>
+                  <div>
+                    {item.status === "passed" && <CheckCircle size={20} className="text-emerald-500" />}
+                    {item.status === "failed" && <XCircle size={20} className="text-rose-500" />}
+                    {item.status === "checking" && <RefreshCw size={16} className="animate-spin text-amber-500" />}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {compatCheck.errors.length > 0 && (
+              <div className="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs space-y-1">
+                <p className="font-bold flex items-center gap-1.5"><AlertCircle size={14} /> Compatibility Errors:</p>
+                {compatCheck.errors.map((err, idx) => (
+                  <p key={idx} className="pl-5">• {err}</p>
+                ))}
+              </div>
+            )}
+
+            <div className="flex gap-3 pt-2">
+              <button
+                onClick={() => setView("list")}
+                className={`flex-1 py-3.5 rounded-2xl text-xs font-bold border transition cursor-pointer ${
+                  isDark ? "border-white/10 hover:bg-white/5 text-gray-300" : "border-slate-300 hover:bg-slate-100 text-slate-700"
+                }`}
+              >
+                Back to Assessments
+              </button>
+              {compatCheck.allPassed ? (
+                <button
+                  onClick={() => setView("instructions")}
+                  className="flex-1 py-3.5 rounded-2xl text-xs font-black bg-[#781c1c] hover:bg-[#5f1515] text-white transition shadow-lg shadow-[#781c1c]/20 cursor-pointer flex items-center justify-center gap-1.5"
+                >
+                  Proceed to Instructions →
+                </button>
+              ) : (
+                <button
+                  onClick={runSystemCompatibilityCheck}
+                  className="flex-1 py-3.5 rounded-2xl text-xs font-bold bg-amber-600 hover:bg-amber-700 text-white transition shadow-lg cursor-pointer flex items-center justify-center gap-1.5"
+                >
+                  <RefreshCw size={14} /> Re-Run Compatibility Check
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ── INSTRUCTIONS VIEW ── */}
       {view === "instructions" && activeAssessment && (
         <div className="max-w-2xl mx-auto px-4 md:px-8 py-8 md:py-12">
           <div className={`rounded-2xl border p-6 md:p-8 ${card}`}>
             <div className="mb-6">
-              <span className="text-[10px] uppercase font-mono tracking-widest text-[#781c1c] font-bold">Assessment Instructions</span>
+              <span className="text-[10px] uppercase font-mono tracking-widest text-[#781c1c] font-bold">Phase 2 of 2 — Instructions & Pre-Diagnostic</span>
               <h2 className={`text-xl font-black mt-1 ${isDark ? "text-white" : "text-slate-900"}`}>{activeAssessment.title}</h2>
             </div>
 
@@ -912,11 +1146,11 @@ export default function AssessmentPage() {
               ))}
             </div>
 
-            {/* Instructions */}
+            {/* Security Notice */}
             <div className={`rounded-xl p-4 mb-6 ${isDark ? "bg-amber-500/5 border border-amber-500/20" : "bg-amber-50 border border-amber-200"}`}>
-              <h3 className="text-xs font-bold text-amber-500 mb-2 flex items-center gap-1"><AlertTriangle size={12} /> Instructions</h3>
+              <h3 className="text-xs font-bold text-amber-500 mb-2 flex items-center gap-1"><AlertTriangle size={12} /> Anti-Malpractice Security Guidelines</h3>
               <div className={`text-xs whitespace-pre-wrap leading-relaxed ${isDark ? "text-amber-200/80" : "text-amber-900"}`}>
-                {activeAssessment.instructions || `• Do not switch tabs or applications during the exam.\n• Keep your face visible to the camera at all times.\n• You will receive 3 warnings before automatic termination.\n• The exam will auto-submit when time runs out.\n• Do not refresh or navigate away from this page.`}
+                {activeAssessment.instructions || `• Fullscreen mode is mandatory and will be locked upon starting.\n• Copying, pasting, right-click, tab switches, and keyboard shortcuts are blocked.\n• Continuous video proctoring will log all movement, tab switches, and face missing events.\n• Cumulative security risk > ${AUTO_SUBMIT_THRESHOLD} will immediately auto-terminate your attempt.`}
               </div>
             </div>
 
@@ -1090,7 +1324,7 @@ export default function AssessmentPage() {
             </div>
 
             <div className="flex gap-3">
-              <button onClick={() => setView("list")}
+              <button onClick={() => setView("compatibility")}
                 className={`flex-1 py-3 rounded-xl text-xs font-bold border transition cursor-pointer ${isDark ? "border-white/10 hover:bg-white/5 text-gray-300" : "border-slate-200 hover:bg-slate-50 text-slate-700"}`}>
                 Back
               </button>
@@ -1125,7 +1359,7 @@ export default function AssessmentPage() {
       {view === "exam" && !terminated && questions.length > 0 && (
         <div className="max-w-[1550px] mx-auto px-4 md:px-8 py-5 md:py-8">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-            
+
             {/* ── LEFT SEGMENT (Question Navigator & Submit) ── */}
             <div className="lg:col-span-3 space-y-5">
               <div className={`rounded-2xl border p-5 ${card} space-y-4 shadow-sm`}>
@@ -1180,7 +1414,7 @@ export default function AssessmentPage() {
                 </div>
 
                 <button
-                  onClick={handleSubmit}
+                  onClick={() => setShowSubmitModal(true)}
                   className="w-full py-4 rounded-2xl text-xs md:text-sm font-black bg-[#781c1c] hover:bg-[#5f1515] text-white transition shadow-xl shadow-[#781c1c]/20 hover:scale-[1.02] cursor-pointer flex items-center justify-center gap-2 mt-4"
                 >
                   Submit Assessment <CheckCircle size={16} />
@@ -1272,7 +1506,7 @@ export default function AssessmentPage() {
                   </button>
                 ) : (
                   <button
-                    onClick={handleSubmit}
+                    onClick={() => setShowSubmitModal(true)}
                     className="flex items-center gap-2 px-7 py-3.5 rounded-2xl text-xs md:text-sm font-black bg-[#781c1c] hover:bg-[#5f1515] text-white transition shadow-lg shadow-[#781c1c]/20 cursor-pointer"
                   >
                     Submit Assessment <CheckCircle size={16} />
@@ -1281,7 +1515,7 @@ export default function AssessmentPage() {
               </div>
             </div>
 
-            {/* ── RIGHT SEGMENT (Proctoring Camera Video) ── */}
+            {/* ── RIGHT SEGMENT (Proctoring Camera Video & Violation Log) ── */}
             <div className="lg:col-span-3 space-y-5">
               <div className={`rounded-2xl border p-5 ${card} shadow-sm space-y-4`}>
                 <div className="flex items-center justify-between">
@@ -1302,7 +1536,7 @@ export default function AssessmentPage() {
                   )}
                 </div>
 
-                {/* Larger Camera Video Container filling the right column */}
+                {/* Camera Video Container */}
                 <div className="aspect-[4/3] rounded-2xl overflow-hidden bg-black relative border-2 border-slate-700/80 shadow-2xl w-full flex items-center justify-center">
                   <video
                     ref={videoRef}
@@ -1328,26 +1562,44 @@ export default function AssessmentPage() {
                   )}
                 </div>
 
-                {/* Proctoring Status Details */}
+                {/* Proctoring & Security Risk Panel */}
                 <div className="space-y-2 pt-1">
                   <div className={`p-2.5 rounded-xl border flex items-center justify-between text-[11px] ${
-                    warningCount >= 3 ? "bg-rose-500/10 border-rose-500/30 text-rose-300" : "bg-emerald-500/10 border-emerald-500/20 text-emerald-400"
+                    riskScore > 100 ? "bg-rose-500/10 border-rose-500/30 text-rose-300" : "bg-emerald-500/10 border-emerald-500/20 text-emerald-400"
                   }`}>
                     <span className="flex items-center gap-1.5 font-bold">
-                      <AlertTriangle size={12} /> Warning Logs
+                      <ShieldAlert size={12} /> Cumulative Risk
                     </span>
-                    <span className="font-mono font-extrabold">{warningCount} / 4</span>
+                    <span className="font-mono font-extrabold">{riskScore} / {AUTO_SUBMIT_THRESHOLD}</span>
                   </div>
 
                   <div className={`p-2.5 rounded-xl border flex items-center justify-between text-[11px] ${
-                    isDark ? "bg-white/5 border-white/10 text-gray-300" : "bg-slate-50 border-slate-200 text-slate-700"
+                    isFullscreen ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400" : "bg-amber-500/10 border-amber-500/20 text-amber-400"
                   }`}>
                     <span className="flex items-center gap-1.5 font-bold">
-                      <ShieldCheck size={12} className="text-emerald-400" /> Focus Status
+                      <Maximize2 size={12} /> Fullscreen Mode
                     </span>
-                    <span className="font-mono text-emerald-400 font-bold">Active</span>
+                    <span className="font-mono font-bold">{isFullscreen ? "Locked" : "Exited!"}</span>
                   </div>
                 </div>
+
+                {/* Live Violation Feed */}
+                {violationLog.length > 0 && (
+                  <div className="space-y-1.5 pt-2 border-t border-slate-200/40 dark:border-white/5">
+                    <span className={`text-[9px] font-mono uppercase font-bold tracking-wider ${subText}`}>Recent Security Events</span>
+                    <div className="space-y-1.5 max-h-36 overflow-y-auto pr-1">
+                      {violationLog.slice(-4).reverse().map((entry) => (
+                        <div key={entry.id} className="text-[10px] p-2 rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-300 flex items-start gap-1.5">
+                          <AlertTriangle size={11} className="shrink-0 mt-0.5 text-rose-400" />
+                          <div className="flex-1 min-w-0">
+                            <p className="font-bold truncate">{entry.type} (+{entry.riskScore} risk)</p>
+                            <p className="opacity-80 text-[9px] line-clamp-1">{entry.details}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 
