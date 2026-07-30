@@ -80,6 +80,10 @@ export default function AssessmentPage() {
   const lastWarningTime = useRef<number>(0);
   const prevPixels = useRef<number[]>([]);
   const proctorInterval = useRef<NodeJS.Timeout | null>(null);
+  const proctoringEngineRef = useRef<any>(null);
+  // Live-value refs so engine callbacks never capture stale closures
+  const attemptIdRef = useRef<number | null>(null);
+  const activeAssessmentRef = useRef<Assessment | null>(null);
   const [cameraPermission, setCameraPermission] = useState<"pending" | "granted" | "denied">("pending");
 
   // Pre-Exam Camera Diagnostic & Constraint State
@@ -418,88 +422,76 @@ export default function AssessmentPage() {
     setCameraActive(false);
   };
 
-  const proctoringEngineRef = useRef<import("@/utils/proctoringEngine").ProctoringEngine | null>(null);
+  // Keep live refs in sync with state
+  useEffect(() => { attemptIdRef.current = attemptId; }, [attemptId]);
+  useEffect(() => { activeAssessmentRef.current = activeAssessment; }, [activeAssessment]);
 
-  const startProctoring = async () => {
-    // Dynamically import to avoid SSR issues
-    const { ProctoringEngine } = await import("@/utils/proctoringEngine");
-
-    if (proctoringEngineRef.current) {
-      proctoringEngineRef.current.stop();
-    }
-
-    const engine = new ProctoringEngine({
-      videoElement: videoRef.current,
-      canvasElement: canvasRef.current,
-      sampleIntervalMs: 1200,
-      warningCooldownMs: 8000,
-      onWarningTriggered: async (event) => {
-        const warningLabels: Record<string, string> = {
-          LookingAway: "⚠️ Looking Away",
-          NoFace: "⚠️ Face Not Detected",
-          MultipleFaces: "⚠️ Multiple Faces",
-          PhoneDetected: "⚠️ Phone Detected",
-          CameraObstructed: "⚠️ Camera Obstructed",
-          TabSwitchOrWindowBlur: "⚠️ Tab Switch Detected",
-        };
-        const label = warningLabels[event.warningType] || "⚠️ Proctoring Alert";
-        const message = `${label} — ${event.details}`;
-        await triggerWarning(event.warningType, event.details);
-      },
-      onMaxWarningsExceeded: async (event) => {
-        await triggerWarning(event.warningType, event.details);
-      },
-    });
-
-    proctoringEngineRef.current = engine;
-    engine.setElements(videoRef.current, canvasRef.current);
-    engine.start();
-  };
-
-  const detectSuspiciousBehavior = useCallback(() => {
-    if (!videoRef.current || !canvasRef.current) return;
-    const video = videoRef.current;
-    const canvas = canvasRef.current;
-    const ctx = canvas.getContext("2d");
-    if (!ctx || video.readyState < 2) return;
-
-    canvas.width = 64;
-    canvas.height = 48;
-    ctx.drawImage(video, 0, 0, 64, 48);
-    const data = ctx.getImageData(0, 0, 64, 48).data;
-
-    let totalBrightness = 0;
-    const pixels: number[] = [];
-    for (let i = 0; i < data.length; i += 4) {
-      const r = data[i], g = data[i + 1], b = data[i + 2];
-      const brightness = (r + g + b) / 3;
-      totalBrightness += brightness;
-      pixels.push(brightness);
-    }
-    const avgBrightness = totalBrightness / pixels.length;
-
-    let motionScore = 0;
-    if (prevPixels.current.length === pixels.length) {
-      let diffSum = 0;
-      for (let i = 0; i < pixels.length; i++) {
-        diffSum += Math.abs(pixels[i] - prevPixels.current[i]);
+  const startProctoring = () => {
+    // Import synchronously using require (client-side only, no SSR issues)
+    import("@/utils/proctoringEngine").then(({ ProctoringEngine }) => {
+      if (proctoringEngineRef.current) {
+        proctoringEngineRef.current.stop();
       }
-      motionScore = diffSum / pixels.length;
-    }
-    prevPixels.current = pixels;
 
-    const now = Date.now();
-    const cooldown = 10000;
+      // Use a ref-based triggerWarning so callbacks always see live attemptId/activeAssessment
+      const handleViolation = async (type: string, details: string) => {
+        const currentAttemptId = attemptIdRef.current;
+        const currentAssessment = activeAssessmentRef.current;
+        if (!currentAttemptId || !currentAssessment) return;
 
-    if (now - lastWarningTime.current < cooldown) return;
+        const now = Date.now();
+        if (now - lastWarningTime.current < 8000) return;
+        lastWarningTime.current = now;
 
-    if (avgBrightness < 20) {
-      triggerWarning("FaceNotDetected", "Camera appears covered or face not visible.");
-    } else if (motionScore > 35) {
-      triggerWarning("LookingAway", "Sudden movement detected. Please face the camera.");
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+        try {
+          const res = await api.post(`/Assessments/${currentAssessment.id}/attempt/proctoring`, {
+            attemptId: currentAttemptId,
+            warningType: type,
+            details,
+          });
+          const newCount = res.data.warningNum;
+          setWarningCount(newCount);
+          setWarningType(type);
+
+          if (res.data.shouldTerminate || newCount >= 4) {
+            setWarningMessage("Your assessment has been terminated due to repeated proctoring violations. Your answers have been saved.");
+            setShowWarningModal(true);
+            setTimeout(() => {
+              if (proctoringEngineRef.current) {
+                proctoringEngineRef.current.stop();
+                proctoringEngineRef.current = null;
+              }
+              stopCamera();
+              setTerminated(true);
+              api.post(`/Assessments/${currentAssessment.id}/attempt/terminate`, {
+                attemptId: currentAttemptId,
+                reason: "Four proctoring violations.",
+              }).catch(console.error);
+              setView("result");
+              fetchResult(currentAssessment.id);
+            }, 4000);
+          } else {
+            setWarningMessage(`${details} Repeated violations will automatically terminate your assessment.`);
+            setShowWarningModal(true);
+            setTimeout(() => setShowWarningModal(false), 5000);
+          }
+        } catch (err) { console.error("Proctoring warning error:", err); }
+      };
+
+      const engine = new ProctoringEngine({
+        videoElement: videoRef.current,
+        canvasElement: canvasRef.current,
+        sampleIntervalMs: 1200,
+        warningCooldownMs: 8000,
+        onWarningTriggered: (event) => handleViolation(event.warningType, event.details),
+        onMaxWarningsExceeded: (event) => handleViolation(event.warningType, event.details),
+      });
+
+      proctoringEngineRef.current = engine;
+      engine.setElements(videoRef.current, canvasRef.current);
+      engine.start();
+    });
+  };
 
   const triggerWarning = async (type: string, details: string) => {
     if (!attemptId || !activeAssessment) return;
@@ -567,11 +559,15 @@ export default function AssessmentPage() {
           fetchResult(activeAssessment.id);
           return;
         }
+        attemptIdRef.current = existingRes.data.attemptId;
+        activeAssessmentRef.current = activeAssessment;
         setAttemptId(existingRes.data.attemptId);
         setQuestions(existingRes.data.questions);
         setStartedAt(new Date(existingRes.data.startedAt));
       } else {
         const res = await api.post(`/Assessments/${activeAssessment.id}/attempt`, {});
+        attemptIdRef.current = res.data.attemptId;
+        activeAssessmentRef.current = activeAssessment;
         setAttemptId(res.data.attemptId);
         setQuestions(res.data.questions.map((q: any) => ({ ...q, selectedOption: "" })));
         setStartedAt(new Date(res.data.startedAt));
