@@ -970,10 +970,10 @@ export default function AssessmentPage() {
                 return (
                   <div
                     key={assessment.id}
-                    className={`group rounded-3xl border p-6 sm:p-8 md:p-10 transition-all duration-300 shadow-xl ${
+                    className={`group rounded-3xl border-2 p-6 sm:p-8 md:p-10 transition-all duration-300 shadow-xl ${
                       isDark
-                        ? "bg-[#0b0b0f] border-white/5 hover:bg-[#781c1c]/10 hover:border-[#781c1c]/50 hover:shadow-2xl hover:shadow-[#781c1c]/20"
-                        : "bg-white border-slate-200 hover:bg-[#781c1c]/[0.03] hover:border-[#781c1c]/40 hover:shadow-2xl hover:shadow-[#781c1c]/10"
+                        ? "bg-[#0b0b0f] border-white/10 hover:bg-[#781c1c]/10 hover:border-[#781c1c] hover:shadow-2xl hover:shadow-[#781c1c]/25"
+                        : "bg-white border-slate-300 hover:bg-[#781c1c]/[0.03] hover:border-[#781c1c] hover:shadow-2xl hover:shadow-[#781c1c]/15"
                     }`}
                   >
                     <div className="flex items-start justify-between gap-6 flex-wrap">
