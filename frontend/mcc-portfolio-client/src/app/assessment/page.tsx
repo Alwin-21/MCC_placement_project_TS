@@ -139,6 +139,11 @@ export default function AssessmentPage() {
 
     const allPixels: number[] = [];
 
+    // Face / Skin-tone Spatial Mass Tracking
+    let totalFacePixels = 0;
+    let sumFaceX = 0;
+    let centerTargetFacePixels = 0;
+
     for (let y = 0; y < 48; y++) {
       for (let x = 0; x < 64; x++) {
         const i = (y * 64 + x) * 4;
@@ -150,6 +155,17 @@ export default function AssessmentPage() {
         totalLuminance += lum;
         totalPixels++;
         allPixels.push(lum);
+
+        // Detect skin tone & face feature pixels
+        const isSkinTone = r > 40 && g > 20 && b > 15 && r > g && (r - g) >= 5 && (r - b) >= 5;
+        if (isSkinTone) {
+          totalFacePixels++;
+          sumFaceX += x;
+          // Check if pixel lies within center target oval bounds (x: 18 to 46, y: 6 to 42)
+          if (x >= 18 && x <= 46 && y >= 6 && y <= 42) {
+            centerTargetFacePixels++;
+          }
+        }
       }
     }
 
@@ -173,7 +189,7 @@ export default function AssessmentPage() {
     const resPassed = w >= 320 && h >= 240;
     const resText = `${w}x${h}`;
 
-    // 3. Framing & Feed Activity Analysis
+    // 3. Face Centering & Spatial Mass Analysis
     let totalVarianceSum = 0;
     for (let p of allPixels) {
       totalVarianceSum += Math.abs(p - avgLuminance);
@@ -183,9 +199,24 @@ export default function AssessmentPage() {
     let framingPassed = true;
     let framingErr = "";
 
+    // Calculate face horizontal centroid (0..64)
+    const centroidX = totalFacePixels > 0 ? sumFaceX / totalFacePixels : 32;
+    const centerRatio = totalFacePixels > 0 ? centerTargetFacePixels / totalFacePixels : 0;
+
     if (frameVariance < 1.8) {
       framingPassed = false;
-      framingErr = "Webcam lens appears covered or video feed is obscured. Please position your face inside the target circle.";
+      framingErr = "Webcam lens appears covered or video feed is obscured.";
+    } else if (totalFacePixels < 25 || centerTargetFacePixels < 12) {
+      // Case 3: Face completely missing or out of camera view
+      framingPassed = false;
+      framingErr = "Face not detected in camera frame. Please position yourself directly in front of the camera.";
+    } else if (centroidX < 23 || centroidX > 41 || centerRatio < 0.50) {
+      // Case 2: Face shifted off-center / half-way out of circle
+      framingPassed = false;
+      framingErr = "Face is shifted off-center. Please align your face inside the target circle.";
+    } else {
+      // Case 1: Face centered inside target oval
+      framingPassed = true;
     }
 
     const allPassed = resPassed && lightingPassed && framingPassed;
