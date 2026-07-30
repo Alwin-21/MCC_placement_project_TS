@@ -108,14 +108,34 @@ export default function AssessmentPage() {
   // Continuous Diagnostic Frame Analyzer (Runs every 400ms on Instructions View)
   const sampleDiagnosticFrame = useCallback(() => {
     const video = previewVideoRef.current;
-    if (!video || video.paused || video.ended || video.readyState < 2) {
+    const stream = streamRef.current;
+
+    // Check if video element or stream active
+    if (!video) return;
+
+    // Auto-resume video stream if paused by browser
+    if ((video.paused || video.ended || video.readyState < 2) && stream && stream.active) {
+      if (!video.srcObject) {
+        video.srcObject = stream;
+      }
+      video.muted = true;
+      video.playsInline = true;
+      video.play().catch(() => {});
+
+      // Give stream 1 cycle to resume without returning early false failure
+      if (video.readyState < 2) {
+        return;
+      }
+    }
+
+    if (video.paused || video.ended || video.readyState < 2) {
       setCameraCheck((prev) => {
         if (prev.permission !== "passed") return prev;
         return {
           ...prev,
           framing: "failed",
           overallStatus: "failed",
-          errorMessage: "Webcam video feed is inactive or frozen.",
+          errorMessage: "Webcam video feed is inactive or frozen. Please click 'Re-Test Camera Setup'.",
         };
       });
       return;
@@ -132,11 +152,6 @@ export default function AssessmentPage() {
 
     let totalLuminance = 0;
     let totalPixels = 0;
-
-    let leftLumSum = 0, leftCount = 0;
-    let centerLumSum = 0, centerCount = 0;
-    let rightLumSum = 0, rightCount = 0;
-
     const allPixels: number[] = [];
 
     // Face / Skin-tone Spatial Mass Tracking
@@ -156,13 +171,13 @@ export default function AssessmentPage() {
         totalPixels++;
         allPixels.push(lum);
 
-        // Detect skin tone & face feature pixels
-        const isSkinTone = r > 40 && g > 20 && b > 15 && r > g && (r - g) >= 5 && (r - b) >= 5;
+        // Broad skin-tone & face feature detector (compatible with all skin tones & indoor lights)
+        const isSkinTone = r > 35 && g > 20 && b > 12 && r > g;
         if (isSkinTone) {
           totalFacePixels++;
           sumFaceX += x;
-          // Check if pixel lies within center target oval bounds (x: 18 to 46, y: 6 to 42)
-          if (x >= 18 && x <= 46 && y >= 6 && y <= 42) {
+          // Center target oval region (x: 16 to 48, y: 4 to 44)
+          if (x >= 16 && x <= 48 && y >= 4 && y <= 44) {
             centerTargetFacePixels++;
           }
         }
@@ -172,13 +187,13 @@ export default function AssessmentPage() {
     const avgLuminance = totalPixels > 0 ? totalLuminance / totalPixels : 0;
     const brightnessPercentage = Math.round((avgLuminance / 255) * 100);
 
-    // 1. Lighting Check (Acceptable range 25% - 95%)
+    // 1. Lighting Check (Acceptable range 20% - 95%)
     let lightingPassed = true;
     let lightingErr = "";
-    if (avgLuminance < 25) {
+    if (avgLuminance < 20) {
       lightingPassed = false;
       lightingErr = `Room environment is too dark (${brightnessPercentage}% brightness). Please turn on room lights or uncover camera.`;
-    } else if (avgLuminance > 242) {
+    } else if (avgLuminance > 245) {
       lightingPassed = false;
       lightingErr = `Excessive direct glare detected (${brightnessPercentage}%). Please adjust light positioning.`;
     }
@@ -203,14 +218,14 @@ export default function AssessmentPage() {
     const centroidX = totalFacePixels > 0 ? sumFaceX / totalFacePixels : 32;
     const centerRatio = totalFacePixels > 0 ? centerTargetFacePixels / totalFacePixels : 0;
 
-    if (frameVariance < 1.8) {
+    if (frameVariance < 1.5) {
       framingPassed = false;
       framingErr = "Webcam lens appears covered or video feed is obscured.";
-    } else if (totalFacePixels < 25 || centerTargetFacePixels < 12) {
+    } else if (totalFacePixels < 20 || centerTargetFacePixels < 8) {
       // Case 3: Face completely missing or out of camera view
       framingPassed = false;
       framingErr = "Face not detected in camera frame. Please position yourself directly in front of the camera.";
-    } else if (centroidX < 23 || centroidX > 41 || centerRatio < 0.50) {
+    } else if (centroidX < 20 || centroidX > 44 || centerRatio < 0.40) {
       // Case 2: Face shifted off-center / half-way out of circle
       framingPassed = false;
       framingErr = "Face is shifted off-center. Please align your face inside the target circle.";
@@ -865,6 +880,7 @@ export default function AssessmentPage() {
                     autoPlay
                     muted
                     playsInline
+                    onLoadedMetadata={(e) => (e.target as HTMLVideoElement).play().catch(() => {})}
                     className="w-full h-full object-cover transform -scale-x-100"
                   />
                   <canvas ref={previewCanvasRef} className="hidden" />
