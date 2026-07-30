@@ -1043,36 +1043,101 @@ export default function AssessmentPage() {
         </div>
       )}
 
-      {/* ── EXAM VIEW ── */}
+      {/* ── EXAM VIEW (3-Segment Grid Layout) ── */}
       {view === "exam" && !terminated && questions.length > 0 && (
-        <div className="max-w-5xl mx-auto px-3 md:px-8 py-4 md:py-6">
-          <div className="flex gap-4 flex-col-reverse lg:flex-row">
-            {/* Question Panel */}
-            <div className="flex-1">
-              <div className={`rounded-2xl border p-5 md:p-6 mb-4 ${card}`}>
-                {/* Question header */}
-                <div className="flex items-center justify-between mb-4">
-                  <span className={`text-[10px] font-mono uppercase tracking-widest ${subText}`}>
+        <div className="max-w-[1550px] mx-auto px-4 md:px-8 py-5 md:py-8">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+            
+            {/* ── LEFT SEGMENT (Question Navigator & Submit) ── */}
+            <div className="lg:col-span-3 space-y-5">
+              <div className={`rounded-2xl border p-5 ${card} space-y-4 shadow-sm`}>
+                <div className="flex items-center justify-between">
+                  <span className={`text-[10px] font-mono uppercase tracking-widest font-extrabold ${subText}`}>
+                    Question Navigator
+                  </span>
+                  <span className="text-[10px] font-black px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">
+                    {answered}/{questions.length} Answered
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-5 gap-2.5">
+                  {questions.map((q, i) => (
+                    <button
+                      key={q.id}
+                      onClick={() => setCurrentQIndex(i)}
+                      className={`aspect-square rounded-xl text-xs font-black transition-all duration-150 cursor-pointer shadow-sm flex items-center justify-center ${
+                        i === currentQIndex
+                          ? "bg-[#781c1c] text-white ring-4 ring-[#781c1c]/30 scale-105"
+                          : q.selectedOption
+                            ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/40"
+                            : isDark
+                              ? "bg-white/5 text-gray-300 hover:bg-white/10 hover:border-white/20 border border-white/5"
+                              : "bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200"
+                      }`}
+                    >
+                      {i + 1}
+                    </button>
+                  ))}
+                </div>
+
+                <div className="pt-2 border-t border-slate-200/50 dark:border-white/10 space-y-2 text-[10px]">
+                  <div className="flex items-center justify-between">
+                    <span className="flex items-center gap-1.5 font-medium">
+                      <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" /> Answered
+                    </span>
+                    <span className="font-mono font-bold text-emerald-400">{answered}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="flex items-center gap-1.5 font-medium">
+                      <span className="w-2.5 h-2.5 rounded-full bg-[#781c1c]" /> Current
+                    </span>
+                    <span className="font-mono font-bold text-[#781c1c]">Q{currentQIndex + 1}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="flex items-center gap-1.5 font-medium">
+                      <span className="w-2.5 h-2.5 rounded-full bg-slate-300 dark:bg-white/20" /> Remaining
+                    </span>
+                    <span className="font-mono font-bold">{questions.length - answered}</span>
+                  </div>
+                </div>
+
+                <button
+                  onClick={handleSubmit}
+                  className="w-full py-4 rounded-2xl text-xs md:text-sm font-black bg-[#781c1c] hover:bg-[#5f1515] text-white transition shadow-xl shadow-[#781c1c]/20 hover:scale-[1.02] cursor-pointer flex items-center justify-center gap-2 mt-4"
+                >
+                  Submit Assessment <CheckCircle size={16} />
+                </button>
+              </div>
+            </div>
+
+            {/* ── CENTER SEGMENT (Questions & Choices) ── */}
+            <div className="lg:col-span-6 space-y-5">
+              <div className={`rounded-2xl border p-6 md:p-8 ${card} shadow-sm space-y-6`}>
+                {/* Question Header */}
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-mono font-extrabold uppercase tracking-wider text-[#781c1c] bg-[#781c1c]/10 px-3 py-1 rounded-full border border-[#781c1c]/20">
                     Question {currentQIndex + 1} of {questions.length}
                   </span>
-                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${isDark ? "bg-white/5" : "bg-slate-100"} ${subText}`}>
+                  <span className={`text-xs font-bold px-3 py-1 rounded-full border ${isDark ? "bg-white/5 border-white/10 text-amber-300" : "bg-amber-50 border-amber-200 text-amber-800"}`}>
                     {questions[currentQIndex]?.marks} mark{(questions[currentQIndex]?.marks || 1) > 1 ? "s" : ""}
                   </span>
                 </div>
 
                 {/* Progress bar */}
-                <div className={`h-1 rounded-full mb-5 ${isDark ? "bg-white/5" : "bg-slate-100"}`}>
-                  <div className="h-1 bg-[#781c1c] rounded-full transition-all duration-500"
-                    style={{ width: `${((currentQIndex + 1) / questions.length) * 100}%` }} />
+                <div className={`h-2 rounded-full ${isDark ? "bg-white/5" : "bg-slate-100"}`}>
+                  <div
+                    className="h-2 bg-[#781c1c] rounded-full transition-all duration-500"
+                    style={{ width: `${((currentQIndex + 1) / questions.length) * 100}%` }}
+                  />
                 </div>
 
                 {/* Question text */}
-                <p className={`text-sm md:text-base font-semibold leading-relaxed mb-5 ${isDark ? "text-white" : "text-slate-900"}`}>
+                <p className={`text-base md:text-lg font-bold leading-relaxed ${isDark ? "text-white" : "text-slate-900"}`}>
                   {questions[currentQIndex]?.questionText}
                 </p>
 
-                {/* Options */}
-                <div className="space-y-2.5">
+                {/* Options (Bigger Buttons & Padding) */}
+                <div className="space-y-3.5 pt-2">
                   {(["A", "B", "C", "D"] as const).map((opt) => {
                     const optKey = `option${opt}` as keyof Question;
                     const optText = questions[currentQIndex]?.[optKey] as string;
@@ -1081,119 +1146,133 @@ export default function AssessmentPage() {
                       <button
                         key={opt}
                         onClick={() => selectOption(opt)}
-                        className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl border text-sm text-left transition-all duration-200 cursor-pointer ${
+                        className={`w-full flex items-center gap-4 px-5 py-4 md:py-4.5 rounded-2xl border text-sm md:text-base font-semibold text-left transition-all duration-200 cursor-pointer shadow-sm ${
                           isSelected
-                            ? "border-[#781c1c] bg-[#781c1c]/10 text-[#781c1c]"
+                            ? "border-2 border-[#781c1c] bg-[#781c1c]/10 text-[#781c1c] shadow-md shadow-[#781c1c]/10 scale-[1.01]"
                             : isDark
-                              ? "border-white/5 bg-white/[0.02] hover:bg-white/[0.05] hover:border-white/10 text-gray-200"
+                              ? "border-white/10 bg-white/[0.02] hover:bg-white/[0.06] hover:border-white/20 text-gray-200"
                               : "border-slate-200 bg-white hover:bg-slate-50 hover:border-slate-300 text-slate-800"
                         }`}
                       >
-                        <span className={`w-6 h-6 rounded-lg flex items-center justify-center text-[10px] font-black shrink-0 transition-all ${
-                          isSelected ? "bg-[#781c1c] text-white" : isDark ? "bg-white/10 text-gray-400" : "bg-slate-100 text-slate-500"
-                        }`}>{opt}</span>
-                        <span className="flex-1">{optText}</span>
-                        {isSelected && <CheckCircle size={15} className="text-[#781c1c] shrink-0" />}
+                        <span className={`w-9 h-9 rounded-xl flex items-center justify-center text-xs md:text-sm font-black shrink-0 transition-all shadow-inner ${
+                          isSelected
+                            ? "bg-[#781c1c] text-white"
+                            : isDark
+                              ? "bg-white/10 text-gray-300"
+                              : "bg-slate-100 text-slate-600"
+                        }`}>
+                          {opt}
+                        </span>
+                        <span className="flex-1 leading-snug">{optText}</span>
+                        {isSelected && <CheckCircle size={20} className="text-[#781c1c] shrink-0" />}
                       </button>
                     );
                   })}
                 </div>
               </div>
 
-              {/* Navigation */}
-              <div className="flex items-center justify-between gap-3">
+              {/* Center Navigation Buttons */}
+              <div className="flex items-center justify-between gap-4 pt-2">
                 <button
                   onClick={() => setCurrentQIndex((i) => Math.max(0, i - 1))}
                   disabled={currentQIndex === 0}
-                  className={`flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-xs font-bold border transition cursor-pointer disabled:opacity-40 ${isDark ? "border-white/10 hover:bg-white/5" : "border-slate-200 hover:bg-slate-50"}`}
+                  className={`flex items-center gap-2 px-6 py-3.5 rounded-2xl text-xs md:text-sm font-bold border transition cursor-pointer disabled:opacity-40 shadow-sm ${
+                    isDark ? "border-white/10 hover:bg-white/5 text-gray-200" : "border-slate-200 hover:bg-slate-100 text-slate-700 bg-white"
+                  }`}
                 >
-                  <ChevronLeft size={14} /> Previous
+                  <ChevronLeft size={16} /> Previous Question
                 </button>
-                <span className={`text-[10px] ${subText}`}>{answered}/{questions.length} answered</span>
+
                 {currentQIndex < questions.length - 1 ? (
                   <button
                     onClick={() => setCurrentQIndex((i) => Math.min(questions.length - 1, i + 1))}
-                    className={`flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-xs font-bold border transition cursor-pointer ${isDark ? "border-white/10 hover:bg-white/5" : "border-slate-200 hover:bg-slate-50"}`}
+                    className={`flex items-center gap-2 px-6 py-3.5 rounded-2xl text-xs md:text-sm font-bold border transition cursor-pointer shadow-sm ${
+                      isDark ? "border-white/10 hover:bg-white/5 text-gray-200" : "border-slate-200 hover:bg-slate-100 text-slate-700 bg-white"
+                    }`}
                   >
-                    Next <ChevronRight size={14} />
+                    Next Question <ChevronRight size={16} />
                   </button>
                 ) : (
                   <button
                     onClick={handleSubmit}
-                    className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-xs font-bold bg-[#781c1c] hover:bg-[#5f1515] text-white transition cursor-pointer"
+                    className="flex items-center gap-2 px-7 py-3.5 rounded-2xl text-xs md:text-sm font-black bg-[#781c1c] hover:bg-[#5f1515] text-white transition shadow-lg shadow-[#781c1c]/20 cursor-pointer"
                   >
-                    Submit <CheckCircle size={14} />
+                    Submit Assessment <CheckCircle size={16} />
                   </button>
                 )}
               </div>
             </div>
 
-            {/* Right sidebar: question navigator + camera */}
-            <div className="lg:w-64 space-y-4 shrink-0">
-              {/* Webcam */}
-              <div className={`rounded-2xl border p-3 ${card}`}>
-                <div className="flex items-center justify-between mb-2">
-                  <span className={`text-[9px] font-mono uppercase tracking-widest font-bold ${subText}`}>Proctoring Camera</span>
+            {/* ── RIGHT SEGMENT (Proctoring Camera Video) ── */}
+            <div className="lg:col-span-3 space-y-5">
+              <div className={`rounded-2xl border p-5 ${card} shadow-sm space-y-4`}>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
+                    <span className={`text-[10px] font-mono uppercase tracking-widest font-extrabold ${subText}`}>
+                      Proctoring Camera
+                    </span>
+                  </div>
                   {cameraActive ? (
-                    <span className="text-[9px] text-emerald-400 font-bold flex items-center gap-1"><Camera size={9} /> Live</span>
+                    <span className="text-[10px] text-emerald-400 font-extrabold px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 flex items-center gap-1">
+                      <Camera size={10} /> Live
+                    </span>
                   ) : (
-                    <span className="text-[9px] text-rose-400 font-bold flex items-center gap-1"><CameraOff size={9} /> Off</span>
+                    <span className="text-[10px] text-rose-400 font-extrabold px-2 py-0.5 rounded-full bg-rose-500/10 border border-rose-500/20 flex items-center gap-1">
+                      <CameraOff size={10} /> Off
+                    </span>
                   )}
                 </div>
-                <div className={`rounded-xl overflow-hidden aspect-video relative ${isDark ? "bg-black" : "bg-slate-900"}`}>
-                  <video ref={videoRef} autoPlay muted playsInline className="w-full h-full object-cover" />
+
+                {/* Larger Camera Video Container filling the right column */}
+                <div className="aspect-[4/3] rounded-2xl overflow-hidden bg-black relative border-2 border-slate-700/80 shadow-2xl w-full flex items-center justify-center">
+                  <video
+                    ref={videoRef}
+                    autoPlay
+                    muted
+                    playsInline
+                    className="w-full h-full object-cover transform -scale-x-100"
+                  />
                   <canvas ref={canvasRef} className="hidden" />
+
                   {!cameraActive && !cameraError && (
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <div className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+                    <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/80 gap-2">
+                      <div className="w-6 h-6 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+                      <span className="text-[10px] font-mono text-white/70">Connecting Feed...</span>
                     </div>
                   )}
                   {cameraError && (
-                    <div className="absolute inset-0 flex flex-col items-center justify-center p-3 text-center">
-                      <CameraOff size={20} className="text-rose-400 mb-1" />
-                      <p className="text-[9px] text-rose-300">Camera unavailable. Exam continues without proctoring.</p>
+                    <div className="absolute inset-0 flex flex-col items-center justify-center p-4 text-center bg-rose-950/80">
+                      <CameraOff size={24} className="text-rose-400 mb-1" />
+                      <p className="text-[10px] font-bold text-rose-200">Camera Feed Interrupted</p>
+                      <p className="text-[9px] text-rose-300/80">Exam proctoring is still active.</p>
                     </div>
                   )}
                 </div>
-                {warningCount > 0 && (
-                  <div className={`mt-2 flex items-center gap-1.5 text-[9px] font-bold ${warningCount >= 3 ? "text-rose-400" : "text-orange-400"}`}>
-                    <AlertTriangle size={10} /> {warningCount}/4 warnings
+
+                {/* Proctoring Status Details */}
+                <div className="space-y-2 pt-1">
+                  <div className={`p-2.5 rounded-xl border flex items-center justify-between text-[11px] ${
+                    warningCount >= 3 ? "bg-rose-500/10 border-rose-500/30 text-rose-300" : "bg-emerald-500/10 border-emerald-500/20 text-emerald-400"
+                  }`}>
+                    <span className="flex items-center gap-1.5 font-bold">
+                      <AlertTriangle size={12} /> Warning Logs
+                    </span>
+                    <span className="font-mono font-extrabold">{warningCount} / 4</span>
                   </div>
-                )}
-              </div>
 
-              {/* Question navigator */}
-              <div className={`rounded-2xl border p-3 ${card}`}>
-                <span className={`text-[9px] font-mono uppercase tracking-widest font-bold block mb-2 ${subText}`}>Question Navigator</span>
-                <div className="grid grid-cols-5 sm:grid-cols-8 lg:grid-cols-5 gap-1.5">
-                  {questions.map((q, i) => (
-                    <button
-                      key={q.id}
-                      onClick={() => setCurrentQIndex(i)}
-                      className={`aspect-square rounded-lg text-[10px] font-bold transition-all cursor-pointer ${
-                        i === currentQIndex
-                          ? "bg-[#781c1c] text-white ring-2 ring-[#781c1c]/40"
-                          : q.selectedOption
-                            ? "bg-emerald-500/20 text-emerald-400"
-                            : isDark ? "bg-white/5 text-gray-400 hover:bg-white/10" : "bg-slate-100 text-slate-500 hover:bg-slate-200"
-                      }`}
-                    >
-                      {i + 1}
-                    </button>
-                  ))}
-                </div>
-                <div className="flex items-center gap-3 mt-3 text-[9px]">
-                  <span className="flex items-center gap-1"><span className="w-2 h-2 rounded bg-emerald-500/20 inline-block" /> Answered</span>
-                  <span className="flex items-center gap-1"><span className="w-2 h-2 rounded bg-white/5 inline-block border border-white/10" /> Not answered</span>
+                  <div className={`p-2.5 rounded-xl border flex items-center justify-between text-[11px] ${
+                    isDark ? "bg-white/5 border-white/10 text-gray-300" : "bg-slate-50 border-slate-200 text-slate-700"
+                  }`}>
+                    <span className="flex items-center gap-1.5 font-bold">
+                      <ShieldCheck size={12} className="text-emerald-400" /> Focus Status
+                    </span>
+                    <span className="font-mono text-emerald-400 font-bold">Active</span>
+                  </div>
                 </div>
               </div>
-
-              {/* Submit button */}
-              <button onClick={handleSubmit}
-                className="w-full py-3 rounded-xl text-xs font-black bg-[#781c1c] hover:bg-[#5f1515] text-white transition cursor-pointer">
-                Submit Assessment
-              </button>
             </div>
+
           </div>
         </div>
       )}
