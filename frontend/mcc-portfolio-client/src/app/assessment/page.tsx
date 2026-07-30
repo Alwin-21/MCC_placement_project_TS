@@ -105,6 +105,127 @@ export default function AssessmentPage() {
     errorMessage: "",
   });
 
+  // Continuous Diagnostic Frame Analyzer (Runs every 400ms on Instructions View)
+  const sampleDiagnosticFrame = useCallback(() => {
+    const video = previewVideoRef.current;
+    if (!video || video.paused || video.ended || video.readyState < 2) {
+      setCameraCheck((prev) => {
+        if (prev.permission !== "passed") return prev;
+        return {
+          ...prev,
+          framing: "failed",
+          overallStatus: "failed",
+          errorMessage: "Webcam video feed is inactive or frozen.",
+        };
+      });
+      return;
+    }
+
+    const canvas = previewCanvasRef.current || document.createElement("canvas");
+    canvas.width = 64;
+    canvas.height = 48;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    ctx.drawImage(video, 0, 0, 64, 48);
+    const imgData = ctx.getImageData(0, 0, 64, 48).data;
+
+    let totalLuminance = 0;
+    let totalPixels = 0;
+
+    let leftLumSum = 0, leftCount = 0;
+    let centerLumSum = 0, centerCount = 0;
+    let rightLumSum = 0, rightCount = 0;
+
+    const centerPixels: number[] = [];
+
+    for (let y = 0; y < 48; y++) {
+      for (let x = 0; x < 64; x++) {
+        const i = (y * 64 + x) * 4;
+        const r = imgData[i];
+        const g = imgData[i + 1];
+        const b = imgData[i + 2];
+        const lum = 0.299 * r + 0.587 * g + 0.114 * b;
+
+        totalLuminance += lum;
+        totalPixels++;
+
+        if (x < 19) {
+          leftLumSum += lum;
+          leftCount++;
+        } else if (x > 44) {
+          rightLumSum += lum;
+          rightCount++;
+        } else {
+          centerLumSum += lum;
+          centerCount++;
+          centerPixels.push(lum);
+        }
+      }
+    }
+
+    const avgLuminance = totalPixels > 0 ? totalLuminance / totalPixels : 0;
+    const brightnessPercentage = Math.round((avgLuminance / 255) * 100);
+
+    // 1. Lighting Check
+    let lightingPassed = true;
+    let lightingErr = "";
+    if (avgLuminance < 35) {
+      lightingPassed = false;
+      lightingErr = `Room environment is too dark (${brightnessPercentage}% brightness). Please turn on room lights or uncover camera.`;
+    } else if (avgLuminance > 240) {
+      lightingPassed = false;
+      lightingErr = `Excessive direct glare detected (${brightnessPercentage}%). Please adjust light positioning.`;
+    }
+
+    // 2. Resolution Check
+    const w = video.videoWidth || 320;
+    const h = video.videoHeight || 240;
+    const resPassed = w >= 320 && h >= 240;
+    const resText = `${w}x${h}`;
+
+    // 3. Center Face & Presence Variance Analysis
+    const centerAvg = centerCount > 0 ? centerLumSum / centerCount : 0;
+    let centerVarianceSum = 0;
+    for (let p of centerPixels) {
+      centerVarianceSum += Math.abs(p - centerAvg);
+    }
+    const centerVariance = centerPixels.length > 0 ? centerVarianceSum / centerPixels.length : 0;
+
+    const leftAvg = leftCount > 0 ? leftLumSum / leftCount : 0;
+    const rightAvg = rightCount > 0 ? rightLumSum / rightCount : 0;
+
+    // Check if face is missing from center or shifted heavily off-center
+    const isShiftedOffCenter = Math.abs(leftAvg - rightAvg) > 28 || Math.abs(centerAvg - (leftAvg + rightAvg) / 2) > 22;
+    const isCenterEmpty = centerVariance < 7.5; // low feature contrast in center
+
+    let framingPassed = true;
+    let framingErr = "";
+
+    if (isCenterEmpty || isShiftedOffCenter) {
+      framingPassed = false;
+      framingErr = "Face is not centered in the camera frame. Please position your face inside the center target guide.";
+    }
+
+    const allPassed = resPassed && lightingPassed && framingPassed;
+
+    let finalError = "";
+    if (!resPassed) finalError = `Resolution (${resText}) below requirement.`;
+    else if (!lightingPassed) finalError = lightingErr;
+    else if (!framingPassed) finalError = framingErr;
+
+    setCameraCheck((prev) => ({
+      permission: "passed",
+      lighting: lightingPassed ? "passed" : "failed",
+      resolution: resPassed ? "passed" : "failed",
+      framing: framingPassed ? "passed" : "failed",
+      brightnessValue: brightnessPercentage,
+      resolutionText: resText,
+      overallStatus: allPassed ? "passed" : "failed",
+      errorMessage: finalError,
+    }));
+  }, []);
+
   const runCameraDiagnostic = async () => {
     setCameraCheck({
       permission: "checking",
@@ -134,91 +255,8 @@ export default function AssessmentPage() {
         }
       }
 
-      // Wait brief moment for stream metadata stabilization
-      await new Promise((resolve) => setTimeout(resolve, 800));
-
-      const video = previewVideoRef.current;
-      if (!video) {
-        setCameraCheck((prev) => ({
-          ...prev,
-          permission: "failed",
-          overallStatus: "failed",
-          errorMessage: "Webcam video feed could not be initialized.",
-        }));
-        return;
-      }
-
-      // 1. Resolution Check
-      const w = video.videoWidth || 320;
-      const h = video.videoHeight || 240;
-      const resPassed = w >= 320 && h >= 240;
-      const resText = `${w}x${h}`;
-
-      // 2. Lighting & Brightness Sampling
-      const canvas = previewCanvasRef.current || document.createElement("canvas");
-      canvas.width = 64;
-      canvas.height = 48;
-      const ctx = canvas.getContext("2d");
-      let avgBrightness = 0;
-      let brightnessPercentage = 0;
-      let lightingPassed = false;
-      let lightingError = "";
-
-      if (ctx && video.readyState >= 2) {
-        ctx.drawImage(video, 0, 0, 64, 48);
-        const imgData = ctx.getImageData(0, 0, 64, 48).data;
-        let total = 0;
-        let count = 0;
-        for (let i = 0; i < imgData.length; i += 4) {
-          const r = imgData[i];
-          const g = imgData[i + 1];
-          const b = imgData[i + 2];
-          const lum = 0.299 * r + 0.587 * g + 0.114 * b;
-          total += lum;
-          count++;
-        }
-        avgBrightness = count > 0 ? total / count : 0;
-        brightnessPercentage = Math.round((avgBrightness / 255) * 100);
-
-        if (avgBrightness < 35) {
-          lightingPassed = false;
-          lightingError = `Room environment is too dark (${brightnessPercentage}% brightness). Please turn on room lighting or uncover your camera lens.`;
-        } else if (avgBrightness > 240) {
-          lightingPassed = false;
-          lightingError = `Excessive background glare or direct light source detected (${brightnessPercentage}%). Please adjust your lighting positioning.`;
-        } else {
-          lightingPassed = true;
-        }
-      } else {
-        lightingPassed = true; // Fallback if context unavailable
-        brightnessPercentage = 50;
-      }
-
-      // 3. Framing & Active Stream Check
-      const framingPassed = !video.paused && !video.ended && video.readyState >= 2;
-
-      const allPassed = resPassed && lightingPassed && framingPassed;
-
-      let finalError = "";
-      if (!resPassed) {
-        finalError = `Webcam resolution (${resText}) does not meet minimum requirements (320x240).`;
-      } else if (!lightingPassed) {
-        finalError = lightingError;
-      } else if (!framingPassed) {
-        finalError = "Webcam video feed is frozen or unreadable.";
-      }
-
-      setCameraCheck({
-        permission: "passed",
-        lighting: lightingPassed ? "passed" : "failed",
-        resolution: resPassed ? "passed" : "failed",
-        framing: framingPassed ? "passed" : "failed",
-        brightnessValue: brightnessPercentage,
-        resolutionText: resText,
-        overallStatus: allPassed ? "passed" : "failed",
-        errorMessage: finalError,
-      });
       setCameraPermission("granted");
+      sampleDiagnosticFrame();
     } catch (err: any) {
       let msg = "Camera permissions denied or webcam hardware unavailable. Please allow camera access in your browser settings to proceed.";
       if (err.name === "NotAllowedError" || err.name === "PermissionDeniedError") {
@@ -240,11 +278,20 @@ export default function AssessmentPage() {
     }
   };
 
-  // Run camera diagnostic automatically whenever Instructions view opens
+  // Continuous real-time diagnostic check whenever Instructions view is active
   useEffect(() => {
+    let diagnosticInterval: NodeJS.Timeout | null = null;
+
     if (view === "instructions") {
       runCameraDiagnostic();
+      diagnosticInterval = setInterval(() => {
+        sampleDiagnosticFrame();
+      }, 400);
     }
+
+    return () => {
+      if (diagnosticInterval) clearInterval(diagnosticInterval);
+    };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [view]);
 
@@ -810,10 +857,18 @@ export default function AssessmentPage() {
                   />
                   <canvas ref={previewCanvasRef} className="hidden" />
 
-                  {/* Face Bounding Guide Overlay */}
-                  <div className="absolute inset-0 border-2 border-dashed border-white/30 rounded-[45%] mx-auto my-3 w-32 h-40 pointer-events-none flex items-center justify-center">
-                    <span className="text-[9px] font-mono text-white/60 bg-black/50 px-2 py-0.5 rounded-full">
-                      Center Face Here
+                  {/* Dynamic Face Bounding Guide Overlay */}
+                  <div className={`absolute inset-0 border-2 border-dashed rounded-[45%] mx-auto my-3 w-32 h-40 pointer-events-none flex items-center justify-center transition-all duration-300 ${
+                    cameraCheck.framing === "passed"
+                      ? "border-emerald-400/80 bg-emerald-500/10 shadow-lg shadow-emerald-500/20"
+                      : "border-rose-500/90 bg-rose-500/20 animate-pulse"
+                  }`}>
+                    <span className={`text-[9px] font-mono font-bold px-2 py-0.5 rounded-full border shadow ${
+                      cameraCheck.framing === "passed"
+                        ? "text-emerald-300 bg-black/70 border-emerald-500/30"
+                        : "text-rose-300 bg-black/70 border-rose-500/30"
+                    }`}>
+                      {cameraCheck.framing === "passed" ? "✅ Face Centered" : "❌ Center Face Here"}
                     </span>
                   </div>
 
