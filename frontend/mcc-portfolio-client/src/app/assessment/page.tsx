@@ -5,12 +5,18 @@ import { useRouter } from "next/navigation";
 import {
   ClipboardList, Clock, ChevronLeft, ChevronRight, CheckCircle,
   AlertTriangle, Camera, CameraOff, Trophy, Target, XCircle,
-  BookOpen, ArrowRight, RotateCcw, ArrowLeft, Bell, Sun, Moon
+  BookOpen, ArrowRight, RotateCcw, ArrowLeft, Sun, Moon,
+  ShieldCheck, Lock, RefreshCw, Eye, Lightbulb, Video,
+  Monitor, Globe, Maximize2, ShieldAlert, Check, HelpCircle, Save, AlertCircle
 } from "lucide-react";
 import api from "@/services/api";
 import { useTheme } from "@/hooks/useTheme";
+import { useExamSecurity } from "@/hooks/useExamSecurity";
+import { useAutoSave } from "@/hooks/useAutoSave";
+import { ExamRiskEngine, ViolationLogEntry, ViolationType, AUTO_SUBMIT_THRESHOLD } from "@/utils/examRiskEngine";
+import { collectDeviceInfo, checkBrowserCompatibility } from "@/utils/deviceInfo";
 
-type ViewState = "list" | "instructions" | "exam" | "result";
+type ViewState = "list" | "compatibility" | "instructions" | "exam" | "result";
 
 interface Question {
   id: number;
@@ -65,7 +71,12 @@ export default function AssessmentPage() {
   const [startedAt, setStartedAt] = useState<Date | null>(null);
   const [timeLeft, setTimeLeft] = useState(0); // seconds
 
-  // Proctoring
+  // Risk Engine & Proctoring State
+  const [riskScore, setRiskScore] = useState<number>(0);
+  const [violationLog, setViolationLog] = useState<ViolationLogEntry[]>([]);
+  const riskEngineRef = useRef<ExamRiskEngine | null>(null);
+
+  // Proctoring Video / Canvas
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -79,6 +90,351 @@ export default function AssessmentPage() {
   const prevPixels = useRef<number[]>([]);
   const proctorInterval = useRef<NodeJS.Timeout | null>(null);
   const [cameraPermission, setCameraPermission] = useState<"pending" | "granted" | "denied">("pending");
+
+  // Modals & Popups
+  const [showSubmitModal, setShowSubmitModal] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [timerModal, setTimerModal] = useState<{ open: boolean; title: string; message: string }>({
+    open: false, title: "", message: ""
+  });
+  const timerWarningsFired = useRef<Record<number, boolean>>({});
+
+  // System Compatibility Check State
+  const [compatCheck, setCompatCheck] = useState<{
+    camera: "checking" | "passed" | "failed";
+    screen: "checking" | "passed" | "failed";
+    browser: "checking" | "passed" | "failed";
+    connection: "checking" | "passed" | "failed";
+    fullscreen: "checking" | "passed" | "failed";
+    errors: string[];
+    allPassed: boolean;
+  }>({
+    camera: "checking",
+    screen: "checking",
+    browser: "checking",
+    connection: "checking",
+    fullscreen: "checking",
+    errors: [],
+    allPassed: false,
+  });
+
+  // Pre-Exam Camera Diagnostic State
+  const previewVideoRef = useRef<HTMLVideoElement>(null);
+  const previewCanvasRef = useRef<HTMLCanvasElement>(null);
+
+  const [cameraCheck, setCameraCheck] = useState<{
+    permission: "idle" | "checking" | "passed" | "failed";
+    lighting: "idle" | "checking" | "passed" | "failed";
+    resolution: "idle" | "checking" | "passed" | "failed";
+    framing: "idle" | "checking" | "passed" | "failed";
+    brightnessValue: number;
+    resolutionText: string;
+    overallStatus: "idle" | "checking" | "passed" | "failed";
+    errorMessage: string;
+  }>({
+    permission: "idle",
+    lighting: "idle",
+    resolution: "idle",
+    framing: "idle",
+    brightnessValue: 0,
+    resolutionText: "",
+    overallStatus: "idle",
+    errorMessage: "",
+  });
+
+  // ── SECURITY HOOK (Keyboard/DevTools/Fullscreen/TabSwitch) ────────────────
+  const handleSecurityViolation = useCallback((type: ViolationType, details: string, browserEvent?: string) => {
+    if (riskEngineRef.current) {
+      const entry = riskEngineRef.current.logViolation(type, details, 1.0, browserEvent);
+      if (entry) {
+        setRiskScore(riskEngineRef.current.getCumulativeRisk());
+        setViolationLog(riskEngineRef.current.getLog());
+        triggerWarning(type, details);
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const { isFullscreen, requestFullscreen, exitFullscreen } = useExamSecurity({
+    active: view === "exam" && !terminated,
+    onViolation: handleSecurityViolation,
+  });
+
+  // ── AUTOSAVE HOOK ─────────────────────────────────────────────────────────
+  const saveAnswerApi = useCallback(async (questionId: number, selectedOption: string) => {
+    if (!attemptId || !activeAssessment) return;
+    await api.post(`/Assessments/${activeAssessment.id}/attempt/answer`, {
+      attemptId,
+      questionId,
+      selectedOption,
+    });
+  }, [attemptId, activeAssessment]);
+
+  const { queueSave, flushQueue, isSaving, lastSavedAt, saveError } = useAutoSave({
+    active: view === "exam" && !terminated,
+    saveFn: saveAnswerApi,
+  });
+
+  // ── RISK ENGINE AUTO-TERMINATE ───────────────────────────────────────────
+  const handleRiskAutoSubmit = useCallback((log: ViolationLogEntry[]) => {
+    setWarningMessage(`⚠️ Exam Auto-Terminated: Cumulative security risk score (${AUTO_SUBMIT_THRESHOLD}) exceeded due to repeated violations.`);
+    setShowWarningModal(true);
+    setTimeout(() => handleTerminate("Cumulative security risk threshold exceeded."), 3000);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Initialize Risk Engine on exam start
+  useEffect(() => {
+    if (view === "exam") {
+      riskEngineRef.current = new ExamRiskEngine(
+        (entry) => {
+          setRiskScore(riskEngineRef.current?.getCumulativeRisk() || 0);
+          setViolationLog(riskEngineRef.current?.getLog() || []);
+        },
+        handleRiskAutoSubmit
+      );
+    } else {
+      riskEngineRef.current = null;
+    }
+  }, [view, handleRiskAutoSubmit]);
+
+  // ── CONTINUOUS DIAGNOSTIC FRAME ANALYZER (Instructions View) ──────────────
+  const sampleDiagnosticFrame = useCallback(() => {
+    const video = previewVideoRef.current;
+    const stream = streamRef.current;
+
+    if (!video) return;
+
+    if ((video.paused || video.ended || video.readyState < 2) && stream && stream.active) {
+      if (!video.srcObject) video.srcObject = stream;
+      video.muted = true;
+      video.playsInline = true;
+      video.play().catch(() => {});
+      if (video.readyState < 2) return;
+    }
+
+    if (video.paused || video.ended || video.readyState < 2) {
+      setCameraCheck((prev) => {
+        if (prev.permission !== "passed") return prev;
+        return {
+          ...prev,
+          framing: "failed",
+          overallStatus: "failed",
+          errorMessage: "Webcam video feed is inactive or frozen. Please click 'Re-Test Camera Setup'.",
+        };
+      });
+      return;
+    }
+
+    const canvas = previewCanvasRef.current || document.createElement("canvas");
+    canvas.width = 64;
+    canvas.height = 48;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    ctx.drawImage(video, 0, 0, 64, 48);
+    const imgData = ctx.getImageData(0, 0, 64, 48).data;
+
+    let totalLuminance = 0;
+    let totalPixels = 0;
+    const allPixels: number[] = [];
+
+    let totalFacePixels = 0;
+    let sumFaceX = 0;
+    let centerTargetFacePixels = 0;
+
+    for (let y = 0; y < 48; y++) {
+      for (let x = 0; x < 64; x++) {
+        const i = (y * 64 + x) * 4;
+        const r = imgData[i];
+        const g = imgData[i + 1];
+        const b = imgData[i + 2];
+        const lum = 0.299 * r + 0.587 * g + 0.114 * b;
+
+        totalLuminance += lum;
+        totalPixels++;
+        allPixels.push(lum);
+
+        const isSkinTone = r > 48 && g > 28 && b > 18 && r > g && (r - g) >= 8 && (r - b) >= 12 && Math.abs(g - b) <= 36;
+        if (isSkinTone) {
+          totalFacePixels++;
+          sumFaceX += x;
+          if (x >= 18 && x <= 46 && y >= 6 && y <= 42) {
+            centerTargetFacePixels++;
+          }
+        }
+      }
+    }
+
+    const avgLuminance = totalPixels > 0 ? totalLuminance / totalPixels : 0;
+    const brightnessPercentage = Math.round((avgLuminance / 255) * 100);
+
+    let lightingPassed = true;
+    let lightingErr = "";
+    if (avgLuminance < 25) {
+      lightingPassed = false;
+      lightingErr = `Room environment is too dark (${brightnessPercentage}% brightness). Please turn on room lights or uncover camera.`;
+    } else if (avgLuminance > 245) {
+      lightingPassed = false;
+      lightingErr = `Excessive direct glare detected (${brightnessPercentage}%). Please adjust light positioning.`;
+    }
+
+    const w = video.videoWidth || 320;
+    const h = video.videoHeight || 240;
+    const resPassed = w >= 320 && h >= 240;
+    const resText = `${w}x${h}`;
+
+    let totalVarianceSum = 0;
+    for (let p of allPixels) {
+      totalVarianceSum += Math.abs(p - avgLuminance);
+    }
+    const frameVariance = allPixels.length > 0 ? totalVarianceSum / allPixels.length : 0;
+
+    let framingPassed = true;
+    let framingErr = "";
+
+    const centroidX = totalFacePixels > 0 ? sumFaceX / totalFacePixels : 32;
+    const centerRatio = totalFacePixels > 0 ? centerTargetFacePixels / totalFacePixels : 0;
+
+    if (frameVariance < 1.8) {
+      framingPassed = false;
+      framingErr = "Webcam lens appears covered or video feed is obscured.";
+    } else if (totalFacePixels < 30 || centerTargetFacePixels < 18) {
+      framingPassed = false;
+      framingErr = "Face not detected in camera frame. Please position yourself directly in front of the camera.";
+    } else if (centroidX < 23 || centroidX > 41 || centerRatio < 0.50) {
+      framingPassed = false;
+      framingErr = "Face is shifted off-center. Please align your face inside the target circle.";
+    } else {
+      framingPassed = true;
+    }
+
+    const allPassed = resPassed && lightingPassed && framingPassed;
+
+    let finalError = "";
+    if (!resPassed) finalError = `Resolution (${resText}) below requirement.`;
+    else if (!lightingPassed) finalError = lightingErr;
+    else if (!framingPassed) finalError = framingErr;
+
+    setCameraCheck((prev) => ({
+      permission: "passed",
+      lighting: lightingPassed ? "passed" : "failed",
+      resolution: resPassed ? "passed" : "failed",
+      framing: framingPassed ? "passed" : "failed",
+      brightnessValue: brightnessPercentage,
+      resolutionText: resText,
+      overallStatus: allPassed ? "passed" : "failed",
+      errorMessage: finalError,
+    }));
+  }, []);
+
+  const runCameraDiagnostic = async () => {
+    setCameraCheck({
+      permission: "checking",
+      lighting: "checking",
+      resolution: "checking",
+      framing: "checking",
+      brightnessValue: 0,
+      resolutionText: "",
+      overallStatus: "checking",
+      errorMessage: "",
+    });
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: "user" },
+      });
+
+      streamRef.current = stream;
+      setCameraActive(true);
+
+      if (previewVideoRef.current) {
+        previewVideoRef.current.srcObject = stream;
+        try {
+          await previewVideoRef.current.play();
+        } catch (e) {
+          console.warn("Video play interrupted:", e);
+        }
+      }
+
+      setCameraPermission("granted");
+      sampleDiagnosticFrame();
+    } catch (err: any) {
+      let msg = "Camera permissions denied or webcam hardware unavailable. Please allow camera access in your browser settings to proceed.";
+      if (err.name === "NotAllowedError" || err.name === "PermissionDeniedError") {
+        msg = "Camera permission was denied. Please click the camera/lock icon in your browser address bar and select 'Allow'.";
+      } else if (err.name === "NotFoundError" || err.name === "DevicesNotFoundError") {
+        msg = "No camera hardware detected. Please connect a working webcam to your device.";
+      }
+      setCameraCheck({
+        permission: "failed",
+        lighting: "failed",
+        resolution: "failed",
+        framing: "failed",
+        brightnessValue: 0,
+        resolutionText: "N/A",
+        overallStatus: "failed",
+        errorMessage: msg,
+      });
+      setCameraPermission("denied");
+    }
+  };
+
+  // Continuous real-time diagnostic check whenever Instructions view is active
+  useEffect(() => {
+    let diagnosticInterval: NodeJS.Timeout | null = null;
+
+    if (view === "instructions") {
+      runCameraDiagnostic();
+      diagnosticInterval = setInterval(() => {
+        sampleDiagnosticFrame();
+      }, 400);
+    }
+
+    return () => {
+      if (diagnosticInterval) clearInterval(diagnosticInterval);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [view]);
+
+  // ── SYSTEM COMPATIBILITY CHECK ────────────────────────────────────────────
+  const runSystemCompatibilityCheck = async () => {
+    setCompatCheck((prev) => ({ ...prev, camera: "checking", screen: "checking", browser: "checking", connection: "checking", fullscreen: "checking" }));
+
+    const issues = checkBrowserCompatibility();
+    const isOnline = typeof navigator !== "undefined" ? navigator.onLine : true;
+
+    let cameraOk = false;
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+      stream.getTracks().forEach((t) => t.stop());
+      cameraOk = true;
+    } catch {
+      cameraOk = false;
+    }
+
+    const screenOk = typeof screen !== "undefined" ? screen.width >= 1024 && screen.height >= 600 : true;
+    const browserOk = issues.length === 0;
+    const fsOk = typeof document !== "undefined" && !!(document.documentElement.requestFullscreen || (document.documentElement as any).webkitRequestFullscreen);
+
+    const allPassed = cameraOk && screenOk && browserOk && isOnline && fsOk;
+
+    setCompatCheck({
+      camera: cameraOk ? "passed" : "failed",
+      screen: screenOk ? "passed" : "failed",
+      browser: browserOk ? "passed" : "failed",
+      connection: isOnline ? "passed" : "failed",
+      fullscreen: fsOk ? "passed" : "failed",
+      errors: issues,
+      allPassed,
+    });
+  };
+
+  useEffect(() => {
+    if (view === "compatibility") {
+      runSystemCompatibilityCheck();
+    }
+  }, [view]);
 
   // Result
   const [result, setResult] = useState<any>(null);
@@ -95,7 +451,7 @@ export default function AssessmentPage() {
       setUser(parsed);
     }
     fetchAssessments();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const fetchAssessments = async () => {
@@ -107,16 +463,7 @@ export default function AssessmentPage() {
     finally { setLoadingList(false); }
   };
 
-  // Pending count calculation
-  const pendingCount = assessments.filter(a => {
-    const now = new Date();
-    const start = new Date(a.startDate);
-    const end = new Date(a.endDate);
-    const isLive = !a.isCompleted && (a.isAvailable || (now >= start && now <= end));
-    return isLive;
-  }).length;
-
-  // ── Timer ──
+  // ── Timer & Warnings (15m, 10m, 5m, 1m) ─────────────────────────────────
   useEffect(() => {
     if (view !== "exam" || !startedAt || !activeAssessment) return;
     const durationSec = activeAssessment.durationMinutes * 60;
@@ -131,11 +478,28 @@ export default function AssessmentPage() {
           handleAutoSubmit();
           return 0;
         }
+
+        // Trigger timed modal warnings
+        const minsLeft = Math.floor(prev / 60);
+        const secsMod = prev % 60;
+
+        if (secsMod === 0 && [15, 10, 5, 1].includes(minsLeft) && !timerWarningsFired.current[minsLeft]) {
+          timerWarningsFired.current[minsLeft] = true;
+          setTimerModal({
+            open: true,
+            title: `⏰ Timer Warning: ${minsLeft} Minute${minsLeft > 1 ? "s" : ""} Remaining`,
+            message: `You have ${minsLeft} minute${minsLeft > 1 ? "s" : ""} left to complete your assessment. Make sure to answer all questions and submit before time expires.`,
+          });
+          setTimeout(() => {
+            setTimerModal((tm) => ({ ...tm, open: false }));
+          }, 5000);
+        }
+
         return prev - 1;
       });
     }, 1000);
     return () => clearInterval(interval);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [view, startedAt, activeAssessment]);
 
   const formatTime = (secs: number) => {
@@ -215,12 +579,11 @@ export default function AssessmentPage() {
     if (now - lastWarningTime.current < cooldown) return;
 
     if (avgBrightness < 20) {
-      triggerWarning("FaceNotDetected", "Camera appears covered or face not visible.");
+      handleSecurityViolation("CameraObstructed", "Camera appears covered or pitch dark.");
     } else if (motionScore > 35) {
-      triggerWarning("LookingAway", "Sudden movement detected. Please face the camera.");
+      handleSecurityViolation("LookingAway", "Sudden movement detected. Please face the camera.");
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [handleSecurityViolation]);
 
   const triggerWarning = async (type: string, details: string) => {
     if (!attemptId || !activeAssessment) return;
@@ -239,30 +602,31 @@ export default function AssessmentPage() {
       if (res.data.shouldTerminate || newCount >= 4) {
         setWarningMessage("⚠️ Final Warning (4/4): Your assessment has been terminated due to repeated proctoring violations.");
         setShowWarningModal(true);
-        setTimeout(() => handleTerminate(), 3000);
+        setTimeout(() => handleTerminate("Four proctoring violations recorded."), 3000);
       } else {
-        setWarningMessage(`Warning ${newCount}/3: ${details} Repeated violations will terminate your assessment.`);
+        setWarningMessage(`Warning ${newCount}/4: ${details} Repeated violations will terminate your assessment.`);
         setShowWarningModal(true);
         setTimeout(() => setShowWarningModal(false), 4000);
       }
     } catch (err) { console.error("Proctoring warning error:", err); }
   };
 
-  const handleTerminate = async () => {
+  const handleTerminate = async (reason?: string) => {
     if (!attemptId || !activeAssessment) return;
     stopCamera();
+    exitFullscreen();
     setTerminated(true);
     try {
       await api.post(`/Assessments/${activeAssessment.id}/attempt/terminate`, {
         attemptId,
-        reason: "Four proctoring violations: suspicious behavior detected.",
+        reason: reason || "Proctoring violations: suspicious behavior detected.",
       });
     } catch (err) { console.error(err); }
     setView("result");
     fetchResult();
   };
 
-  // ── Start Assessment ──
+  // ── Start Assessment Handlers ──
   const handleStart = async (assessment: Assessment) => {
     setActiveAssessment(assessment);
     if (assessment.isCompleted) {
@@ -270,12 +634,19 @@ export default function AssessmentPage() {
       fetchResult(assessment.id);
       return;
     }
-    setView("instructions");
+    setView("compatibility");
   };
 
   const handleBeginExam = async () => {
     if (!activeAssessment) return;
+    if (cameraCheck.overallStatus !== "passed") {
+      alert("Camera setup check failed. Please resolve the camera or lighting constraints shown above before starting the exam.");
+      return;
+    }
+
     try {
+      let createdAttemptId: number;
+
       const existingRes = await api.get(`/Assessments/${activeAssessment.id}/attempt`);
       if (existingRes.data && existingRes.data.attemptId) {
         if (existingRes.data.isCompleted) {
@@ -283,15 +654,32 @@ export default function AssessmentPage() {
           fetchResult(activeAssessment.id);
           return;
         }
+        createdAttemptId = existingRes.data.attemptId;
         setAttemptId(existingRes.data.attemptId);
         setQuestions(existingRes.data.questions);
         setStartedAt(new Date(existingRes.data.startedAt));
       } else {
         const res = await api.post(`/Assessments/${activeAssessment.id}/attempt`, {});
+        createdAttemptId = res.data.attemptId;
         setAttemptId(res.data.attemptId);
         setQuestions(res.data.questions.map((q: any) => ({ ...q, selectedOption: "" })));
         setStartedAt(new Date(res.data.startedAt));
       }
+
+      // Collect forensic device information & store via API
+      try {
+        const deviceInfo = collectDeviceInfo();
+        await api.post(`/Assessments/${activeAssessment.id}/attempt/device-info`, {
+          attemptId: createdAttemptId,
+          deviceInfo,
+        });
+      } catch (e) {
+        console.warn("Failed to store device info:", e);
+      }
+
+      // Enforce Fullscreen mode on begin
+      await requestFullscreen();
+
       setCurrentQIndex(0);
       setView("exam");
       startCamera();
@@ -307,17 +695,6 @@ export default function AssessmentPage() {
   };
 
   // ── Save Answer ──
-  const saveAnswer = async (questionId: number, selectedOption: string) => {
-    if (!attemptId || !activeAssessment) return;
-    try {
-      await api.post(`/Assessments/${activeAssessment.id}/attempt/answer`, {
-        attemptId,
-        questionId,
-        selectedOption,
-      });
-    } catch (err) { console.error("Save answer error:", err); }
-  };
-
   const selectOption = (option: string) => {
     const q = questions[currentQIndex];
     if (!q) return;
@@ -325,24 +702,33 @@ export default function AssessmentPage() {
       i === currentQIndex ? { ...ques, selectedOption: option } : ques
     );
     setQuestions(updated);
-    saveAnswer(q.id, option);
+    queueSave(q.id, option);
   };
 
   // ── Submit ──
-  const handleSubmit = async () => {
-    if (!confirm("Are you sure you want to submit the assessment?")) return;
+  const confirmSubmit = async () => {
     if (!attemptId || !activeAssessment) return;
+    setIsSubmitting(true);
+    await flushQueue();
     stopCamera();
+    exitFullscreen();
     try {
       await api.post(`/Assessments/${activeAssessment.id}/attempt/submit`, { attemptId, autoSubmit: false });
+      setShowSubmitModal(false);
       setView("result");
       fetchResult(activeAssessment.id);
-    } catch (err: any) { alert("Submit failed: " + (err.response?.data?.message || err.message)); }
+    } catch (err: any) {
+      alert("Submit failed: " + (err.response?.data?.message || err.message));
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleAutoSubmit = async () => {
     if (!attemptId || !activeAssessment) return;
+    await flushQueue();
     stopCamera();
+    exitFullscreen();
     try {
       await api.post(`/Assessments/${activeAssessment.id}/attempt/submit`, { attemptId, autoSubmit: true });
     } catch (err) { console.error(err); }
@@ -364,11 +750,13 @@ export default function AssessmentPage() {
 
   // Back button action inside header
   const handleBack = () => {
-    stopCamera();
     if (view === "exam") {
       if (!confirm("Are you sure you want to leave the exam hall? Timer will continue running.")) return;
+      stopCamera();
+      exitFullscreen();
       setView("list");
-    } else if (view === "instructions" || view === "result") {
+    } else if (view === "compatibility" || view === "instructions" || view === "result") {
+      stopCamera();
       setView("list");
       setResult(null);
     } else {
@@ -376,10 +764,10 @@ export default function AssessmentPage() {
     }
   };
 
-  // ── Cleanup on unmount ──
+  // Cleanup on unmount
   useEffect(() => {
     return () => { stopCamera(); };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const isDark = themeMode === "dark";
@@ -390,10 +778,9 @@ export default function AssessmentPage() {
 
   return (
     <div className={`min-h-screen ${bg} transition-colors duration-300`}>
-      {/* ── HEADER WITH BACK BUTTON & PENDING BADGE ── */}
+      {/* ── HEADER WITH BACK BUTTON & CONTROLS ── */}
       <div className={`sticky top-0 z-40 border-b px-4 md:px-8 py-3 flex items-center justify-between backdrop-blur-md ${isDark ? "border-white/5 bg-[#0d0d12]/90" : "border-slate-200 bg-white/90"}`}>
         <div className="flex items-center gap-3">
-          {/* Back button replacing Home button */}
           <button onClick={handleBack}
             aria-label="Back"
             className={`p-2 rounded-xl transition cursor-pointer ${isDark ? "hover:bg-white/5 text-gray-300" : "hover:bg-slate-100 text-slate-700"}`}>
@@ -403,6 +790,7 @@ export default function AssessmentPage() {
             <ClipboardList size={18} className="text-[#781c1c]" />
             <span className="font-bold text-sm">
               {view === "list" ? "Assessments" :
+               view === "compatibility" ? "System Compatibility Check" :
                view === "instructions" ? activeAssessment?.title :
                view === "exam" ? activeAssessment?.title :
                "Assessment Result"}
@@ -418,18 +806,33 @@ export default function AssessmentPage() {
               <Clock size={14} /> {formatTime(timeLeft)}
             </div>
           )}
+
+          {view === "exam" && isSaving && (
+            <div className="flex items-center gap-1.5 text-[10px] font-bold text-amber-400">
+              <RefreshCw size={11} className="animate-spin" /> Autosaving...
+            </div>
+          )}
+
+          {view === "exam" && lastSavedAt && !isSaving && (
+            <div className="flex items-center gap-1.5 text-[10px] font-bold text-emerald-400">
+              <Save size={11} /> Saved
+            </div>
+          )}
+
           {view === "exam" && cameraActive && (
             <div className="flex items-center gap-1.5 text-[10px] font-bold text-emerald-400">
               <Camera size={12} /> Recording
             </div>
           )}
-          {view === "exam" && warningCount > 0 && (
-            <div className="flex items-center gap-1.5 text-[10px] font-bold text-orange-400">
-              <AlertTriangle size={12} /> {warningCount}/4
+
+          {view === "exam" && riskScore > 0 && (
+            <div className={`flex items-center gap-1 text-[10px] font-mono font-bold px-2 py-1 rounded-lg border ${
+              riskScore > 100 ? "bg-rose-500/20 text-rose-400 border-rose-500/30" : "bg-amber-500/20 text-amber-400 border-amber-500/30"
+            }`}>
+              <ShieldAlert size={12} /> Risk: {riskScore}/{AUTO_SUBMIT_THRESHOLD}
             </div>
           )}
 
-          {/* Theme Changer Icon Button */}
           <button
             onClick={toggleThemeMode}
             title="Toggle Light/Dark Mode"
@@ -445,15 +848,36 @@ export default function AssessmentPage() {
         </div>
       </div>
 
-      {/* ── WARNING MODAL ── */}
+      {/* ── TIMED WARNING MODAL (15m, 10m, 5m, 1m) ── */}
+      {timerModal.open && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm animate-fadeIn">
+          <div className={`w-full max-w-md mx-4 rounded-2xl p-6 border shadow-2xl ${isDark ? "bg-[#16120b] border-amber-500/30" : "bg-amber-50 border-amber-300"}`}>
+            <div className="flex items-start gap-3">
+              <Clock size={24} className="text-amber-400 shrink-0 mt-1" />
+              <div>
+                <h3 className="font-black text-base text-amber-300 mb-1">{timerModal.title}</h3>
+                <p className="text-sm text-amber-200/90 leading-relaxed">{timerModal.message}</p>
+                <button
+                  onClick={() => setTimerModal((tm) => ({ ...tm, open: false }))}
+                  className="mt-4 px-4 py-2 bg-amber-500 text-black text-xs font-black rounded-xl hover:bg-amber-400 cursor-pointer"
+                >
+                  Dismiss
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── SECURITY PROCTORING WARNING MODAL ── */}
       {showWarningModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm animate-fadeIn">
           <div className={`w-full max-w-md mx-4 rounded-2xl p-6 border shadow-2xl ${warningCount >= 4 ? "border-rose-500/30 bg-rose-950" : "border-orange-500/30 bg-[#1a1008]"}`}>
             <div className="flex items-start gap-3">
               <AlertTriangle size={24} className={warningCount >= 4 ? "text-rose-400 shrink-0" : "text-orange-400 shrink-0"} />
               <div>
                 <h3 className={`font-black text-base mb-1 ${warningCount >= 4 ? "text-rose-300" : "text-orange-300"}`}>
-                  Proctoring Alert – Warning {warningCount}/4
+                  Proctoring Alert – Violation Logged
                 </h3>
                 <p className={`text-sm ${warningCount >= 4 ? "text-rose-200" : "text-orange-200"}`}>{warningMessage}</p>
               </div>
@@ -462,13 +886,64 @@ export default function AssessmentPage() {
         </div>
       )}
 
+      {/* ── STYLED SUBMIT CONFIRMATION MODAL ── */}
+      {showSubmitModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-md animate-fadeIn">
+          <div className={`w-full max-w-md mx-4 rounded-3xl p-6 md:p-8 border shadow-2xl ${card}`}>
+            <div className="text-center space-y-3">
+              <div className="w-14 h-14 rounded-2xl bg-[#781c1c]/10 text-[#781c1c] mx-auto flex items-center justify-center">
+                <CheckCircle size={28} />
+              </div>
+              <h3 className={`text-xl font-black ${isDark ? "text-white" : "text-slate-900"}`}>Submit Assessment?</h3>
+              <p className={`text-xs md:text-sm ${subText}`}>
+                Once submitted, your answers will be evaluated and you will not be able to modify them.
+              </p>
+
+              <div className={`p-4 rounded-2xl border text-xs font-mono space-y-2 ${isDark ? "bg-white/[0.03] border-white/10" : "bg-slate-50 border-slate-200"}`}>
+                <div className="flex justify-between">
+                  <span>Total Questions:</span>
+                  <span className="font-bold">{questions.length}</span>
+                </div>
+                <div className="flex justify-between text-emerald-400">
+                  <span>Answered:</span>
+                  <span className="font-bold">{answered}</span>
+                </div>
+                <div className="flex justify-between text-amber-400">
+                  <span>Unanswered / Skipped:</span>
+                  <span className="font-bold">{questions.length - answered}</span>
+                </div>
+              </div>
+
+              <div className="flex gap-3 pt-3">
+                <button
+                  disabled={isSubmitting}
+                  onClick={() => setShowSubmitModal(false)}
+                  className={`flex-1 py-3.5 rounded-2xl text-xs font-bold border transition cursor-pointer ${
+                    isDark ? "border-white/10 hover:bg-white/5 text-gray-300" : "border-slate-300 hover:bg-slate-100 text-slate-700"
+                  }`}
+                >
+                  Cancel
+                </button>
+                <button
+                  disabled={isSubmitting}
+                  onClick={confirmSubmit}
+                  className="flex-1 py-3.5 rounded-2xl text-xs font-black bg-[#781c1c] hover:bg-[#5f1515] text-white transition shadow-lg shadow-[#781c1c]/20 cursor-pointer flex items-center justify-center gap-1.5"
+                >
+                  {isSubmitting ? <RefreshCw size={14} className="animate-spin" /> : "Confirm & Submit"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ── LIST VIEW ── */}
       {view === "list" && (
-        <div className="max-w-5xl md:max-w-6xl mx-auto px-4 md:px-8 py-8 md:py-12">
+        <div className="w-full max-w-[1600px] mx-auto px-4 md:px-8 lg:px-12 py-8 md:py-12">
           <div className="mb-10">
             <span className="text-[10px] uppercase font-mono tracking-widest text-[#781c1c] font-bold">Madras Christian College</span>
-            <h1 className={`text-2xl md:text-4xl font-black tracking-tight mt-1 ${isDark ? "text-white" : "text-slate-900"}`}>
-              Welcome, {user?.fullName || "Student"} 👋
+            <h1 className={`text-2xl md:text-4xl font-serif font-black tracking-tight mt-1 ${isDark ? "text-white" : "text-slate-900"}`}>
+              Welcome, {user?.fullName || "Student"}
             </h1>
             <p className={`text-xs sm:text-sm mt-1.5 ${subText}`}>Department-specific assessments assigned to you.</p>
           </div>
@@ -491,17 +966,25 @@ export default function AssessmentPage() {
                 const end = new Date(assessment.endDate);
                 const isLive = start <= now && end >= now;
                 const isUpcoming = start > now;
-                const isExpired = end < now;
 
                 return (
-                  <div key={assessment.id} className={`rounded-3xl border p-6 sm:p-8 md:p-10 transition-all duration-300 shadow-xl ${card} ${!assessment.isCompleted && isLive ? "hover:shadow-2xl border-rose-500/30 ring-1 ring-rose-500/20" : ""}`}>
+                  <div
+                    key={assessment.id}
+                    className={`group rounded-3xl border-2 p-6 sm:p-8 md:p-10 transition-all duration-300 shadow-xl ${
+                      isDark
+                        ? "bg-[#0b0b0f] border-white/10 hover:bg-[#781c1c]/10 hover:border-[#781c1c] hover:shadow-2xl hover:shadow-[#781c1c]/25"
+                        : "bg-white border-slate-300 hover:bg-[#781c1c]/[0.03] hover:border-[#781c1c] hover:shadow-2xl hover:shadow-[#781c1c]/15"
+                    }`}
+                  >
                     <div className="flex items-start justify-between gap-6 flex-wrap">
                       <div className="flex-1 min-w-0 space-y-3">
                         <div className="flex items-center gap-3 flex-wrap">
                           <span className="text-xs font-mono font-black uppercase tracking-wider px-3 py-1 rounded-xl bg-[#781c1c]/10 text-[#781c1c] border border-[#781c1c]/20">
                             Assessment {index + 1}
                           </span>
-                          <h2 className={`font-black text-xl sm:text-2xl tracking-tight ${isDark ? "text-white" : "text-slate-900"}`}>{assessment.title}</h2>
+                          <h2 className={`font-serif font-black text-xl sm:text-2xl tracking-tight transition-colors duration-200 ${isDark ? "text-white group-hover:text-rose-200" : "text-slate-900 group-hover:text-[#781c1c]"}`}>
+                            {assessment.title}
+                          </h2>
                           {assessment.isCompleted ? (
                             <span className="text-xs font-bold px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 uppercase tracking-wider">
                               Completed
@@ -521,7 +1004,7 @@ export default function AssessmentPage() {
                           )}
                         </div>
                         <p className={`text-sm sm:text-base leading-relaxed line-clamp-3 ${subText}`}>{assessment.description || "No description provided."}</p>
-                        <div className={`inline-flex items-center gap-5 text-xs sm:text-sm p-3.5 sm:p-4 rounded-2xl border ${isDark ? "bg-white/[0.02] border-white/5 text-slate-300" : "bg-slate-50 border-slate-200 text-slate-700"} flex-wrap font-mono`}>
+                        <div className={`inline-flex items-center gap-5 text-xs sm:text-sm p-3.5 sm:p-4 rounded-2xl border transition-colors duration-200 ${isDark ? "bg-white/[0.02] border-white/5 text-slate-300 group-hover:border-[#781c1c]/30" : "bg-slate-50 border-slate-200 text-slate-700 group-hover:border-[#781c1c]/20"} flex-wrap font-mono`}>
                           <span className="flex items-center gap-1.5"><Clock size={14} className="text-[#781c1c]" /> {assessment.durationMinutes} minutes</span>
                           <span className="flex items-center gap-1.5"><Target size={14} className="text-[#781c1c]" /> {assessment.totalMarks} marks</span>
                           <span className="flex items-center gap-1.5"><BookOpen size={14} className="text-[#781c1c]" />
@@ -564,12 +1047,96 @@ export default function AssessmentPage() {
         </div>
       )}
 
+      {/* ── SYSTEM COMPATIBILITY CHECK VIEW ── */}
+      {view === "compatibility" && activeAssessment && (
+        <div className="max-w-2xl mx-auto px-4 md:px-8 py-8 md:py-12">
+          <div className={`rounded-3xl border p-6 md:p-8 ${card} space-y-6 shadow-2xl`}>
+            <div>
+              <span className="text-[10px] uppercase font-mono tracking-widest text-[#781c1c] font-bold">Phase 1 of 2 — Verification</span>
+              <h2 className={`text-xl md:text-2xl font-black mt-1 ${isDark ? "text-white" : "text-slate-900"}`}>System & Environment Compatibility Check</h2>
+              <p className={`text-xs md:text-sm mt-1 ${subText}`}>
+                Before entering the assessment instructions, we must verify your browser and system meet security requirements.
+              </p>
+            </div>
+
+            <div className="space-y-3">
+              {[
+                { title: "Webcam Hardware & Access", status: compatCheck.camera, desc: "Camera hardware detected and accessible", icon: Camera },
+                { title: "Screen Resolution (Min 1024×600)", status: compatCheck.screen, desc: "Sufficient display resolution for proctoring grid", icon: Monitor },
+                { title: "Supported Browser & Engine", status: compatCheck.browser, desc: "Modern Chromium / Firefox / Safari browser detected", icon: Globe },
+                { title: "Active Network Connection", status: compatCheck.connection, desc: "Stable internet connection available", icon: RefreshCw },
+                { title: "Fullscreen Security Support", status: compatCheck.fullscreen, desc: "Browser supports locked fullscreen mode", icon: Maximize2 },
+              ].map((item, i) => (
+                <div
+                  key={i}
+                  className={`flex items-center justify-between p-4 rounded-2xl border transition-all ${
+                    item.status === "passed"
+                      ? isDark ? "bg-emerald-500/5 border-emerald-500/20 text-emerald-300" : "bg-emerald-50 border-emerald-200 text-emerald-900"
+                      : item.status === "failed"
+                        ? isDark ? "bg-rose-500/10 border-rose-500/30 text-rose-300" : "bg-rose-50 border-rose-200 text-rose-900"
+                        : isDark ? "bg-white/5 border-white/5 text-gray-400" : "bg-white border-slate-200 text-slate-600"
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <item.icon size={18} className="shrink-0" />
+                    <div>
+                      <h4 className="font-bold text-xs md:text-sm">{item.title}</h4>
+                      <p className="text-[11px] opacity-80">{item.desc}</p>
+                    </div>
+                  </div>
+                  <div>
+                    {item.status === "passed" && <CheckCircle size={20} className="text-emerald-500" />}
+                    {item.status === "failed" && <XCircle size={20} className="text-rose-500" />}
+                    {item.status === "checking" && <RefreshCw size={16} className="animate-spin text-amber-500" />}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {compatCheck.errors.length > 0 && (
+              <div className="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs space-y-1">
+                <p className="font-bold flex items-center gap-1.5"><AlertCircle size={14} /> Compatibility Errors:</p>
+                {compatCheck.errors.map((err, idx) => (
+                  <p key={idx} className="pl-5">• {err}</p>
+                ))}
+              </div>
+            )}
+
+            <div className="flex gap-3 pt-2">
+              <button
+                onClick={() => setView("list")}
+                className={`flex-1 py-3.5 rounded-2xl text-xs font-bold border transition cursor-pointer ${
+                  isDark ? "border-white/10 hover:bg-white/5 text-gray-300" : "border-slate-300 hover:bg-slate-100 text-slate-700"
+                }`}
+              >
+                Back to Assessments
+              </button>
+              {compatCheck.allPassed ? (
+                <button
+                  onClick={() => setView("instructions")}
+                  className="flex-1 py-3.5 rounded-2xl text-xs font-black bg-[#781c1c] hover:bg-[#5f1515] text-white transition shadow-lg shadow-[#781c1c]/20 cursor-pointer flex items-center justify-center gap-1.5"
+                >
+                  Proceed to Instructions →
+                </button>
+              ) : (
+                <button
+                  onClick={runSystemCompatibilityCheck}
+                  className="flex-1 py-3.5 rounded-2xl text-xs font-bold bg-amber-600 hover:bg-amber-700 text-white transition shadow-lg cursor-pointer flex items-center justify-center gap-1.5"
+                >
+                  <RefreshCw size={14} /> Re-Run Compatibility Check
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ── INSTRUCTIONS VIEW ── */}
       {view === "instructions" && activeAssessment && (
         <div className="max-w-2xl mx-auto px-4 md:px-8 py-8 md:py-12">
           <div className={`rounded-2xl border p-6 md:p-8 ${card}`}>
             <div className="mb-6">
-              <span className="text-[10px] uppercase font-mono tracking-widest text-[#781c1c] font-bold">Assessment Instructions</span>
+              <span className="text-[10px] uppercase font-mono tracking-widest text-[#781c1c] font-bold">Phase 2 of 2 — Instructions & Pre-Diagnostic</span>
               <h2 className={`text-xl font-black mt-1 ${isDark ? "text-white" : "text-slate-900"}`}>{activeAssessment.title}</h2>
             </div>
 
@@ -588,69 +1155,310 @@ export default function AssessmentPage() {
               ))}
             </div>
 
-            {/* Instructions */}
+            {/* Security Notice */}
             <div className={`rounded-xl p-4 mb-6 ${isDark ? "bg-amber-500/5 border border-amber-500/20" : "bg-amber-50 border border-amber-200"}`}>
-              <h3 className="text-xs font-bold text-amber-500 mb-2 flex items-center gap-1"><AlertTriangle size={12} /> Instructions</h3>
+              <h3 className="text-xs font-bold text-amber-500 mb-2 flex items-center gap-1"><AlertTriangle size={12} /> Anti-Malpractice Security Guidelines</h3>
               <div className={`text-xs whitespace-pre-wrap leading-relaxed ${isDark ? "text-amber-200/80" : "text-amber-900"}`}>
-                {activeAssessment.instructions || `• Do not switch tabs or applications during the exam.\n• Keep your face visible to the camera at all times.\n• You will receive 3 warnings before automatic termination.\n• The exam will auto-submit when time runs out.\n• Do not refresh or navigate away from this page.`}
+                {activeAssessment.instructions || `• Fullscreen mode is mandatory and will be locked upon starting.\n• Copying, pasting, right-click, tab switches, and keyboard shortcuts are blocked.\n• Continuous video proctoring will log all movement, tab switches, and face missing events.\n• Cumulative security risk > ${AUTO_SUBMIT_THRESHOLD} will immediately auto-terminate your attempt.`}
               </div>
             </div>
 
-            {/* Proctoring notice */}
-            <div className={`rounded-xl p-4 mb-6 ${isDark ? "bg-white/[0.03] border border-white/5" : "bg-slate-50 border border-slate-200"}`}>
-              <h3 className={`text-xs font-bold mb-2 flex items-center gap-1 ${isDark ? "text-white" : "text-slate-900"}`}>
-                <Camera size={12} /> Proctoring System
-              </h3>
-              <p className={`text-xs ${subText}`}>
-                This assessment uses webcam-based proctoring. Your camera will be activated when you begin.
-                4 warnings (face not visible, excessive movement) will result in automatic termination and malpractice reporting.
-              </p>
+            {/* ── WEBCAM PRE-CHECK & CONSTRAINTS DIAGNOSTIC ── */}
+            <div className={`rounded-2xl border p-5 mb-6 space-y-4 ${isDark ? "bg-white/[0.02] border-white/10" : "bg-slate-50/80 border-slate-200"}`}>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="w-7 h-7 rounded-lg bg-[#781c1c]/10 text-[#781c1c] flex items-center justify-center">
+                    <Camera size={16} />
+                  </div>
+                  <div>
+                    <h3 className={`text-xs font-bold ${isDark ? "text-white" : "text-slate-900"}`}>
+                      Camera & System Pre-Exam Diagnostic
+                    </h3>
+                    <p className={`text-[10px] ${subText}`}>
+                      Webcam proctoring constraints verification
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={runCameraDiagnostic}
+                  className={`px-3 py-1.5 rounded-lg text-[10px] font-extrabold flex items-center gap-1 border transition cursor-pointer ${
+                    isDark
+                      ? "border-white/10 bg-white/5 hover:bg-white/10 text-white"
+                      : "border-slate-300 bg-white hover:bg-slate-100 text-slate-700"
+                  }`}
+                >
+                  <RefreshCw size={11} className={cameraCheck.overallStatus === "checking" ? "animate-spin" : ""} />
+                  Re-Test Camera Setup
+                </button>
+              </div>
+
+              {/* Live Video Preview Box with Framing Overlay */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-center">
+                <div className="relative aspect-video rounded-xl overflow-hidden bg-black border border-slate-700/60 shadow-inner flex items-center justify-center">
+                  <video
+                    ref={previewVideoRef}
+                    autoPlay
+                    muted
+                    playsInline
+                    onLoadedMetadata={(e) => (e.target as HTMLVideoElement).play().catch(() => {})}
+                    className="w-full h-full object-cover transform -scale-x-100"
+                  />
+                  <canvas ref={previewCanvasRef} className="hidden" />
+
+                  {/* Dynamic Face Bounding Guide Overlay */}
+                  <div className={`absolute inset-0 border-2 border-dashed rounded-[45%] mx-auto my-3 w-32 h-40 pointer-events-none flex items-center justify-center transition-all duration-300 ${
+                    cameraCheck.framing === "passed"
+                      ? "border-emerald-400/80 bg-emerald-500/10 shadow-lg shadow-emerald-500/20"
+                      : "border-rose-500/90 bg-rose-500/20 animate-pulse"
+                  }`}>
+                    <span className={`text-[9px] font-mono font-bold px-2 py-0.5 rounded-full border shadow ${
+                      cameraCheck.framing === "passed"
+                        ? "text-emerald-300 bg-black/70 border-emerald-500/30"
+                        : "text-rose-300 bg-black/70 border-rose-500/30"
+                    }`}>
+                      {cameraCheck.framing === "passed" ? "✅ Face Centered" : "❌ Center Face Here"}
+                    </span>
+                  </div>
+
+                  {/* Overlay Badges */}
+                  <div className="absolute top-2 left-2 flex gap-1.5">
+                    {cameraCheck.overallStatus === "passed" && (
+                      <span className="bg-emerald-500/90 text-white text-[9px] font-extrabold px-2 py-0.5 rounded-full flex items-center gap-1 backdrop-blur-sm shadow">
+                        <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" /> Live Stream
+                      </span>
+                    )}
+                    {cameraCheck.overallStatus === "failed" && (
+                      <span className="bg-rose-500/90 text-white text-[9px] font-extrabold px-2 py-0.5 rounded-full flex items-center gap-1 backdrop-blur-sm shadow">
+                        <CameraOff size={10} /> Stream Stopped
+                      </span>
+                    )}
+                    {cameraCheck.overallStatus === "checking" && (
+                      <span className="bg-amber-500/90 text-white text-[9px] font-extrabold px-2 py-0.5 rounded-full flex items-center gap-1 backdrop-blur-sm shadow">
+                        <RefreshCw size={10} className="animate-spin" /> Sampling...
+                      </span>
+                    )}
+                  </div>
+
+                  {cameraCheck.overallStatus === "passed" && (
+                    <div className="absolute bottom-2 right-2 flex gap-1.5 text-[9px] font-mono font-bold text-white bg-black/60 px-2 py-0.5 rounded-md border border-white/10">
+                      <span>💡 {cameraCheck.brightnessValue}%</span>
+                      <span>•</span>
+                      <span>📐 {cameraCheck.resolutionText}</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Constraint Checklist Cards */}
+                <div className="space-y-2 text-xs">
+                  {[
+                    {
+                      title: "Camera Permissions & Hardware",
+                      status: cameraCheck.permission,
+                      detail: cameraCheck.permission === "passed" ? "Webcam active & authorized" : cameraCheck.permission === "failed" ? "Permission blocked / No camera" : "Requesting access...",
+                      icon: Camera,
+                    },
+                    {
+                      title: "Room Environment Lighting",
+                      status: cameraCheck.lighting,
+                      detail: cameraCheck.lighting === "passed" ? `Optimal brightness (${cameraCheck.brightnessValue}%)` : cameraCheck.lighting === "failed" ? `Lighting invalid (${cameraCheck.brightnessValue}%)` : "Measuring brightness...",
+                      icon: Lightbulb,
+                    },
+                    {
+                      title: "Video Stream & Resolution",
+                      status: cameraCheck.resolution,
+                      detail: cameraCheck.resolution === "passed" ? `Valid resolution (${cameraCheck.resolutionText})` : cameraCheck.resolution === "failed" ? "Low resolution / Unreadable feed" : "Evaluating resolution...",
+                      icon: Video,
+                    },
+                    {
+                      title: "Face Visibility & Positioning",
+                      status: cameraCheck.framing,
+                      detail: cameraCheck.framing === "passed" ? "Active feed ready for proctoring" : cameraCheck.framing === "failed" ? "Video feed frozen or unreadable" : "Checking video feed...",
+                      icon: Eye,
+                    },
+                  ].map((item, idx) => (
+                    <div
+                      key={idx}
+                      className={`flex items-center justify-between p-2.5 rounded-xl border transition-all ${
+                        item.status === "passed"
+                          ? isDark ? "bg-emerald-500/5 border-emerald-500/20 text-emerald-300" : "bg-emerald-50 border-emerald-200 text-emerald-900"
+                          : item.status === "failed"
+                            ? isDark ? "bg-rose-500/10 border-rose-500/30 text-rose-300" : "bg-rose-50 border-rose-200 text-rose-900"
+                            : isDark ? "bg-white/5 border-white/5 text-gray-400" : "bg-white border-slate-200 text-slate-600"
+                      }`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <item.icon size={13} className="shrink-0" />
+                        <div>
+                          <p className="font-bold text-[11px] leading-tight">{item.title}</p>
+                          <p className="text-[10px] opacity-80">{item.detail}</p>
+                        </div>
+                      </div>
+                      <div className="shrink-0">
+                        {item.status === "passed" && <CheckCircle size={15} className="text-emerald-500" />}
+                        {item.status === "failed" && <XCircle size={15} className="text-rose-500" />}
+                        {item.status === "checking" && <RefreshCw size={13} className="animate-spin text-amber-500" />}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Overall Failure Alert Box */}
+              {cameraCheck.overallStatus === "failed" && (
+                <div className={`p-4 rounded-xl border flex items-start gap-3 ${isDark ? "bg-rose-500/10 border-rose-500/30 text-rose-200" : "bg-rose-50 border-rose-200 text-rose-900"}`}>
+                  <XCircle size={18} className="text-rose-500 shrink-0 mt-0.5" />
+                  <div className="space-y-1 text-xs">
+                    <p className="font-extrabold text-rose-500 uppercase tracking-wider text-[10px]">
+                      Camera Constraint Check Failed
+                    </p>
+                    <p className="font-medium leading-relaxed">{cameraCheck.errorMessage}</p>
+                    <p className="text-[11px] opacity-90 pt-1">
+                      💡 <b>Action Required:</b> Ensure camera permission is set to "Allow", adjust room lighting, uncover your lens, and click <b>"Re-Test Camera Setup"</b> to unlock the exam.
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* Overall Success Alert Box */}
+              {cameraCheck.overallStatus === "passed" && (
+                <div className={`p-3.5 rounded-xl border flex items-center gap-3 ${isDark ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-200" : "bg-emerald-50 border-emerald-200 text-emerald-900"}`}>
+                  <ShieldCheck size={18} className="text-emerald-500 shrink-0" />
+                  <div className="text-xs">
+                    <p className="font-bold text-emerald-500">All Camera Constraints Verified</p>
+                    <p className="text-[11px] opacity-90">Your camera and room environment meet all proctoring guidelines. You may now start the exam.</p>
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className="flex gap-3">
-              <button onClick={() => setView("list")}
-                className={`flex-1 py-3 rounded-xl text-xs font-bold border transition cursor-pointer ${isDark ? "border-white/10 hover:bg-white/5" : "border-slate-200 hover:bg-slate-50"}`}>
+              <button onClick={() => setView("compatibility")}
+                className={`flex-1 py-3 rounded-xl text-xs font-bold border transition cursor-pointer ${isDark ? "border-white/10 hover:bg-white/5 text-gray-300" : "border-slate-200 hover:bg-slate-50 text-slate-700"}`}>
                 Back
               </button>
-              <button onClick={handleBeginExam}
-                className="flex-1 py-3 rounded-xl text-xs font-bold bg-[#781c1c] hover:bg-[#5f1515] text-white transition shadow-sm cursor-pointer">
-                Begin Exam →
-              </button>
+              {cameraCheck.overallStatus === "passed" ? (
+                <button onClick={handleBeginExam}
+                  className="flex-1 py-3 rounded-xl text-xs font-bold bg-[#781c1c] hover:bg-[#5f1515] text-white transition shadow-lg shadow-[#781c1c]/20 cursor-pointer flex items-center justify-center gap-1.5">
+                  Begin Exam →
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (cameraCheck.overallStatus === "failed") {
+                      alert("Camera setup check failed: " + cameraCheck.errorMessage);
+                    } else {
+                      runCameraDiagnostic();
+                    }
+                  }}
+                  className={`flex-1 py-3 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-not-allowed ${
+                    isDark ? "bg-white/10 text-gray-500 border border-white/5" : "bg-slate-200 text-slate-400"
+                  }`}
+                >
+                  <Lock size={12} /> Begin Exam (Camera Required)
+                </button>
+              )}
             </div>
           </div>
         </div>
       )}
 
-      {/* ── EXAM VIEW ── */}
+      {/* ── EXAM VIEW (3-Segment Grid Layout) ── */}
       {view === "exam" && !terminated && questions.length > 0 && (
-        <div className="max-w-5xl mx-auto px-3 md:px-8 py-4 md:py-6">
-          <div className="flex gap-4 flex-col-reverse lg:flex-row">
-            {/* Question Panel */}
-            <div className="flex-1">
-              <div className={`rounded-2xl border p-5 md:p-6 mb-4 ${card}`}>
-                {/* Question header */}
-                <div className="flex items-center justify-between mb-4">
-                  <span className={`text-[10px] font-mono uppercase tracking-widest ${subText}`}>
+        <div className="max-w-[1550px] mx-auto px-4 md:px-8 py-5 md:py-8">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+
+            {/* ── LEFT SEGMENT (Question Navigator & Submit) ── */}
+            <div className="lg:col-span-3 space-y-5">
+              <div className={`rounded-2xl border p-5 ${card} space-y-4 shadow-sm`}>
+                <div className="flex items-center justify-between">
+                  <span className={`text-[10px] font-mono uppercase tracking-widest font-extrabold ${subText}`}>
+                    Question Navigator
+                  </span>
+                  <span className="text-[10px] font-black px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">
+                    {answered}/{questions.length} Answered
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-5 gap-2.5">
+                  {questions.map((q, i) => (
+                    <button
+                      key={q.id}
+                      onClick={() => setCurrentQIndex(i)}
+                      className={`aspect-square rounded-xl text-xs font-black transition-all duration-150 cursor-pointer shadow-sm flex items-center justify-center ${
+                        i === currentQIndex
+                          ? "bg-[#781c1c] text-white ring-4 ring-[#781c1c]/30 scale-105"
+                          : q.selectedOption
+                            ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/40"
+                            : isDark
+                              ? "bg-white/5 text-gray-300 hover:bg-white/10 hover:border-white/20 border border-white/5"
+                              : "bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200"
+                      }`}
+                    >
+                      {i + 1}
+                    </button>
+                  ))}
+                </div>
+
+                <div className="pt-2 border-t border-slate-200/50 dark:border-white/10 space-y-2 text-[10px]">
+                  <div className="flex items-center justify-between">
+                    <span className="flex items-center gap-1.5 font-medium">
+                      <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" /> Answered
+                    </span>
+                    <span className="font-mono font-bold text-emerald-400">{answered}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="flex items-center gap-1.5 font-medium">
+                      <span className="w-2.5 h-2.5 rounded-full bg-[#781c1c]" /> Current
+                    </span>
+                    <span className="font-mono font-bold text-[#781c1c]">Q{currentQIndex + 1}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="flex items-center gap-1.5 font-medium">
+                      <span className="w-2.5 h-2.5 rounded-full bg-slate-300 dark:bg-white/20" /> Remaining
+                    </span>
+                    <span className="font-mono font-bold">{questions.length - answered}</span>
+                  </div>
+                </div>
+
+                <button
+                  onClick={() => setShowSubmitModal(true)}
+                  className="w-full py-4 rounded-2xl text-xs md:text-sm font-black bg-[#781c1c] hover:bg-[#5f1515] text-white transition shadow-xl shadow-[#781c1c]/20 hover:scale-[1.02] cursor-pointer flex items-center justify-center gap-2 mt-4"
+                >
+                  Submit Assessment <CheckCircle size={16} />
+                </button>
+              </div>
+            </div>
+
+            {/* ── CENTER SEGMENT (Questions & Choices) ── */}
+            <div className="lg:col-span-6 space-y-5">
+              <div className={`rounded-2xl border p-6 md:p-8 ${card} shadow-sm space-y-6`}>
+                {/* Question Header */}
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-mono font-extrabold uppercase tracking-wider text-[#781c1c] bg-[#781c1c]/10 px-3 py-1 rounded-full border border-[#781c1c]/20">
                     Question {currentQIndex + 1} of {questions.length}
                   </span>
-                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${isDark ? "bg-white/5" : "bg-slate-100"} ${subText}`}>
+                  <span className={`text-xs font-bold px-3 py-1 rounded-full border ${isDark ? "bg-white/5 border-white/10 text-amber-300" : "bg-amber-50 border-amber-200 text-amber-800"}`}>
                     {questions[currentQIndex]?.marks} mark{(questions[currentQIndex]?.marks || 1) > 1 ? "s" : ""}
                   </span>
                 </div>
 
                 {/* Progress bar */}
-                <div className={`h-1 rounded-full mb-5 ${isDark ? "bg-white/5" : "bg-slate-100"}`}>
-                  <div className="h-1 bg-[#781c1c] rounded-full transition-all duration-500"
-                    style={{ width: `${((currentQIndex + 1) / questions.length) * 100}%` }} />
+                <div className={`h-2 rounded-full ${isDark ? "bg-white/5" : "bg-slate-100"}`}>
+                  <div
+                    className="h-2 bg-[#781c1c] rounded-full transition-all duration-500"
+                    style={{ width: `${((currentQIndex + 1) / questions.length) * 100}%` }}
+                  />
                 </div>
 
                 {/* Question text */}
-                <p className={`text-sm md:text-base font-semibold leading-relaxed mb-5 ${isDark ? "text-white" : "text-slate-900"}`}>
+                <p className={`text-base md:text-lg font-bold leading-relaxed ${isDark ? "text-white" : "text-slate-900"}`}>
                   {questions[currentQIndex]?.questionText}
                 </p>
 
-                {/* Options */}
-                <div className="space-y-2.5">
+                {/* Options (Bigger Buttons & Padding) */}
+                <div className="space-y-3.5 pt-2">
                   {(["A", "B", "C", "D"] as const).map((opt) => {
                     const optKey = `option${opt}` as keyof Question;
                     const optText = questions[currentQIndex]?.[optKey] as string;
@@ -659,119 +1467,151 @@ export default function AssessmentPage() {
                       <button
                         key={opt}
                         onClick={() => selectOption(opt)}
-                        className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl border text-sm text-left transition-all duration-200 cursor-pointer ${
+                        className={`w-full flex items-center gap-4 px-5 py-4 md:py-4.5 rounded-2xl border text-sm md:text-base font-semibold text-left transition-all duration-200 cursor-pointer shadow-sm ${
                           isSelected
-                            ? "border-[#781c1c] bg-[#781c1c]/10 text-[#781c1c]"
+                            ? "border-2 border-[#781c1c] bg-[#781c1c]/10 text-[#781c1c] shadow-md shadow-[#781c1c]/10 scale-[1.01]"
                             : isDark
-                              ? "border-white/5 bg-white/[0.02] hover:bg-white/[0.05] hover:border-white/10 text-gray-200"
+                              ? "border-white/10 bg-white/[0.02] hover:bg-white/[0.06] hover:border-white/20 text-gray-200"
                               : "border-slate-200 bg-white hover:bg-slate-50 hover:border-slate-300 text-slate-800"
                         }`}
                       >
-                        <span className={`w-6 h-6 rounded-lg flex items-center justify-center text-[10px] font-black shrink-0 transition-all ${
-                          isSelected ? "bg-[#781c1c] text-white" : isDark ? "bg-white/10 text-gray-400" : "bg-slate-100 text-slate-500"
-                        }`}>{opt}</span>
-                        <span className="flex-1">{optText}</span>
-                        {isSelected && <CheckCircle size={15} className="text-[#781c1c] shrink-0" />}
+                        <span className={`w-9 h-9 rounded-xl flex items-center justify-center text-xs md:text-sm font-black shrink-0 transition-all shadow-inner ${
+                          isSelected
+                            ? "bg-[#781c1c] text-white"
+                            : isDark
+                              ? "bg-white/10 text-gray-300"
+                              : "bg-slate-100 text-slate-600"
+                        }`}>
+                          {opt}
+                        </span>
+                        <span className="flex-1 leading-snug">{optText}</span>
+                        {isSelected && <CheckCircle size={20} className="text-[#781c1c] shrink-0" />}
                       </button>
                     );
                   })}
                 </div>
               </div>
 
-              {/* Navigation */}
-              <div className="flex items-center justify-between gap-3">
+              {/* Center Navigation Buttons */}
+              <div className="flex items-center justify-between gap-4 pt-2">
                 <button
                   onClick={() => setCurrentQIndex((i) => Math.max(0, i - 1))}
                   disabled={currentQIndex === 0}
-                  className={`flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-xs font-bold border transition cursor-pointer disabled:opacity-40 ${isDark ? "border-white/10 hover:bg-white/5" : "border-slate-200 hover:bg-slate-50"}`}
+                  className={`flex items-center gap-2 px-6 py-3.5 rounded-2xl text-xs md:text-sm font-bold border transition cursor-pointer disabled:opacity-40 shadow-sm ${
+                    isDark ? "border-white/10 hover:bg-white/5 text-gray-200" : "border-slate-200 hover:bg-slate-100 text-slate-700 bg-white"
+                  }`}
                 >
-                  <ChevronLeft size={14} /> Previous
+                  <ChevronLeft size={16} /> Previous Question
                 </button>
-                <span className={`text-[10px] ${subText}`}>{answered}/{questions.length} answered</span>
+
                 {currentQIndex < questions.length - 1 ? (
                   <button
                     onClick={() => setCurrentQIndex((i) => Math.min(questions.length - 1, i + 1))}
-                    className={`flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-xs font-bold border transition cursor-pointer ${isDark ? "border-white/10 hover:bg-white/5" : "border-slate-200 hover:bg-slate-50"}`}
+                    className={`flex items-center gap-2 px-6 py-3.5 rounded-2xl text-xs md:text-sm font-bold border transition cursor-pointer shadow-sm ${
+                      isDark ? "border-white/10 hover:bg-white/5 text-gray-200" : "border-slate-200 hover:bg-slate-100 text-slate-700 bg-white"
+                    }`}
                   >
-                    Next <ChevronRight size={14} />
+                    Next Question <ChevronRight size={16} />
                   </button>
                 ) : (
                   <button
-                    onClick={handleSubmit}
-                    className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-xs font-bold bg-[#781c1c] hover:bg-[#5f1515] text-white transition cursor-pointer"
+                    onClick={() => setShowSubmitModal(true)}
+                    className="flex items-center gap-2 px-7 py-3.5 rounded-2xl text-xs md:text-sm font-black bg-[#781c1c] hover:bg-[#5f1515] text-white transition shadow-lg shadow-[#781c1c]/20 cursor-pointer"
                   >
-                    Submit <CheckCircle size={14} />
+                    Submit Assessment <CheckCircle size={16} />
                   </button>
                 )}
               </div>
             </div>
 
-            {/* Right sidebar: question navigator + camera */}
-            <div className="lg:w-64 space-y-4 shrink-0">
-              {/* Webcam */}
-              <div className={`rounded-2xl border p-3 ${card}`}>
-                <div className="flex items-center justify-between mb-2">
-                  <span className={`text-[9px] font-mono uppercase tracking-widest font-bold ${subText}`}>Proctoring Camera</span>
+            {/* ── RIGHT SEGMENT (Proctoring Camera Video & Violation Log) ── */}
+            <div className="lg:col-span-3 space-y-5">
+              <div className={`rounded-2xl border p-5 ${card} shadow-sm space-y-4`}>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
+                    <span className={`text-[10px] font-mono uppercase tracking-widest font-extrabold ${subText}`}>
+                      Proctoring Camera
+                    </span>
+                  </div>
                   {cameraActive ? (
-                    <span className="text-[9px] text-emerald-400 font-bold flex items-center gap-1"><Camera size={9} /> Live</span>
+                    <span className="text-[10px] text-emerald-400 font-extrabold px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 flex items-center gap-1">
+                      <Camera size={10} /> Live
+                    </span>
                   ) : (
-                    <span className="text-[9px] text-rose-400 font-bold flex items-center gap-1"><CameraOff size={9} /> Off</span>
+                    <span className="text-[10px] text-rose-400 font-extrabold px-2 py-0.5 rounded-full bg-rose-500/10 border border-rose-500/20 flex items-center gap-1">
+                      <CameraOff size={10} /> Off
+                    </span>
                   )}
                 </div>
-                <div className={`rounded-xl overflow-hidden aspect-video relative ${isDark ? "bg-black" : "bg-slate-900"}`}>
-                  <video ref={videoRef} autoPlay muted playsInline className="w-full h-full object-cover" />
+
+                {/* Camera Video Container */}
+                <div className="aspect-[4/3] rounded-2xl overflow-hidden bg-black relative border-2 border-slate-700/80 shadow-2xl w-full flex items-center justify-center">
+                  <video
+                    ref={videoRef}
+                    autoPlay
+                    muted
+                    playsInline
+                    className="w-full h-full object-cover transform -scale-x-100"
+                  />
                   <canvas ref={canvasRef} className="hidden" />
+
                   {!cameraActive && !cameraError && (
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <div className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+                    <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/80 gap-2">
+                      <div className="w-6 h-6 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+                      <span className="text-[10px] font-mono text-white/70">Connecting Feed...</span>
                     </div>
                   )}
                   {cameraError && (
-                    <div className="absolute inset-0 flex flex-col items-center justify-center p-3 text-center">
-                      <CameraOff size={20} className="text-rose-400 mb-1" />
-                      <p className="text-[9px] text-rose-300">Camera unavailable. Exam continues without proctoring.</p>
+                    <div className="absolute inset-0 flex flex-col items-center justify-center p-4 text-center bg-rose-950/80">
+                      <CameraOff size={24} className="text-rose-400 mb-1" />
+                      <p className="text-[10px] font-bold text-rose-200">Camera Feed Interrupted</p>
+                      <p className="text-[9px] text-rose-300/80">Exam proctoring is still active.</p>
                     </div>
                   )}
                 </div>
-                {warningCount > 0 && (
-                  <div className={`mt-2 flex items-center gap-1.5 text-[9px] font-bold ${warningCount >= 3 ? "text-rose-400" : "text-orange-400"}`}>
-                    <AlertTriangle size={10} /> {warningCount}/4 warnings
+
+                {/* Proctoring & Security Risk Panel */}
+                <div className="space-y-2 pt-1">
+                  <div className={`p-2.5 rounded-xl border flex items-center justify-between text-[11px] ${
+                    riskScore > 100 ? "bg-rose-500/10 border-rose-500/30 text-rose-300" : "bg-emerald-500/10 border-emerald-500/20 text-emerald-400"
+                  }`}>
+                    <span className="flex items-center gap-1.5 font-bold">
+                      <ShieldAlert size={12} /> Cumulative Risk
+                    </span>
+                    <span className="font-mono font-extrabold">{riskScore} / {AUTO_SUBMIT_THRESHOLD}</span>
+                  </div>
+
+                  <div className={`p-2.5 rounded-xl border flex items-center justify-between text-[11px] ${
+                    isFullscreen ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400" : "bg-amber-500/10 border-amber-500/20 text-amber-400"
+                  }`}>
+                    <span className="flex items-center gap-1.5 font-bold">
+                      <Maximize2 size={12} /> Fullscreen Mode
+                    </span>
+                    <span className="font-mono font-bold">{isFullscreen ? "Locked" : "Exited!"}</span>
+                  </div>
+                </div>
+
+                {/* Live Violation Feed */}
+                {violationLog.length > 0 && (
+                  <div className="space-y-1.5 pt-2 border-t border-slate-200/40 dark:border-white/5">
+                    <span className={`text-[9px] font-mono uppercase font-bold tracking-wider ${subText}`}>Recent Security Events</span>
+                    <div className="space-y-1.5 max-h-36 overflow-y-auto pr-1">
+                      {violationLog.slice(-4).reverse().map((entry) => (
+                        <div key={entry.id} className="text-[10px] p-2 rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-300 flex items-start gap-1.5">
+                          <AlertTriangle size={11} className="shrink-0 mt-0.5 text-rose-400" />
+                          <div className="flex-1 min-w-0">
+                            <p className="font-bold truncate">{entry.type} (+{entry.riskScore} risk)</p>
+                            <p className="opacity-80 text-[9px] line-clamp-1">{entry.details}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 )}
               </div>
-
-              {/* Question navigator */}
-              <div className={`rounded-2xl border p-3 ${card}`}>
-                <span className={`text-[9px] font-mono uppercase tracking-widest font-bold block mb-2 ${subText}`}>Question Navigator</span>
-                <div className="grid grid-cols-5 sm:grid-cols-8 lg:grid-cols-5 gap-1.5">
-                  {questions.map((q, i) => (
-                    <button
-                      key={q.id}
-                      onClick={() => setCurrentQIndex(i)}
-                      className={`aspect-square rounded-lg text-[10px] font-bold transition-all cursor-pointer ${
-                        i === currentQIndex
-                          ? "bg-[#781c1c] text-white ring-2 ring-[#781c1c]/40"
-                          : q.selectedOption
-                            ? "bg-emerald-500/20 text-emerald-400"
-                            : isDark ? "bg-white/5 text-gray-400 hover:bg-white/10" : "bg-slate-100 text-slate-500 hover:bg-slate-200"
-                      }`}
-                    >
-                      {i + 1}
-                    </button>
-                  ))}
-                </div>
-                <div className="flex items-center gap-3 mt-3 text-[9px]">
-                  <span className="flex items-center gap-1"><span className="w-2 h-2 rounded bg-emerald-500/20 inline-block" /> Answered</span>
-                  <span className="flex items-center gap-1"><span className="w-2 h-2 rounded bg-white/5 inline-block border border-white/10" /> Not answered</span>
-                </div>
-              </div>
-
-              {/* Submit button */}
-              <button onClick={handleSubmit}
-                className="w-full py-3 rounded-xl text-xs font-black bg-[#781c1c] hover:bg-[#5f1515] text-white transition cursor-pointer">
-                Submit Assessment
-              </button>
             </div>
+
           </div>
         </div>
       )}
