@@ -138,6 +138,8 @@ function PortfolioPageContent() {
   const [isClockedIn, setIsClockedIn] = useState(false);
   const [currentTime, setCurrentTime] = useState<string>("");
   const [previewResumeUrl, setPreviewResumeUrl] = useState<string | null>(null);
+  const [downloading, setDownloading] = useState(false);
+  const [resumeSubTab, setResumeSubTab] = useState<"student" | "portfolio">("student");
 
   // Force Light Mode on Student Public Portfolio
   useEffect(() => {
@@ -212,6 +214,64 @@ function PortfolioPageContent() {
     }
   };
 
+  const handleDownloadPDF = async () => {
+    const wrapper = document.getElementById("digital-resume-container-wrapper");
+    if (!wrapper) return;
+    try {
+      setDownloading(true);
+      const html2canvas = (await import("html2canvas-pro")).default;
+      const { jsPDF } = await import("jspdf");
+
+      let pageSheets = Array.from(wrapper.querySelectorAll(".resume-page-sheet"));
+      if (pageSheets.length === 0) {
+        pageSheets = [wrapper];
+      }
+
+      const pdf = new jsPDF({
+        orientation: "portrait",
+        unit: "px",
+        format: [794, 1123]
+      });
+
+      for (let i = 0; i < pageSheets.length; i++) {
+        if (i > 0) {
+          pdf.addPage([794, 1123], "portrait");
+        }
+
+        const sheetEl = pageSheets[i] as HTMLElement;
+        const pageCanvas = await html2canvas(sheetEl, {
+          scale: 2,
+          useCORS: true,
+          allowTaint: false,
+          backgroundColor: "#ffffff",
+          logging: false,
+          onclone: (clonedDoc) => {
+            const style = clonedDoc.createElement("style");
+            style.innerHTML = `
+              * {
+                -webkit-font-smoothing: antialiased;
+                -moz-osx-font-smoothing: grayscale;
+                text-rendering: optimizeLegibility;
+              }
+            `;
+            clonedDoc.head.appendChild(style);
+          }
+        });
+
+        const pageImgData = pageCanvas.toDataURL("image/jpeg", 0.95);
+        pdf.addImage(pageImgData, "JPEG", 0, 0, 794, 1123, undefined, "FAST");
+      }
+
+      const fileName = `${(user?.fullName || "student").replace(/[^a-z0-9_\-]/gi, "_")}_Resume.pdf`;
+      pdf.save(fileName);
+    } catch (err) {
+      console.error("PDF generation failed:", err);
+      alert("Could not generate PDF. Please try again.");
+    } finally {
+      setDownloading(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-[#fcfaf6] text-[#2c2c2c] flex items-center justify-center">
@@ -252,7 +312,7 @@ function PortfolioPageContent() {
     { id: "test-scores", label: "Test Scores", icon: Award, visible: !!profile?.testScores?.trim() },
     { id: "patents", label: "Patents", icon: FileText, visible: !!profile?.patents?.trim() },
     { id: "media-handles", label: "Other Media handles", icon: LinkIcon, visible: !!(profile?.linkedInUrl || profile?.gitHubUrl || profile?.instagramUrl || profile?.blogUrl || profile?.behanceUrl || profile?.otherHandles) },
-    { id: "resume", label: "Resume", icon: FileText, visible: resumes.length > 0 }
+    { id: "resume", label: "Resume", icon: FileText, visible: true }
   ].filter(item => item.visible);
 
   // Map display page titles for breadcrumbs
@@ -884,50 +944,557 @@ function PortfolioPageContent() {
           </div>
         );
 
-      case "resume":
-        return (
-          <div className="bg-white border border-[#781c1c]/10 rounded-xl p-6 shadow-[0_1px_3px_rgba(0,0,0,0.01)] animate-fadeIn">
-            <h3 className="text-sm font-bold text-[#18233c] pb-3 border-b border-slate-100 mb-6 flex items-center gap-2">
-              <FileText size={16} className="text-[#781c1c]" /> Official Resume Archive
-            </h3>
-            {resumes.length > 0 ? (
-              <div className="space-y-3">
-                {resumes.map((res) => (
-                  <div key={res.id} className="border border-slate-205 p-4 rounded-xl flex flex-col bg-slate-50/50">
-                    <div className="flex justify-between items-center w-full">
-                      <div className="flex items-center gap-3">
-                        <FileText className="text-blue-500" size={24} />
+      case "resume": {
+        // Item-level partitioning matching Resume Builder logic to ensure clean page boundaries
+        const p1Sections: { key: string; items?: any[]; isContinued?: boolean }[] = [];
+        const p2Sections: { key: string; items?: any[]; isContinued?: boolean }[] = [];
+
+        let accumP1 = 0;
+        // Conservative budget for Page 1 content with MIN_SPACE_REMAINING safety buffer
+        const P1_BUDGET = 740;
+        const MIN_SPACE_REMAINING = 70;
+
+        const checkFitsP1 = (needed: number) => accumP1 + needed + MIN_SPACE_REMAINING <= P1_BUDGET;
+
+        // 1. Executive Summary
+        if (profile?.bio || profile?.personalStory || profile?.sop) {
+          const textLen = (profile?.bio || profile?.personalStory || profile?.sop || "").length;
+          const summaryH = 42 + Math.min(Math.ceil(textLen / 95) * 16, 120);
+          if (checkFitsP1(summaryH)) {
+            p1Sections.push({ key: "summary" });
+            accumP1 += summaryH;
+          } else {
+            p2Sections.push({ key: "summary" });
+          }
+        }
+
+        // 2. Education & Academic Records
+        if (academicRecords.length > 0) {
+          const headerH = 34;
+          const itemH = 46;
+          const p1Items: any[] = [];
+          const p2Items: any[] = [];
+
+          academicRecords.forEach((rec) => {
+            const needed = (p1Items.length === 0 ? headerH : 0) + itemH;
+            if (checkFitsP1(needed)) {
+              p1Items.push(rec);
+              accumP1 += needed;
+            } else {
+              p2Items.push(rec);
+            }
+          });
+
+          if (p1Items.length > 0) {
+            p1Sections.push({ key: "academic", items: p1Items });
+          }
+          if (p2Items.length > 0) {
+            p2Sections.push({ key: "academic", items: p2Items, isContinued: p1Items.length > 0 });
+          }
+        }
+
+        // 3. Professional Experience
+        if (experiences.length > 0) {
+          const headerH = 34;
+          const p1Items: any[] = [];
+          const p2Items: any[] = [];
+
+          experiences.forEach((exp) => {
+            const descLen = (exp.description || "").length;
+            const expH = 45 + Math.min(Math.ceil(descLen / 90) * 16, 95);
+            const needed = (p1Items.length === 0 ? headerH : 0) + expH;
+            if (checkFitsP1(needed)) {
+              p1Items.push(exp);
+              accumP1 += needed;
+            } else {
+              p2Items.push(exp);
+            }
+          });
+
+          if (p1Items.length > 0) {
+            p1Sections.push({ key: "experience", items: p1Items });
+          }
+          if (p2Items.length > 0) {
+            p2Sections.push({ key: "experience", items: p2Items, isContinued: p1Items.length > 0 });
+          }
+        }
+
+        // 4. Projects & Research Publications
+        const allProjects = [
+          ...projects.map((p) => ({ ...p, itemType: "project" })),
+          ...researchPapers.map((r) => ({ ...r, itemType: "paper" }))
+        ];
+        if (allProjects.length > 0) {
+          const headerH = 34;
+          const p1Items: any[] = [];
+          const p2Items: any[] = [];
+
+          allProjects.forEach((proj) => {
+            const projH = proj.itemType === "project" ? 65 : 55;
+            const needed = (p1Items.length === 0 ? headerH : 0) + projH;
+            if (checkFitsP1(needed)) {
+              p1Items.push(proj);
+              accumP1 += needed;
+            } else {
+              p2Items.push(proj);
+            }
+          });
+
+          if (p1Items.length > 0) {
+            p1Sections.push({ key: "projects", items: p1Items });
+          }
+          if (p2Items.length > 0) {
+            p2Sections.push({ key: "projects", items: p2Items, isContinued: p1Items.length > 0 });
+          }
+        }
+
+        // 5. Skills & Competencies
+        if (skills.length > 0) {
+          const headerH = 34;
+          const rows = Math.ceil(skills.length / 3);
+          const skillsH = headerH + rows * 28;
+          if (checkFitsP1(skillsH)) {
+            p1Sections.push({ key: "skills" });
+            accumP1 += skillsH;
+          } else {
+            p2Sections.push({ key: "skills" });
+          }
+        }
+
+        // 6. Certifications & Merits
+        if (certifications.length > 0 || achievements.length > 0) {
+          const headerH = 34;
+          const totalCert = certifications.length + achievements.length;
+          const certH = headerH + Math.ceil(totalCert / 2) * 44;
+          if (checkFitsP1(certH)) {
+            p1Sections.push({ key: "certifications" });
+            accumP1 += certH;
+          } else {
+            p2Sections.push({ key: "certifications" });
+          }
+        }
+
+        const pagesList = [p1Sections];
+        if (p2Sections.length > 0) {
+          pagesList.push(p2Sections);
+        }
+        const totalPages = pagesList.length;
+
+        // Render helper for an individual section on a specific page sheet
+        const renderSectionItem = (sec: { key: string; items?: any[]; isContinued?: boolean }) => {
+          const headingLabel = (baseTitle: string) =>
+            sec.isContinued ? `${baseTitle} (Continued)` : baseTitle;
+
+          switch (sec.key) {
+            case "summary":
+              return (
+                <div key="summary" className="space-y-1.5 print-avoid-break">
+                  <div className="flex items-center gap-2 border-b border-slate-200 pb-1 mb-2">
+                    <div className="w-1 h-3.5 bg-[#781c1c] rounded-sm shrink-0" />
+                    <h4 className="text-xs font-extrabold uppercase tracking-wider text-[#18233c] font-mono">
+                      Executive Summary
+                    </h4>
+                  </div>
+                  <p className="text-xs text-slate-700 leading-relaxed italic text-justify">
+                    {profile?.bio || profile?.personalStory || profile?.sop}
+                  </p>
+                </div>
+              );
+
+            case "academic":
+              return (
+                <div key="academic" className="space-y-2 print-avoid-break">
+                  <div className="flex items-center gap-2 border-b border-slate-200 pb-1 mb-2">
+                    <div className="w-1 h-3.5 bg-[#781c1c] rounded-sm shrink-0" />
+                    <h4 className="text-xs font-extrabold uppercase tracking-wider text-[#18233c] font-mono">
+                      {headingLabel("Education & Qualifications")}
+                    </h4>
+                  </div>
+                  <div className="space-y-3">
+                    {(sec.items || academicRecords).map((rec) => (
+                      <div key={rec.id} className="flex justify-between items-start text-xs">
                         <div>
-                          <h5 className="font-bold text-xs text-slate-800">{res.resumeTitle}</h5>
-                          <div className="flex items-center gap-3 mt-0.5">
-                            <span className="text-[10px] text-slate-450 font-bold">Verified Placement CV</span>
+                          <h5 className="font-bold text-[#18233c]">
+                            {rec.fieldOfStudy?.trim() ? `${rec.degree} in ${rec.fieldOfStudy}` : rec.degree}
+                          </h5>
+                          <p className="text-[11px] text-slate-500 font-medium">{rec.institution}</p>
+                        </div>
+                        <div className="text-right shrink-0">
+                          <span className="font-mono text-[11px] font-bold text-slate-600 block">{rec.startYear} - {rec.endYear}</span>
+                          {rec.grade && <span className="text-[10px] text-emerald-600 font-bold block">Grade: {rec.grade}</span>}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+
+            case "experience":
+              return (
+                <div key="experience" className="space-y-2 print-avoid-break">
+                  <div className="flex items-center gap-2 border-b border-slate-200 pb-1 mb-2">
+                    <div className="w-1 h-3.5 bg-[#781c1c] rounded-sm shrink-0" />
+                    <h4 className="text-xs font-extrabold uppercase tracking-wider text-[#18233c] font-mono">
+                      {headingLabel("Professional Experience")}
+                    </h4>
+                  </div>
+                  <div className="space-y-3.5">
+                    {(sec.items || experiences).map((exp) => (
+                      <div key={exp.id} className="space-y-1 text-xs">
+                        <div className="flex justify-between items-center">
+                          <h5 className="font-bold text-[#18233c]">{exp.title}</h5>
+                          <span className="font-mono text-[11px] font-bold text-slate-600 shrink-0">
+                            {exp.startDate} - {exp.isCurrent ? "Present" : exp.endDate}
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-[#781c1c] font-semibold">{exp.company} · {exp.location}</p>
+                        <p className="text-xs text-slate-650 leading-relaxed whitespace-pre-line pt-0.5">{exp.description}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+
+            case "projects": {
+              const itemsToRender = sec.items || [
+                ...projects.map((p) => ({ ...p, itemType: "project" })),
+                ...researchPapers.map((r) => ({ ...r, itemType: "paper" }))
+              ];
+              return (
+                <div key="projects" className="space-y-2 print-avoid-break">
+                  <div className="flex items-center gap-2 border-b border-slate-200 pb-1 mb-2">
+                    <div className="w-1 h-3.5 bg-[#781c1c] rounded-sm shrink-0" />
+                    <h4 className="text-xs font-extrabold uppercase tracking-wider text-[#18233c] font-mono">
+                      {headingLabel("Projects & Research")}
+                    </h4>
+                  </div>
+                  <div className="space-y-3">
+                    {itemsToRender.map((item: any) =>
+                      item.itemType === "project" ? (
+                        <div key={item.id} className="text-xs space-y-0.5">
+                          <div className="flex justify-between items-center">
+                            <h5 className="font-bold text-[#18233c]">{item.title}</h5>
+                            {(item.githubUrl || item.liveUrl) && (
+                              <a href={item.githubUrl || item.liveUrl} target="_blank" className="text-blue-600 hover:underline text-[10px] font-bold shrink-0">
+                                View Link ↗
+                              </a>
+                            )}
+                          </div>
+                          {item.technologies && (
+                            <p className="text-[10px] text-slate-450 font-mono">Technologies: {item.technologies}</p>
+                          )}
+                          <p className="text-xs text-slate-655 leading-relaxed">{item.description}</p>
+                        </div>
+                      ) : (
+                        <div key={item.id} className="text-xs space-y-0.5">
+                          <h5 className="font-bold text-[#18233c]">{item.title}</h5>
+                          <p className="text-[10px] text-purple-700 font-semibold">{item.conference}</p>
+                          <p className="text-xs text-slate-600 italic">"{item.abstract}"</p>
+                        </div>
+                      )
+                    )}
+                  </div>
+                </div>
+              );
+            }
+
+            case "skills":
+              return (
+                <div key="skills" className="space-y-2 print-avoid-break">
+                  <div className="flex items-center gap-2 border-b border-slate-200 pb-1 mb-2">
+                    <div className="w-1 h-3.5 bg-[#781c1c] rounded-sm shrink-0" />
+                    <h4 className="text-xs font-extrabold uppercase tracking-wider text-[#18233c] font-mono">
+                      Skills & Competencies
+                    </h4>
+                  </div>
+                  <div className="flex flex-wrap gap-1.5 pt-0.5">
+                    {skills.map((skill) => (
+                      <span
+                        key={skill.id}
+                        className="px-2.5 py-1 bg-slate-100 border border-slate-200 text-[#18233c] rounded-md text-[11px] font-semibold"
+                      >
+                        {skill.name} {skill.level ? `(${skill.level})` : ""}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              );
+
+            case "certifications":
+              return (
+                <div key="certifications" className="space-y-2 print-avoid-break">
+                  <div className="flex items-center gap-2 border-b border-slate-200 pb-1 mb-2">
+                    <div className="w-1 h-3.5 bg-[#781c1c] rounded-sm shrink-0" />
+                    <h4 className="text-xs font-extrabold uppercase tracking-wider text-[#18233c] font-mono">
+                      Certifications & Merits
+                    </h4>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                    {certifications.map((cert) => (
+                      <div key={cert.id} className="bg-slate-50/60 p-2.5 rounded-lg border border-slate-150">
+                        <h5 className="font-bold text-[#18233c]">{cert.title}</h5>
+                        <p className="text-[10px] text-slate-500">{cert.issuer}</p>
+                      </div>
+                    ))}
+                    {achievements.map((ach) => (
+                      <div key={ach.id} className="bg-slate-50/60 p-2.5 rounded-lg border border-slate-150">
+                        <h5 className="font-bold text-[#18233c]">{ach.title}</h5>
+                        <p className="text-[10px] text-slate-500">{ach.description}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+
+            default:
+              return null;
+          }
+        };
+
+        return (
+          <div className="space-y-6 animate-fadeIn">
+            {/* Action Bar Header */}
+            <div className="bg-white border border-[#781c1c]/10 rounded-xl p-5 shadow-[0_1px_3px_rgba(0,0,0,0.01)] flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+              <div>
+                <h3 className="text-sm font-extrabold text-[#18233c] flex items-center gap-2 font-serif">
+                  <FileText size={18} className="text-[#781c1c]" /> Placement Resume Options
+                </h3>
+                <p className="text-xs text-slate-500 mt-1">
+                  {resumeSubTab === "student"
+                    ? "Preview and download official CV files uploaded directly by the student."
+                    : "Preview and download the verified professional placement resume compiled from portfolio data."}
+                </p>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
+                {/* Two Explicit Options Buttons */}
+                <div className="flex items-center bg-slate-100 p-1 rounded-xl text-xs font-bold shrink-0">
+                  <button
+                    onClick={() => setResumeSubTab("student")}
+                    className={`px-3 py-1.5 rounded-lg transition cursor-pointer ${
+                      resumeSubTab === "student"
+                        ? "bg-white text-[#781c1c] shadow-xs font-black"
+                        : "text-slate-600 hover:text-slate-900"
+                    }`}
+                  >
+                    Student's Resume {resumes.length > 0 ? `(${resumes.length})` : ""}
+                  </button>
+                  <button
+                    onClick={() => setResumeSubTab("portfolio")}
+                    className={`px-3 py-1.5 rounded-lg transition cursor-pointer ${
+                      resumeSubTab === "portfolio"
+                        ? "bg-white text-[#781c1c] shadow-xs font-black"
+                        : "text-slate-600 hover:text-slate-900"
+                    }`}
+                  >
+                    Portfolio Created Resume
+                  </button>
+                </div>
+
+                {/* Download Button for Portfolio Created Resume */}
+                {resumeSubTab === "portfolio" && (
+                  <button
+                    onClick={handleDownloadPDF}
+                    disabled={downloading}
+                    className="flex-1 md:flex-none flex items-center justify-center gap-2 px-5 py-2.5 bg-[#781c1c] hover:bg-[#5f1515] text-white rounded-xl text-xs font-bold transition shadow-sm disabled:opacity-50 cursor-pointer"
+                  >
+                    {downloading ? (
+                      <>
+                        <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                        <span>Generating PDF...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Download size={14} />
+                        <span>Download Portfolio Created Resume</span>
+                      </>
+                    )}
+                  </button>
+                )}
+
+                {/* Download Button for Student's Uploaded Resume */}
+                {resumeSubTab === "student" && resumes.length > 0 && (
+                  <a
+                    href={resumes[0].resumeUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    download
+                    className="flex-1 md:flex-none flex items-center justify-center gap-2 px-5 py-2.5 bg-[#781c1c] hover:bg-[#5f1515] text-white rounded-xl text-xs font-bold transition shadow-sm cursor-pointer text-decoration-none"
+                  >
+                    <Download size={14} />
+                    <span>Download Student's Resume</span>
+                  </a>
+                )}
+              </div>
+            </div>
+
+            {/* Option 1: Student's Resume (Uploaded CV Documents) */}
+            {resumeSubTab === "student" && (
+              <div className="bg-white border border-[#781c1c]/10 rounded-xl p-6 shadow-[0_1px_3px_rgba(0,0,0,0.01)] space-y-4">
+                <h4 className="text-xs font-bold text-[#18233c] uppercase tracking-wider pb-3 border-b border-slate-100 flex items-center gap-2">
+                  <FileText size={15} className="text-[#781c1c]" /> Official Student Uploaded Resume Documents
+                </h4>
+                {resumes.length > 0 ? (
+                  <div className="space-y-4">
+                    {resumes.map((res) => (
+                      <div key={res.id} className="border border-slate-200 p-5 rounded-xl flex flex-col bg-slate-50/50">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-lg bg-blue-50 border border-blue-100 flex items-center justify-center text-blue-600 shrink-0">
+                              <FileText size={20} />
+                            </div>
+                            <div>
+                              <h5 className="font-bold text-xs text-slate-800">{res.resumeTitle || "Student Verified CV"}</h5>
+                              <p className="text-[10px] text-slate-450 font-medium mt-0.5">Uploaded Student Document</p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
                             <button
                               onClick={() => setPreviewResumeUrl(previewResumeUrl === res.resumeUrl ? null : res.resumeUrl)}
-                              className="text-[10px] text-[#781c1c] hover:underline flex items-center gap-0.5 cursor-pointer bg-transparent border-none p-0 font-bold"
+                              className="flex items-center gap-1.5 px-4 py-2 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-xl text-xs font-bold transition shadow-2xs cursor-pointer"
                             >
-                              <Eye size={10} /> {previewResumeUrl === res.resumeUrl ? "Hide Preview" : "Preview"}
+                              <Eye size={14} />
+                              <span>{previewResumeUrl === res.resumeUrl ? "Hide Preview" : "Preview Resume"}</span>
                             </button>
                           </div>
                         </div>
+                        {previewResumeUrl === res.resumeUrl && (
+                          <div className="mt-4 w-full h-[650px] rounded-xl overflow-hidden border border-slate-200 shadow-inner bg-slate-100">
+                            <iframe src={res.resumeUrl} className="w-full h-full border-none" title="Student Resume Preview" />
+                          </div>
+                        )}
                       </div>
-                      <a href={res.resumeUrl} target="_blank" className="flex items-center gap-1.5 px-3 py-1.5 bg-[#781c1c] hover:bg-[#5f1515] text-white rounded-lg text-xs font-bold transition shadow-xs">
-                        <Download size={12} />
-                        <span>Download</span>
-                      </a>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-10 px-4 bg-slate-50 rounded-xl border border-dashed border-slate-200">
+                    <FileText size={32} className="mx-auto text-slate-300 mb-2" />
+                    <h5 className="font-bold text-xs text-slate-700">No Student Uploaded Resume Available</h5>
+                    <p className="text-xs text-slate-500 mt-1 max-w-md mx-auto">
+                      The student has not uploaded a custom CV document yet. You can click on the <span className="font-bold text-[#781c1c]">"Portfolio Created Resume"</span> option above to preview and download the dynamically generated resume.
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Option 2: Portfolio Created Resume (Digital Live A4 Sheets) */}
+            {resumeSubTab === "portfolio" && (
+              <div id="digital-resume-container-wrapper" className="flex flex-col items-center gap-8 overflow-x-auto pb-8">
+                {pagesList.map((pageSections, pageIdx) => (
+                  <div
+                    key={`sheet_page_${pageIdx + 1}`}
+                    className="resume-page-sheet relative bg-white border border-slate-200 shadow-xl rounded-lg p-8 sm:p-10 font-sans text-slate-800 text-xs leading-relaxed flex flex-col justify-between select-text"
+                    style={{
+                      width: "794px",
+                      height: "1123px",
+                      boxSizing: "border-box"
+                    }}
+                  >
+                    {/* Sheet Body Content */}
+                    <div className="space-y-4 flex-1 overflow-hidden">
+                      {/* HEADER ON PAGE 1 ONLY */}
+                      {pageIdx === 0 && (
+                        <div className="border-b-2 border-[#781c1c] pb-4 flex justify-between items-start">
+                          <div className="space-y-1">
+                            <h1 className="text-2xl font-black font-serif text-[#18233c] tracking-tight">{user.fullName}</h1>
+                            <p className="text-xs font-bold text-[#781c1c] uppercase tracking-wider">
+                              {profile?.targetCareer || profile?.course || "Madras Christian College Graduate"}
+                            </p>
+                            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-slate-500 font-medium pt-1">
+                              {user.email && (
+                                <span className="flex items-center gap-1">
+                                  <Mail size={11} className="text-slate-400" /> {user.email}
+                                </span>
+                              )}
+                              {profile?.phone && (
+                                <span className="flex items-center gap-1">
+                                  <Phone size={11} className="text-slate-400" /> {profile.phone}
+                                </span>
+                              )}
+                              {profile?.currentLocation && (
+                                <span className="flex items-center gap-1">
+                                  <MapPin size={11} className="text-slate-400" /> {profile.currentLocation}
+                                </span>
+                              )}
+                              {user.department && (
+                                <span className="text-slate-400 font-mono text-[10px]">
+                                  Dept: {user.department}
+                                </span>
+                              )}
+                            </div>
+                            <div className="flex flex-wrap items-center gap-3 text-[11px] text-[#18233c] font-semibold pt-1">
+                              {profile?.linkedInUrl && (
+                                <a href={profile.linkedInUrl} target="_blank" className="hover:underline flex items-center gap-1">
+                                  <Linkedin size={11} className="text-[#0a66c2]" /> LinkedIn
+                                </a>
+                              )}
+                              {profile?.gitHubUrl && (
+                                <a href={profile.gitHubUrl} target="_blank" className="hover:underline flex items-center gap-1">
+                                  <Github size={11} className="text-slate-700" /> GitHub
+                                </a>
+                              )}
+                              {profile?.blogUrl && (
+                                <a href={profile.blogUrl} target="_blank" className="hover:underline flex items-center gap-1">
+                                  <Globe size={11} className="text-emerald-600" /> Portfolio
+                                </a>
+                              )}
+                              {profile?.behanceUrl && (
+                                <a href={profile.behanceUrl} target="_blank" className="hover:underline flex items-center gap-1">
+                                  <span className="font-bold text-[10px] text-blue-600 font-serif">Bē</span> Behance
+                                </a>
+                              )}
+                            </div>
+                          </div>
+
+                          {(profile?.profileImageUrl || user?.profileImageUrl) && !imgError && (() => {
+                            const imgDetails = parseImageAdjustments(profile?.profileImageUrl || user?.profileImageUrl);
+                            return (
+                              <div className="w-16 h-16 rounded-xl border-2 border-[#781c1c]/20 overflow-hidden shrink-0 shadow-xs">
+                                <img
+                                  src={imgDetails.src}
+                                  onError={() => setImgError(true)}
+                                  style={imgDetails.style}
+                                  className="w-full h-full object-cover"
+                                  alt={user.fullName}
+                                />
+                              </div>
+                            );
+                          })()}
+                        </div>
+                      )}
+
+                      {/* Header Continuation Mini Banner for Page 2+ */}
+                      {pageIdx > 0 && (
+                        <div className="border-b border-slate-200 pb-2 flex justify-between items-center text-xs">
+                          <div>
+                            <span className="font-serif font-extrabold text-[#18233c]">{user.fullName}</span>
+                            <span className="text-slate-400 mx-2">|</span>
+                            <span className="text-[#781c1c] font-semibold">{profile?.targetCareer || "Placement Resume"}</span>
+                          </div>
+                          <span className="font-mono text-[10px] text-slate-400 font-bold">Page {pageIdx + 1} of {totalPages}</span>
+                        </div>
+                      )}
+
+                      {/* Page Sections */}
+                      <div className="space-y-3.5">
+                        {pageSections.map((sec) => renderSectionItem(sec))}
+                      </div>
                     </div>
-                    {previewResumeUrl === res.resumeUrl && (
-                      <div className="mt-4 w-full h-[500px] rounded-xl overflow-hidden border border-slate-200 shadow-inner">
-                        <iframe src={res.resumeUrl} className="w-full h-full" title="Resume Preview" />
-                      </div>
-                    )}
+
+                    {/* FOOTER STAMP AT THE BOTTOM OF EACH SHEET */}
+                    <div className="pt-4 border-t border-slate-150 flex justify-between items-center text-[10px] text-slate-400 font-mono shrink-0">
+                      <span>Madras Christian College Portfolio Verified CV</span>
+                      <span>Page {pageIdx + 1} of {totalPages}</span>
+                      <span>Ref: MCC-{user.id}-{new Date().getFullYear()}</span>
+                    </div>
                   </div>
                 ))}
               </div>
-            ) : (
-              <div className="text-xs text-slate-400 text-center py-6">No resume file uploaded yet.</div>
             )}
           </div>
         );
+      }
 
       default:
         return null;
