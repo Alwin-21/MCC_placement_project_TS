@@ -121,12 +121,13 @@ export default function AssessmentsManager({ themeMode, isSuperAdmin }: Assessme
   };
 
   const handleDeleteAssessment = async (id: number) => {
-    if (!confirm("Are you sure you want to delete this assessment? All student attempts, questions, and warning logs will be permanently deleted.")) return;
+    if (!confirm("Are you sure you want to permanently delete this assessment? This will permanently delete all questions, student attempts, and warning logs associated with it. This action cannot be undone.")) return;
     try {
       await api.delete(`/Assessments/${id}`);
       loadData();
-    } catch (err) {
+    } catch (err: any) {
       console.error("Failed to delete assessment", err);
+      alert(`Failed to delete: ${err.response?.data?.message || err.message}`);
     }
   };
 

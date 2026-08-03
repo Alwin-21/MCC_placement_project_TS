@@ -7,15 +7,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <head>
-        {/* Anti-flash: apply saved theme before first paint */}
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `(function(){try{var t=localStorage.getItem('mcc-theme');if(t==='dark')document.documentElement.classList.add('dark');}catch(e){}})();`,
-          }}
-        />
-      </head>
-      <body>{children}</body>
+      <body suppressHydrationWarning>{children}</body>
     </html>
   );
 }

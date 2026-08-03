@@ -26,51 +26,62 @@ export type ViolationType =
   | "DevToolsAttempt"
   | "CameraObstructed"
   | "ExcessiveMovement"
+  | "FaceMismatch"
+  | "InternetDisconnected"
+  | "FrequentEyeMovement"
   | "Unknown";
 
 export type ViolationSeverity = "Low" | "Medium" | "High" | "Critical";
 
 // ─── Risk Weights (configurable constants) ────────────────────────────────────
 export const VIOLATION_WEIGHTS: Record<ViolationType, number> = {
-  FaceMissing:       25,
-  MultipleFaces:     70,
-  LookingAway:       15,
+  FaceMismatch:      40,
+  MultipleFaces:     30,
+  PhoneDetected:     25,
+  TabSwitch:         20,
+  WindowBlur:        20, // same as TabSwitch
+  CameraObstructed:  20,
+  LookingAway:       10,
+  FaceMissing:       10,
+  FullscreenExit:    10,
+  InternetDisconnected: 0,
+  
   LeavingSeat:       60,
-  PhoneDetected:     60,
   BookDetected:      50,
   AdditionalPerson:  70,
-  FullscreenExit:    25,
-  TabSwitch:         25,
-  WindowBlur:        20,
   WindowResize:      10,
   DevToolsAttempt:   40,
-  CameraObstructed:  25,
   ExcessiveMovement: 15,
+  FrequentEyeMovement: 15,
   Unknown:           10,
 };
 
 // ─── Severity mapping ─────────────────────────────────────────────────────────
 export const VIOLATION_SEVERITY: Record<ViolationType, ViolationSeverity> = {
-  FaceMissing:       "High",
+  FaceMismatch:      "Critical",
   MultipleFaces:     "Critical",
-  LookingAway:       "Medium",
-  LeavingSeat:       "High",
   PhoneDetected:     "Critical",
+  TabSwitch:         "High",
+  WindowBlur:        "High",
+  CameraObstructed:  "High",
+  LookingAway:       "Medium",
+  FaceMissing:       "High",
+  FullscreenExit:    "High",
+  InternetDisconnected: "Low",
+  
+  LeavingSeat:       "High",
   BookDetected:      "High",
   AdditionalPerson:  "Critical",
-  FullscreenExit:    "High",
-  TabSwitch:         "High",
-  WindowBlur:        "Medium",
   WindowResize:      "Low",
   DevToolsAttempt:   "High",
-  CameraObstructed:  "High",
   ExcessiveMovement: "Medium",
+  FrequentEyeMovement: "Medium",
   Unknown:           "Low",
 };
 
 // ─── Thresholds ───────────────────────────────────────────────────────────────
 /** Risk score above which exam is auto-submitted */
-export const AUTO_SUBMIT_THRESHOLD = 200;
+export const AUTO_SUBMIT_THRESHOLD = 100;
 
 /** Cooldown in ms between same-type violation logs (prevents spam) */
 export const VIOLATION_COOLDOWN_MS = 8000;

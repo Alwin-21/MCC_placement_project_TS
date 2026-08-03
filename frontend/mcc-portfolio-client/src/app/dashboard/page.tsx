@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   User,
   Briefcase,
@@ -59,6 +60,7 @@ const sidebarLinks = [
 ];
 
 export default function DashboardPage() {
+  const router = useRouter();
   const [user, setUser] = useState<any>(null);
   const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
 
@@ -1490,7 +1492,7 @@ Report Generated: ${new Date().toLocaleDateString()}
 
           <div className="pt-4 border-t border-slate-200 dark:border-white/5 space-y-1.5">
             <button
-              onClick={() => window.location.href = "/assessment"}
+              onClick={() => router.push("/assessment")}
               className={`w-full flex items-center gap-3.5 px-4 py-3 rounded-xl text-xs font-semibold tracking-wide transition-all duration-200 cursor-pointer ${
                 themeMode === "dark" ? "hover:bg-white/5 text-indigo-400 hover:text-indigo-300 font-bold" : "hover:bg-indigo-50 text-indigo-700 font-bold"
               }`}
@@ -1499,7 +1501,7 @@ Report Generated: ${new Date().toLocaleDateString()}
             </button>
 
             <button
-              onClick={() => window.location.href = "/dashboard/resumes"}
+              onClick={() => router.push("/dashboard/resumes")}
               className={`w-full flex items-center gap-3.5 px-4 py-3 rounded-xl text-xs font-semibold tracking-wide transition-all duration-200 cursor-pointer ${
                 themeMode === "dark"
                   ? "text-slate-400 hover:text-white hover:bg-white/5"
@@ -1641,7 +1643,7 @@ Report Generated: ${new Date().toLocaleDateString()}
               <div className="pt-4 border-t border-slate-200 dark:border-white/5 space-y-1.5">
                 <button
                   onClick={() => {
-                    window.location.href = "/dashboard/resumes";
+                    router.push("/dashboard/resumes");
                     setShowMobileNav(false);
                   }}
                   className={`w-full flex items-center gap-3.5 px-4 py-2.5 rounded-xl text-xs font-semibold tracking-wide transition-all duration-200 cursor-pointer ${
@@ -1827,7 +1829,7 @@ Report Generated: ${new Date().toLocaleDateString()}
 
           <div className="flex items-center gap-3">
             <button
-              onClick={() => window.location.href = "/assessment"}
+              onClick={() => router.push("/assessment")}
               className="bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs px-4 py-2.5 rounded-xl shadow-lg shadow-indigo-600/30 flex items-center gap-2 transition cursor-pointer"
             >
               <ClipboardList size={15} /> Department Assessments
@@ -3658,7 +3660,7 @@ Report Generated: ${new Date().toLocaleDateString()}
                   );
                   actionBtn = (
                     <button
-                      onClick={() => window.location.href = `/dashboard/assessments/${a.id}`}
+                      onClick={() => router.push(`/dashboard/assessments/${a.id}`)}
                       className="bg-[#781c1c] hover:bg-[#5f1515] text-white px-4 py-2 rounded-xl text-xs font-bold transition active:scale-95 cursor-pointer shadow-md animate-pulse"
                     >
                       {attempt ? "Resume Test" : "Start Test"}
@@ -3786,7 +3788,7 @@ Report Generated: ${new Date().toLocaleDateString()}
                       <div className="flex flex-col items-end gap-2">
                         {isLive && !isSubmitted && (
                           <button
-                            onClick={() => window.location.href = `/dashboard/assessments/${a.id}`}
+                            onClick={() => router.push(`/dashboard/assessments/${a.id}`)}
                             className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold bg-[#781c1c] text-white hover:bg-[#5f1515] transition cursor-pointer hover:scale-105 active:scale-95"
                           >
                             {attempt ? "Resume Test" : "Start Test"}

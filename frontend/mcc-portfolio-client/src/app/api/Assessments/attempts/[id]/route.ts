@@ -34,6 +34,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
       startedAt: attempt.StartedAt,
       submittedAt: attempt.SubmittedAt,
       isCompleted: ["Submitted", "AutoSubmitted", "Terminated"].includes(attempt.Status),
+      isMalpractice: attempt.IsMalpractice,
       status: attempt.Status,
       marksObtained: attempt.MarksObtained,
       percentage: attempt.Percentage,

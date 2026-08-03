@@ -27,6 +27,15 @@ html.dark body {
   color: #f3f4f6 !important;
 }
 
+/* ─── System dark mode fallback (before JS / useTheme loads) ───────────── */
+/* If user's OS is in dark mode and no .dark class is set yet, match it     */
+@media (prefers-color-scheme: dark) {
+  body:not(.light-forced) {
+    background: #0d0d12;
+    color: #f3f4f6;
+  }
+}
+
 /* ─── Typography: Inter for all UI elements ────────────────────────────── */
 *,
 *::before,

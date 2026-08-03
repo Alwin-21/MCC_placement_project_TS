@@ -42,6 +42,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
       startedAt: attempt.StartedAt,
       submittedAt: attempt.SubmittedAt,
       isCompleted,
+      isMalpractice: attempt.IsMalpractice,
       questions: questions.map((q) => ({
         id: q.Id,
         questionText: q.QuestionText,

@@ -60,8 +60,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     });
 
     let terminated = false;
-
-    if (warningNumber >= 4) {
+    
+    if (body.forceTerminate) {
       terminated = true;
 
       let attemptedCount = 0;

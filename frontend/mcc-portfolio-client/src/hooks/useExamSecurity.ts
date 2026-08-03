@@ -186,11 +186,28 @@ export function useExamSecurity({ active, onViolation }: UseExamSecurityOptions)
       return e.returnValue;
     };
 
+    // ── Clipboard blocker ──────────────────────────────────────────────────
+    const handleClipboard = (e: ClipboardEvent) => {
+      if (!activeRef.current) return;
+      e.preventDefault();
+      onViolation("DevToolsAttempt", `Attempted to ${e.type} text. Clipboard actions are blocked.`, "clipboard:" + e.type);
+    };
+
+    // ── Mouse leave viewport detector ──────────────────────────────────────
+    const handleMouseLeave = () => {
+      if (!activeRef.current) return;
+      onViolation("LookingAway", "Mouse cursor moved outside the exam viewport. Keep focus inside the test area.", "document:mouseleave");
+    };
+
     // Attach all listeners
     document.addEventListener("keydown", handleKeyDown, { capture: true });
     document.addEventListener("contextmenu", handleContextMenu, { capture: true });
     document.addEventListener("dragstart", handleDragStart, { capture: true });
     document.addEventListener("selectstart", handleSelectStart, { capture: true });
+    document.addEventListener("copy", handleClipboard, { capture: true });
+    document.addEventListener("cut", handleClipboard, { capture: true });
+    document.addEventListener("paste", handleClipboard, { capture: true });
+    document.addEventListener("mouseleave", handleMouseLeave);
     document.addEventListener("visibilitychange", handleVisibilityChange);
     document.addEventListener("fullscreenchange", handleFullscreenChange);
     document.addEventListener("webkitfullscreenchange", handleFullscreenChange);
@@ -217,6 +234,10 @@ export function useExamSecurity({ active, onViolation }: UseExamSecurityOptions)
       document.removeEventListener("contextmenu", handleContextMenu, { capture: true });
       document.removeEventListener("dragstart", handleDragStart, { capture: true });
       document.removeEventListener("selectstart", handleSelectStart, { capture: true });
+      document.removeEventListener("copy", handleClipboard, { capture: true });
+      document.removeEventListener("cut", handleClipboard, { capture: true });
+      document.removeEventListener("paste", handleClipboard, { capture: true });
+      document.removeEventListener("mouseleave", handleMouseLeave);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
       document.removeEventListener("fullscreenchange", handleFullscreenChange);
       document.removeEventListener("webkitfullscreenchange", handleFullscreenChange);
