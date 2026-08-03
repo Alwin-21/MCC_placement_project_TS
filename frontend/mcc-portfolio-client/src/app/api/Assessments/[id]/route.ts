@@ -92,7 +92,9 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
       return NextResponse.json("Forbidden", { status: 403 });
     }
     const { id } = await params;
-    await prisma.assessments.delete({ where: { Id: parseInt(id) } });
+    await prisma.assessments.delete({
+      where: { Id: parseInt(id) },
+    });
     return NextResponse.json({ success: true });
   } catch (err: any) {
     console.error("DELETE Assessment [id] Error:", err);

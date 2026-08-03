@@ -7,14 +7,18 @@ import {
   AlertTriangle, Camera, CameraOff, Trophy, Target, XCircle,
   BookOpen, ArrowRight, RotateCcw, ArrowLeft, Sun, Moon,
   ShieldCheck, Lock, RefreshCw, Eye, Lightbulb, Video,
-  Monitor, Globe, Maximize2, ShieldAlert, Check, HelpCircle, Save, AlertCircle
+  Monitor, Globe, Maximize2, ShieldAlert, Check, HelpCircle, Save, AlertCircle,
+  Users
 } from "lucide-react";
 import api from "@/services/api";
 import { useTheme } from "@/hooks/useTheme";
 import { useExamSecurity } from "@/hooks/useExamSecurity";
+import { Calculator as CalculatorIcon } from "lucide-react";
+import Calculator from "@/components/Calculator";
 import { useAutoSave } from "@/hooks/useAutoSave";
 import { ExamRiskEngine, ViolationLogEntry, ViolationType, AUTO_SUBMIT_THRESHOLD } from "@/utils/examRiskEngine";
 import { collectDeviceInfo, checkBrowserCompatibility } from "@/utils/deviceInfo";
+import { ProctoringEngine as ModularProctoringEngine, createPreExamFaceDetector, loadFaceApiForRegistration } from "@/utils/proctoringEngine";
 
 type ViewState = "list" | "compatibility" | "instructions" | "exam" | "result";
 
@@ -58,6 +62,22 @@ export default function AssessmentPage() {
 
   // Views
   const [view, setView] = useState<ViewState>("list");
+  
+  // Custom states/refs for AI Proctoring & Calculator additions
+  const [examSettings, setExamSettings] = useState({
+    calculatorEnabled: true,
+    calculatorMode: "Basic" as "Basic" | "Scientific",
+    faceMissingTimeout: 5,
+    pauseTimerOnFaceMissing: false,
+    objectDetectionEnabled: true
+  });
+  const examSettingsRef = useRef(examSettings);
+  const [isTimerPaused, setIsTimerPaused] = useState(false);
+  const isTimerPausedRef = useRef(false);
+  const [showCalculator, setShowCalculator] = useState(false);
+  
+  const [aiStatus, setAiStatus] = useState("Initializing proctoring...");
+  const proctoringEngineRef = useRef<ModularProctoringEngine | null>(null);
 
   // List state
   const [assessments, setAssessments] = useState<Assessment[]>([]);
@@ -82,14 +102,13 @@ export default function AssessmentPage() {
   const streamRef = useRef<MediaStream | null>(null);
   const [cameraActive, setCameraActive] = useState(false);
   const [cameraError, setCameraError] = useState(false);
-  const [warningCount, setWarningCount] = useState(0);
-  const [showWarningModal, setShowWarningModal] = useState(false);
-  const [warningMessage, setWarningMessage] = useState("");
   const [terminated, setTerminated] = useState(false);
-  const lastWarningTime = useRef<number>(0);
-  const prevPixels = useRef<number[]>([]);
-  const proctorInterval = useRef<NodeJS.Timeout | null>(null);
+  // Live refs — always hold the current value so setInterval callbacks are never stale
+  const attemptIdRef = useRef<number | null>(null);
+  const activeAssessmentRef = useRef<Assessment | null>(null);
   const [cameraPermission, setCameraPermission] = useState<"pending" | "granted" | "denied">("pending");
+  // Custom confirm modals
+  const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
 
   // Modals & Popups
   const [showSubmitModal, setShowSubmitModal] = useState(false);
@@ -142,6 +161,66 @@ export default function AssessmentPage() {
     errorMessage: "",
   });
 
+  // Face Registration States
+  const [registeredDescriptor, setRegisteredDescriptor] = useState<number[] | null>(null);
+  const [registeredFacePhoto, setRegisteredFacePhoto] = useState("");
+  const [pauseReason, setPauseReason] = useState("");
+
+  // Manual Face Capture States
+  const [capturedFacePhoto, setCapturedFacePhoto] = useState<string>("");
+  const [capturedFaceDescriptor, setCapturedFaceDescriptor] = useState<number[] | null>(null);
+  const [isVerifyingCapture, setIsVerifyingCapture] = useState(false);
+  const [captureVerifyError, setCaptureVerifyError] = useState("");
+
+  // Warning queue states
+  const [activeWarning, setActiveWarning] = useState<{ type: string; message: string } | null>(null);
+  const activeWarningRef = useRef<{ type: string; message: string } | null>(null);
+  const warningQueueRef = useRef<{ type: string; message: string }[]>([]);
+
+  // Prevent repeated warnings for continuous violations
+  const activeViolationsRef = useRef<Record<string, boolean>>({});
+
+  // (Tick counter refs superseded by ProctoringEngine state machines)
+
+  // Malpractice Lock
+  const [malpracticeLocked, setMalpracticeLocked] = useState(false);
+
+  // Internet Monitoring
+  const [isOnline, setIsOnline] = useState(true);
+
+  // Malpractice termination state
+  const [terminatedDueToMalpractice, setTerminatedDueToMalpractice] = useState(false);
+
+  // Inline retake-photo confirmation (replaces window.confirm to avoid focus-steal blur warning)
+  const [showRetakeConfirm, setShowRetakeConfirm] = useState(false);
+
+  // Live face count from MediaPipe pre-exam diagnostic (-1 = AI not yet loaded)
+  const [faceCountInFrame, setFaceCountInFrame] = useState<number>(-1);
+
+  const handleWarningDismiss = () => {
+    if (warningQueueRef.current.length > 0) {
+      const nextWarning = warningQueueRef.current.shift()!;
+      activeWarningRef.current = nextWarning;
+      setActiveWarning(nextWarning);
+    } else {
+      activeWarningRef.current = null;
+      setActiveWarning(null);
+    }
+  };
+
+  const queueWarning = useCallback((type: string, message: string) => {
+    if (activeWarningRef.current?.type === type || warningQueueRef.current.some(w => w.type === type)) {
+      return;
+    }
+    const newWarning = { type, message };
+    if (!activeWarningRef.current) {
+      activeWarningRef.current = newWarning;
+      setActiveWarning(newWarning);
+    } else {
+      warningQueueRef.current.push(newWarning);
+    }
+  }, []);
+
   // ── SECURITY HOOK (Keyboard/DevTools/Fullscreen/TabSwitch) ────────────────
   const handleSecurityViolation = useCallback((type: ViolationType, details: string, browserEvent?: string) => {
     if (riskEngineRef.current) {
@@ -149,11 +228,29 @@ export default function AssessmentPage() {
       if (entry) {
         setRiskScore(riskEngineRef.current.getCumulativeRisk());
         setViolationLog(riskEngineRef.current.getLog());
-        triggerWarning(type, details);
+        
+        // Log warning event to database
+        const aid = attemptIdRef.current;
+        const assessment = activeAssessmentRef.current;
+        if (aid && assessment) {
+          api.post(`/Assessments/${assessment.id}/attempt/proctoring`, {
+            attemptId: aid,
+            warningType: type,
+            details,
+          }).catch(err => console.error("Database security warning log failed:", err));
+        }
+
+        let displayMessage = details;
+        if (type === "TabSwitch" || type === "WindowBlur") {
+          displayMessage = "Tab Switching Detected\n\nPlease stay within the assessment window.";
+        } else if (type === "FullscreenExit") {
+          displayMessage = "Fullscreen Required\n\nPlease return to fullscreen mode.";
+        }
+        
+        queueWarning(type, displayMessage);
       }
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [queueWarning]);
 
   const { isFullscreen, requestFullscreen, exitFullscreen } = useExamSecurity({
     active: view === "exam" && !terminated,
@@ -175,30 +272,13 @@ export default function AssessmentPage() {
     saveFn: saveAnswerApi,
   });
 
-  // ── RISK ENGINE AUTO-TERMINATE ───────────────────────────────────────────
-  const handleRiskAutoSubmit = useCallback((log: ViolationLogEntry[]) => {
-    setWarningMessage(`⚠️ Exam Auto-Terminated: Cumulative security risk score (${AUTO_SUBMIT_THRESHOLD}) exceeded due to repeated violations.`);
-    setShowWarningModal(true);
-    setTimeout(() => handleTerminate("Cumulative security risk threshold exceeded."), 3000);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
-  // Initialize Risk Engine on exam start
-  useEffect(() => {
-    if (view === "exam") {
-      riskEngineRef.current = new ExamRiskEngine(
-        (entry) => {
-          setRiskScore(riskEngineRef.current?.getCumulativeRisk() || 0);
-          setViolationLog(riskEngineRef.current?.getLog() || []);
-        },
-        handleRiskAutoSubmit
-      );
-    } else {
-      riskEngineRef.current = null;
-    }
-  }, [view, handleRiskAutoSubmit]);
 
-  // ── CONTINUOUS DIAGNOSTIC FRAME ANALYZER (Instructions View) ──────────────
+
+  // Pre-exam face detector ref — separate from the engine's FaceLandmarker
+  const preExamFaceDetectorRef = useRef<any>(null);
+
+  // Simplified diagnostic frame sampler — brightness/resolution/framing checks + face count via MediaPipe FaceDetector
   const sampleDiagnosticFrame = useCallback(() => {
     const video = previewVideoRef.current;
     const stream = streamRef.current;
@@ -226,6 +306,7 @@ export default function AssessmentPage() {
       return;
     }
 
+    // ── Pixel analysis for brightness / framing ──────────────────────────────
     const canvas = previewCanvasRef.current || document.createElement("canvas");
     canvas.width = 64;
     canvas.height = 48;
@@ -236,12 +317,8 @@ export default function AssessmentPage() {
     const imgData = ctx.getImageData(0, 0, 64, 48).data;
 
     let totalLuminance = 0;
-    let totalPixels = 0;
     const allPixels: number[] = [];
-
     let totalFacePixels = 0;
-    let sumFaceX = 0;
-    let centerTargetFacePixels = 0;
 
     for (let y = 0; y < 48; y++) {
       for (let x = 0; x < 64; x++) {
@@ -250,33 +327,25 @@ export default function AssessmentPage() {
         const g = imgData[i + 1];
         const b = imgData[i + 2];
         const lum = 0.299 * r + 0.587 * g + 0.114 * b;
-
         totalLuminance += lum;
-        totalPixels++;
         allPixels.push(lum);
-
-        const isSkinTone = r > 48 && g > 28 && b > 18 && r > g && (r - g) >= 8 && (r - b) >= 12 && Math.abs(g - b) <= 36;
-        if (isSkinTone) {
-          totalFacePixels++;
-          sumFaceX += x;
-          if (x >= 18 && x <= 46 && y >= 6 && y <= 42) {
-            centerTargetFacePixels++;
-          }
-        }
+        // Skin-tone heuristic for fallback face count
+        const isSkin = r > 48 && g > 28 && b > 18 && r > g && (r - g) >= 8 && (r - b) >= 12 && Math.abs(g - b) <= 36;
+        if (isSkin) totalFacePixels++;
       }
     }
 
-    const avgLuminance = totalPixels > 0 ? totalLuminance / totalPixels : 0;
+    const avgLuminance = allPixels.length > 0 ? totalLuminance / allPixels.length : 0;
     const brightnessPercentage = Math.round((avgLuminance / 255) * 100);
 
     let lightingPassed = true;
     let lightingErr = "";
     if (avgLuminance < 25) {
       lightingPassed = false;
-      lightingErr = `Room environment is too dark (${brightnessPercentage}% brightness). Please turn on room lights or uncover camera.`;
+      lightingErr = `Room is too dark (${brightnessPercentage}% brightness). Please turn on room lights.`;
     } else if (avgLuminance > 245) {
       lightingPassed = false;
-      lightingErr = `Excessive direct glare detected (${brightnessPercentage}%). Please adjust light positioning.`;
+      lightingErr = `Excessive glare (${brightnessPercentage}%). Please adjust lighting.`;
     }
 
     const w = video.videoWidth || 320;
@@ -284,39 +353,19 @@ export default function AssessmentPage() {
     const resPassed = w >= 320 && h >= 240;
     const resText = `${w}x${h}`;
 
-    let totalVarianceSum = 0;
-    for (let p of allPixels) {
-      totalVarianceSum += Math.abs(p - avgLuminance);
-    }
-    const frameVariance = allPixels.length > 0 ? totalVarianceSum / allPixels.length : 0;
-
-    let framingPassed = true;
-    let framingErr = "";
-
-    const centroidX = totalFacePixels > 0 ? sumFaceX / totalFacePixels : 32;
-    const centerRatio = totalFacePixels > 0 ? centerTargetFacePixels / totalFacePixels : 0;
-
-    if (frameVariance < 1.8) {
-      framingPassed = false;
-      framingErr = "Webcam lens appears covered or video feed is obscured.";
-    } else if (totalFacePixels < 30 || centerTargetFacePixels < 18) {
-      framingPassed = false;
-      framingErr = "Face not detected in camera frame. Please position yourself directly in front of the camera.";
-    } else if (centroidX < 23 || centroidX > 41 || centerRatio < 0.50) {
-      framingPassed = false;
-      framingErr = "Face is shifted off-center. Please align your face inside the target circle.";
-    } else {
-      framingPassed = true;
-    }
+    let totalVariance = 0;
+    for (const p of allPixels) totalVariance += Math.abs(p - avgLuminance);
+    const frameVariance = allPixels.length > 0 ? totalVariance / allPixels.length : 0;
+    const framingPassed = frameVariance >= 1.8;
+    const framingErr = framingPassed ? "" : "Webcam lens appears covered or video feed is obscured.";
 
     const allPassed = resPassed && lightingPassed && framingPassed;
-
     let finalError = "";
     if (!resPassed) finalError = `Resolution (${resText}) below requirement.`;
     else if (!lightingPassed) finalError = lightingErr;
     else if (!framingPassed) finalError = framingErr;
 
-    setCameraCheck((prev) => ({
+    setCameraCheck(() => ({
       permission: "passed",
       lighting: lightingPassed ? "passed" : "failed",
       resolution: resPassed ? "passed" : "failed",
@@ -326,7 +375,25 @@ export default function AssessmentPage() {
       overallStatus: allPassed ? "passed" : "failed",
       errorMessage: finalError,
     }));
-  }, []);
+
+    // ── Face count via pre-exam MediaPipe FaceDetector ───────────────────────
+    if (preExamFaceDetectorRef.current) {
+      try {
+        const results = preExamFaceDetectorRef.current.detectForVideo
+          ? preExamFaceDetectorRef.current.detectForVideo(video, performance.now())
+          : preExamFaceDetectorRef.current.detect(video);
+        const detections = results.detections || [];
+        setFaceCountInFrame(detections.length);
+      } catch (err) {
+        // Detector not ready yet or video not playing — ignore
+      }
+    } else {
+      // Skin-pixel fallback until MediaPipe loads
+      setFaceCountInFrame(totalFacePixels > 80 ? 1 : 0);
+    }
+  }, [])
+
+
 
   const runCameraDiagnostic = async () => {
     setCameraCheck({
@@ -342,7 +409,7 @@ export default function AssessmentPage() {
 
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: "user" },
+        video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: "user" }
       });
 
       streamRef.current = stream;
@@ -385,10 +452,27 @@ export default function AssessmentPage() {
     let diagnosticInterval: NodeJS.Timeout | null = null;
 
     if (view === "instructions") {
+      setFaceCountInFrame(-1); // Show "checking" spinner while AI loads
+
+      // Start camera immediately — face count updates once AI model loads
       runCameraDiagnostic();
       diagnosticInterval = setInterval(() => {
         sampleDiagnosticFrame();
       }, 400);
+
+      // Load lightweight pre-exam face detector (FaceDetector, not FaceLandmarker)
+      // This is fast (5-8s first load) and separate from the exam engine's FaceLandmarker
+      if (!preExamFaceDetectorRef.current) {
+        createPreExamFaceDetector()
+          .then((detector) => {
+            preExamFaceDetectorRef.current = detector;
+          })
+          .catch((err) => {
+            console.warn("[Diagnostic] Pre-exam face detector load failed (skin-pixel fallback active):", err);
+          });
+      }
+    } else {
+      setFaceCountInFrame(-1); // Clear when leaving instructions view
     }
 
     return () => {
@@ -443,16 +527,85 @@ export default function AssessmentPage() {
   // ── Auth check ──
   useEffect(() => {
     const token = localStorage.getItem("token");
-    const userData = localStorage.getItem("user");
     if (!token) { router.push("/login"); return; }
-    if (userData) {
-      const parsed = JSON.parse(userData);
-      if (parsed.role !== "Student") { router.push("/login"); return; }
-      setUser(parsed);
-    }
+    
+    // Fetch full user profile details to ensure profileImageUrl is available
+    const loadProfile = async () => {
+      try {
+        const res = await api.get("/Users/me");
+        setUser(res.data);
+      } catch (err) {
+        console.error("Failed to load user profile:", err);
+        // Fallback to local storage if API fails
+        const userData = localStorage.getItem("user");
+        if (userData) {
+          const parsed = JSON.parse(userData);
+          setUser(parsed);
+        }
+      }
+    };
+    
+    loadProfile();
     fetchAssessments();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // ── Keep live refs in sync with state (prevents stale closures in setInterval) ──
+  useEffect(() => { attemptIdRef.current = attemptId; }, [attemptId]);
+  useEffect(() => { activeAssessmentRef.current = activeAssessment; }, [activeAssessment]);
+
+  // Load saved reference face descriptor on start/refresh using assessment and user ID
+  useEffect(() => {
+    if (activeAssessment && user) {
+      const keyDesc = `reference-descriptor-${activeAssessment.id}-${user.id}`;
+      const keyPhoto = `registered-face-photo-${activeAssessment.id}-${user.id}`;
+      const savedDescriptor = localStorage.getItem(keyDesc);
+      const savedPhoto = localStorage.getItem(keyPhoto);
+      if (savedDescriptor) {
+        setRegisteredDescriptor(JSON.parse(savedDescriptor));
+      } else {
+        setRegisteredDescriptor(null);
+      }
+      if (savedPhoto) {
+        setRegisteredFacePhoto(savedPhoto);
+      } else {
+        setRegisteredFacePhoto("");
+      }
+    }
+  }, [activeAssessment, user]);
+
+  // ── Internet Monitoring Effect ──
+  useEffect(() => {
+    if (view !== "exam") return;
+
+    const handleOnline = () => {
+      setIsOnline(true);
+      setIsTimerPaused(false);
+      setPauseReason("");
+    };
+
+    const handleOffline = () => {
+      setIsOnline(false);
+      setIsTimerPaused(true);
+      setPauseReason("Internet Connection Lost\n\nWaiting for reconnection...");
+      
+      if (riskEngineRef.current) {
+        riskEngineRef.current.logViolation("InternetDisconnected", "Internet connection lost.", 1.0);
+      }
+    };
+
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
+
+    if (!navigator.onLine) {
+      handleOffline();
+    }
+
+    return () => {
+      window.removeEventListener("online", handleOnline);
+      window.removeEventListener("offline", handleOffline);
+    };
+  }, [view]);
 
   const fetchAssessments = async () => {
     setLoadingList(true);
@@ -472,6 +625,7 @@ export default function AssessmentPage() {
     setTimeLeft(remaining);
 
     const interval = setInterval(() => {
+      if (isTimerPausedRef.current) return; // skip ticking if timer is paused
       setTimeLeft((prev) => {
         if (prev <= 1) {
           clearInterval(interval);
@@ -502,6 +656,8 @@ export default function AssessmentPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [view, startedAt, activeAssessment]);
 
+  // Tab Switch proctoring effect moved below triggerWarning to prevent TDZ error
+
   const formatTime = (secs: number) => {
     const m = Math.floor(secs / 60);
     const s = secs % 60;
@@ -531,85 +687,147 @@ export default function AssessmentPage() {
       streamRef.current.getTracks().forEach((t) => t.stop());
       streamRef.current = null;
     }
-    if (proctorInterval.current) clearInterval(proctorInterval.current);
+    if (proctoringEngineRef.current) {
+      proctoringEngineRef.current.stop();
+      proctoringEngineRef.current = null;
+    }
     setCameraActive(false);
   };
 
-  const startProctoring = () => {
-    proctorInterval.current = setInterval(() => {
-      detectSuspiciousBehavior();
-    }, 3000);
-  };
-
-  const detectSuspiciousBehavior = useCallback(() => {
-    if (!videoRef.current || !canvasRef.current) return;
-    const video = videoRef.current;
-    const canvas = canvasRef.current;
-    const ctx = canvas.getContext("2d");
-    if (!ctx || video.readyState < 2) return;
-
-    canvas.width = 64;
-    canvas.height = 48;
-    ctx.drawImage(video, 0, 0, 64, 48);
-    const data = ctx.getImageData(0, 0, 64, 48).data;
-
-    let totalBrightness = 0;
-    const pixels: number[] = [];
-    for (let i = 0; i < data.length; i += 4) {
-      const r = data[i], g = data[i + 1], b = data[i + 2];
-      const brightness = (r + g + b) / 3;
-      totalBrightness += brightness;
-      pixels.push(brightness);
+  const handleEngineViolation = useCallback((type: ViolationType, details: string, confidence: number) => {
+    // Map the violation type to a clear student-facing warning message
+    let popupMessage = "Suspicious behavior detected. Please keep your attention on the assessment.";
+    if (type === "FaceMissing") {
+      popupMessage = "Face Not Detected\n\nPlease return to the camera view.";
+    } else if (type === "MultipleFaces") {
+      popupMessage = "Multiple Persons Detected\n\nOnly one person should remain visible during the assessment.";
+    } else if (type === "PhoneDetected") {
+      popupMessage = "Mobile Phone Detected\n\nExternal mobile devices are not permitted during the examination.";
+    } else if (type === "CameraObstructed") {
+      popupMessage = "Camera Issue Detected\n\nPlease restore your camera immediately.";
+    } else if (type === "LookingAway") {
+      popupMessage = "Please keep your face directed towards the screen.";
+    } else if (type === "FrequentEyeMovement") {
+      popupMessage = "Suspicious Eye Movement Detected\n\nPlease keep your attention on the assessment.";
+    } else if (type === "FaceMismatch") {
+      popupMessage = "Identity Verification Failed\n\nOnly the registered student may continue this assessment.";
+    } else if (type === "BookDetected") {
+      popupMessage = "Prohibited Material Detected\n\nStudy materials, books, or notes are not allowed during the test.";
+    } else if (type === "AdditionalPerson") {
+      popupMessage = "Second Person Detected\n\nOnly the candidate must be visible in the camera frame.";
     }
-    const avgBrightness = totalBrightness / pixels.length;
 
-    let motionScore = 0;
-    if (prevPixels.current.length === pixels.length) {
-      let diffSum = 0;
-      for (let i = 0; i < pixels.length; i++) {
-        diffSum += Math.abs(pixels[i] - prevPixels.current[i]);
+    if (riskEngineRef.current) {
+      const entry = riskEngineRef.current.logViolation(type, details, confidence);
+      if (entry) {
+        setRiskScore(riskEngineRef.current.getCumulativeRisk());
+        setViolationLog(riskEngineRef.current.getLog());
+        
+        // Log warning event to database
+        const aid = attemptIdRef.current;
+        const assessment = activeAssessmentRef.current;
+        if (aid && assessment) {
+          api.post(`/Assessments/${assessment.id}/attempt/proctoring`, {
+            attemptId: aid,
+            warningType: type,
+            details,
+          }).catch(err => console.error("Database proctoring warning log failed:", err));
+        }
+
+        queueWarning(type, popupMessage);
       }
-      motionScore = diffSum / pixels.length;
     }
-    prevPixels.current = pixels;
+  }, [queueWarning]);
 
-    const now = Date.now();
-    const cooldown = 10000;
-
-    if (now - lastWarningTime.current < cooldown) return;
-
-    if (avgBrightness < 20) {
-      handleSecurityViolation("CameraObstructed", "Camera appears covered or pitch dark.");
-    } else if (motionScore > 35) {
-      handleSecurityViolation("LookingAway", "Sudden movement detected. Please face the camera.");
+  const startProctoring = () => {
+    console.log("[Proctor] startProctoring called — ModularProctoringEngine starting");
+    
+    // Stop any existing engine loop
+    if (proctoringEngineRef.current) {
+      proctoringEngineRef.current.stop();
+      proctoringEngineRef.current = null;
     }
-  }, [handleSecurityViolation]);
 
-  const triggerWarning = async (type: string, details: string) => {
-    if (!attemptId || !activeAssessment) return;
-    lastWarningTime.current = Date.now();
-
-    try {
-      const res = await api.post(`/Assessments/${activeAssessment.id}/attempt/proctoring`, {
-        attemptId,
-        warningType: type,
-        details,
+    if (videoRef.current && canvasRef.current) {
+      // Create new ProctoringEngine instance
+      const engine = new ModularProctoringEngine({
+        videoElement: videoRef.current,
+        canvasElement: canvasRef.current,
+        registeredDescriptor: registeredDescriptor,
+        onViolation: (type, details, confidence) => {
+          handleEngineViolation(type, details, confidence);
+        },
+        onViolationCleared: (type) => {
+          activeViolationsRef.current[type] = false;
+        },
+        onStatusUpdate: (status) => {
+          setAiStatus(status);
+        },
+        sampleFps: 5,
       });
 
-      const newCount = res.data.warningNum;
-      setWarningCount(newCount);
-
-      if (res.data.shouldTerminate || newCount >= 4) {
-        setWarningMessage("⚠️ Final Warning (4/4): Your assessment has been terminated due to repeated proctoring violations.");
-        setShowWarningModal(true);
-        setTimeout(() => handleTerminate("Four proctoring violations recorded."), 3000);
-      } else {
-        setWarningMessage(`Warning ${newCount}/4: ${details} Repeated violations will terminate your assessment.`);
-        setShowWarningModal(true);
-        setTimeout(() => setShowWarningModal(false), 4000);
-      }
-    } catch (err) { console.error("Proctoring warning error:", err); }
+      proctoringEngineRef.current = engine;
+      engine.initAI().then(() => {
+        // Only start if still in the exam view and not terminated
+        if (activeAssessmentRef.current && !terminated) {
+          engine.start();
+        }
+      }).catch((err) => {
+        console.error("[Proctor] ModularProctoringEngine init failed:", err);
+      });
+    }
   };
+
+  // ── handleMalpracticeTermination, handleTerminate ──
+  // Both read from refs (attemptIdRef / activeAssessmentRef) to avoid stale closures.
+
+  const handleMalpracticeTermination = useCallback(async () => {
+    if (!attemptIdRef.current || !activeAssessmentRef.current) return;
+    
+    stopCamera();
+    exitFullscreen();
+    setTerminatedDueToMalpractice(true);
+    setTerminated(true);
+    
+    try {
+      await api.post(`/Assessments/${activeAssessmentRef.current.id}/attempt/terminate`, {
+        attemptId: attemptIdRef.current,
+        reason: "Malpractice limit exceeded (malpractice score reached 100 points).",
+      });
+    } catch (err) {
+      console.error("Failed to terminate attempt on database:", err);
+    }
+    
+    setTimeout(() => {
+      setTerminatedDueToMalpractice(false);
+      setTerminated(false);
+      setView("list");
+      setResult(null);
+      setAttemptId(null);
+      setQuestions([]);
+      fetchAssessments();
+    }, 9000);
+  }, []);
+
+  // ── RISK ENGINE AUTO-TERMINATE ───────────────────────────────────────────
+  const handleRiskAutoSubmit = useCallback((log: ViolationLogEntry[]) => {
+    handleMalpracticeTermination();
+  }, [handleMalpracticeTermination]);
+
+  // Initialize Risk Engine on exam start
+  useEffect(() => {
+    if (view === "exam") {
+      riskEngineRef.current = new ExamRiskEngine(
+        (entry) => {
+          setRiskScore(riskEngineRef.current?.getCumulativeRisk() || 0);
+          setViolationLog(riskEngineRef.current?.getLog() || []);
+        },
+        handleRiskAutoSubmit
+      );
+    } else {
+      riskEngineRef.current = null;
+    }
+  }, [view, handleRiskAutoSubmit]);
 
   const handleTerminate = async (reason?: string) => {
     if (!attemptId || !activeAssessment) return;
@@ -626,9 +844,20 @@ export default function AssessmentPage() {
     fetchResult();
   };
 
+
+
   // ── Start Assessment Handlers ──
   const handleStart = async (assessment: Assessment) => {
     setActiveAssessment(assessment);
+    try {
+      const existingRes = await api.get(`/Assessments/${assessment.id}/attempt`);
+      if (existingRes.data && existingRes.data.isMalpractice) {
+        setMalpracticeLocked(true);
+        return;
+      }
+    } catch (err) {
+      console.error("Error checking malpractice status:", err);
+    }
     if (assessment.isCompleted) {
       setView("result");
       fetchResult(assessment.id);
@@ -644,11 +873,19 @@ export default function AssessmentPage() {
       return;
     }
 
+    // Call requestFullscreen immediately so it's bound to the user click gesture context
+    await requestFullscreen();
+
     try {
       let createdAttemptId: number;
 
       const existingRes = await api.get(`/Assessments/${activeAssessment.id}/attempt`);
       if (existingRes.data && existingRes.data.attemptId) {
+        if (existingRes.data.isMalpractice) {
+          exitFullscreen();
+          setMalpracticeLocked(true);
+          return;
+        }
         if (existingRes.data.isCompleted) {
           setView("result");
           fetchResult(activeAssessment.id);
@@ -677,8 +914,20 @@ export default function AssessmentPage() {
         console.warn("Failed to store device info:", e);
       }
 
-      // Enforce Fullscreen mode on begin
-      await requestFullscreen();
+      // Load settings
+      const savedSettings = localStorage.getItem(`assessment-settings-${activeAssessment.id}`);
+      const settings = savedSettings ? JSON.parse(savedSettings) : {
+        calculatorEnabled: true,
+        calculatorMode: "Basic",
+        faceMissingTimeout: 5,
+        pauseTimerOnFaceMissing: false,
+        objectDetectionEnabled: true
+      };
+      setExamSettings(settings);
+      examSettingsRef.current = settings;
+
+      // AI models are loaded by the ProctoringEngine itself during initAI()
+      // Do NOT call loadProctoringAI() here — that was the old duplicate loader
 
       setCurrentQIndex(0);
       setView("exam");
@@ -705,7 +954,6 @@ export default function AssessmentPage() {
     queueSave(q.id, option);
   };
 
-  // ── Submit ──
   const confirmSubmit = async () => {
     if (!attemptId || !activeAssessment) return;
     setIsSubmitting(true);
@@ -751,10 +999,8 @@ export default function AssessmentPage() {
   // Back button action inside header
   const handleBack = () => {
     if (view === "exam") {
-      if (!confirm("Are you sure you want to leave the exam hall? Timer will continue running.")) return;
-      stopCamera();
-      exitFullscreen();
-      setView("list");
+      // Use React state modal instead of window.confirm() — native confirm steals focus and triggers blur proctoring warning
+      setShowLeaveConfirm(true);
     } else if (view === "compatibility" || view === "instructions" || view === "result") {
       stopCamera();
       setView("list");
@@ -869,19 +1115,109 @@ export default function AssessmentPage() {
         </div>
       )}
 
-      {/* ── SECURITY PROCTORING WARNING MODAL ── */}
-      {showWarningModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm animate-fadeIn">
-          <div className={`w-full max-w-md mx-4 rounded-2xl p-6 border shadow-2xl ${warningCount >= 4 ? "border-rose-500/30 bg-rose-950" : "border-orange-500/30 bg-[#1a1008]"}`}>
-            <div className="flex items-start gap-3">
-              <AlertTriangle size={24} className={warningCount >= 4 ? "text-rose-400 shrink-0" : "text-orange-400 shrink-0"} />
-              <div>
-                <h3 className={`font-black text-base mb-1 ${warningCount >= 4 ? "text-rose-300" : "text-orange-300"}`}>
-                  Proctoring Alert – Violation Logged
-                </h3>
-                <p className={`text-sm ${warningCount >= 4 ? "text-rose-200" : "text-orange-200"}`}>{warningMessage}</p>
+      {/* ── PROFESSIONAL SECURITY WARNING MODAL (QUEUED) ── */}
+      {activeWarning && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-md animate-fadeIn">
+          <div className={`w-full max-w-md mx-4 rounded-3xl p-6 md:p-8 border shadow-2xl ${
+            isDark ? "bg-[#16120b] border-amber-500/20 text-white" : "bg-white border-slate-200 text-slate-900"
+          }`}>
+            <div className="text-center space-y-4">
+              <div className="w-16 h-16 rounded-2xl bg-amber-500/10 text-amber-500 mx-auto flex items-center justify-center animate-bounce">
+                <AlertTriangle size={32} />
+              </div>
+              <h3 className="text-xl font-serif font-black text-amber-500">
+                {(() => {
+                  const type = activeWarning.type;
+                  const message = activeWarning.message;
+                  if (message.includes("Verification Failed") || type === "FaceMismatch") return "Face Verification Failed";
+                  if (message.includes("Camera Not Available") || type === "CameraObstructed") return "Camera Not Available";
+                  if (type === "LookingAway") return "Attention Diverted";
+                  if (type === "FrequentEyeMovement") return "Frequent Eye Movement Detected";
+                  if (type === "PhoneDetected") return "Mobile Phone Detected";
+                  if (type === "MultipleFaces") return "Multiple Persons Detected";
+                  if (type === "FaceMissing") return "Face Not Detected";
+                  if (type === "TabSwitch" || type === "WindowBlur") return "Assessment Window Left";
+                  if (type === "FullscreenExit") return "Fullscreen Required";
+                  return "Warning";
+                })()}
+              </h3>
+              <div className={`text-sm leading-relaxed whitespace-pre-line font-medium ${isDark ? "text-gray-300" : "text-slate-600"}`}>
+                {activeWarning.message}
+              </div>
+              <div className="pt-2">
+                <button
+                  type="button"
+                  onClick={async () => {
+                    if (activeWarning.type === "FullscreenExit") {
+                      await requestFullscreen();
+                    }
+                    handleWarningDismiss();
+                  }}
+                  className="w-full py-3.5 rounded-2xl text-xs md:text-sm font-black bg-amber-500 hover:bg-amber-600 text-black transition shadow-lg shadow-amber-500/10 cursor-pointer"
+                >
+                  Understood
+                </button>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── INTERNET CONNECTION LOST OVERLAY ── */}
+      {!isOnline && (
+        <div className="fixed inset-0 z-55 bg-black/90 backdrop-blur-md flex flex-col items-center justify-center text-center p-6 animate-fadeIn">
+          <div className="max-w-md space-y-4">
+            <div className="w-16 h-16 rounded-3xl bg-rose-500/10 text-rose-500 border border-rose-500/20 flex items-center justify-center mx-auto animate-pulse">
+              <Globe size={32} />
+            </div>
+            <h2 className="text-2xl font-serif font-black text-rose-500">Internet Connection Lost</h2>
+            <p className="text-sm text-gray-300">Waiting for reconnection...</p>
+          </div>
+        </div>
+      )}
+
+      {/* ── ASSESSMENT TERMINATED MALPRACTICE OVERLAY ── */}
+      {terminatedDueToMalpractice && (
+        <div className="fixed inset-0 z-55 bg-[#0d0d12] flex flex-col items-center justify-center text-center p-6 animate-fadeIn">
+          <div className="max-w-xl space-y-6">
+            <div className="w-20 h-20 rounded-3xl bg-rose-500/10 text-rose-500 border border-rose-500/20 flex items-center justify-center mx-auto animate-pulse">
+              <ShieldAlert size={40} />
+            </div>
+            <h1 className="text-3xl font-serif font-black text-rose-500 tracking-tight">Assessment Terminated</h1>
+            <div className="space-y-3 text-gray-300">
+              <p className="text-lg font-bold">Your assessment has been terminated because the allowed malpractice threshold has been exceeded.</p>
+              <p className="text-sm text-gray-400">Your responses have been saved automatically.</p>
+              <p className="text-sm font-semibold text-[#ef4444]">This assessment can no longer be attempted.</p>
+            </div>
+            <div className="pt-4 flex items-center justify-center gap-2 text-xs font-mono text-gray-500">
+              <RefreshCw size={12} className="animate-spin" /> Redirecting to Assessments Page...
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── ASSESSMENT LOCKED DUE TO PREVIOUS MALPRACTICE ── */}
+      {malpracticeLocked && (
+        <div className="fixed inset-0 z-55 bg-[#0d0d12] flex flex-col items-center justify-center text-center p-6 animate-fadeIn">
+          <div className="max-w-xl space-y-6">
+            <div className="w-20 h-20 rounded-3xl bg-rose-500/10 text-rose-500 border border-rose-500/20 flex items-center justify-center mx-auto">
+              <ShieldAlert size={40} />
+            </div>
+            <h1 className="text-3xl font-serif font-black text-[#ef4444] tracking-tight">Assessment Unavailable</h1>
+            <div className="space-y-3 text-gray-300">
+              <p className="text-lg font-bold leading-relaxed">
+                This assessment has already been terminated due to examination policy violations and cannot be attempted again.
+              </p>
+            </div>
+            <button
+              onClick={() => {
+                setMalpracticeLocked(false);
+                setView("list");
+              }}
+              className="mt-6 px-6 py-3 rounded-2xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs transition cursor-pointer"
+            >
+              Back to Assessments
+            </button>
           </div>
         </div>
       )}
@@ -937,6 +1273,31 @@ export default function AssessmentPage() {
         </div>
       )}
 
+      {/* ── LEAVE EXAM CONFIRM MODAL (replaces window.confirm to avoid focus-steal blur warning) ── */}
+      {showLeaveConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+          <div className={`w-full max-w-sm mx-4 rounded-2xl p-6 border shadow-2xl ${isDark ? "border-white/10 bg-[#0f0f18]" : "border-slate-200 bg-white"}`}>
+            <h3 className={`font-black text-base mb-2 ${isDark ? "text-white" : "text-slate-900"}`}>Leave Exam?</h3>
+            <p className={`text-sm mb-5 ${isDark ? "text-gray-400" : "text-slate-500"}`}>
+              The timer will keep running. Your answers are saved. You can resume this exam later.
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowLeaveConfirm(false)}
+                className={`flex-1 py-2.5 rounded-xl text-xs font-bold border transition cursor-pointer ${isDark ? "border-white/10 hover:bg-white/5 text-gray-300" : "border-slate-200 hover:bg-slate-50 text-slate-700"}`}
+              >
+                Stay in Exam
+              </button>
+              <button
+                onClick={() => { setShowLeaveConfirm(false); stopCamera(); setView("list"); }}
+                className={`flex-1 py-2.5 rounded-xl text-xs font-black border transition cursor-pointer ${isDark ? "border-rose-500/30 bg-rose-500/10 text-rose-400 hover:bg-rose-500/20" : "border-rose-200 bg-rose-50 text-rose-600 hover:bg-rose-100"}`}
+              >
+                Leave
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       {/* ── LIST VIEW ── */}
       {view === "list" && (
         <div className="w-full max-w-[1600px] mx-auto px-4 md:px-8 lg:px-12 py-8 md:py-12">
@@ -1157,10 +1518,24 @@ export default function AssessmentPage() {
 
             {/* Security Notice */}
             <div className={`rounded-xl p-4 mb-6 ${isDark ? "bg-amber-500/5 border border-amber-500/20" : "bg-amber-50 border border-amber-200"}`}>
-              <h3 className="text-xs font-bold text-amber-500 mb-2 flex items-center gap-1"><AlertTriangle size={12} /> Anti-Malpractice Security Guidelines</h3>
-              <div className={`text-xs whitespace-pre-wrap leading-relaxed ${isDark ? "text-amber-200/80" : "text-amber-900"}`}>
-                {activeAssessment.instructions || `• Fullscreen mode is mandatory and will be locked upon starting.\n• Copying, pasting, right-click, tab switches, and keyboard shortcuts are blocked.\n• Continuous video proctoring will log all movement, tab switches, and face missing events.\n• Cumulative security risk > ${AUTO_SUBMIT_THRESHOLD} will immediately auto-terminate your attempt.`}
-              </div>
+              <h3 className="text-xs font-bold text-amber-500 mb-2 flex items-center gap-1"><AlertTriangle size={12} /> Anti-Malpractice Security Guidelines & Instructions</h3>
+              <style dangerouslySetInnerHTML={{__html: `
+                .rich-text-content ul { list-style-type: disc !important; padding-left: 1.25rem !important; margin: 0.5rem 0 !important; }
+                .rich-text-content ol { list-style-type: decimal !important; padding-left: 1.25rem !important; margin: 0.5rem 0 !important; }
+                .rich-text-content li { margin-bottom: 0.25rem !important; }
+                .rich-text-content a { color: #3b82f6 !important; text-decoration: underline !important; }
+              `}} />
+              <div
+                className={`text-xs leading-relaxed rich-text-content ${isDark ? "text-amber-200/80" : "text-amber-900"}`}
+                dangerouslySetInnerHTML={{
+                  __html: activeAssessment.instructions || `<ul>
+                    <li>Fullscreen mode is mandatory and will be locked upon starting.</li>
+                    <li>Copying, pasting, right-click, tab switches, and keyboard shortcuts are blocked.</li>
+                    <li>Continuous video proctoring will log all movement, tab switches, and face missing events.</li>
+                    <li>Cumulative security risk &gt; ${AUTO_SUBMIT_THRESHOLD} will immediately auto-terminate your attempt.</li>
+                  </ul>`
+                }}
+              />
             </div>
 
             {/* ── WEBCAM PRE-CHECK & CONSTRAINTS DIAGNOSTIC ── */}
@@ -1205,6 +1580,19 @@ export default function AssessmentPage() {
                     className="w-full h-full object-cover transform -scale-x-100"
                   />
                   <canvas ref={previewCanvasRef} className="hidden" />
+
+                  {/* Registered Face Photo Comparison Overlay */}
+                  {registeredFacePhoto && (
+                    <div className="absolute top-2 right-2 w-14 h-18 rounded-lg overflow-hidden border border-emerald-500/40 shadow-lg bg-black/45 backdrop-blur-sm flex flex-col items-center select-none">
+                      <img
+                        src={registeredFacePhoto}
+                        alt="Registered"
+                        className="w-full h-12 object-cover"
+                      />
+                      <span className="w-full bg-emerald-600 text-[6px] text-center font-mono py-0.5 text-white tracking-widest font-black uppercase">Reference</span>
+                    </div>
+                  )}
+
 
                   {/* Dynamic Face Bounding Guide Overlay */}
                   <div className={`absolute inset-0 border-2 border-dashed rounded-[45%] mx-auto my-3 w-32 h-40 pointer-events-none flex items-center justify-center transition-all duration-300 ${
@@ -1276,6 +1664,26 @@ export default function AssessmentPage() {
                       detail: cameraCheck.framing === "passed" ? "Active feed ready for proctoring" : cameraCheck.framing === "failed" ? "Video feed frozen or unreadable" : "Checking video feed...",
                       icon: Eye,
                     },
+                    {
+                      title: "Facial Identity Verification",
+                      status: registeredDescriptor ? "passed" : "failed",
+                      detail: registeredDescriptor 
+                        ? "Face descriptor embedding successfully registered"
+                        : "Identity registration required before starting",
+                      icon: ShieldCheck,
+                    },
+                    {
+                      title: "Face Presence Check (1 Face Required)",
+                      status: faceCountInFrame === 1 ? "passed" : faceCountInFrame === -1 ? "checking" : "failed",
+                      detail: faceCountInFrame === 1
+                        ? "Exactly 1 face detected — ready for identity verification"
+                        : faceCountInFrame === 0
+                        ? "No face detected. Please center your face in the camera."
+                        : faceCountInFrame > 1
+                        ? `${faceCountInFrame} faces detected. Only one person should be visible.`
+                        : "Loading face detection AI models... (may take up to 30s on first load)",
+                      icon: Users,
+                    },
                   ].map((item, idx) => (
                     <div
                       key={idx}
@@ -1303,6 +1711,206 @@ export default function AssessmentPage() {
                   ))}
                 </div>
               </div>
+
+              {/* Webcam Face Registration controls (Manual Capture) */}
+              {cameraCheck.overallStatus === "passed" && (
+                <div className={`rounded-2xl border p-5 space-y-4 ${
+                  isDark ? "bg-white/[0.02] border-white/10" : "bg-slate-50/80 border-slate-200"
+                }`}>
+                  <div className="flex items-center gap-2">
+                    <div className="w-7 h-7 rounded-lg bg-emerald-500/10 text-emerald-500 flex items-center justify-center">
+                      <ShieldCheck size={16} />
+                    </div>
+                    <div>
+                      <h3 className={`text-xs font-bold ${isDark ? "text-white" : "text-slate-900"}`}>
+                        Candidate Identity Registration (Mandatory)
+                      </h3>
+                      <p className={`text-[10px] ${subText}`}>
+                        Register your face reference photo before starting the exam.
+                      </p>
+                    </div>
+                  </div>
+
+                  {!registeredFacePhoto && !capturedFacePhoto && (
+                    <div className="space-y-3">
+                      <p className="text-[11px] text-slate-400">
+                        Look directly into your webcam, center your face inside the target guide, and capture your reference photo.
+                      </p>
+                      {captureVerifyError && (
+                        <div className="p-3.5 rounded-xl border border-rose-500/30 bg-rose-500/10 text-rose-400 text-xs font-semibold">
+                          ⚠️ {captureVerifyError}
+                        </div>
+                      )}
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          const video = previewVideoRef.current;
+                          if (!video) return;
+                          try {
+                            setIsVerifyingCapture(true);
+                            setCaptureVerifyError("");
+                            
+                            const tempCanvas = document.createElement("canvas");
+                            tempCanvas.width = video.videoWidth || 640;
+                            tempCanvas.height = video.videoHeight || 480;
+                            const tempCtx = tempCanvas.getContext("2d");
+                            if (tempCtx) {
+                              tempCtx.drawImage(video, 0, 0, tempCanvas.width, tempCanvas.height);
+                              const photoData = tempCanvas.toDataURL("image/jpeg", 0.8);
+                              
+                              await loadFaceApiForRegistration();
+                              const faceapi = (window as any).faceapi;
+                              const detection = await faceapi.detectSingleFace(video, new faceapi.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.35 }))
+                                .withFaceLandmarks()
+                                .withFaceDescriptor();
+
+                              if (detection) {
+                                setCapturedFacePhoto(photoData);
+                                setCapturedFaceDescriptor(Array.from(detection.descriptor));
+                              } else {
+                                setCaptureVerifyError("Face not detected in the captured photo. Please align your face inside the guide and ensure there is good lighting, then try again.");
+                              }
+                            }
+                          } catch (err) {
+                            console.error("Manual face registration capture error:", err);
+                            setCaptureVerifyError("Verification failed due to an error. Please try again.");
+                          } finally {
+                            setIsVerifyingCapture(false);
+                          }
+                        }}
+                        disabled={isVerifyingCapture}
+                        className="px-4 py-2 rounded-xl text-xs font-black bg-emerald-600 hover:bg-emerald-700 text-white transition flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                      >
+                        {isVerifyingCapture ? (
+                          <>
+                            <RefreshCw size={13} className="animate-spin" /> Verifying Face...
+                          </>
+                        ) : (
+                          "Capture Face Photo"
+                        )}
+                      </button>
+                    </div>
+                  )}
+
+                  {capturedFacePhoto && !registeredFacePhoto && (
+                    <div className="space-y-4">
+                      <div className="flex flex-col items-center gap-3">
+                        <img
+                          src={capturedFacePhoto}
+                          alt="Captured preview"
+                          className="w-40 h-30 object-cover rounded-xl border border-white/10 shadow-lg"
+                        />
+                        <span className="text-[10px] text-emerald-400 font-bold bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full">
+                          ✓ Face Detected & Verified
+                        </span>
+                      </div>
+                      <div className="flex gap-3">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setCapturedFacePhoto("");
+                            setCapturedFaceDescriptor(null);
+                            setCaptureVerifyError("");
+                          }}
+                          className={`flex-1 py-2 rounded-xl text-xs font-bold border transition cursor-pointer ${
+                            isDark ? "border-white/10 hover:bg-white/5 text-gray-300" : "border-slate-300 hover:bg-slate-100 text-slate-700"
+                          }`}
+                        >
+                          Retake Photo
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (activeAssessment && user && capturedFaceDescriptor) {
+                              const keyDesc = `reference-descriptor-${activeAssessment.id}-${user.id}`;
+                              const keyPhoto = `registered-face-photo-${activeAssessment.id}-${user.id}`;
+                              localStorage.setItem(keyDesc, JSON.stringify(capturedFaceDescriptor));
+                              localStorage.setItem(keyPhoto, capturedFacePhoto);
+                              setRegisteredDescriptor(capturedFaceDescriptor);
+                              setRegisteredFacePhoto(capturedFacePhoto);
+                              
+                              setCapturedFacePhoto("");
+                              setCapturedFaceDescriptor(null);
+                              setCaptureVerifyError("");
+                            }
+                          }}
+                          className="flex-1 py-2 rounded-xl text-xs font-black bg-emerald-600 hover:bg-emerald-700 text-white transition cursor-pointer"
+                        >
+                          Confirm & Save Reference Photo
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {registeredFacePhoto && (
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between bg-emerald-500/5 border border-emerald-500/20 p-3 rounded-xl font-mono">
+                        <div className="flex items-center gap-4">
+                          <img
+                            src={registeredFacePhoto}
+                            alt="Registered Profile"
+                            className="w-12 h-16 object-cover rounded-lg border border-emerald-500/30"
+                          />
+                          <div>
+                            <h4 className="text-xs font-black text-emerald-400">Face Registration Completed!</h4>
+                            <p className="text-[10px] text-slate-400 mt-0.5 font-sans">Facial embedding descriptor successfully registered for this attempt.</p>
+                          </div>
+                        </div>
+                        {!showRetakeConfirm && (
+                          <button
+                            type="button"
+                            onClick={() => setShowRetakeConfirm(true)}
+                            className={`px-3 py-1.5 rounded-lg text-[10px] font-bold border transition cursor-pointer ${
+                              isDark ? "border-white/10 hover:bg-white/5 text-gray-300" : "border-slate-300 hover:bg-slate-50 text-slate-700"
+                            }`}
+                          >
+                            Retake Photo
+                          </button>
+                        )}
+                      </div>
+                      {showRetakeConfirm && (
+                        <div className={`p-3 rounded-xl border space-y-2 ${
+                          isDark ? "border-amber-500/30 bg-amber-500/5" : "border-amber-200 bg-amber-50"
+                        }`}>
+                          <p className={`text-[11px] font-semibold ${
+                            isDark ? "text-amber-400" : "text-amber-700"
+                          }`}>
+                            Are you sure you want to retake your reference photo? Your current registration will be cleared.
+                          </p>
+                          <div className="flex gap-2">
+                            <button
+                              type="button"
+                              onClick={() => setShowRetakeConfirm(false)}
+                              className={`flex-1 py-1.5 rounded-lg text-[10px] font-bold border transition cursor-pointer ${
+                                isDark ? "border-white/10 hover:bg-white/5 text-gray-300" : "border-slate-200 hover:bg-slate-50 text-slate-700"
+                              }`}
+                            >
+                              Cancel
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setShowRetakeConfirm(false);
+                                setRegisteredFacePhoto("");
+                                setRegisteredDescriptor(null);
+                                if (activeAssessment && user) {
+                                  const keyDesc = `reference-descriptor-${activeAssessment.id}-${user.id}`;
+                                  const keyPhoto = `registered-face-photo-${activeAssessment.id}-${user.id}`;
+                                  localStorage.removeItem(keyDesc);
+                                  localStorage.removeItem(keyPhoto);
+                                }
+                              }}
+                              className="flex-1 py-1.5 rounded-lg text-[10px] font-black bg-rose-600 hover:bg-rose-700 text-white transition cursor-pointer"
+                            >
+                              Yes, Retake
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Overall Failure Alert Box */}
               {cameraCheck.overallStatus === "failed" && (
@@ -1337,7 +1945,7 @@ export default function AssessmentPage() {
                 className={`flex-1 py-3 rounded-xl text-xs font-bold border transition cursor-pointer ${isDark ? "border-white/10 hover:bg-white/5 text-gray-300" : "border-slate-200 hover:bg-slate-50 text-slate-700"}`}>
                 Back
               </button>
-              {cameraCheck.overallStatus === "passed" ? (
+              {cameraCheck.overallStatus === "passed" && registeredDescriptor && (faceCountInFrame === 1 || faceCountInFrame === -1) ? (
                 <button onClick={handleBeginExam}
                   className="flex-1 py-3 rounded-xl text-xs font-bold bg-[#781c1c] hover:bg-[#5f1515] text-white transition shadow-lg shadow-[#781c1c]/20 cursor-pointer flex items-center justify-center gap-1.5">
                   Begin Exam →
@@ -1348,6 +1956,12 @@ export default function AssessmentPage() {
                   onClick={() => {
                     if (cameraCheck.overallStatus === "failed") {
                       alert("Camera setup check failed: " + cameraCheck.errorMessage);
+                    } else if (!registeredDescriptor) {
+                      alert("Identity verification required: Please complete your student face registration to proceed.");
+                    } else if (faceCountInFrame === 0) {
+                      alert("No face detected. Please ensure your face is clearly visible in the camera before starting.");
+                    } else if (faceCountInFrame > 1) {
+                      alert("Multiple faces detected. Only one person may be present during the examination.");
                     } else {
                       runCameraDiagnostic();
                     }
@@ -1356,7 +1970,7 @@ export default function AssessmentPage() {
                     isDark ? "bg-white/10 text-gray-500 border border-white/5" : "bg-slate-200 text-slate-400"
                   }`}
                 >
-                  <Lock size={12} /> Begin Exam (Camera Required)
+                  <Lock size={12} /> Begin Exam ({!registeredDescriptor ? "Registration Required" : faceCountInFrame === 0 ? "No Face Detected" : faceCountInFrame > 1 ? "Multiple Faces" : "Camera Required"})
                 </button>
               )}
             </div>
@@ -1613,6 +2227,43 @@ export default function AssessmentPage() {
             </div>
 
           </div>
+          
+          {/* Floating Draggable Calculator Trigger */}
+          {examSettings.calculatorEnabled && (
+            <>
+              <button
+                type="button"
+                onClick={() => setShowCalculator((prev) => !prev)}
+                className={`fixed bottom-6 right-6 z-40 w-12 h-12 rounded-full border shadow-xl flex items-center justify-center cursor-pointer transition-all duration-300 hover:scale-110 active:scale-95 ${
+                  showCalculator
+                    ? "bg-rose-600 hover:bg-rose-700 text-white border-rose-500"
+                    : "bg-[#781c1c] hover:bg-[#5f1515] text-white border-[#781c1c]/30"
+                }`}
+                title="Open Exam Calculator"
+              >
+                <CalculatorIcon size={20} />
+              </button>
+
+              {showCalculator && (
+                <Calculator
+                  onClose={() => setShowCalculator(false)}
+                  allowedMode={examSettings.calculatorMode}
+                  isDark={isDark}
+                />
+              )}
+            </>
+          )}
+
+          {/* AI Proctoring Loading Status Overlay */}
+          {isTimerPaused && (
+            <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex flex-col items-center justify-center text-center p-4">
+              <div className="w-16 h-16 rounded-3xl bg-rose-500/10 text-rose-500 border border-rose-500/20 flex items-center justify-center animate-bounce mb-4">
+                <AlertTriangle size={32} />
+              </div>
+              <h2 className="text-xl font-black text-rose-400 font-serif">Assessment Paused</h2>
+              <p className="text-sm text-slate-350 mt-1 max-w-sm">{pauseReason || "Suspicious activity or environment issue detected. The assessment has been paused and will resume automatically once corrected."}</p>
+            </div>
+          )}
         </div>
       )}
 

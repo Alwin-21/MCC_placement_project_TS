@@ -952,13 +952,15 @@ export default function AdminPage() {
   };
 
   const handleDeleteAssessment = async (id: number, title: string) => {
-    if (!confirm(`Delete assessment "${title}"? All questions and attempts will be deleted.`)) return;
+    if (!confirm(`Are you sure you want to permanently delete the assessment "${title}"? This will permanently delete all questions, student attempts, and warning logs associated with it. This action cannot be undone.`)) return;
     try {
       await api.delete(`/Assessments/${id}`);
-      alert("Deleted.");
-      setAssessmentView("list");
+      alert("Assessment deleted.");
       fetchAssessments();
-    } catch (err: any) { alert(`Failed: ${err.response?.data?.message || err.message}`); }
+    } catch (err: any) {
+      console.error("Failed to delete assessment", err);
+      alert(`Failed to delete: ${err.response?.data?.message || err.message}`);
+    }
   };
 
   const handlePublishToggle = async (id: number) => {

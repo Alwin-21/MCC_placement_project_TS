@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import api from "@/services/api";
 import { useTheme } from "@/hooks/useTheme";
+import RichTextEditor from "./RichTextEditor";
 
 const DEPARTMENTS = [
   "Computer Science",
@@ -110,6 +111,16 @@ export default function AssessmentAdminModule({ themeMode: propThemeMode, toggle
   // Warning & Malpractice Log Inspector
   const [showMalpracticeModal, setShowMalpracticeModal] = useState(false);
   const [selectedAttemptMalpractice, setSelectedAttemptMalpractice] = useState<any | null>(null);
+  
+  // Custom states for AI Proctoring & Calculator Enhancements
+  const [selectedEvidenceImage, setSelectedEvidenceImage] = useState<string | null>(null);
+  const [securitySettings, setSecuritySettings] = useState({
+    calculatorEnabled: true,
+    calculatorMode: "Basic" as "Basic" | "Scientific",
+    faceMissingTimeout: 5,
+    pauseTimerOnFaceMissing: false,
+    objectDetectionEnabled: true
+  });
 
   useEffect(() => {
     fetchAssessments();
@@ -211,6 +222,13 @@ export default function AssessmentAdminModule({ themeMode: propThemeMode, toggle
       endDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 16),
       selectedDepts: ["Computer Science"],
     });
+    setSecuritySettings({
+      calculatorEnabled: true,
+      calculatorMode: "Basic",
+      faceMissingTimeout: 5,
+      pauseTimerOnFaceMissing: false,
+      objectDetectionEnabled: true
+    });
     setShowAssessmentModal(true);
   };
 
@@ -229,6 +247,24 @@ export default function AssessmentAdminModule({ themeMode: propThemeMode, toggle
       endDate: new Date(item.endDate).toISOString().slice(0, 16),
       selectedDepts: depts,
     });
+    
+    // Load configurations from localStorage
+    const saved = localStorage.getItem(`assessment-settings-${item.id}`);
+    if (saved) {
+      try {
+        setSecuritySettings(JSON.parse(saved));
+      } catch (e) {
+        console.error(e);
+      }
+    } else {
+      setSecuritySettings({
+        calculatorEnabled: true,
+        calculatorMode: "Basic",
+        faceMissingTimeout: 5,
+        pauseTimerOnFaceMissing: false,
+        objectDetectionEnabled: true
+      });
+    }
     setShowAssessmentModal(true);
   };
 
@@ -254,6 +290,10 @@ export default function AssessmentAdminModule({ themeMode: propThemeMode, toggle
       } else {
         const res = await api.post("/Assessments", payload);
         savedId = res.data.id;
+      }
+      
+      if (savedId) {
+        localStorage.setItem(`assessment-settings-${savedId}`, JSON.stringify(securitySettings));
       }
 
       // Automatically upload questions if file was attached
@@ -776,27 +816,24 @@ export default function AssessmentAdminModule({ themeMode: propThemeMode, toggle
                 />
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block font-mono font-bold text-slate-500 uppercase tracking-wider mb-1.5">Description</label>
-                  <textarea
-                    rows={2}
-                    value={formData.description}
-                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                    placeholder="Brief description for students..."
-                    className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2.5 text-slate-900 dark:text-white focus:outline-none focus:border-[#781c1c]"
-                  />
-                </div>
-                <div>
-                  <label className="block font-mono font-bold text-slate-500 uppercase tracking-wider mb-1.5">Assessment Instructions</label>
-                  <textarea
-                    rows={2}
-                    value={formData.instructions}
-                    onChange={(e) => setFormData({ ...formData, instructions: e.target.value })}
-                    placeholder="Rules, camera proctoring notice..."
-                    className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2.5 text-slate-900 dark:text-white focus:outline-none focus:border-[#781c1c]"
-                  />
-                </div>
+              <div>
+                <label className="block font-mono font-bold text-slate-500 uppercase tracking-wider mb-1.5">Description</label>
+                <textarea
+                  rows={2}
+                  value={formData.description}
+                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                  placeholder="Brief description for students..."
+                  className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2.5 text-slate-900 dark:text-white focus:outline-none focus:border-[#781c1c]"
+                />
+              </div>
+
+              <div>
+                <label className="block font-mono font-bold text-slate-500 uppercase tracking-wider mb-1.5">Assessment Instructions</label>
+                <RichTextEditor
+                  value={formData.instructions}
+                  onChange={(val) => setFormData({ ...formData, instructions: val })}
+                  placeholder="Rules, camera proctoring notice, bullet points..."
+                />
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -864,6 +901,80 @@ export default function AssessmentAdminModule({ themeMode: propThemeMode, toggle
                       </button>
                     );
                   })}
+                </div>
+              </div>
+
+              {/* AI PROCTORING & CALCULATOR CONFIGURATION */}
+              <div className="p-5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl space-y-4">
+                <div className="flex items-center gap-2 text-slate-900 dark:text-white font-bold font-mono text-xs uppercase tracking-wider">
+                  🔒 AI Proctoring & Tool Configurations
+                </div>
+                
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <label className="font-bold text-slate-500 font-mono uppercase tracking-wider">Enable Calculator</label>
+                      <input
+                        type="checkbox"
+                        checked={securitySettings.calculatorEnabled}
+                        onChange={(e) => setSecuritySettings({ ...securitySettings, calculatorEnabled: e.target.checked })}
+                        className="w-4 h-4 rounded text-[#781c1c] focus:ring-[#781c1c] bg-slate-100 border-slate-350"
+                      />
+                    </div>
+                    {securitySettings.calculatorEnabled && (
+                      <div className="flex flex-col gap-1">
+                        <span className="text-[10px] text-slate-450 uppercase tracking-widest font-mono">Calculator Mode</span>
+                        <select
+                          value={securitySettings.calculatorMode}
+                          onChange={(e) => setSecuritySettings({ ...securitySettings, calculatorMode: e.target.value as "Basic" | "Scientific" })}
+                          className="bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-slate-900 dark:text-white focus:outline-none"
+                        >
+                          <option value="Basic">Basic Mode</option>
+                          <option value="Scientific">Scientific Mode</option>
+                        </select>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <label className="font-bold text-slate-500 font-mono uppercase tracking-wider">Object Detection</label>
+                      <input
+                        type="checkbox"
+                        checked={securitySettings.objectDetectionEnabled}
+                        onChange={(e) => setSecuritySettings({ ...securitySettings, objectDetectionEnabled: e.target.checked })}
+                        className="w-4 h-4 rounded text-[#781c1c] focus:ring-[#781c1c] bg-slate-100 border-slate-350"
+                      />
+                    </div>
+                    <span className="text-[10px] text-slate-400 font-mono block">Detects mobile phones and tablets during exams.</span>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 border-t border-slate-200 dark:border-slate-800">
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <label className="font-bold text-slate-500 font-mono uppercase tracking-wider">Pause Exam on Face Loss</label>
+                      <input
+                        type="checkbox"
+                        checked={securitySettings.pauseTimerOnFaceMissing}
+                        onChange={(e) => setSecuritySettings({ ...securitySettings, pauseTimerOnFaceMissing: e.target.checked })}
+                        className="w-4 h-4 rounded text-[#781c1c] focus:ring-[#781c1c] bg-slate-100 border-slate-350"
+                      />
+                    </div>
+                    <span className="text-[10px] text-slate-400 font-mono block">Automatically pauses the timer if the face is missing.</span>
+                  </div>
+
+                  <div className="flex flex-col gap-1.5">
+                    <span className="font-bold text-slate-500 font-mono uppercase tracking-wider">Face Missing Timeout (Seconds)</span>
+                    <input
+                      type="number"
+                      min={1}
+                      max={120}
+                      value={securitySettings.faceMissingTimeout}
+                      onChange={(e) => setSecuritySettings({ ...securitySettings, faceMissingTimeout: Number(e.target.value) })}
+                      className="w-full bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-slate-900 dark:text-white focus:outline-none"
+                    />
+                  </div>
                 </div>
               </div>
 
@@ -1107,6 +1218,26 @@ export default function AssessmentAdminModule({ themeMode: propThemeMode, toggle
         </div>
       )}
 
+      {/* SCREENSHOT EVIDENCE LIGHTBOX OVERLAY */}
+      {selectedEvidenceImage && (
+        <div className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4">
+          <div className="relative max-w-3xl w-full flex flex-col items-center gap-4">
+            <button
+              onClick={() => setSelectedEvidenceImage(null)}
+              className="absolute -top-10 right-0 text-white hover:text-slate-300 text-xl font-bold bg-white/10 w-8 h-8 rounded-full flex items-center justify-center cursor-pointer"
+            >
+              ✕
+            </button>
+            <img
+              src={selectedEvidenceImage}
+              alt="Malpractice Full Resolution Screenshot"
+              className="rounded-2xl border border-white/20 shadow-2xl max-h-[80vh] object-contain w-full"
+            />
+            <span className="text-xs font-mono text-slate-400">Captured Proctoring Screen Evidence</span>
+          </div>
+        </div>
+      )}
+
       {/* MALPRACTICE INSPECTION MODAL */}
       {showMalpracticeModal && selectedAttemptMalpractice && (
         <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-md flex items-start justify-center p-3 sm:p-4 py-6 sm:py-8 overflow-y-auto">
@@ -1133,13 +1264,51 @@ export default function AssessmentAdminModule({ themeMode: propThemeMode, toggle
 
               <div className="space-y-2">
                 <h4 className="font-bold uppercase text-slate-400 text-[10px]">Warning Trace Details</h4>
-                {selectedAttemptMalpractice.warningCount === 0 ? (
+                {selectedAttemptMalpractice.warnings && selectedAttemptMalpractice.warnings.length === 0 ? (
                   <div className="py-4 text-center text-slate-400">Clean attempt — No anti-malpractice warnings recorded.</div>
                 ) : (
-                  <div className="space-y-2 max-h-48 overflow-y-auto">
-                    <div className="p-3 bg-rose-500/10 border border-rose-500/20 rounded-xl text-rose-400">
-                      <span className="font-bold">Warning #1:</span> Camera feed face detection lost / Tab switch detected.
-                    </div>
+                  <div className="space-y-3 max-h-80 overflow-y-auto pr-1">
+                    {(selectedAttemptMalpractice.warnings || []).map((w: any) => {
+                      let text = w.details;
+                      let screenshot = "";
+                      let duration = "";
+                      try {
+                        if (w.details && w.details.startsWith("{")) {
+                          const parsed = JSON.parse(w.details);
+                          text = parsed.text;
+                          screenshot = parsed.screenshot;
+                          duration = parsed.duration;
+                        }
+                      } catch (e) {
+                        console.error("Failed to parse warning details JSON:", e);
+                      }
+
+                      return (
+                        <div key={w.id} className="p-3.5 bg-rose-500/10 border border-rose-500/25 rounded-xl space-y-2 text-rose-400">
+                          <div className="flex justify-between items-start">
+                            <span className="font-black text-xs">Warning #{w.warningNum} ({w.warningType})</span>
+                            <span className="text-[9px] text-slate-450 font-bold">{new Date(w.timestamp).toLocaleTimeString()}</span>
+                          </div>
+                          <p className="text-slate-200 text-xs font-sans">{text}</p>
+                          {duration && (
+                            <div className="text-[10px] font-mono text-slate-400 font-bold">
+                              ⏱️ Duration: <span className="text-amber-400">{duration}</span>
+                            </div>
+                          )}
+                          {screenshot && (
+                            <div className="space-y-1">
+                              <span className="text-[9px] uppercase tracking-wider text-slate-450 block">Screenshot Evidence:</span>
+                              <img
+                                src={screenshot}
+                                alt="Malpractice Evidence"
+                                onClick={() => setSelectedEvidenceImage(screenshot)}
+                                className="w-32 h-24 rounded-lg object-cover border border-rose-500/30 hover:border-rose-500 transition cursor-pointer"
+                              />
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
               </div>
