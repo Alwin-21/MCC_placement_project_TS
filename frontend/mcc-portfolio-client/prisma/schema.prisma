@@ -464,3 +464,111 @@ model EFMigrationsHistory {
 
   @@map("__EFMigrationsHistory")
 }
+
+model Company {
+  Id            Int                    @id @default(autoincrement())
+  Name          String
+  Email         String                 @unique
+  Status        String                 @default("Pending") // Pending, Verified, Rejected, Suspended, Inactive, Archived
+  CreatedAt     DateTime               @default(now()) @db.Timestamptz(6)
+  UpdatedAt     DateTime               @updatedAt @db.Timestamptz(6)
+  Profile       CompanyProfile?
+  Documents     CompanyDocuments[]
+  Locations     CompanyLocations[]
+  Users         CompanyUsers[]
+  Verifications CompanyVerification[]
+  StatusHistory CompanyStatusHistory[]
+  AuditLogs     CompanyAuditLogs[]
+}
+
+model CompanyProfile {
+  Id                  Int      @id @default(autoincrement())
+  CompanyId           Int      @unique
+  Company             Company  @relation(fields: [CompanyId], references: [Id], onDelete: Cascade)
+  LogoUrl             String?
+  CoverImageUrl       String?
+  Website             String?
+  LinkedInUrl         String?
+  Industry            String
+  CompanyType         String
+  CompanySize         String
+  FoundedYear         Int
+  Description         String
+  Mission             String?
+  Vision              String?
+  WorkCulture         String?
+  Benefits            String?
+  Awards              String?
+  Achievements        String?
+  RecruitmentProcess  String?
+  InternshipAvailable Boolean  @default(false)
+  PlacementAvailable  Boolean  @default(false)
+}
+
+model CompanyDocuments {
+  Id         Int      @id @default(autoincrement())
+  CompanyId  Int
+  Company    Company  @relation(fields: [CompanyId], references: [Id], onDelete: Cascade)
+  DocType    String // GST, RegistrationCertificate, HiringAuthorization, etc.
+  FileUrl    String
+  UploadedAt DateTime @default(now()) @db.Timestamptz(6)
+}
+
+model CompanyLocations {
+  Id           Int     @id @default(autoincrement())
+  CompanyId    Int
+  Company      Company @relation(fields: [CompanyId], references: [Id], onDelete: Cascade)
+  Location     String
+  IsHeadOffice Boolean @default(false)
+  WorkMode     String // Remote, Hybrid, OnSite
+}
+
+model CompanyUsers {
+  Id                  Int       @id @default(autoincrement())
+  CompanyId           Int
+  Company             Company   @relation(fields: [CompanyId], references: [Id], onDelete: Cascade)
+  Email               String    @unique
+  PasswordHash        String
+  FullName            String
+  Designation         String
+  Phone               String
+  AlternatePhone      String?
+  IsActive            Boolean   @default(true)
+  FailedLoginAttempts Int       @default(0)
+  LockedUntil         DateTime? @db.Timestamptz(6)
+  CreatedAt           DateTime  @default(now()) @db.Timestamptz(6)
+  UpdatedAt           DateTime  @updatedAt @db.Timestamptz(6)
+}
+
+model CompanyVerification {
+  Id              Int      @id @default(autoincrement())
+  CompanyId       Int
+  Company         Company  @relation(fields: [CompanyId], references: [Id], onDelete: Cascade)
+  ReviewedByEmail String?
+  Action          String // Approve, Reject, RequestChanges
+  Comments        String?
+  Timestamp       DateTime @default(now()) @db.Timestamptz(6)
+}
+
+model CompanyStatusHistory {
+  Id        Int      @id @default(autoincrement())
+  CompanyId Int
+  Company   Company  @relation(fields: [CompanyId], references: [Id], onDelete: Cascade)
+  OldStatus String
+  NewStatus String
+  ChangedBy String // Email of Admin / System
+  Comments  String?
+  Timestamp DateTime @default(now()) @db.Timestamptz(6)
+}
+
+model CompanyAuditLogs {
+  Id               Int      @id @default(autoincrement())
+  CompanyId        Int?
+  Company          Company? @relation(fields: [CompanyId], references: [Id], onDelete: SetNull)
+  Action           String
+  PerformedByEmail String
+  Timestamp        DateTime @default(now()) @db.Timestamptz(6)
+  Details          String
+  IpAddress        String
+}
+

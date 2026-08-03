@@ -23,6 +23,7 @@ import {
   XCircle,
   Settings,
   Building,
+  Briefcase,
   BarChart2,
   Download,
   Bell,
@@ -67,7 +68,8 @@ type ActiveTab =
   | "audit-logs"
   | "backup-restore"
   | "rbac"
-  | "assessments";
+  | "assessments"
+  | "companies";
 
 export default function AdminPage() {
   const router = useRouter();
@@ -121,7 +123,21 @@ export default function AdminPage() {
     { id: "reports",       label: "Analytics & Export",   alwaysRead: false },
     { id: "notifications", label: "Notification Manager", alwaysRead: false },
     { id: "assessments",   label: "Assessment Module",    alwaysRead: false },
+    { id: "companies",     label: "Company Management",   alwaysRead: false },
   ];
+
+  // ==========================================
+  // COMPANY MODULE STATE
+  // ==========================================
+  const [companies, setCompanies] = useState<any[]>([]);
+  const [companiesLoading, setCompaniesLoading] = useState(false);
+  const [selectedCompany, setSelectedCompany] = useState<any>(null);
+  const [reviewModalOpen, setReviewModalOpen] = useState(false);
+  const [reviewAction, setReviewAction] = useState<"Approve" | "Reject" | "RequestChanges" | "Suspend" | "Restore" | "Delete" | "">("");
+  const [reviewComments, setReviewComments] = useState("");
+  const [companySearchQuery, setCompanySearchQuery] = useState("");
+  const [companyStatusFilter, setCompanyStatusFilter] = useState<"all" | "Pending" | "Verified" | "Rejected" | "Suspended">("all");
+
 
   // ==========================================
   // ASSESSMENT MODULE STATE
@@ -243,10 +259,12 @@ export default function AdminPage() {
     loadAllData();
   }, []);
 
-  // Fetch assessments whenever the assessments tab is activated
+  // Fetch assessments and companies whenever active tabs change
   useEffect(() => {
     if (activeTab === "assessments") {
       fetchAssessments();
+    } else if (activeTab === "companies") {
+      fetchCompanies();
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab]);
@@ -271,6 +289,7 @@ export default function AdminPage() {
       const promises = [
         fetchMetrics(),
         fetchStudents(),
+        fetchCompanies(),
         fetchInstitution(),
         fetchDepartmentAnalytics(),
         fetchThemes(),
@@ -369,6 +388,38 @@ export default function AdminPage() {
       setAdmins(res.data);
     } catch (err) {
       console.error("Admins fetch failed", err);
+    }
+  };
+
+  const fetchCompanies = async () => {
+    try {
+      setCompaniesLoading(true);
+      const res = await api.get("/Admin/companies");
+      setCompanies(res.data);
+    } catch (err) {
+      console.error("Companies fetch failed", err);
+    } finally {
+      setCompaniesLoading(false);
+    }
+  };
+
+  const handleCompanyReviewSubmit = async (action: string, comments: string) => {
+    if (!selectedCompany) return;
+    try {
+      setManageLoading(true);
+      await api.put(`/Admin/companies/${selectedCompany.id}`, {
+        action,
+        comments,
+      });
+      setReviewModalOpen(false);
+      setReviewComments("");
+      setReviewAction("");
+      setSelectedCompany(null);
+      await fetchCompanies();
+    } catch (err: any) {
+      alert(err.response?.data || "Failed to execute review action.");
+    } finally {
+      setManageLoading(false);
     }
   };
 
@@ -1107,6 +1158,7 @@ export default function AdminPage() {
               { id: "overview",       label: "Dashboard Overview",  icon: Activity,       superOnly: false },
               { id: "students",       label: "Student Directory",    icon: Users,          superOnly: false },
               { id: "assessments",    label: "Assessment Module",    icon: ClipboardList,  superOnly: false },
+              { id: "companies",     label: "Company Onboarding",   icon: Briefcase,      superOnly: false },
               { id: "institution",   label: "Institution Details",  icon: Building,       superOnly: false },
               { id: "analytics",     label: "Department Analytics", icon: BarChart2,      superOnly: false },
               { id: "reports",       label: "Analytics & Export",   icon: FileText,       superOnly: false },
@@ -1209,18 +1261,18 @@ export default function AdminPage() {
               </button>
             </div>
             
-            {/* Navigation Items */}
             <nav className="py-4 space-y-1.5 overflow-y-auto flex-1 scrollbar-thin">
                 {([
                   { id: "overview",       label: "Dashboard Overview",  icon: Activity,  superOnly: false },
                   { id: "students",       label: "Student Directory",    icon: Users,     superOnly: false },
+                  { id: "assessments",    label: "Assessments Manager",  icon: BookOpen,  superOnly: false },
+                  { id: "companies",     label: "Company Onboarding",   icon: Briefcase, superOnly: false },
                   { id: "institution",   label: "Institution Details",  icon: Building,  superOnly: false },
                   { id: "analytics",     label: "Department Analytics", icon: BarChart2, superOnly: false },
                   { id: "reports",       label: "Analytics & Export",   icon: FileText,  superOnly: false },
                   { id: "notifications", label: "Notification Manager", icon: Bell,      superOnly: false },
                   { id: "audit-logs",    label: "Security Audit Logs",  icon: Shield,    superOnly: true  },
                   { id: "backup-restore",label: "System Backup/Restore",icon: Settings,  superOnly: true  },
-                  { id: "assessments",    label: "Assessments Manager",  icon: BookOpen,  superOnly: false },
                   { id: "rbac",          label: "Access Control",       icon: UserCog,   superOnly: true  },
                 ] as const).filter((tab) => {
                   if (isSuperAdmin) return true;
@@ -2869,6 +2921,344 @@ export default function AdminPage() {
             ========================================== */}
         {activeTab === "assessments" && (
           <AssessmentAdminModule themeMode={themeMode} toggleThemeMode={toggleThemeMode} />
+        )}
+
+        {/* ==========================================
+            TAB: COMPANY MANAGEMENT
+            ========================================== */}
+        {activeTab === "companies" && (
+          <div className="space-y-6 animate-fade-in-up text-left">
+            {/* Header Title */}
+            <div className="flex justify-between items-center">
+              <div>
+                <h2 className={`text-2xl font-black ${themeMode === "dark" ? "text-white" : "text-slate-900"}`}>Company Onboarding & Verification</h2>
+                <p className="text-gray-400 text-xs">Manage placement partners, review documents, and verify credentials.</p>
+              </div>
+            </div>
+
+            {/* Metrics Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div className={`p-5 border rounded-3xl ${themeMode === "dark" ? "bg-white/5 border-white/5" : "bg-white border-slate-200"}`}>
+                <span className="text-[10px] uppercase font-bold text-slate-400 block mb-1">Total Companies</span>
+                <span className="text-2xl font-black block">{companies.length}</span>
+              </div>
+              <div className="p-5 border rounded-3xl bg-amber-500/10 border-amber-500/20 text-amber-500">
+                <span className="text-[10px] uppercase font-bold block mb-1">Pending Verification</span>
+                <span className="text-2xl font-black block">{companies.filter(c => c.status === "Pending").length}</span>
+              </div>
+              <div className="p-5 border rounded-3xl bg-emerald-500/10 border-emerald-500/20 text-emerald-500">
+                <span className="text-[10px] uppercase font-bold block mb-1">Verified Partners</span>
+                <span className="text-2xl font-black block">{companies.filter(c => c.status === "Verified").length}</span>
+              </div>
+              <div className="p-5 border rounded-3xl bg-red-500/10 border-red-500/20 text-red-500">
+                <span className="text-[10px] uppercase font-bold block mb-1">Suspended/Rejected</span>
+                <span className="text-2xl font-black block">{companies.filter(c => c.status === "Suspended" || c.status === "Rejected").length}</span>
+              </div>
+            </div>
+
+            {/* Search and Filters */}
+            <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
+              <div className="relative w-full md:w-96">
+                <Search className="absolute left-4 top-3 text-slate-400" size={16} />
+                <input
+                  type="text"
+                  placeholder="Search by company name or industry..."
+                  value={companySearchQuery}
+                  onChange={(e) => setCompanySearchQuery(e.target.value)}
+                  className={`w-full text-xs pl-10 pr-4 py-3 border rounded-xl outline-none transition ${
+                    themeMode === "dark"
+                      ? "bg-white/5 border-white/10 text-white focus:border-blue-500"
+                      : "bg-white border-slate-205 text-slate-900 focus:border-blue-500"
+                  }`}
+                />
+              </div>
+
+              <div className="flex items-center gap-2 w-full md:w-auto">
+                <span className="text-xs font-bold text-slate-400">Status:</span>
+                <select
+                  value={companyStatusFilter}
+                  onChange={(e) => setCompanyStatusFilter(e.target.value as any)}
+                  className={`text-xs px-4 py-3 border rounded-xl outline-none transition ${
+                    themeMode === "dark"
+                      ? "bg-white/5 border-white/10 text-white focus:border-blue-500"
+                      : "bg-white border-slate-205 text-slate-900 focus:border-blue-500"
+                  }`}
+                >
+                  <option value="all">All Statuses</option>
+                  <option value="Pending">Pending</option>
+                  <option value="Verified">Verified</option>
+                  <option value="Rejected">Rejected</option>
+                  <option value="Suspended">Suspended</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Companies List */}
+            {companiesLoading ? (
+              <div className="text-center py-12">
+                <div className="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
+                <p className="text-xs text-slate-400 font-semibold">Loading partners...</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {companies
+                  .filter((c) => {
+                    const matchQuery = (c.name || "").toLowerCase().includes(companySearchQuery.toLowerCase()) || 
+                      (c.profile?.industry && c.profile.industry.toLowerCase().includes(companySearchQuery.toLowerCase()));
+                    const matchStatus = companyStatusFilter === "all" || c.status === companyStatusFilter;
+                    return matchQuery && matchStatus;
+                  })
+                  .map((comp) => {
+                    const primaryHr = comp.users?.[0] || null;
+                    const statusStyle = comp.status === "Pending" ? "bg-amber-500/10 text-amber-500 border-amber-500/20" : comp.status === "Verified" ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/20" : comp.status === "Rejected" ? "bg-red-500/10 text-red-500 border-red-500/20" : "bg-rose-500/10 text-rose-500 border-rose-500/20";
+                    return (
+                      <div
+                        key={comp.id}
+                        className={`p-6 border rounded-3xl flex flex-col justify-between h-72 shadow-md hover:scale-[1.01] transition duration-200 ${
+                          themeMode === "dark" ? "bg-white/5 border-white/5" : "bg-white border-slate-200"
+                        }`}
+                      >
+                        <div className="space-y-4 text-left">
+                          <div className="flex justify-between items-start">
+                            {comp.profile?.logoUrl ? (
+                              <img src={comp.profile.logoUrl} className="w-12 h-12 object-contain rounded-xl border p-1 bg-white" />
+                            ) : (
+                              <div className="w-12 h-12 bg-blue-500/10 text-blue-500 dark:text-blue-300 rounded-xl flex items-center justify-center border">
+                                <Building2 size={24} />
+                              </div>
+                            )}
+                            <span className={`text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full border ${statusStyle}`}>
+                              {comp.status}
+                            </span>
+                          </div>
+
+                          <div className="space-y-1">
+                            <h4 className="text-base font-black truncate">{comp.name}</h4>
+                            <span className="text-[10px] uppercase font-bold text-slate-400 block leading-none">
+                              {comp.profile?.industry || "Not Specified"}
+                            </span>
+                          </div>
+
+                          <div className="text-xs font-semibold text-slate-400 space-y-1">
+                            <div className="truncate text-left font-semibold">HR Contact: {primaryHr?.fullName || "None"}</div>
+                            <div className="truncate text-left font-semibold">Email: {primaryHr?.email || comp.email}</div>
+                          </div>
+                        </div>
+
+                        <button
+                          onClick={() => setSelectedCompany(comp)}
+                          className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs uppercase rounded-xl transition cursor-pointer text-center"
+                        >
+                          Review & Verify
+                        </button>
+                      </div>
+                    );
+                  })}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ==========================================
+            COMPANY DETAILS MODAL (ADMIN REVIEW)
+            ========================================== */}
+        {selectedCompany && (
+          <div className="fixed inset-0 z-50 flex items-center justify-end bg-[#0d0d12]/75 backdrop-blur-sm">
+            <div className={`w-full max-w-2xl h-screen shadow-2xl relative overflow-y-auto flex flex-col justify-between p-8 ${
+              themeMode === "dark" ? "bg-[#0b0b0f] text-white" : "bg-white text-slate-900"
+            }`}>
+              {/* Modal Header */}
+              <div className="flex justify-between items-start border-b border-slate-200/50 dark:border-white/5 pb-4">
+                <div className="flex items-center gap-3">
+                  {selectedCompany.profile?.logoUrl ? (
+                    <img src={selectedCompany.profile.logoUrl} className="w-12 h-12 object-contain rounded-xl border p-1 bg-white" />
+                  ) : (
+                    <div className="w-12 h-12 bg-blue-500/10 text-blue-500 rounded-xl flex items-center justify-center border">
+                      <Building2 size={24} />
+                    </div>
+                  )}
+                  <div className="text-left">
+                    <h3 className="text-xl font-black">{selectedCompany.name}</h3>
+                    <span className="text-xs text-slate-400 font-bold uppercase">{selectedCompany.profile?.industry}</span>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setSelectedCompany(null)}
+                  className="p-1 rounded-full hover:bg-slate-100 dark:hover:bg-white/5 text-slate-400"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+
+              {/* Modal Content */}
+              <div className="flex-1 py-6 space-y-6 overflow-y-auto">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs font-semibold">
+                  <div className="p-3 bg-slate-50 dark:bg-white/5 rounded-2xl text-left">
+                    <span className="text-[10px] text-slate-400 block">Founded Year</span>
+                    <span>{selectedCompany.profile?.foundedYear || "N/A"}</span>
+                  </div>
+                  <div className="p-3 bg-slate-50 dark:bg-white/5 rounded-2xl text-left">
+                    <span className="text-[10px] text-slate-400 block">Company Size</span>
+                    <span>{selectedCompany.profile?.companySize || "N/A"}</span>
+                  </div>
+                  <div className="p-3 bg-slate-50 dark:bg-white/5 rounded-2xl text-left">
+                    <span className="text-[10px] text-slate-400 block">Company Type</span>
+                    <span>{selectedCompany.profile?.companyType || "N/A"}</span>
+                  </div>
+                </div>
+
+                <div className="text-left">
+                  <span className="text-xs font-bold text-slate-400 block mb-1">Description</span>
+                  <p className="text-sm font-medium leading-relaxed">{selectedCompany.profile?.description}</p>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-left">
+                  <div>
+                    <span className="text-xs font-bold text-slate-400 block mb-1">Mission</span>
+                    <p className="text-sm font-medium leading-relaxed">{selectedCompany.profile?.mission || "N/A"}</p>
+                  </div>
+                  <div>
+                    <span className="text-xs font-bold text-slate-400 block mb-1">Vision</span>
+                    <p className="text-sm font-medium leading-relaxed">{selectedCompany.profile?.vision || "N/A"}</p>
+                  </div>
+                </div>
+
+                {/* Locations */}
+                <div className="text-left">
+                  <span className="text-xs font-bold text-slate-400 block mb-1">Office Locations</span>
+                  <div className="flex flex-wrap gap-2 text-xs font-bold">
+                    {selectedCompany.locations?.map((loc: any) => (
+                      <span key={loc.id} className="px-2.5 py-1 bg-blue-500/10 text-blue-500 dark:text-blue-300 rounded-lg">
+                        {loc.location} {loc.isHeadOffice ? "(HQ)" : ""} - {loc.workMode}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+
+                {/* HR Representative */}
+                <div className="p-5 bg-slate-50 dark:bg-white/5 rounded-3xl space-y-3 text-left">
+                  <span className="text-[10px] font-extrabold uppercase text-slate-400 block">HR Contact Information</span>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs font-semibold">
+                    <div>Name: {selectedCompany.users?.[0]?.fullName}</div>
+                    <div>Designation: {selectedCompany.users?.[0]?.designation}</div>
+                    <div>Email: {selectedCompany.users?.[0]?.email}</div>
+                    <div>Phone: {selectedCompany.users?.[0]?.phone}</div>
+                  </div>
+                </div>
+
+                {/* Verification Documents Uploads */}
+                <div className="space-y-2 text-left">
+                  <span className="text-xs font-bold text-slate-400 block">Uploaded Verification Certificates</span>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs font-bold">
+                    {selectedCompany.documents?.map((doc: any) => (
+                      <a
+                        key={doc.id}
+                        href={doc.fileUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="flex items-center gap-2 p-3 bg-slate-100 dark:bg-white/10 rounded-2xl border border-slate-200/50 dark:border-white/5 hover:bg-slate-200 transition"
+                      >
+                        <FileText className="text-blue-500 shrink-0" size={16} />
+                        <span className="truncate">{doc.docType}</span>
+                      </a>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Verification Audit Trail */}
+                <div className="space-y-3 text-left">
+                  <span className="text-xs font-bold text-slate-400 block">Verification Audit Logs</span>
+                  <div className="space-y-2 max-h-40 overflow-y-auto pr-2 scrollbar-thin">
+                    {selectedCompany.verifications?.map((v: any) => (
+                      <div key={v.id} className="p-3 bg-slate-50 dark:bg-white/5 rounded-2xl text-xs space-y-1 text-left">
+                        <div className="flex justify-between font-bold">
+                          <span>Action: {v.action}</span>
+                          <span className="text-[10px] text-slate-400">{new Date(v.timestamp).toLocaleString()}</span>
+                        </div>
+                        <div className="text-[10px] text-slate-400 text-left">Reviewed By: {v.reviewedByEmail}</div>
+                        {v.comments && <div className="text-slate-500 italic mt-1 text-left">Comment: "{v.comments}"</div>}
+                      </div>
+                    ))}
+                    {selectedCompany.verifications?.length === 0 && (
+                      <div className="text-xs text-slate-400 italic">No verification history logs recorded.</div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Review Comments Input */}
+                <div className="border-t border-slate-200/50 dark:border-white/5 pt-4 space-y-2 text-left">
+                  <label className="text-[11px] uppercase font-bold text-slate-400 block">Review Feedback Notes / Reasons *</label>
+                  <textarea
+                    rows={2}
+                    placeholder="Enter approval comments, rejection notes, or details for requested changes..."
+                    value={reviewComments}
+                    onChange={(e) => setReviewComments(e.target.value)}
+                    className="w-full border text-xs px-4 py-3 rounded-xl outline-none bg-slate-50 dark:bg-white/5 border-slate-200 dark:border-white/10 text-slate-900 dark:text-white"
+                  />
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="border-t border-slate-200/50 dark:border-white/5 pt-4 flex flex-wrap gap-2 justify-end">
+                {selectedCompany.status !== "Verified" && (
+                  <button
+                    onClick={() => handleCompanyReviewSubmit("Approve", reviewComments)}
+                    disabled={manageLoading}
+                    className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold uppercase rounded-xl transition cursor-pointer disabled:opacity-50 animate-pulse"
+                  >
+                    Approve
+                  </button>
+                )}
+                {selectedCompany.status === "Verified" && (
+                  <button
+                    onClick={() => handleCompanyReviewSubmit("Suspend", reviewComments)}
+                    disabled={manageLoading}
+                    className="px-5 py-2.5 bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold uppercase rounded-xl transition cursor-pointer disabled:opacity-50"
+                  >
+                    Suspend
+                  </button>
+                )}
+                {selectedCompany.status === "Suspended" && (
+                  <button
+                    onClick={() => handleCompanyReviewSubmit("Restore", reviewComments)}
+                    disabled={manageLoading}
+                    className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold uppercase rounded-xl transition cursor-pointer disabled:opacity-50"
+                  >
+                    Restore
+                  </button>
+                )}
+                {selectedCompany.status === "Pending" && (
+                  <>
+                    <button
+                      onClick={() => handleCompanyReviewSubmit("Reject", reviewComments)}
+                      disabled={manageLoading}
+                      className="px-5 py-2.5 bg-red-600 hover:bg-red-700 text-white text-xs font-bold uppercase rounded-xl transition cursor-pointer disabled:opacity-50"
+                    >
+                      Reject
+                    </button>
+                    <button
+                      onClick={() => handleCompanyReviewSubmit("RequestChanges", reviewComments)}
+                      disabled={manageLoading}
+                      className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold uppercase rounded-xl transition cursor-pointer disabled:opacity-50"
+                    >
+                      Request Changes
+                    </button>
+                  </>
+                )}
+                <button
+                  onClick={() => {
+                    if (confirm("Are you absolutely sure you want to delete this company and all its data? This cannot be undone.")) {
+                      handleCompanyReviewSubmit("Delete", "");
+                    }
+                  }}
+                  disabled={manageLoading}
+                  className="px-5 py-2.5 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold uppercase rounded-xl transition cursor-pointer disabled:opacity-50"
+                >
+                  Delete Company
+                </button>
+              </div>
+            </div>
+          </div>
         )}
 
       </div>
