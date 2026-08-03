@@ -1,9 +1,16 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/utils/db";
 import crypto from "crypto";
+import { checkRateLimit, getClientIp, RATE_LIMITS } from "@/utils/rateLimiter";
 
 export async function POST(request: Request) {
   try {
+    // Rate limiting — max 3 per 10 minutes
+    const ip = getClientIp(request);
+    if (!checkRateLimit(ip, "company-forgot-password", RATE_LIMITS.FORGOT_PASSWORD.maxRequests, RATE_LIMITS.FORGOT_PASSWORD.windowMs)) {
+      return NextResponse.json("Too many password reset requests. Please try again later.", { status: 429 });
+    }
+
     const body = await request.json();
     const { email } = body;
 
@@ -18,7 +25,7 @@ export async function POST(request: Request) {
     });
 
     if (!hrUser) {
-      // Avoid enumerating emails for security, but return success message
+      // Avoid enumerating emails for security — always return success
       return NextResponse.json({
         success: true,
         message: "If the email is registered, a password reset link has been sent.",
@@ -27,9 +34,8 @@ export async function POST(request: Request) {
 
     // Generate simulated reset token
     const resetToken = crypto.randomBytes(32).toString("hex");
-    const tokenExpiry = new Date(Date.now() + 3600000); // 1 hour
 
-    // Store in a status history or log for simulated email
+    // Store in status history for simulated email
     await prisma.companyStatusHistory.create({
       data: {
         CompanyId: hrUser.CompanyId,
@@ -41,7 +47,6 @@ export async function POST(request: Request) {
     });
 
     // Write audit log
-    const ip = request.headers.get("x-forwarded-for") || "127.0.0.1";
     await prisma.companyAuditLogs.create({
       data: {
         CompanyId: hrUser.CompanyId,
@@ -53,12 +58,17 @@ export async function POST(request: Request) {
       },
     });
 
-    // For ease of development/testing, return the token in the response
-    return NextResponse.json({
+    const responseBody: any = {
       success: true,
       message: "If the email is registered, a password reset link has been sent.",
-      simulatedToken: resetToken, // Useful for UI walkthroughs
-    });
+    };
+
+    // Only expose the token in non-production environments for testing
+    if (process.env.NODE_ENV !== "production") {
+      responseBody.simulatedToken = resetToken;
+    }
+
+    return NextResponse.json(responseBody);
   } catch (err: any) {
     console.error("Forgot Password Error:", err);
     return NextResponse.json({ message: "Internal server error" }, { status: 500 });

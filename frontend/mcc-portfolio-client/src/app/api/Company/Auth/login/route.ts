@@ -1,15 +1,35 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/utils/db";
 import { verifyPassword, generateToken, UserRole } from "@/utils/auth";
+import { checkRateLimit, getClientIp, RATE_LIMITS } from "@/utils/rateLimiter";
+
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export async function POST(request: Request) {
   try {
+    // Rate limiting
+    const ip = getClientIp(request);
+    if (!checkRateLimit(ip, "company-login", RATE_LIMITS.LOGIN.maxRequests, RATE_LIMITS.LOGIN.windowMs)) {
+      return NextResponse.json(
+        "Too many login attempts. Please try again later.",
+        { status: 429 }
+      );
+    }
+
     const body = await request.json();
     const { email, password } = body;
 
     const emailTrim = (email || "").trim().toLowerCase();
     if (!emailTrim || !password) {
       return NextResponse.json({ message: "Email and Password are required." }, { status: 400 });
+    }
+
+    if (!EMAIL_REGEX.test(emailTrim)) {
+      return NextResponse.json({ message: "Please enter a valid email address." }, { status: 400 });
+    }
+
+    if (typeof password !== "string" || password.length < 8) {
+      return NextResponse.json({ message: "Password must be at least 8 characters." }, { status: 400 });
     }
 
     const hrUser = await prisma.companyUsers.findUnique({
@@ -100,7 +120,7 @@ export async function POST(request: Request) {
       Role: UserRole.Company,
     });
 
-    const ip = request.headers.get("x-forwarded-for") || "127.0.0.1";
+    // ip already captured by getClientIp at the start of the handler
 
     // Write audit logs
     await prisma.companyAuditLogs.create({

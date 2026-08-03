@@ -22,12 +22,21 @@ export default function CompanyLoginPage() {
   const [themeMode, toggleThemeMode] = useTheme();
   const isDark = themeMode === "dark";
 
+  // Redirect if already authenticated as an HR user
   useEffect(() => {
     if (typeof window !== "undefined") {
-      localStorage.removeItem("token");
-      localStorage.removeItem("user");
+      const token = localStorage.getItem("token");
+      const user = localStorage.getItem("user");
+      if (token && user) {
+        try {
+          const parsed = JSON.parse(user);
+          if (parsed?.role === "Company") {
+            router.replace("/company/dashboard");
+          }
+        } catch {}
+      }
     }
-  }, []);
+  }, [router]);
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -175,7 +184,7 @@ export default function CompanyLoginPage() {
               </p>
             </div>
 
-            <form onSubmit={handleLogin} className="space-y-4" autoComplete="off">
+            <form onSubmit={handleLogin} className="space-y-4" autoComplete="off" aria-label="HR Login Form" noValidate>
               <div>
                 <label className="text-[11px] uppercase tracking-wider font-extrabold block mb-2 text-slate-700 dark:text-slate-300">
                   Official HR Email

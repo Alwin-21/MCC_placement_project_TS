@@ -70,7 +70,6 @@ export async function PUT(request: Request) {
     if (!hrUser) {
       return NextResponse.json("HR User not found.", { status: 404 });
     }
-
     const body = await request.json();
     const {
       name,
@@ -95,6 +94,13 @@ export async function PUT(request: Request) {
       headOffice,
       branchLocations, // array of strings
       workMode, // "Remote" | "Hybrid" | "OnSite"
+      gallery,
+      videos,
+      placementHistory,
+      internshipPrograms,
+      faqs,
+      contactDetails,
+      socialLinks,
     } = body;
 
     const companyId = hrUser.CompanyId;
@@ -131,6 +137,13 @@ export async function PUT(request: Request) {
           RecruitmentProcess: recruitmentProcess !== undefined ? recruitmentProcess : undefined,
           InternshipAvailable: internshipAvailable !== undefined ? !!internshipAvailable : undefined,
           PlacementAvailable: placementAvailable !== undefined ? !!placementAvailable : undefined,
+          Gallery: gallery !== undefined ? gallery : undefined,
+          Videos: videos !== undefined ? videos : undefined,
+          PlacementHistory: placementHistory !== undefined ? placementHistory : undefined,
+          InternshipPrograms: internshipPrograms !== undefined ? internshipPrograms : undefined,
+          FAQs: faqs !== undefined ? faqs : undefined,
+          ContactDetails: contactDetails !== undefined ? contactDetails : undefined,
+          SocialLinks: socialLinks !== undefined ? socialLinks : undefined,
         },
       });
 

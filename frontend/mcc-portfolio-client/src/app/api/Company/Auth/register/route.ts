@@ -1,9 +1,19 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/utils/db";
 import { hashPassword } from "@/utils/auth";
+import { checkRateLimit, getClientIp, RATE_LIMITS } from "@/utils/rateLimiter";
+
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const PASSWORD_STRONG_REGEX = /^(?=.*[A-Z])(?=.*[0-9]).{8,}$/;
 
 export async function POST(request: Request) {
   try {
+    // Rate limiting
+    const ip = getClientIp(request);
+    if (!checkRateLimit(ip, "company-register", RATE_LIMITS.REGISTER.maxRequests, RATE_LIMITS.REGISTER.windowMs)) {
+      return NextResponse.json("Too many registration attempts. Please try again later.", { status: 429 });
+    }
+
     const body = await request.json();
     const {
       companyName,
@@ -40,20 +50,46 @@ export async function POST(request: Request) {
       authDocUrl,
     } = body;
 
-    // Simple Server-Side Validations
+    // Server-Side Validations
     if (!companyName || !companyEmail || !officialHrEmail || !hrName || !hrPassword) {
       return NextResponse.json("Required fields are missing.", { status: 400 });
     }
 
+    const companyNameTrim = (companyName || "").trim();
     const companyEmailTrim = companyEmail.trim().toLowerCase();
     const officialHrEmailTrim = officialHrEmail.trim().toLowerCase();
+    const hrNameTrim = (hrName || "").trim();
+
+    // Field length limits
+    if (companyNameTrim.length > 255) {
+      return NextResponse.json("Company name must be 255 characters or less.", { status: 400 });
+    }
+    if (hrNameTrim.length < 2 || hrNameTrim.length > 100) {
+      return NextResponse.json("HR name must be between 2 and 100 characters.", { status: 400 });
+    }
+
+    // Email format validation
+    if (!EMAIL_REGEX.test(companyEmailTrim)) {
+      return NextResponse.json("Please enter a valid company email address.", { status: 400 });
+    }
+    if (!EMAIL_REGEX.test(officialHrEmailTrim)) {
+      return NextResponse.json("Please enter a valid HR email address.", { status: 400 });
+    }
+
+    // Password strength
+    if (!PASSWORD_STRONG_REGEX.test(hrPassword)) {
+      return NextResponse.json(
+        "Password must be at least 8 characters and include an uppercase letter and a number.",
+        { status: 400 }
+      );
+    }
 
     // Check if company or user email already registered
     const existingCompany = await prisma.company.findFirst({
       where: {
         OR: [
           { Email: companyEmailTrim },
-          { Name: { equals: companyName.trim(), mode: "insensitive" } },
+          { Name: { equals: companyNameTrim, mode: "insensitive" } },
         ],
       },
     });
@@ -182,8 +218,6 @@ export async function POST(request: Request) {
 
       return { company, hrUser };
     });
-
-    const ip = request.headers.get("x-forwarded-for") || "127.0.0.1";
 
     // Write System Audit Log
     await prisma.auditLogs.create({

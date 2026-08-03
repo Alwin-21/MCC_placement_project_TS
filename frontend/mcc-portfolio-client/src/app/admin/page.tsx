@@ -23,6 +23,7 @@ import {
   XCircle,
   Settings,
   Building,
+  Building2,
   Briefcase,
   BarChart2,
   Download,
@@ -43,6 +44,7 @@ import {
   UserCog,
   Key,
   ToggleLeft,
+  Sliders,
   ToggleRight,
   Lock,
   ClipboardList,
@@ -69,7 +71,9 @@ type ActiveTab =
   | "backup-restore"
   | "rbac"
   | "assessments"
-  | "companies";
+  | "companies"
+  | "jobs"
+  | "taxonomy";
 
 export default function AdminPage() {
   const router = useRouter();
@@ -96,6 +100,37 @@ export default function AdminPage() {
   const [adminPermissions, setAdminPermissions] = useState<Record<string, string>>({});
   const [backingUp, setBackingUp] = useState(false);
   const [restoringBackup, setRestoringBackup] = useState(false);
+
+  // Admin placement analytics and automation states
+  const [adminAnalytics, setAdminAnalytics] = useState<any>(null);
+  const [adminAnalyticsLoading, setAdminAnalyticsLoading] = useState(false);
+  const [automationRunning, setAutomationRunning] = useState(false);
+
+  const fetchAdminAnalytics = async () => {
+    try {
+      setAdminAnalyticsLoading(true);
+      const res = await api.get("/Admin/analytics");
+      setAdminAnalytics(res.data);
+    } catch (e) {
+      console.error("fetchAdminAnalytics failed", e);
+    } finally {
+      setAdminAnalyticsLoading(false);
+    }
+  };
+
+  const handleRunAutomation = async () => {
+    try {
+      setAutomationRunning(true);
+      const res = await api.post("/Automation/cron", {});
+      alert(`Placement automations check executed successfully:\n${res.data.details.join("\n")}`);
+      await fetchAdminAnalytics();
+    } catch (err) {
+      alert("Failed to execute automations check.");
+    } finally {
+      setAutomationRunning(false);
+    }
+  };
+
 
   // ── Permission helpers ──────────────────────────────────────────────
   // Super Admin always has full write access. Sub-admins check their map.
@@ -137,6 +172,151 @@ export default function AdminPage() {
   const [reviewComments, setReviewComments] = useState("");
   const [companySearchQuery, setCompanySearchQuery] = useState("");
   const [companyStatusFilter, setCompanyStatusFilter] = useState<"all" | "Pending" | "Verified" | "Rejected" | "Suspended">("all");
+
+  // ==========================================
+  // JOB PLACEMENT STATE (ADMIN REVIEW)
+  // ==========================================
+  const [adminJobs, setAdminJobs] = useState<any[]>([]);
+  const [adminJobsLoading, setAdminJobsLoading] = useState(false);
+  const [selectedAdminJob, setSelectedAdminJob] = useState<any>(null);
+  const [adminJobSearchQuery, setAdminJobSearchQuery] = useState("");
+  const [adminJobStatusFilter, setAdminJobStatusFilter] = useState<string>("all");
+  const [adminJobReviewComments, setAdminJobReviewComments] = useState("");
+  const [adminJobReviewLoading, setAdminJobReviewLoading] = useState(false);
+
+  const fetchAdminJobs = async () => {
+    try {
+      setAdminJobsLoading(true);
+      const res = await api.get("/Admin/jobs");
+      setAdminJobs(res.data);
+    } catch (err) {
+      console.error("Admin jobs fetch failed", err);
+    } finally {
+      setAdminJobsLoading(false);
+    }
+  };
+
+  const handleAdminJobReviewSubmit = async (action: string, comments: string) => {
+    if (!selectedAdminJob) return;
+    try {
+      setAdminJobReviewLoading(true);
+      await api.put(`/Admin/jobs/${selectedAdminJob.id}`, {
+        action,
+        comments,
+      });
+      setSelectedAdminJob(null);
+      setAdminJobReviewComments("");
+      await fetchAdminJobs();
+      alert(`Job status updated successfully to ${action}.`);
+    } catch (err: any) {
+      alert(err.response?.data || "Failed to submit job review.");
+    } finally {
+      setAdminJobReviewLoading(false);
+    }
+  };
+
+  // ==========================================
+  // SKILL TAXONOMY STATE
+  // ==========================================
+  const [taxonomyList, setTaxonomyList] = useState<any[]>([]);
+  const [taxonomyLoading, setTaxonomyLoading] = useState(false);
+  const [taxonomyPage, setTaxonomyPage] = useState(1);
+  const [taxonomyTotalPages, setTaxonomyTotalPages] = useState(1);
+  const [taxonomyTotalItems, setTaxonomyTotalItems] = useState(0);
+
+  const [weightsConfig, setWeightsConfig] = useState<any>({
+    skills: 0.35,
+    experience: 0.20,
+    projects: 0.15,
+    certifications: 0.10,
+    completeness: 0.10,
+    achievements: 0.05,
+    cgpa: 0.05
+  });
+  const [saveWeightsLoading, setSaveWeightsLoading] = useState(false);
+  const [taxonomyModalOpen, setTaxonomyModalOpen] = useState(false);
+  const [editingTaxonomyId, setEditingTaxonomyId] = useState<number | null>(null);
+  const [taxonomyForm, setTaxonomyForm] = useState({
+    department: "",
+    domain: "",
+    skillName: "",
+    subSkills: "",
+    category: "Programming Languages",
+    aliases: "",
+    relatedSkills: ""
+  });
+
+  const fetchTaxonomyAndConfig = async (page = 1) => {
+    try {
+      setTaxonomyLoading(true);
+      const taxRes = await api.get(`/Admin/skills-taxonomy?page=${page}&pageSize=10`);
+      if (taxRes.data && taxRes.data.items) {
+        setTaxonomyList(taxRes.data.items);
+        setTaxonomyTotalPages(taxRes.data.totalPages || 1);
+        setTaxonomyTotalItems(taxRes.data.totalItems || 0);
+        setTaxonomyPage(taxRes.data.currentPage || 1);
+      } else {
+        setTaxonomyList(taxRes.data);
+      }
+
+      const configRes = await api.get("/Admin/matching-config");
+      setWeightsConfig(configRes.data);
+    } catch (err) {
+      console.error("Failed to load taxonomy configuration", err);
+    } finally {
+      setTaxonomyLoading(false);
+    }
+  };
+
+  const handleSaveTaxonomy = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      if (editingTaxonomyId) {
+        await api.put(`/Admin/skills-taxonomy/${editingTaxonomyId}`, taxonomyForm);
+      } else {
+        await api.post("/Admin/skills-taxonomy", taxonomyForm);
+      }
+      setTaxonomyModalOpen(false);
+      await fetchTaxonomyAndConfig();
+      alert("Taxonomy item saved successfully.");
+    } catch (err) {
+      alert("Failed to save taxonomy item.");
+    }
+  };
+
+  const handleDeleteTaxonomy = async (id: number) => {
+    if (!confirm("Are you sure you want to delete this taxonomy node?")) return;
+    try {
+      await api.delete(`/Admin/skills-taxonomy/${id}`);
+      await fetchTaxonomyAndConfig();
+      alert("Taxonomy node deleted.");
+    } catch (err) {
+      alert("Failed to delete taxonomy node.");
+    }
+  };
+
+  const handleSaveWeights = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      setSaveWeightsLoading(true);
+      const parsedWeights = {
+        skills: parseFloat(weightsConfig.skills),
+        experience: parseFloat(weightsConfig.experience),
+        projects: parseFloat(weightsConfig.projects),
+        certifications: parseFloat(weightsConfig.certifications),
+        completeness: parseFloat(weightsConfig.completeness),
+        achievements: parseFloat(weightsConfig.achievements),
+        cgpa: parseFloat(weightsConfig.cgpa),
+      };
+      await api.post("/Admin/matching-config", { weights: parsedWeights });
+      alert("Weighted scoring configurations updated successfully.");
+      await fetchTaxonomyAndConfig();
+    } catch (err: any) {
+      alert(err.response?.data || "Failed to update weights configuration. Verify total sums to 100% (1.0).");
+    } finally {
+      setSaveWeightsLoading(false);
+    }
+  };
 
 
   // ==========================================
@@ -265,6 +445,12 @@ export default function AdminPage() {
       fetchAssessments();
     } else if (activeTab === "companies") {
       fetchCompanies();
+    } else if (activeTab === "jobs") {
+      fetchAdminJobs();
+    } else if (activeTab === "taxonomy") {
+      fetchTaxonomyAndConfig();
+    } else if (activeTab === "analytics") {
+      fetchAdminAnalytics();
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab]);
@@ -294,7 +480,10 @@ export default function AdminPage() {
         fetchDepartmentAnalytics(),
         fetchThemes(),
         fetchReportsSummary(),
-        fetchNotifications()
+        fetchNotifications(),
+        fetchAdminJobs(),
+        fetchTaxonomyAndConfig(),
+        fetchAdminAnalytics()
       ];
 
       if (currentRole === "Admin" || currentRole === "1") {
@@ -920,6 +1109,28 @@ export default function AdminPage() {
     }
   };
 
+  const handleExportAdminReport = async (reportType: string, format: string) => {
+    try {
+      const adminToken = localStorage.getItem("adminToken");
+      const response = await fetch(`/api/Admin/reports/export-details?reportType=${reportType}&format=${format}`, {
+        headers: {
+          "Authorization": `Bearer ${adminToken}`
+        }
+      });
+      if (!response.ok) throw new Error("Failed to export report");
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `mcc_${reportType}_report_${new Date().toISOString().split("T")[0]}.${format === "excel" ? "xls" : "csv"}`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    } catch (err) {
+      alert("Failed to export report.");
+    }
+  };
+
   // Filter students list based on searchQuery, verification filter, and alumni status
   const filteredStudents = students.filter((s) => {
     if (!s) return false;
@@ -1158,7 +1369,9 @@ export default function AdminPage() {
               { id: "overview",       label: "Dashboard Overview",  icon: Activity,       superOnly: false },
               { id: "students",       label: "Student Directory",    icon: Users,          superOnly: false },
               { id: "assessments",    label: "Assessment Module",    icon: ClipboardList,  superOnly: false },
-              { id: "companies",     label: "Company Onboarding",   icon: Briefcase,      superOnly: false },
+              { id: "companies",     label: "Company Onboarding",   icon: Building,       superOnly: false },
+              { id: "jobs",          label: "Placement Opportunities", icon: Briefcase,     superOnly: false },
+              { id: "taxonomy",      label: "Skill Taxonomy & Config", icon: Sliders,       superOnly: false },
               { id: "institution",   label: "Institution Details",  icon: Building,       superOnly: false },
               { id: "analytics",     label: "Department Analytics", icon: BarChart2,      superOnly: false },
               { id: "reports",       label: "Analytics & Export",   icon: FileText,       superOnly: false },
@@ -1266,7 +1479,9 @@ export default function AdminPage() {
                   { id: "overview",       label: "Dashboard Overview",  icon: Activity,  superOnly: false },
                   { id: "students",       label: "Student Directory",    icon: Users,     superOnly: false },
                   { id: "assessments",    label: "Assessments Manager",  icon: BookOpen,  superOnly: false },
-                  { id: "companies",     label: "Company Onboarding",   icon: Briefcase, superOnly: false },
+                  { id: "companies",     label: "Company Onboarding",   icon: Building,  superOnly: false },
+                  { id: "jobs",          label: "Placement Opportunities", icon: Briefcase, superOnly: false },
+                  { id: "taxonomy",      label: "Skill Taxonomy & Config", icon: Sliders,   superOnly: false },
                   { id: "institution",   label: "Institution Details",  icon: Building,  superOnly: false },
                   { id: "analytics",     label: "Department Analytics", icon: BarChart2, superOnly: false },
                   { id: "reports",       label: "Analytics & Export",   icon: FileText,  superOnly: false },
@@ -2208,6 +2423,149 @@ export default function AdminPage() {
                 ))}
               </div>
             </div>
+
+            {/* ==========================================
+                CORPORATE & PLACEMENT ENGAGEMENT REPORT
+                ========================================== */}
+            <div className="grid md:grid-cols-2 gap-6 mt-8">
+              {/* Placement Automations Console */}
+              <div className={`border rounded-3xl p-6 shadow-xl space-y-4 text-left ${
+                themeMode === "dark" ? "bg-[#0b0b0f] border-white/5" : "bg-white border-slate-200"
+              }`}>
+                <div>
+                  <h4 className={`text-sm font-black uppercase tracking-wider mb-1 ${themeMode === "dark" ? "text-[#a78bfa]" : "text-[#781c1c]"}`}>System Automations Engine</h4>
+                  <p className="text-gray-400 text-xs leading-relaxed">
+                    Trigger background checks to transition expired jobs, flag inactive company workspaces (90 days no logs), send approaching deadline notifications (24h) to eligible students, and notify recruiters of saved search alerts.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  disabled={automationRunning}
+                  onClick={handleRunAutomation}
+                  className={`w-full py-3.5 rounded-xl text-xs font-bold transition flex items-center justify-center gap-2 shadow-lg cursor-pointer ${
+                    themeMode === "dark" ? "bg-[#781c1c] text-white hover:bg-[#5f1515]" : "bg-[#781c1c] text-white hover:bg-[#5f1515]"
+                  } disabled:opacity-50`}
+                >
+                  <Activity size={14} className={automationRunning ? "animate-spin" : ""} />
+                  {automationRunning ? "Executing Cron Checks..." : "Execute Placement Automations Cron"}
+                </button>
+              </div>
+
+              {/* Placement Export Console */}
+              <div className={`border rounded-3xl p-6 shadow-xl space-y-4 text-left ${
+                themeMode === "dark" ? "bg-[#0b0b0f] border-white/5" : "bg-white border-slate-200"
+              }`}>
+                <div>
+                  <h4 className={`text-sm font-black uppercase tracking-wider mb-1 ${themeMode === "dark" ? "text-[#a78bfa]" : "text-[#781c1c]"}`}>Multi-Format Report Exporter</h4>
+                  <p className="text-gray-400 text-xs leading-relaxed">
+                    Download targeted recruitment worksheets, corporate listing histories, and department salary distributions. Available in CSV and Microsoft Excel spreadsheet formats.
+                  </p>
+                </div>
+                <div className="grid grid-cols-3 gap-2.5">
+                  {["placement", "department", "company"].map((rep) => (
+                    <div key={rep} className="flex flex-col gap-1.5">
+                      <span className="text-[9px] uppercase font-bold text-slate-400 text-center truncate">{rep} Details</span>
+                      <div className="flex gap-1">
+                        <button
+                          type="button"
+                          onClick={() => handleExportAdminReport(rep, "csv")}
+                          className="flex-1 py-2 text-[10px] font-extrabold uppercase rounded-lg border border-blue-500/25 hover:bg-blue-500/10 text-blue-400 transition cursor-pointer"
+                        >
+                          CSV
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleExportAdminReport(rep, "excel")}
+                          className="flex-1 py-2 text-[10px] font-extrabold uppercase rounded-lg border border-indigo-500/25 hover:bg-indigo-500/10 text-indigo-400 transition cursor-pointer"
+                        >
+                          XLS
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Placements KPI Grid */}
+            {adminAnalytics && (
+              <div className="space-y-8 mt-8">
+                {/* Stats cards */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+                  {[
+                    { label: "Total Approved Jobs", val: adminAnalytics.placementStats.activeJobs, color: "text-blue-500 bg-blue-500/5" },
+                    { label: "Total Applications", val: adminAnalytics.placementStats.totalApplications, color: "text-violet-500 bg-violet-500/5" },
+                    { label: "Unique Placed Candidates", val: adminAnalytics.placementStats.totalPlacedStudents, color: "text-emerald-500 bg-emerald-500/5" },
+                    { label: "Verified Recruiter Accounts", val: adminAnalytics.companyStats.verifiedCompanies, color: "text-amber-500 bg-amber-500/5" }
+                  ].map((stat, idx) => (
+                    <div key={idx} className={`p-6 border rounded-3xl space-y-1 text-left ${stat.color} ${themeMode === "dark" ? "border-white/5" : "border-slate-200"}`}>
+                      <span className="text-[9px] uppercase font-black tracking-wide text-slate-400">{stat.label}</span>
+                      <span className="text-2xl font-black block">{stat.val}</span>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Department Salary Packages Table */}
+                <div className={`border rounded-3xl p-6 shadow-xl space-y-4 text-left ${
+                  themeMode === "dark" ? "bg-[#0b0b0f] border-white/5" : "bg-white border-slate-200"
+                }`}>
+                  <div className="flex justify-between items-center text-left">
+                    <div>
+                      <h4 className={`text-base font-black uppercase tracking-wider ${themeMode === "dark" ? "text-white" : "text-slate-800"}`}>Department Placement & Salary Summary</h4>
+                      <p className="text-gray-400 text-xs mt-0.5">Summary of placement statistics, highest salary, and average packages per academic department.</p>
+                    </div>
+                  </div>
+
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-xs border-collapse">
+                      <thead>
+                        <tr className="border-b border-slate-100 dark:border-white/5 text-slate-400 font-bold uppercase text-[9px] tracking-wider">
+                          <th className="py-3 px-4">Department / Stream</th>
+                          <th className="py-3 px-4 text-center">Total Enrolled</th>
+                          <th className="py-3 px-4 text-center">Placed count</th>
+                          <th className="py-3 px-4 text-center">Placement rate</th>
+                          <th className="py-3 px-4 text-right">Highest package</th>
+                          <th className="py-3 px-4 text-right">Average package</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {adminAnalytics.departmentReports.map((dept: any, idx: number) => (
+                          <tr key={idx} className="border-b border-slate-100 dark:border-white/5 hover:bg-slate-500/5 transition">
+                            <td className="py-3 px-4 font-bold">{dept.department}</td>
+                            <td className="py-3 px-4 text-center font-mono">{dept.totalStudents}</td>
+                            <td className="py-3 px-4 text-center font-mono">{dept.placedStudents}</td>
+                            <td className="py-3 px-4 text-center">
+                              <span className={`px-2 py-0.5 rounded font-mono font-bold text-[10px] ${
+                                dept.placementPercentage >= 75 ? "bg-emerald-500/10 text-emerald-400" : dept.placementPercentage >= 40 ? "bg-amber-500/10 text-amber-400" : "bg-slate-500/10 text-slate-400"
+                              }`}>{dept.placementPercentage}%</span>
+                            </td>
+                            <td className="py-3 px-4 text-right font-mono text-emerald-400 font-bold">{dept.highestPackage > 0 ? `${dept.highestPackage} LPA` : "0 LPA"}</td>
+                            <td className="py-3 px-4 text-right font-mono text-indigo-400 font-bold">{dept.averagePackage > 0 ? `${dept.averagePackage} LPA` : "0 LPA"}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                {/* Placements Trend & Year brackets */}
+                {adminAnalytics.studentTrends.length > 0 && (
+                  <div className={`border rounded-3xl p-6 shadow-xl space-y-4 text-left ${
+                    themeMode === "dark" ? "bg-[#0b0b0f] border-white/5" : "bg-white border-slate-200"
+                  }`}>
+                    <h4 className="text-xs font-black uppercase tracking-wider text-slate-400">Student Placement Graduation Trends</h4>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-2">
+                      {adminAnalytics.studentTrends.map((t: any, idx: number) => (
+                        <div key={idx} className="p-4 border rounded-2xl bg-slate-500/5 dark:border-white/5">
+                          <span className="text-[10px] font-mono text-slate-450 uppercase tracking-widest block font-bold">Graduation Year {t.year}</span>
+                          <span className="text-xl font-black block text-indigo-400 mt-1">{t.placedCount} Placed Student(s)</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )}
 
@@ -3256,6 +3614,608 @@ export default function AdminPage() {
                 >
                   Delete Company
                 </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ==========================================
+            TAB: PLACEMENT OPPORTUNITIES REVIEW
+            ========================================== */}
+        {activeTab === "jobs" && (
+          <div className="space-y-6 animate-fade-in-up text-left">
+            <div className="flex justify-between items-center">
+              <div>
+                <h2 className={`text-2xl font-black ${themeMode === "dark" ? "text-white" : "text-slate-900"}`}>Placements Job Opportunities</h2>
+                <p className="text-gray-400 text-xs">Review placement opportunities, verify candidate eligibility, and approve postings.</p>
+              </div>
+            </div>
+
+            {/* Metrics */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div className={`p-5 border rounded-3xl ${themeMode === "dark" ? "bg-white/5 border-white/5" : "bg-white border-slate-200"}`}>
+                <span className="text-[10px] uppercase font-bold text-slate-400 block mb-1">Total Job Postings</span>
+                <span className="text-2xl font-black block">{adminJobs.length}</span>
+              </div>
+              <div className="p-5 border rounded-3xl bg-amber-500/10 border-amber-500/20 text-amber-500">
+                <span className="text-[10px] uppercase font-bold block mb-1">Pending Review</span>
+                <span className="text-2xl font-black block">{adminJobs.filter(j => j.status === "Pending").length}</span>
+              </div>
+              <div className="p-5 border rounded-3xl bg-emerald-500/10 border-emerald-500/20 text-emerald-500">
+                <span className="text-[10px] uppercase font-bold block mb-1">Approved Opportunities</span>
+                <span className="text-2xl font-black block">{adminJobs.filter(j => j.status === "Approved").length}</span>
+              </div>
+              <div className="p-5 border rounded-3xl bg-red-500/10 border-red-500/20 text-red-500">
+                <span className="text-[10px] uppercase font-bold block mb-1">Rejected Listings</span>
+                <span className="text-2xl font-black block">{adminJobs.filter(j => j.status === "Rejected" || j.status === "ChangesRequested").length}</span>
+              </div>
+            </div>
+
+            {/* Search and Filters */}
+            <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
+              <div className="relative w-full md:w-96">
+                <Search className="absolute left-4 top-3 text-slate-400" size={16} />
+                <input
+                  type="text"
+                  placeholder="Search by job title or company..."
+                  value={adminJobSearchQuery}
+                  onChange={(e) => setAdminJobSearchQuery(e.target.value)}
+                  className={`w-full text-xs pl-10 pr-4 py-3 border rounded-xl outline-none transition ${
+                    themeMode === "dark"
+                      ? "bg-white/5 border-white/10 text-white focus:border-blue-500"
+                      : "bg-white border-slate-205 text-slate-900 focus:border-blue-500"
+                  }`}
+                />
+              </div>
+
+              <div className="flex items-center gap-2 w-full md:w-auto">
+                <span className="text-xs font-bold text-slate-400">Status:</span>
+                <select
+                  value={adminJobStatusFilter}
+                  onChange={(e) => setAdminJobStatusFilter(e.target.value)}
+                  className={`text-xs px-4 py-3 border rounded-xl outline-none transition ${
+                    themeMode === "dark"
+                      ? "bg-white/5 border-white/10 text-white focus:border-blue-500"
+                      : "bg-white border-slate-205 text-slate-900 focus:border-blue-500"
+                  }`}
+                >
+                  <option value="all">All Jobs</option>
+                  <option value="Pending">Pending</option>
+                  <option value="Approved">Approved</option>
+                  <option value="Rejected">Rejected</option>
+                  <option value="ChangesRequested">Changes Requested</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Listings Grid */}
+            {adminJobsLoading ? (
+              <div className="text-center py-12">
+                <div className="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
+                <p className="text-xs text-slate-400 font-semibold">Loading job listings...</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-fade-in">
+                {adminJobs
+                  .filter((j) => {
+                    const matchQuery = 
+                      (j.title || "").toLowerCase().includes(adminJobSearchQuery.toLowerCase()) || 
+                      (j.companyName || "").toLowerCase().includes(adminJobSearchQuery.toLowerCase());
+                    const matchStatus = adminJobStatusFilter === "all" || j.status === adminJobStatusFilter;
+                    return matchQuery && matchStatus;
+                  })
+                  .map((j) => {
+                    const statusBadgeStyle = 
+                      j.status === "Pending" 
+                        ? "bg-amber-500/10 text-amber-500 border-amber-500/20" 
+                        : j.status === "Approved" 
+                          ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/20" 
+                          : "bg-red-500/10 text-red-500 border-red-500/20";
+                    return (
+                      <div
+                        key={j.id}
+                        className={`p-6 border rounded-3xl flex flex-col justify-between h-72 shadow-md hover:scale-[1.01] transition duration-200 ${
+                          themeMode === "dark" ? "bg-white/5 border-white/5" : "bg-white border-slate-200"
+                        }`}
+                      >
+                        <div className="space-y-4 text-left">
+                          <div className="flex justify-between items-start">
+                            <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">
+                              {j.companyName}
+                            </span>
+                            <span className={`text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full border ${statusBadgeStyle}`}>
+                              {j.status}
+                            </span>
+                          </div>
+
+                          <div className="space-y-1">
+                            <h4 className="text-base font-black truncate">{j.title}</h4>
+                            <span className="text-[10px] uppercase font-bold text-slate-400 block leading-none">
+                              {j.department} · {j.jobType}
+                            </span>
+                          </div>
+
+                          <div className="text-xs font-semibold text-slate-400 space-y-1">
+                            <div>Experience: {j.eligibilityExperience || "N/A"}</div>
+                            <div>LPA: {j.lpa} LPA · Min CGPA: {j.eligibilityMinCGPA}</div>
+                            <div className="truncate">Deadlines: {new Date(j.deadlines).toLocaleDateString()}</div>
+                          </div>
+                        </div>
+
+                        <button
+                          onClick={() => setSelectedAdminJob(j)}
+                          className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs uppercase rounded-xl transition cursor-pointer text-center"
+                        >
+                          Review Opportunity
+                        </button>
+                      </div>
+                    );
+                  })}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ==========================================
+            TAB: SKILL TAXONOMY & MATCH CONFIG
+            ========================================== */}
+        {activeTab === "taxonomy" && (
+          <div className="space-y-10 text-left animate-fade-in">
+            {/* Headers */}
+            <div>
+              <h2 className={`text-2xl font-black ${themeMode === "dark" ? "text-white" : "text-slate-900"}`}>Universal Skill Taxonomy & Matching Engine Config</h2>
+              <p className="text-gray-400 text-xs">Define institutional skill structures across all academic streams and calibrate recruiter search matching weights.</p>
+            </div>
+
+            {/* Split layout: Matching Config & Taxonomy manager */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+              
+              {/* Left Column: Weighted Scoring Configuration */}
+              <div className={`p-6 border rounded-3xl h-fit space-y-6 ${
+                themeMode === "dark" ? "bg-white/5 border-white/5" : "bg-white border-slate-205"
+              }`}>
+                <div>
+                  <h3 className="text-base font-black uppercase tracking-wider text-slate-400">Scoring Engine Weights</h3>
+                  <p className="text-[10px] text-gray-400">Calibrate default parameters for search ranking calculations. Values must sum up to exactly 100%.</p>
+                </div>
+
+                <form onSubmit={handleSaveWeights} className="space-y-4">
+                  {[
+                    { key: "skills", label: "Skills Matching" },
+                    { key: "experience", label: "Tenure / Experiences" },
+                    { key: "projects", label: "Projects / Research" },
+                    { key: "certifications", label: "Certifications" },
+                    { key: "completeness", label: "Portfolio Completeness" },
+                    { key: "achievements", label: "Achievements & Extra-Curricular" },
+                    { key: "cgpa", label: "CGPA Scale" }
+                  ].map((item) => (
+                    <div key={item.key} className="space-y-1.5">
+                      <div className="flex justify-between text-xs font-bold">
+                        <span>{item.label}</span>
+                        <span className="text-blue-500 font-mono">{(weightsConfig[item.key] * 100).toFixed(0)}%</span>
+                      </div>
+                      <input
+                        type="range"
+                        min="0"
+                        max="1"
+                        step="0.05"
+                        value={weightsConfig[item.key]}
+                        onChange={(e) => setWeightsConfig({ ...weightsConfig, [item.key]: parseFloat(e.target.value) })}
+                        className="w-full h-1 bg-slate-200 dark:bg-white/10 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                      />
+                    </div>
+                  ))}
+
+                  <div className="border-t border-slate-200 dark:border-white/5 pt-4 flex justify-between items-center text-xs font-extrabold">
+                    <span>Weights Total:</span>
+                    <span className={`font-mono ${
+                      Math.abs((Object.values(weightsConfig) as any[]).reduce((a: number, b: any) => a + parseFloat(b), 0) - 1.0) < 0.01
+                        ? "text-emerald-500"
+                        : "text-red-500"
+                    }`}>
+                      {((Object.values(weightsConfig) as any[]).reduce((a: number, b: any) => a + parseFloat(b), 0) * 100).toFixed(0)}% / 100%
+                    </span>
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={saveWeightsLoading}
+                    className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-extrabold text-xs uppercase rounded-xl transition cursor-pointer text-center"
+                  >
+                    {saveWeightsLoading ? "Saving Calibration..." : "Calibrate Weights"}
+                  </button>
+                </form>
+              </div>
+
+              {/* Right Column: Taxonomy Manager list */}
+              <div className="lg:col-span-2 space-y-4">
+                <div className="flex justify-between items-center">
+                  <div>
+                    <h3 className="text-base font-black uppercase tracking-wider text-slate-400">Skill Taxonomy Registry</h3>
+                    <p className="text-[10px] text-gray-400">Add mappings mapping department streams to domain skills and aliases.</p>
+                  </div>
+                  <button
+                    onClick={() => {
+                      setEditingTaxonomyId(null);
+                      setTaxonomyForm({
+                        department: "",
+                        domain: "",
+                        skillName: "",
+                        subSkills: "",
+                        category: "Programming Languages",
+                        aliases: "",
+                        relatedSkills: ""
+                      });
+                      setTaxonomyModalOpen(true);
+                    }}
+                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs uppercase rounded-xl transition flex items-center gap-1.5 cursor-pointer shadow-lg shadow-blue-500/10"
+                  >
+                    <Plus size={14} /> Add Skill Node
+                  </button>
+                </div>
+
+                {/* Taxonomy Data List */}
+                <div className="space-y-4">
+                  {taxonomyList.length > 0 ? (
+                    taxonomyList.map((node) => (
+                      <div
+                        key={node.id}
+                        className={`p-5 border rounded-3xl flex flex-col md:flex-row justify-between gap-4 shadow-xs ${
+                          themeMode === "dark" ? "bg-white/5 border-white/5" : "bg-white border-slate-200"
+                        }`}
+                      >
+                        <div className="space-y-2 flex-1 min-w-0">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="text-[8px] px-2 py-0.5 bg-blue-500/10 text-blue-500 rounded-full font-bold uppercase">
+                              {node.department}
+                            </span>
+                            <span className="text-[8px] px-2 py-0.5 bg-indigo-500/10 text-indigo-500 rounded-full font-bold uppercase">
+                              {node.domain}
+                            </span>
+                            <span className="text-[8px] px-2 py-0.5 bg-purple-500/10 text-purple-500 rounded-full font-bold uppercase">
+                              {node.category}
+                            </span>
+                          </div>
+
+                          <div>
+                            <h4 className="text-sm font-black truncate">{node.skillName}</h4>
+                            {node.subSkills && (
+                              <p className="text-[10px] text-slate-400 mt-0.5">
+                                Subskills: <span className="text-slate-350">{node.subSkills.split(";").join(", ")}</span>
+                              </p>
+                            )}
+                          </div>
+
+                          <div className="flex flex-wrap gap-4 text-[9px] font-bold text-slate-400">
+                            {node.aliases && <span>Aliases: {node.aliases.split(";").join(", ")}</span>}
+                            {node.relatedSkills && <span>Related: {node.relatedSkills.split(";").join(", ")}</span>}
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-2 shrink-0 justify-end">
+                          <button
+                            onClick={() => {
+                              setEditingTaxonomyId(node.id);
+                              setTaxonomyForm({
+                                department: node.department,
+                                domain: node.domain,
+                                skillName: node.skillName,
+                                subSkills: node.subSkills,
+                                category: node.category,
+                                aliases: node.aliases,
+                                relatedSkills: node.relatedSkills
+                              });
+                              setTaxonomyModalOpen(true);
+                            }}
+                            className="p-2 bg-blue-600/15 hover:bg-blue-600/25 text-blue-400 rounded-xl transition cursor-pointer"
+                          >
+                            <Edit2 size={13} />
+                          </button>
+                          <button
+                            onClick={() => handleDeleteTaxonomy(node.id)}
+                            className="p-2 bg-red-600/15 hover:bg-red-600/25 text-red-400 rounded-xl transition cursor-pointer"
+                          >
+                            <Trash2 size={13} />
+                          </button>
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="border border-dashed rounded-3xl p-12 text-center text-slate-500 border-slate-205 dark:border-white/10">
+                      <Sliders className="mx-auto mb-3 text-slate-400" size={32} />
+                      <p className="text-sm font-bold">No taxonomy records found.</p>
+                      <p className="text-xs text-gray-400 mt-1">Populate the centralized taxonomy configuration registry to support recruit matches.</p>
+                    </div>
+                  )}
+                  {/* Pagination Controls */}
+                  {taxonomyTotalPages > 1 && (
+                    <div className="flex items-center justify-between border-t border-slate-100 dark:border-white/5 pt-4 text-xs font-bold text-slate-400">
+                      <span>Showing page {taxonomyPage} of {taxonomyTotalPages} ({taxonomyTotalItems} nodes)</span>
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          disabled={taxonomyPage <= 1}
+                          onClick={() => fetchTaxonomyAndConfig(taxonomyPage - 1)}
+                          className="px-3.5 py-1.5 rounded-lg border border-slate-200 dark:border-white/10 hover:bg-slate-100 dark:hover:bg-white/5 transition disabled:opacity-50 cursor-pointer"
+                        >
+                          Prev
+                        </button>
+                        <button
+                          type="button"
+                          disabled={taxonomyPage >= taxonomyTotalPages}
+                          onClick={() => fetchTaxonomyAndConfig(taxonomyPage + 1)}
+                          className="px-3.5 py-1.5 rounded-lg border border-slate-200 dark:border-white/10 hover:bg-slate-100 dark:hover:bg-white/5 transition disabled:opacity-50 cursor-pointer"
+                        >
+                          Next
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Taxonomy creation modal */}
+            {taxonomyModalOpen && (
+              <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+                <form
+                  onSubmit={handleSaveTaxonomy}
+                  className={`w-full max-w-lg rounded-3xl shadow-2xl relative p-6 text-left border ${
+                    themeMode === "dark" ? "bg-[#0b0b0f] text-white border-white/5" : "bg-white text-slate-900 border-slate-200"
+                  }`}
+                >
+                  <h3 className="text-base font-black uppercase tracking-wider text-slate-400 mb-4">
+                    {editingTaxonomyId ? "Modify Taxonomy Node" : "Register Taxonomy Skill Mapping"}
+                  </h3>
+
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="text-[10px] uppercase font-bold text-slate-400 block mb-1">Target Department *</label>
+                        <input
+                          type="text"
+                          required
+                          placeholder="e.g. Computer Science, Commerce"
+                          value={taxonomyForm.department}
+                          onChange={(e) => setTaxonomyForm({ ...taxonomyForm, department: e.target.value })}
+                          className="w-full border text-xs px-4 py-2.5 rounded-xl outline-none bg-slate-50 dark:bg-white/5 border-slate-205 dark:border-white/10 text-slate-900 dark:text-white"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] uppercase font-bold text-slate-400 block mb-1">Sector Domain *</label>
+                        <input
+                          type="text"
+                          required
+                          placeholder="e.g. Software, Accounting"
+                          value={taxonomyForm.domain}
+                          onChange={(e) => setTaxonomyForm({ ...taxonomyForm, domain: e.target.value })}
+                          className="w-full border text-xs px-4 py-2.5 rounded-xl outline-none bg-slate-50 dark:bg-white/5 border-slate-205 dark:border-white/10 text-slate-900 dark:text-white"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="text-[10px] uppercase font-bold text-slate-400 block mb-1">Skill Title *</label>
+                        <input
+                          type="text"
+                          required
+                          placeholder="e.g. Web Development, GST"
+                          value={taxonomyForm.skillName}
+                          onChange={(e) => setTaxonomyForm({ ...taxonomyForm, skillName: e.target.value })}
+                          className="w-full border text-xs px-4 py-2.5 rounded-xl outline-none bg-slate-50 dark:bg-white/5 border-slate-205 dark:border-white/10 text-slate-900 dark:text-white"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] uppercase font-bold text-slate-400 block mb-1">Category Classification</label>
+                        <select
+                          value={taxonomyForm.category}
+                          onChange={(e) => setTaxonomyForm({ ...taxonomyForm, category: e.target.value })}
+                          className="w-full border text-xs px-4 py-2.5 rounded-xl outline-none bg-slate-50 dark:bg-white/5 border-slate-205 dark:border-white/10 text-slate-900 dark:text-white"
+                        >
+                          <option value="Programming Languages">Programming Languages</option>
+                          <option value="Software">Software Systems</option>
+                          <option value="Research Methods">Research Methods</option>
+                          <option value="Laboratory Skills">Laboratory Skills</option>
+                          <option value="Creative Skills">Creative Skills</option>
+                          <option value="Business Skills">Business Skills</option>
+                          <option value="Teaching Skills">Teaching Skills</option>
+                          <option value="Communication Skills">Communication Skills</option>
+                          <option value="Languages">Languages</option>
+                          <option value="Certifications">Certifications</option>
+                          <option value="Soft Skills">Soft Skills</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="text-[10px] uppercase font-bold text-slate-400 block mb-1">Sub Skills (Semicolon split)</label>
+                      <input
+                        type="text"
+                        placeholder="e.g. Next.js;React;Node.js;Express"
+                        value={taxonomyForm.subSkills}
+                        onChange={(e) => setTaxonomyForm({ ...taxonomyForm, subSkills: e.target.value })}
+                        className="w-full border text-xs px-4 py-2.5 rounded-xl outline-none bg-slate-50 dark:bg-white/5 border-slate-205 dark:border-white/10 text-slate-900 dark:text-white"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="text-[10px] uppercase font-bold text-slate-400 block mb-1">Aliases (Semicolon split)</label>
+                        <input
+                          type="text"
+                          placeholder="e.g. reactjs;react.js"
+                          value={taxonomyForm.aliases}
+                          onChange={(e) => setTaxonomyForm({ ...taxonomyForm, aliases: e.target.value })}
+                          className="w-full border text-xs px-4 py-2.5 rounded-xl outline-none bg-slate-50 dark:bg-white/5 border-slate-205 dark:border-white/10 text-slate-900 dark:text-white"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] uppercase font-bold text-slate-400 block mb-1">Related Skills (Semicolon split)</label>
+                        <input
+                          type="text"
+                          placeholder="e.g. vuejs;angular"
+                          value={taxonomyForm.relatedSkills}
+                          onChange={(e) => setTaxonomyForm({ ...taxonomyForm, relatedSkills: e.target.value })}
+                          className="w-full border text-xs px-4 py-2.5 rounded-xl outline-none bg-slate-50 dark:bg-white/5 border-slate-205 dark:border-white/10 text-slate-900 dark:text-white"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex justify-end gap-3 border-t border-slate-100 dark:border-white/5 pt-4 mt-6">
+                    <button
+                      type="button"
+                      onClick={() => setTaxonomyModalOpen(false)}
+                      className="px-4 py-2 bg-slate-200 dark:bg-white/5 text-slate-800 dark:text-white text-xs font-bold uppercase rounded-xl transition cursor-pointer"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold uppercase rounded-xl transition cursor-pointer"
+                    >
+                      Save Node
+                    </button>
+                  </div>
+                </form>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ==========================================
+            JOB OPPORTUNITY DETAILS MODAL (ADMIN REVIEW)
+            ========================================== */}
+        {selectedAdminJob && (
+          <div className="fixed inset-0 z-50 flex items-center justify-end bg-[#0d0d12]/75 backdrop-blur-sm">
+            <div className={`w-full max-w-2xl h-screen shadow-2xl relative overflow-y-auto flex flex-col justify-between p-8 ${
+              themeMode === "dark" ? "bg-[#0b0b0f] text-white" : "bg-white text-slate-900"
+            }`}>
+              {/* Modal Header */}
+              <div className="flex justify-between items-start border-b border-slate-200/50 dark:border-white/5 pb-4">
+                <div className="text-left">
+                  <span className="text-xs text-slate-400 font-bold uppercase block">{selectedAdminJob.companyName}</span>
+                  <h3 className="text-xl font-black mt-1">{selectedAdminJob.title}</h3>
+                  <span className="text-[10px] font-bold text-blue-500 uppercase tracking-wide block mt-1">{selectedAdminJob.department} · {selectedAdminJob.jobType} · {selectedAdminJob.workMode}</span>
+                </div>
+                <button
+                  onClick={() => setSelectedAdminJob(null)}
+                  className="p-1 rounded-full hover:bg-slate-100 dark:hover:bg-white/5 text-slate-400"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+
+              {/* Modal Content */}
+              <div className="flex-1 py-6 space-y-6 overflow-y-auto pr-1">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs font-semibold">
+                  <div className="p-3 bg-slate-50 dark:bg-white/5 rounded-2xl text-left">
+                    <span className="text-[10px] text-slate-400 block">Salary / Compensation</span>
+                    <span>{selectedAdminJob.salary || "N/A"} ({selectedAdminJob.lpa} LPA)</span>
+                  </div>
+                  <div className="p-3 bg-slate-50 dark:bg-white/5 rounded-2xl text-left">
+                    <span className="text-[10px] text-slate-400 block">Min CGPA Required</span>
+                    <span>{selectedAdminJob.eligibilityMinCGPA} CGPA</span>
+                  </div>
+                  <div className="p-3 bg-slate-50 dark:bg-white/5 rounded-2xl text-left">
+                    <span className="text-[10px] text-slate-400 block">Deadlines Date</span>
+                    <span>{new Date(selectedAdminJob.deadlines).toLocaleDateString()}</span>
+                  </div>
+                </div>
+
+                <div className="text-left">
+                  <span className="text-xs font-bold text-slate-400 block mb-1">Description</span>
+                  <p className="text-sm font-medium leading-relaxed">{selectedAdminJob.description}</p>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-left">
+                  <div>
+                    <span className="text-xs font-bold text-slate-400 block mb-1">Responsibilities</span>
+                    <p className="text-xs font-medium leading-relaxed text-slate-400 whitespace-pre-line">{selectedAdminJob.responsibilities || "N/A"}</p>
+                  </div>
+                  <div>
+                    <span className="text-xs font-bold text-slate-400 block mb-1">Requirements</span>
+                    <p className="text-xs font-medium leading-relaxed text-slate-400 whitespace-pre-line">{selectedAdminJob.requirements || "N/A"}</p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-left">
+                  <div>
+                    <span className="text-xs font-bold text-slate-400 block mb-1">Required Skills</span>
+                    <p className="text-xs font-medium leading-relaxed text-slate-400">{selectedAdminJob.requiredSkills || "N/A"}</p>
+                  </div>
+                  <div>
+                    <span className="text-xs font-bold text-slate-400 block mb-1">Preferred Skills</span>
+                    <p className="text-xs font-medium leading-relaxed text-slate-400">{selectedAdminJob.preferredSkills || "N/A"}</p>
+                  </div>
+                </div>
+
+                {/* Eligibility criteria info */}
+                <div className="p-5 bg-slate-50 dark:bg-white/5 rounded-3xl space-y-3 text-left">
+                  <span className="text-[10px] font-extrabold uppercase text-slate-400 block">Eligibility Criteria Summary</span>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs font-semibold">
+                    <div>Eligible Departments: {selectedAdminJob.eligibilityDepartments || "All Departments"}</div>
+                    <div>Eligible Graduation Years: {selectedAdminJob.eligibilityYears || "All Years"}</div>
+                    <div>Experience level: {selectedAdminJob.eligibilityExperience || "Freshers"}</div>
+                    <div>Vacancies: {selectedAdminJob.vacancies} open position(s)</div>
+                  </div>
+                </div>
+
+                {/* Selection Process */}
+                <div className="text-left">
+                  <span className="text-xs font-bold text-slate-400 block mb-1">Selection Process</span>
+                  <p className="text-xs font-medium leading-relaxed text-slate-450">{selectedAdminJob.selectionProcess || "N/A"}</p>
+                </div>
+
+                {/* Benefits */}
+                <div className="text-left">
+                  <span className="text-xs font-bold text-slate-400 block mb-1">Benefits & Perks</span>
+                  <p className="text-xs font-medium leading-relaxed text-slate-450">{selectedAdminJob.benefits || "N/A"}</p>
+                </div>
+
+                {/* Feedback Notes */}
+                <div className="border-t border-slate-200/50 dark:border-white/5 pt-4 space-y-2 text-left">
+                  <label className="text-[11px] uppercase font-bold text-slate-400 block">Feedback Notes (Required for changes requested) *</label>
+                  <textarea
+                    rows={2}
+                    placeholder="Enter approval details, changes requested description or rejection comments..."
+                    value={adminJobReviewComments}
+                    onChange={(e) => setAdminJobReviewComments(e.target.value)}
+                    className="w-full border text-xs px-4 py-3 rounded-xl outline-none bg-slate-50 dark:bg-white/5 border-slate-200 dark:border-white/10 text-slate-900 dark:text-white"
+                  />
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="border-t border-slate-200/50 dark:border-white/5 pt-4 flex flex-wrap gap-2 justify-end">
+                {selectedAdminJob.status !== "Approved" && (
+                  <button
+                    onClick={() => handleAdminJobReviewSubmit("Approve", adminJobReviewComments)}
+                    disabled={adminJobReviewLoading}
+                    className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold uppercase rounded-xl transition cursor-pointer disabled:opacity-50"
+                  >
+                    Approve Posting
+                  </button>
+                )}
+                {selectedAdminJob.status === "Pending" && (
+                  <>
+                    <button
+                      onClick={() => handleAdminJobReviewSubmit("Reject", adminJobReviewComments)}
+                      disabled={adminJobReviewLoading}
+                      className="px-5 py-2.5 bg-red-600 hover:bg-red-700 text-white text-xs font-bold uppercase rounded-xl transition cursor-pointer disabled:opacity-50"
+                    >
+                      Reject Posting
+                    </button>
+                    <button
+                      onClick={() => handleAdminJobReviewSubmit("RequestChanges", adminJobReviewComments)}
+                      disabled={adminJobReviewLoading}
+                      className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold uppercase rounded-xl transition cursor-pointer disabled:opacity-50"
+                    >
+                      Request Changes
+                    </button>
+                  </>
+                )}
               </div>
             </div>
           </div>
