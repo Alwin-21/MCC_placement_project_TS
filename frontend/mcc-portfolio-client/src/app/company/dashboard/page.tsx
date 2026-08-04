@@ -964,28 +964,6 @@ export default function CompanyDashboardPage() {
             </div>
           </div>
           
-          {/* STATUS BANNER */}
-          <div
-            className={`border rounded-3xl p-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 ${
-              statusColors[company?.status] || "bg-slate-500/10 text-slate-500 border-slate-500/20"
-            }`}
-          >
-            <div className="flex items-start gap-4">
-              <div className="p-3 bg-white/10 rounded-2xl shrink-0 mt-0.5">
-                {isPending ? <Clock size={24} /> : <CheckCircle size={24} />}
-              </div>
-              <div className="text-left space-y-1">
-                <span className="text-lg font-black uppercase tracking-wide block">
-                  Verification Status: {company?.status}
-                </span>
-                <p className="text-xs font-medium leading-relaxed opacity-90">
-                  {isPending
-                    ? "Your onboarding request is currently under review by the placement administration. Placement features (Job postings, applications) will become active once verified."
-                    : "Your account is verified! You can post jobs, evaluate candidate portfolios, schedule interviews, and manage recruitment."}
-                </p>
-              </div>
-            </div>
-          </div>
 
           {/* ==========================================
               TAB: OVERVIEW (DASHBOARD)
