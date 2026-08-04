@@ -87,7 +87,7 @@ function ResetPasswordForm() {
               disabled={!!emailParam}
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full border text-sm px-4 py-3 rounded-xl outline-none transition bg-slate-50 dark:bg-white/5 border-slate-200 dark:border-white/10 text-slate-900 dark:text-white focus:border-blue-500 disabled:opacity-60"
+              className="w-full border text-sm px-4 py-3 rounded-xl outline-none transition bg-slate-50 dark:bg-white/5 border-slate-200 dark:border-white/10 text-slate-900 dark:text-white focus:border-[#781c1c] dark:focus:border-red-500 disabled:opacity-60"
             />
           </div>
 
@@ -101,7 +101,7 @@ function ResetPasswordForm() {
               disabled={!!tokenParam}
               value={token}
               onChange={(e) => setToken(e.target.value)}
-              className="w-full border text-sm px-4 py-3 rounded-xl outline-none transition bg-slate-50 dark:bg-white/5 border-slate-200 dark:border-white/10 text-slate-900 dark:text-white focus:border-blue-500 disabled:opacity-60"
+              className="w-full border text-sm px-4 py-3 rounded-xl outline-none transition bg-slate-50 dark:bg-white/5 border-slate-200 dark:border-white/10 text-slate-900 dark:text-white focus:border-[#781c1c] dark:focus:border-red-500 disabled:opacity-60"
             />
           </div>
 
@@ -115,7 +115,7 @@ function ResetPasswordForm() {
               placeholder="Minimum 6 characters"
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
-              className="w-full border text-sm px-4 py-3 rounded-xl outline-none transition bg-slate-50 dark:bg-white/5 border-slate-200 dark:border-white/10 text-slate-900 dark:text-white focus:border-blue-500"
+              className="w-full border text-sm px-4 py-3 rounded-xl outline-none transition bg-slate-50 dark:bg-white/5 border-slate-200 dark:border-white/10 text-slate-900 dark:text-white focus:border-[#781c1c] dark:focus:border-red-500"
             />
           </div>
 
@@ -129,7 +129,7 @@ function ResetPasswordForm() {
               placeholder="Re-type password"
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
-              className="w-full border text-sm px-4 py-3 rounded-xl outline-none transition bg-slate-50 dark:bg-white/5 border-slate-200 dark:border-white/10 text-slate-900 dark:text-white focus:border-blue-500"
+              className="w-full border text-sm px-4 py-3 rounded-xl outline-none transition bg-slate-50 dark:bg-white/5 border-slate-200 dark:border-white/10 text-slate-900 dark:text-white focus:border-[#781c1c] dark:focus:border-red-500"
             />
           </div>
 
@@ -143,7 +143,7 @@ function ResetPasswordForm() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-4 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs uppercase tracking-wider transition-all duration-200 shadow-xl cursor-pointer disabled:opacity-50"
+            className="w-full py-4 rounded-xl bg-[#781c1c] hover:bg-[#5f1515] text-white font-extrabold text-xs uppercase tracking-wider transition-all duration-200 shadow-xl shadow-red-900/20 hover:shadow-red-900/40 cursor-pointer disabled:opacity-50"
           >
             {loading ? "Resetting Password..." : "Reset Password"}
           </button>
@@ -172,7 +172,7 @@ export default function CompanyResetPasswordPage() {
       <div className="w-full max-w-md space-y-6">
         <Link
           href="/company/login"
-          className="inline-flex items-center gap-2 text-xs font-extrabold text-slate-500 hover:text-blue-500 transition duration-200"
+          className="inline-flex items-center gap-2 text-xs font-extrabold text-slate-500 hover:text-[#781c1c] dark:hover:text-red-400 transition duration-200"
         >
           <ArrowLeft size={16} /> Cancel
         </Link>

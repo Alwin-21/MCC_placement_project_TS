@@ -195,7 +195,7 @@ export default function CompanyRegisterPage() {
           </div>
           <Link
             href="/company/login"
-            className="inline-block w-full py-4 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs uppercase tracking-wider transition-all duration-200 shadow-lg cursor-pointer"
+            className="inline-block w-full py-4 rounded-xl bg-[#781c1c] hover:bg-[#5f1515] text-white font-extrabold text-xs uppercase tracking-wider transition-all duration-200 shadow-xl shadow-red-900/20 hover:shadow-red-900/40 cursor-pointer"
           >
             Return to Sign In
           </Link>
@@ -214,7 +214,7 @@ export default function CompanyRegisterPage() {
       <div className="w-full max-w-2xl space-y-6">
         <Link
           href="/company/login"
-          className="inline-flex items-center gap-2 text-xs font-extrabold text-slate-500 hover:text-blue-500 transition duration-200"
+          className="inline-flex items-center gap-2 text-xs font-extrabold text-slate-500 hover:text-[#781c1c] dark:hover:text-red-400 transition duration-200"
         >
           <ArrowLeft size={16} /> Cancel and Back to Login
         </Link>
@@ -226,7 +226,7 @@ export default function CompanyRegisterPage() {
               <div
                 className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-black transition-all ${
                   step >= s
-                    ? "bg-blue-600 text-white shadow-md shadow-blue-500/35"
+                    ? "bg-[#781c1c] text-white shadow-md shadow-red-900/35"
                     : "bg-slate-200 dark:bg-white/5 text-slate-400"
                 }`}
               >
@@ -235,7 +235,7 @@ export default function CompanyRegisterPage() {
               {s < 5 && (
                 <div
                   className={`h-[3px] flex-1 mx-2 rounded-full transition-all ${
-                    step > s ? "bg-blue-600" : "bg-slate-200 dark:bg-white/5"
+                    step > s ? "bg-[#781c1c]" : "bg-slate-200 dark:bg-white/5"
                   }`}
                 />
               )}
@@ -271,7 +271,7 @@ export default function CompanyRegisterPage() {
                       placeholder="e.g. Google India"
                       value={form.companyName}
                       onChange={(e) => setForm({ ...form, companyName: e.target.value })}
-                      className="w-full border text-xs px-4 py-3 rounded-xl outline-none transition bg-slate-50 dark:bg-white/5 border-slate-200 dark:border-white/10 text-slate-900 dark:text-white focus:border-blue-500"
+                      className="w-full border text-xs px-4 py-3 rounded-xl outline-none transition bg-slate-50 dark:bg-white/5 border-slate-200 dark:border-white/10 text-slate-900 dark:text-white focus:border-[#781c1c] dark:focus:border-red-500"
                     />
                   </div>
                   <div>
@@ -284,7 +284,7 @@ export default function CompanyRegisterPage() {
                       placeholder="e.g. info@company.com"
                       value={form.companyEmail}
                       onChange={(e) => setForm({ ...form, companyEmail: e.target.value })}
-                      className="w-full border text-xs px-4 py-3 rounded-xl outline-none transition bg-slate-50 dark:bg-white/5 border-slate-200 dark:border-white/10 text-slate-900 dark:text-white focus:border-blue-500"
+                      className="w-full border text-xs px-4 py-3 rounded-xl outline-none transition bg-slate-50 dark:bg-white/5 border-slate-200 dark:border-white/10 text-slate-900 dark:text-white focus:border-[#781c1c] dark:focus:border-red-500"
                     />
                   </div>
                 </div>
@@ -300,7 +300,7 @@ export default function CompanyRegisterPage() {
                       placeholder="Enter HR full name"
                       value={form.hrName}
                       onChange={(e) => setForm({ ...form, hrName: e.target.value })}
-                      className="w-full border text-xs px-4 py-3 rounded-xl outline-none transition bg-slate-50 dark:bg-white/5 border-slate-200 dark:border-white/10 text-slate-900 dark:text-white focus:border-blue-500"
+                      className="w-full border text-xs px-4 py-3 rounded-xl outline-none transition bg-slate-50 dark:bg-white/5 border-slate-200 dark:border-white/10 text-slate-900 dark:text-white focus:border-[#781c1c] dark:focus:border-red-500"
                     />
                   </div>
                   <div>
@@ -312,7 +312,7 @@ export default function CompanyRegisterPage() {
                       placeholder="e.g. Talent Acquisition Lead"
                       value={form.hrDesignation}
                       onChange={(e) => setForm({ ...form, hrDesignation: e.target.value })}
-                      className="w-full border text-xs px-4 py-3 rounded-xl outline-none transition bg-slate-50 dark:bg-white/5 border-slate-200 dark:border-white/10 text-slate-900 dark:text-white focus:border-blue-500"
+                      className="w-full border text-xs px-4 py-3 rounded-xl outline-none transition bg-slate-50 dark:bg-white/5 border-slate-200 dark:border-white/10 text-slate-900 dark:text-white focus:border-[#781c1c] dark:focus:border-red-500"
                     />
                   </div>
                 </div>
@@ -327,7 +327,7 @@ export default function CompanyRegisterPage() {
                     placeholder="e.g. alwin.r@company.com (For Portal login)"
                     value={form.officialHrEmail}
                     onChange={(e) => setForm({ ...form, officialHrEmail: e.target.value })}
-                    className="w-full border text-xs px-4 py-3 rounded-xl outline-none transition bg-slate-50 dark:bg-white/5 border-slate-200 dark:border-white/10 text-slate-900 dark:text-white focus:border-blue-500"
+                    className="w-full border text-xs px-4 py-3 rounded-xl outline-none transition bg-slate-50 dark:bg-white/5 border-slate-200 dark:border-white/10 text-slate-900 dark:text-white focus:border-[#781c1c] dark:focus:border-red-500"
                   />
                 </div>
 
@@ -342,7 +342,7 @@ export default function CompanyRegisterPage() {
                       placeholder="Min 6 characters"
                       value={form.hrPassword}
                       onChange={(e) => setForm({ ...form, hrPassword: e.target.value })}
-                      className="w-full border text-xs px-4 py-3 rounded-xl outline-none transition bg-slate-50 dark:bg-white/5 border-slate-200 dark:border-white/10 text-slate-900 dark:text-white focus:border-blue-500"
+                      className="w-full border text-xs px-4 py-3 rounded-xl outline-none transition bg-slate-50 dark:bg-white/5 border-slate-200 dark:border-white/10 text-slate-900 dark:text-white focus:border-[#781c1c] dark:focus:border-red-500"
                     />
                   </div>
                   <div>
@@ -355,7 +355,7 @@ export default function CompanyRegisterPage() {
                       placeholder="Re-type password"
                       value={form.confirmPassword}
                       onChange={(e) => setForm({ ...form, confirmPassword: e.target.value })}
-                      className="w-full border text-xs px-4 py-3 rounded-xl outline-none transition bg-slate-50 dark:bg-white/5 border-slate-200 dark:border-white/10 text-slate-900 dark:text-white focus:border-blue-500"
+                      className="w-full border text-xs px-4 py-3 rounded-xl outline-none transition bg-slate-50 dark:bg-white/5 border-slate-200 dark:border-white/10 text-slate-900 dark:text-white focus:border-[#781c1c] dark:focus:border-red-500"
                     />
                   </div>
                 </div>
@@ -370,7 +370,7 @@ export default function CompanyRegisterPage() {
                       placeholder="e.g. +91 9876543210"
                       value={form.phone}
                       onChange={(e) => setForm({ ...form, phone: e.target.value })}
-                      className="w-full border text-xs px-4 py-3 rounded-xl outline-none transition bg-slate-50 dark:bg-white/5 border-slate-200 dark:border-white/10 text-slate-900 dark:text-white focus:border-blue-500"
+                      className="w-full border text-xs px-4 py-3 rounded-xl outline-none transition bg-slate-50 dark:bg-white/5 border-slate-200 dark:border-white/10 text-slate-900 dark:text-white focus:border-[#781c1c] dark:focus:border-red-500"
                     />
                   </div>
                   <div>
@@ -382,7 +382,7 @@ export default function CompanyRegisterPage() {
                       placeholder="Optional contact number"
                       value={form.alternatePhone}
                       onChange={(e) => setForm({ ...form, alternatePhone: e.target.value })}
-                      className="w-full border text-xs px-4 py-3 rounded-xl outline-none transition bg-slate-50 dark:bg-white/5 border-slate-200 dark:border-white/10 text-slate-900 dark:text-white focus:border-blue-500"
+                      className="w-full border text-xs px-4 py-3 rounded-xl outline-none transition bg-slate-50 dark:bg-white/5 border-slate-200 dark:border-white/10 text-slate-900 dark:text-white focus:border-[#781c1c] dark:focus:border-red-500"
                     />
                   </div>
                 </div>
@@ -397,7 +397,7 @@ export default function CompanyRegisterPage() {
                       placeholder="https://company.com"
                       value={form.website}
                       onChange={(e) => setForm({ ...form, website: e.target.value })}
-                      className="w-full border text-xs px-4 py-3 rounded-xl outline-none transition bg-slate-50 dark:bg-white/5 border-slate-200 dark:border-white/10 text-slate-900 dark:text-white focus:border-blue-500"
+                      className="w-full border text-xs px-4 py-3 rounded-xl outline-none transition bg-slate-50 dark:bg-white/5 border-slate-200 dark:border-white/10 text-slate-900 dark:text-white focus:border-[#781c1c] dark:focus:border-red-500"
                     />
                   </div>
                   <div>
@@ -409,7 +409,7 @@ export default function CompanyRegisterPage() {
                       placeholder="https://linkedin.com/company/handle"
                       value={form.linkedIn}
                       onChange={(e) => setForm({ ...form, linkedIn: e.target.value })}
-                      className="w-full border text-xs px-4 py-3 rounded-xl outline-none transition bg-slate-50 dark:bg-white/5 border-slate-200 dark:border-white/10 text-slate-900 dark:text-white focus:border-blue-500"
+                      className="w-full border text-xs px-4 py-3 rounded-xl outline-none transition bg-slate-50 dark:bg-white/5 border-slate-200 dark:border-white/10 text-slate-900 dark:text-white focus:border-[#781c1c] dark:focus:border-red-500"
                     />
                   </div>
                 </div>
@@ -422,7 +422,7 @@ export default function CompanyRegisterPage() {
                     <select
                       value={form.industry}
                       onChange={(e) => setForm({ ...form, industry: e.target.value })}
-                      className="w-full border text-xs px-4 py-3.5 rounded-xl outline-none transition bg-slate-50 dark:bg-white/5 border-slate-200 dark:border-white/10 text-slate-900 dark:text-white focus:border-blue-500"
+                      className="w-full border text-xs px-4 py-3.5 rounded-xl outline-none transition bg-slate-50 dark:bg-white/5 border-slate-200 dark:border-white/10 text-slate-900 dark:text-white focus:border-[#781c1c] dark:focus:border-red-500"
                     >
                       <option value="Information Technology">Information Technology</option>
                       <option value="Finance & Banking">Finance & Banking</option>
@@ -440,7 +440,7 @@ export default function CompanyRegisterPage() {
                     <select
                       value={form.companyType}
                       onChange={(e) => setForm({ ...form, companyType: e.target.value })}
-                      className="w-full border text-xs px-4 py-3.5 rounded-xl outline-none transition bg-slate-50 dark:bg-white/5 border-slate-200 dark:border-white/10 text-slate-900 dark:text-white focus:border-blue-500"
+                      className="w-full border text-xs px-4 py-3.5 rounded-xl outline-none transition bg-slate-50 dark:bg-white/5 border-slate-200 dark:border-white/10 text-slate-900 dark:text-white focus:border-[#781c1c] dark:focus:border-red-500"
                     >
                       <option value="MNC">MNC</option>
                       <option value="Private Limited">Private Limited</option>
@@ -458,7 +458,7 @@ export default function CompanyRegisterPage() {
                       placeholder="e.g. 2010"
                       value={form.foundedYear}
                       onChange={(e) => setForm({ ...form, foundedYear: e.target.value })}
-                      className="w-full border text-xs px-4 py-3 rounded-xl outline-none transition bg-slate-50 dark:bg-white/5 border-slate-200 dark:border-white/10 text-slate-900 dark:text-white focus:border-blue-500"
+                      className="w-full border text-xs px-4 py-3 rounded-xl outline-none transition bg-slate-50 dark:bg-white/5 border-slate-200 dark:border-white/10 text-slate-900 dark:text-white focus:border-[#781c1c] dark:focus:border-red-500"
                     />
                   </div>
                 </div>
@@ -475,7 +475,7 @@ export default function CompanyRegisterPage() {
                   <select
                     value={form.companySize}
                     onChange={(e) => setForm({ ...form, companySize: e.target.value })}
-                    className="w-full border text-xs px-4 py-3.5 rounded-xl outline-none transition bg-slate-50 dark:bg-white/5 border-slate-200 dark:border-white/10 text-slate-900 dark:text-white focus:border-blue-500"
+                    className="w-full border text-xs px-4 py-3.5 rounded-xl outline-none transition bg-slate-50 dark:bg-white/5 border-slate-200 dark:border-white/10 text-slate-900 dark:text-white focus:border-[#781c1c] dark:focus:border-red-500"
                   >
                     <option value="1-10">1-10 employees</option>
                     <option value="11-50">11-50 employees</option>
@@ -495,7 +495,7 @@ export default function CompanyRegisterPage() {
                     placeholder="Briefly tell us about your organization..."
                     value={form.description}
                     onChange={(e) => setForm({ ...form, description: e.target.value })}
-                    className="w-full border text-xs px-4 py-3 rounded-xl outline-none transition bg-slate-50 dark:bg-white/5 border-slate-200 dark:border-white/10 text-slate-900 dark:text-white focus:border-blue-500 resize-none"
+                    className="w-full border text-xs px-4 py-3 rounded-xl outline-none transition bg-slate-50 dark:bg-white/5 border-slate-200 dark:border-white/10 text-slate-900 dark:text-white focus:border-[#781c1c] dark:focus:border-red-500 resize-none"
                   />
                 </div>
 
@@ -509,7 +509,7 @@ export default function CompanyRegisterPage() {
                       placeholder="What is your organization's mission statement?"
                       value={form.mission}
                       onChange={(e) => setForm({ ...form, mission: e.target.value })}
-                      className="w-full border text-xs px-4 py-3 rounded-xl outline-none transition bg-slate-50 dark:bg-white/5 border-slate-200 dark:border-white/10 text-slate-900 dark:text-white focus:border-blue-500 resize-none"
+                      className="w-full border text-xs px-4 py-3 rounded-xl outline-none transition bg-slate-50 dark:bg-white/5 border-slate-200 dark:border-white/10 text-slate-900 dark:text-white focus:border-[#781c1c] dark:focus:border-red-500 resize-none"
                     />
                   </div>
                   <div>
@@ -521,7 +521,7 @@ export default function CompanyRegisterPage() {
                       placeholder="What is your organization's vision statement?"
                       value={form.vision}
                       onChange={(e) => setForm({ ...form, vision: e.target.value })}
-                      className="w-full border text-xs px-4 py-3 rounded-xl outline-none transition bg-slate-50 dark:bg-white/5 border-slate-200 dark:border-white/10 text-slate-900 dark:text-white focus:border-blue-500 resize-none"
+                      className="w-full border text-xs px-4 py-3 rounded-xl outline-none transition bg-slate-50 dark:bg-white/5 border-slate-200 dark:border-white/10 text-slate-900 dark:text-white focus:border-[#781c1c] dark:focus:border-red-500 resize-none"
                     />
                   </div>
                 </div>
@@ -535,7 +535,7 @@ export default function CompanyRegisterPage() {
                     placeholder="Describe your assessment steps (e.g. Aptitude Test -> Technical Interview -> HR Round)..."
                     value={form.recruitmentProcess}
                     onChange={(e) => setForm({ ...form, recruitmentProcess: e.target.value })}
-                    className="w-full border text-xs px-4 py-3 rounded-xl outline-none transition bg-slate-50 dark:bg-white/5 border-slate-200 dark:border-white/10 text-slate-900 dark:text-white focus:border-blue-500 resize-none"
+                    className="w-full border text-xs px-4 py-3 rounded-xl outline-none transition bg-slate-50 dark:bg-white/5 border-slate-200 dark:border-white/10 text-slate-900 dark:text-white focus:border-[#781c1c] dark:focus:border-red-500 resize-none"
                   />
                 </div>
 
@@ -549,7 +549,7 @@ export default function CompanyRegisterPage() {
                       placeholder="e.g. Work-life balance, health insurance, learning resources..."
                       value={form.workCulture}
                       onChange={(e) => setForm({ ...form, workCulture: e.target.value })}
-                      className="w-full border text-xs px-4 py-3 rounded-xl outline-none transition bg-slate-50 dark:bg-white/5 border-slate-200 dark:border-white/10 text-slate-900 dark:text-white focus:border-blue-500 resize-none"
+                      className="w-full border text-xs px-4 py-3 rounded-xl outline-none transition bg-slate-50 dark:bg-white/5 border-slate-200 dark:border-white/10 text-slate-900 dark:text-white focus:border-[#781c1c] dark:focus:border-red-500 resize-none"
                     />
                   </div>
                   <div>
@@ -561,7 +561,7 @@ export default function CompanyRegisterPage() {
                       placeholder="e.g. Great Place to Work 2025, Top Tech Innovator..."
                       value={form.awards}
                       onChange={(e) => setForm({ ...form, awards: e.target.value })}
-                      className="w-full border text-xs px-4 py-3 rounded-xl outline-none transition bg-slate-50 dark:bg-white/5 border-slate-200 dark:border-white/10 text-slate-900 dark:text-white focus:border-blue-500 resize-none"
+                      className="w-full border text-xs px-4 py-3 rounded-xl outline-none transition bg-slate-50 dark:bg-white/5 border-slate-200 dark:border-white/10 text-slate-900 dark:text-white focus:border-[#781c1c] dark:focus:border-red-500 resize-none"
                     />
                   </div>
                 </div>
@@ -573,7 +573,7 @@ export default function CompanyRegisterPage() {
                       id="intern"
                       checked={form.internshipAvailable}
                       onChange={(e) => setForm({ ...form, internshipAvailable: e.target.checked })}
-                      className="rounded border-slate-300 dark:border-white/10 accent-blue-600 cursor-pointer w-4 h-4"
+                      className="rounded border-slate-300 dark:border-white/10 accent-[#781c1c] cursor-pointer w-4 h-4"
                     />
                     <label htmlFor="intern" className="text-xs font-bold text-slate-700 dark:text-slate-300 cursor-pointer">
                       Internship placement opportunities available
@@ -585,7 +585,7 @@ export default function CompanyRegisterPage() {
                       id="placement"
                       checked={form.placementAvailable}
                       onChange={(e) => setForm({ ...form, placementAvailable: e.target.checked })}
-                      className="rounded border-slate-300 dark:border-white/10 accent-blue-600 cursor-pointer w-4 h-4"
+                      className="rounded border-slate-300 dark:border-white/10 accent-[#781c1c] cursor-pointer w-4 h-4"
                     />
                     <label htmlFor="placement" className="text-xs font-bold text-slate-700 dark:text-slate-300 cursor-pointer">
                       Full-time job placements available
@@ -610,7 +610,7 @@ export default function CompanyRegisterPage() {
                       placeholder="e.g. Bangalore, Karnataka, India"
                       value={form.headOffice}
                       onChange={(e) => setForm({ ...form, headOffice: e.target.value })}
-                      className="w-full border text-xs pl-10 pr-4 py-3 rounded-xl outline-none transition bg-slate-50 dark:bg-white/5 border-slate-200 dark:border-white/10 text-slate-900 dark:text-white focus:border-blue-500"
+                      className="w-full border text-xs pl-10 pr-4 py-3 rounded-xl outline-none transition bg-slate-50 dark:bg-white/5 border-slate-200 dark:border-white/10 text-slate-900 dark:text-white focus:border-[#781c1c] dark:focus:border-red-500"
                     />
                   </div>
                 </div>
@@ -626,7 +626,7 @@ export default function CompanyRegisterPage() {
                       placeholder="e.g. Chennai, Mumbai, Hyderabad (comma separated)"
                       value={form.branchLocations}
                       onChange={(e) => setForm({ ...form, branchLocations: e.target.value })}
-                      className="w-full border text-xs pl-10 pr-4 py-3 rounded-xl outline-none transition bg-slate-50 dark:bg-white/5 border-slate-200 dark:border-white/10 text-slate-900 dark:text-white focus:border-blue-500 resize-none"
+                      className="w-full border text-xs pl-10 pr-4 py-3 rounded-xl outline-none transition bg-slate-50 dark:bg-white/5 border-slate-200 dark:border-white/10 text-slate-900 dark:text-white focus:border-[#781c1c] dark:focus:border-red-500 resize-none"
                     />
                   </div>
                 </div>
@@ -638,7 +638,7 @@ export default function CompanyRegisterPage() {
                   <select
                     value={form.workMode}
                     onChange={(e) => setForm({ ...form, workMode: e.target.value })}
-                    className="w-full border text-xs px-4 py-3.5 rounded-xl outline-none transition bg-slate-50 dark:bg-white/5 border-slate-200 dark:border-white/10 text-slate-900 dark:text-white focus:border-blue-500"
+                    className="w-full border text-xs px-4 py-3.5 rounded-xl outline-none transition bg-slate-50 dark:bg-white/5 border-slate-200 dark:border-white/10 text-slate-900 dark:text-white focus:border-[#781c1c] dark:focus:border-red-500"
                   >
                     <option value="OnSite">On Site</option>
                     <option value="Hybrid">Hybrid</option>
@@ -672,7 +672,7 @@ export default function CompanyRegisterPage() {
                       />
                       <label
                         htmlFor="logoUpload"
-                        className="cursor-pointer px-4 py-2 bg-blue-600/10 hover:bg-blue-600/20 text-blue-500 dark:text-blue-300 text-xs font-bold rounded-xl transition"
+                        className="cursor-pointer px-4 py-2 bg-blue-600/10 hover:bg-blue-600/20 text-red-500 dark:text-blue-300 text-xs font-bold rounded-xl transition"
                       >
                         {uploading.companyLogo ? "Uploading..." : "Select Logo"}
                       </label>
@@ -698,7 +698,7 @@ export default function CompanyRegisterPage() {
                       />
                       <label
                         htmlFor="coverUpload"
-                        className="cursor-pointer px-4 py-2 bg-blue-600/10 hover:bg-blue-600/20 text-blue-500 dark:text-blue-300 text-xs font-bold rounded-xl transition"
+                        className="cursor-pointer px-4 py-2 bg-blue-600/10 hover:bg-blue-600/20 text-red-500 dark:text-blue-300 text-xs font-bold rounded-xl transition"
                       >
                         {uploading.coverImage ? "Uploading..." : "Select Cover"}
                       </label>
@@ -713,7 +713,7 @@ export default function CompanyRegisterPage() {
                   {/* GST File */}
                   <div className="flex items-center justify-between p-4 bg-slate-50 dark:bg-white/5 rounded-2xl border border-slate-200/40 dark:border-white/10">
                     <div className="flex items-center gap-3">
-                      <FileText className="text-blue-500" size={24} />
+                      <FileText className="text-red-500" size={24} />
                       <div className="text-left">
                         <span className="text-xs font-bold block">GST Registration Document *</span>
                         <span className="text-[10px] text-slate-400 block">PDF or Image copy</span>
@@ -745,7 +745,7 @@ export default function CompanyRegisterPage() {
                   {/* Registration Certificate */}
                   <div className="flex items-center justify-between p-4 bg-slate-50 dark:bg-white/5 rounded-2xl border border-slate-200/40 dark:border-white/10">
                     <div className="flex items-center gap-3">
-                      <FileText className="text-blue-500" size={24} />
+                      <FileText className="text-red-500" size={24} />
                       <div className="text-left">
                         <span className="text-xs font-bold block">Incorporation Certificate *</span>
                         <span className="text-[10px] text-slate-400 block">PDF or Image copy</span>
@@ -777,7 +777,7 @@ export default function CompanyRegisterPage() {
                   {/* Hiring Auth */}
                   <div className="flex items-center justify-between p-4 bg-slate-50 dark:bg-white/5 rounded-2xl border border-slate-200/40 dark:border-white/10">
                     <div className="flex items-center gap-3">
-                      <FileText className="text-blue-500" size={24} />
+                      <FileText className="text-red-500" size={24} />
                       <div className="text-left">
                         <span className="text-xs font-bold block">Hiring Authorization Letter *</span>
                         <span className="text-[10px] text-slate-400 block">PDF or Image copy</span>
@@ -819,7 +819,7 @@ export default function CompanyRegisterPage() {
                       id="terms"
                       checked={form.termsAccepted}
                       onChange={(e) => setForm({ ...form, termsAccepted: e.target.checked })}
-                      className="rounded border-slate-300 dark:border-white/10 accent-blue-600 cursor-pointer w-4 h-4 mt-0.5"
+                      className="rounded border-slate-300 dark:border-white/10 accent-[#781c1c] cursor-pointer w-4 h-4 mt-0.5"
                     />
                     <label htmlFor="terms" className="text-xs font-semibold text-slate-600 dark:text-slate-400 cursor-pointer leading-relaxed">
                       I accept the **MCC Placement Campus Guidelines and Terms**. I confirm that our company will follow code-of-conduct guidelines.
@@ -832,7 +832,7 @@ export default function CompanyRegisterPage() {
                       id="privacy"
                       checked={form.privacyAccepted}
                       onChange={(e) => setForm({ ...form, privacyAccepted: e.target.checked })}
-                      className="rounded border-slate-300 dark:border-white/10 accent-blue-600 cursor-pointer w-4 h-4 mt-0.5"
+                      className="rounded border-slate-300 dark:border-white/10 accent-[#781c1c] cursor-pointer w-4 h-4 mt-0.5"
                     />
                     <label htmlFor="privacy" className="text-xs font-semibold text-slate-600 dark:text-slate-400 cursor-pointer leading-relaxed">
                       I agree to the **Placement Platform Privacy Policy** regarding data handling and verification checks.
@@ -840,8 +840,8 @@ export default function CompanyRegisterPage() {
                   </div>
                 </div>
 
-                <div className="p-5 rounded-2xl bg-blue-500/5 border border-blue-200/40 dark:border-blue-800/30 text-left space-y-3">
-                  <span className="text-[10px] font-extrabold uppercase text-blue-500 tracking-wider flex items-center gap-1">
+                <div className="p-5 rounded-2xl bg-red-500/5 border border-red-200/40 dark:border-red-800/30 text-left space-y-3">
+                  <span className="text-[10px] font-extrabold uppercase text-red-500 tracking-wider flex items-center gap-1">
                     <ShieldCheck size={14} /> Security Verification
                   </span>
                   <div>
@@ -854,7 +854,7 @@ export default function CompanyRegisterPage() {
                       placeholder="Enter answer"
                       value={captchaAnswer}
                       onChange={(e) => setCaptchaAnswer(e.target.value)}
-                      className="w-full md:w-48 border text-xs px-4 py-3 rounded-xl outline-none transition bg-slate-50 dark:bg-white/5 border-slate-200 dark:border-white/10 text-slate-900 dark:text-white focus:border-blue-500 font-bold"
+                      className="w-full md:w-48 border text-xs px-4 py-3 rounded-xl outline-none transition bg-slate-50 dark:bg-white/5 border-slate-200 dark:border-white/10 text-slate-900 dark:text-white focus:border-[#781c1c] dark:focus:border-red-500 font-bold"
                     />
                   </div>
                 </div>
@@ -887,7 +887,7 @@ export default function CompanyRegisterPage() {
                 <button
                   type="button"
                   onClick={handleNext}
-                  className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs uppercase rounded-xl transition cursor-pointer flex items-center gap-2 shadow-md shadow-blue-500/20"
+                  className="px-6 py-3 bg-[#781c1c] hover:bg-[#5f1515] text-white font-extrabold text-xs uppercase rounded-xl transition cursor-pointer flex items-center gap-2 shadow-md shadow-red-900/20"
                 >
                   Continue <ArrowRight size={14} />
                 </button>
@@ -895,7 +895,7 @@ export default function CompanyRegisterPage() {
                 <button
                   type="submit"
                   disabled={loading}
-                  className="px-8 py-3.5 bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs uppercase rounded-xl transition cursor-pointer flex items-center gap-2 shadow-lg disabled:opacity-50"
+                  className="px-8 py-3.5 bg-[#781c1c] hover:bg-[#5f1515] text-white font-extrabold text-xs uppercase rounded-xl transition cursor-pointer flex items-center gap-2 shadow-lg disabled:opacity-50"
                 >
                   {loading ? "Submitting Application..." : "Submit Application"}
                 </button>

@@ -134,11 +134,11 @@ export default function CompanyLoginPage() {
 
         {/* Hero Overlay Copy - Dark Glass Container for high contrast */}
         <div className="relative z-10 max-w-lg p-10 rounded-3xl bg-[#090d16]/50 border border-white/10 backdrop-blur-md shadow-2xl space-y-6">
-          <div className="w-12 h-12 bg-blue-500/20 text-blue-300 rounded-2xl flex items-center justify-center">
+          <div className="w-12 h-12 bg-red-500/20 text-red-300 rounded-2xl flex items-center justify-center">
             <Building2 size={24} />
           </div>
           <h2 className="text-4xl font-black text-white leading-tight tracking-tight drop-shadow-md">
-            Connect with MCC <span className="text-blue-400">talent</span> & onboard placement <span className="text-amber-300">drives</span>.
+            Connect with MCC <span className="text-red-400">talent</span> & onboard placement <span className="text-amber-300">drives</span>.
           </h2>
 
           <p className="text-sm text-slate-100 leading-relaxed font-medium">
@@ -157,7 +157,7 @@ export default function CompanyLoginPage() {
           {/* Back Home Button */}
           <Link
             href="/"
-            className="inline-flex items-center gap-2 text-xs font-extrabold text-slate-500 hover:text-blue-500 transition duration-200"
+            className="inline-flex items-center gap-2 text-xs font-extrabold text-slate-500 hover:text-[#781c1c] dark:hover:text-red-400 transition duration-200"
           >
             <ArrowLeft size={16} /> Back to Home
           </Link>
@@ -166,7 +166,7 @@ export default function CompanyLoginPage() {
             <div>
               <span
                 className="text-lg font-black uppercase tracking-wider block"
-                style={{ color: isDark ? "#ffffff" : "#1e40af" }}
+                style={{ color: isDark ? "#ffffff" : "#781c1c" }}
               >
                 Placement Cell
               </span>
@@ -201,7 +201,7 @@ export default function CompanyLoginPage() {
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     autoComplete="email"
-                    className="w-full border text-sm pl-11 pr-4 py-3.5 rounded-xl outline-none transition bg-slate-50 dark:bg-white/5 border-slate-200 dark:border-white/10 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:border-blue-500 dark:focus:border-blue-400"
+                    className="w-full border text-sm pl-11 pr-4 py-3.5 rounded-xl outline-none transition bg-slate-50 dark:bg-white/5 border-slate-200 dark:border-white/10 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:border-[#781c1c] dark:focus:border-red-500"
                   />
                 </div>
               </div>
@@ -213,7 +213,7 @@ export default function CompanyLoginPage() {
                   </label>
                   <Link
                     href="/company/forgot-password"
-                    className="text-xs font-semibold text-blue-500 dark:text-blue-400 hover:underline"
+                    className="text-xs font-semibold text-[#781c1c] dark:text-red-400 hover:underline"
                   >
                     Forgot Password?
                   </Link>
@@ -230,7 +230,7 @@ export default function CompanyLoginPage() {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     autoComplete="current-password"
-                    className="w-full border text-sm pl-11 pr-12 py-3.5 rounded-xl outline-none transition bg-slate-50 dark:bg-white/5 border-slate-200 dark:border-white/10 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:border-blue-500 dark:focus:border-blue-400"
+                    className="w-full border text-sm pl-11 pr-12 py-3.5 rounded-xl outline-none transition bg-slate-50 dark:bg-white/5 border-slate-200 dark:border-white/10 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:border-[#781c1c] dark:focus:border-red-500"
                   />
                   <button
                     type="button"
@@ -249,7 +249,7 @@ export default function CompanyLoginPage() {
                   id="rememberMe"
                   checked={rememberMe}
                   onChange={(e) => setRememberMe(e.target.checked)}
-                  className="rounded border-slate-300 dark:border-white/10 accent-blue-600 cursor-pointer w-4 h-4"
+                  className="rounded border-slate-300 dark:border-white/10 accent-[#781c1c] cursor-pointer w-4 h-4"
                 />
                 <label
                   htmlFor="rememberMe"
@@ -269,7 +269,7 @@ export default function CompanyLoginPage() {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full py-4 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs uppercase tracking-wider transition-all duration-200 shadow-xl shadow-blue-900/20 hover:shadow-blue-900/40 cursor-pointer active:scale-98 disabled:opacity-50 mt-2"
+                className="w-full py-4 rounded-xl bg-[#781c1c] hover:bg-[#5f1515] text-white font-extrabold text-xs uppercase tracking-wider transition-all duration-200 shadow-xl shadow-red-900/20 hover:shadow-red-900/40 cursor-pointer active:scale-98 disabled:opacity-50 mt-2"
               >
                 {loading ? "Signing In..." : "Sign In to HR Console"}
               </button>
@@ -281,7 +281,7 @@ export default function CompanyLoginPage() {
               HR Representative seeking onboarding?{" "}
               <Link
                 href="/company/register"
-                className="text-blue-600 dark:text-blue-400 font-extrabold hover:underline"
+                className="text-[#781c1c] dark:text-red-400 font-extrabold hover:underline"
               >
                 Register Company
               </Link>
