@@ -143,6 +143,13 @@ export default function HomePage() {
               >
                 Sign In to Account
               </Link>
+
+              <Link
+                href="/company/login"
+                className="w-full sm:w-auto px-8 sm:px-10 py-3.5 sm:py-4 rounded-2xl text-xs sm:text-base font-black bg-white/10 hover:bg-white/20 text-white backdrop-blur-md border border-white/20 hover:scale-105 active:scale-95 transition-all flex items-center justify-center uppercase tracking-wider"
+              >
+                Company / HR Portal
+              </Link>
             </div>
           </div>
         </div>
@@ -190,6 +197,12 @@ export default function HomePage() {
               style={{ color: isDark ? "#f1f5f9" : "#0f172a" }}
             >
               Register Account
+            </Link>
+            <Link
+              href="/company/login"
+              className="text-[10px] sm:text-xs font-extrabold transition-colors hover:underline text-blue-400 hover:text-blue-300"
+            >
+              Company Portal
             </Link>
             <Link
               href="/admin/login"

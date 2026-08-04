@@ -5,6 +5,7 @@ export enum UserRole {
   Student = 1,
   Admin = 2,
   Moderator = 3,
+  Company = 4,
 }
 
 const JWT_SECRET = process.env.JWT_KEY || "THIS_IS_SUPER_SECRET_KEY_FOR_MCC_PORTFOLIO_PLATFORM_2026";
@@ -26,7 +27,14 @@ export interface TokenPayload {
 }
 
 export function generateToken(user: { Id: number; FullName: string; Email: string; Role: number; adminPermissions?: string }): string {
-  const roleName = user.Role === UserRole.Admin ? "Admin" : user.Role === UserRole.Moderator ? "Moderator" : "Student";
+  const roleName = 
+    user.Role === UserRole.Admin 
+      ? "Admin" 
+      : user.Role === UserRole.Moderator 
+        ? "Moderator" 
+        : user.Role === UserRole.Company 
+          ? "Company" 
+          : "Student";
   const userIdStr = user.Id.toString();
 
   const payload: Partial<TokenPayload> & { adminPermissions?: string } = {

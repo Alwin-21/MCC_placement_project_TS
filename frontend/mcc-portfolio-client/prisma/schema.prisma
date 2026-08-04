@@ -347,6 +347,7 @@ model Users {
   AssessmentsCreated     Assessments[]          @relation("AssessmentCreatedBy")
   AssessmentAttempts     AssessmentAttempts[]   @relation("AttemptUser")
   MalpracticeReports     MalpracticeReport[]    @relation("MalpracticeUser")
+  JobApplications        JobApplication[]
 }
 
 model Assessments {
@@ -366,6 +367,7 @@ model Assessments {
   CreatedBy           Users                @relation("AssessmentCreatedBy", fields: [CreatedByUserId], references: [Id])
   AssessmentQuestions AssessmentQuestions[]
   AssessmentAttempts  AssessmentAttempts[]
+  JobPostings         JobPosting[]
 
   @@index([CreatedByUserId])
 }
@@ -464,3 +466,237 @@ model EFMigrationsHistory {
 
   @@map("__EFMigrationsHistory")
 }
+
+model Company {
+  Id            Int                    @id @default(autoincrement())
+  Name          String
+  Email         String                 @unique
+  Status        String                 @default("Pending") // Pending, Verified, Rejected, Suspended, Inactive, Archived
+  CreatedAt     DateTime               @default(now()) @db.Timestamptz(6)
+  UpdatedAt     DateTime               @updatedAt @db.Timestamptz(6)
+  Profile       CompanyProfile?
+  Documents     CompanyDocuments[]
+  Locations     CompanyLocations[]
+  Users         CompanyUsers[]
+  Verifications CompanyVerification[]
+  StatusHistory CompanyStatusHistory[]
+  AuditLogs     CompanyAuditLogs[]
+  JobPostings   JobPosting[]
+  SavedTalentPools SavedTalentPool[]
+}
+
+model CompanyProfile {
+  Id                  Int      @id @default(autoincrement())
+  CompanyId           Int      @unique
+  Company             Company  @relation(fields: [CompanyId], references: [Id], onDelete: Cascade)
+  LogoUrl             String?
+  CoverImageUrl       String?
+  Website             String?
+  LinkedInUrl         String?
+  Industry            String
+  CompanyType         String
+  CompanySize         String
+  FoundedYear         Int
+  Description         String
+  Mission             String?
+  Vision              String?
+  WorkCulture         String?
+  Benefits            String?
+  Awards              String?
+  Achievements        String?
+  RecruitmentProcess  String?
+  InternshipAvailable Boolean  @default(false)
+  PlacementAvailable  Boolean  @default(false)
+  Gallery             String?  @default("")
+  Videos              String?  @default("")
+  PlacementHistory    String?  @default("")
+  InternshipPrograms  String?  @default("")
+  FAQs                String?  @default("")
+  ContactDetails      String?  @default("")
+  SocialLinks         String?  @default("")
+}
+
+model CompanyDocuments {
+  Id         Int      @id @default(autoincrement())
+  CompanyId  Int
+  Company    Company  @relation(fields: [CompanyId], references: [Id], onDelete: Cascade)
+  DocType    String // GST, RegistrationCertificate, HiringAuthorization, etc.
+  FileUrl    String
+  UploadedAt DateTime @default(now()) @db.Timestamptz(6)
+}
+
+model CompanyLocations {
+  Id           Int     @id @default(autoincrement())
+  CompanyId    Int
+  Company      Company @relation(fields: [CompanyId], references: [Id], onDelete: Cascade)
+  Location     String
+  IsHeadOffice Boolean @default(false)
+  WorkMode     String // Remote, Hybrid, OnSite
+}
+
+model CompanyUsers {
+  Id                  Int       @id @default(autoincrement())
+  CompanyId           Int
+  Company             Company   @relation(fields: [CompanyId], references: [Id], onDelete: Cascade)
+  Email               String    @unique
+  PasswordHash        String
+  FullName            String
+  Designation         String
+  Phone               String
+  AlternatePhone      String?
+  IsActive            Boolean   @default(true)
+  FailedLoginAttempts Int       @default(0)
+  LockedUntil         DateTime? @db.Timestamptz(6)
+  CreatedAt           DateTime  @default(now()) @db.Timestamptz(6)
+  UpdatedAt           DateTime  @updatedAt @db.Timestamptz(6)
+}
+
+model CompanyVerification {
+  Id              Int      @id @default(autoincrement())
+  CompanyId       Int
+  Company         Company  @relation(fields: [CompanyId], references: [Id], onDelete: Cascade)
+  ReviewedByEmail String?
+  Action          String // Approve, Reject, RequestChanges
+  Comments        String?
+  Timestamp       DateTime @default(now()) @db.Timestamptz(6)
+}
+
+model CompanyStatusHistory {
+  Id        Int      @id @default(autoincrement())
+  CompanyId Int
+  Company   Company  @relation(fields: [CompanyId], references: [Id], onDelete: Cascade)
+  OldStatus String
+  NewStatus String
+  ChangedBy String // Email of Admin / System
+  Comments  String?
+  Timestamp DateTime @default(now()) @db.Timestamptz(6)
+}
+
+model CompanyAuditLogs {
+  Id               Int      @id @default(autoincrement())
+  CompanyId        Int?
+  Company          Company? @relation(fields: [CompanyId], references: [Id], onDelete: SetNull)
+  Action           String
+  PerformedByEmail String
+  Timestamp        DateTime @default(now()) @db.Timestamptz(6)
+  Details          String
+  IpAddress        String
+}
+
+model JobPosting {
+  Id                     Int              @id @default(autoincrement())
+  CompanyId              Int
+  Company                Company          @relation(fields: [CompanyId], references: [Id], onDelete: Cascade)
+  Title                  String
+  Department             String
+  Description            String           @db.Text
+  Responsibilities       String           @db.Text
+  Requirements           String           @db.Text
+  RequiredSkills         String           @db.Text
+  PreferredSkills        String           @db.Text
+  JobType                String           // "Internship", "FullTime", "PartTime", "Contract", "Freelance"
+  WorkMode               String           // "Remote", "Hybrid", "OnSite"
+  EligibilityDepartments String           // Semicolon-separated
+  EligibilityYears       String           // Semicolon-separated
+  EligibilityMinCGPA     Float            @default(0.0)
+  EligibilityExperience  String
+  Vacancies              Int              @default(1)
+  Salary                 String
+  LPA                    Float            @default(0.0)
+  Benefits               String           @db.Text
+  SelectionProcess       String           @db.Text
+  Deadlines              DateTime         @db.Timestamptz(6)
+  Attachments            String?          @default("")
+  Status                 String           @default("Pending") // "Pending", "Approved", "Rejected", "ChangesRequested"
+  ChangesFeedback        String?          @default("")
+  CreatedAt              DateTime         @default(now()) @db.Timestamptz(6)
+  UpdatedAt              DateTime         @updatedAt @db.Timestamptz(6)
+  Applications           JobApplication[]
+  AssessmentId           Int?
+  Assessment             Assessments?     @relation(fields: [AssessmentId], references: [Id], onDelete: SetNull)
+}
+
+model JobApplication {
+  Id                     Int              @id @default(autoincrement())
+  JobId                  Int
+  Job                    JobPosting       @relation(fields: [JobId], references: [Id], onDelete: Cascade)
+  StudentId              Int
+  Student                Users            @relation(fields: [StudentId], references: [Id], onDelete: Cascade)
+  ResumeUrl              String
+  Status                 String           @default("Applied") // "Applied", "Shortlisted", "InterviewScheduled", "Offered", "Rejected"
+  AppliedAt              DateTime         @default(now()) @db.Timestamptz(6)
+  UpdatedAt              DateTime         @updatedAt @db.Timestamptz(6)
+  OfferLetterUrl         String?          @default("")
+  OfferStatus            String?          @default("") // "Sent", "Accepted", "Rejected"
+  OfferFeedback          String?          @default("")
+  OfferReleasedAt        DateTime?        @db.Timestamptz(6)
+  Interviews             Interview[]
+  @@index([JobId])
+  @@index([StudentId])
+}
+
+model SavedTalentPool {
+  Id           Int              @id @default(autoincrement())
+  CompanyId    Int
+  Company      Company          @relation(fields: [CompanyId], references: [Id], onDelete: Cascade)
+  Name         String
+  StudentIds   String           @default("") // Comma-separated student user IDs (optional / backward compatible)
+  CriteriaJson String           @default("") // Saved recruiter search criteria JSON
+  CreatedAt    DateTime         @default(now()) @db.Timestamptz(6)
+  UpdatedAt    DateTime         @updatedAt @db.Timestamptz(6)
+  @@index([CompanyId])
+}
+
+model SkillTaxonomy {
+  Id            Int      @id @default(autoincrement())
+  Department    String   // Target department (e.g. "Computer Science", "Commerce") or "all"
+  Domain        String   // Sector domain (e.g. "Software Development", "Accounting")
+  SkillName     String   // Core skill name (e.g. "Web Development", "GST")
+  SubSkills     String   @default("") // Semicolon-separated subskills
+  Category      String   // Classification category: "Programming Languages", "Software", "Soft Skills", etc.
+  Aliases       String   @default("") // Semicolon-separated aliases (e.g. "excel;spreadsheets")
+  RelatedSkills String   @default("") // Semicolon-separated related skills (e.g. "tally;accounting")
+  CreatedAt     DateTime @default(now()) @db.Timestamptz(6)
+  UpdatedAt     DateTime @updatedAt @db.Timestamptz(6)
+}
+
+model MatchingEngineConfig {
+  Id        Int      @id @default(autoincrement())
+  ConfigKey String   @unique // e.g. "weights"
+  ConfigVal String   @db.Text // JSON configuration string
+  UpdatedAt DateTime @updatedAt @db.Timestamptz(6)
+}
+
+model Interview {
+  Id            Int            @id @default(autoincrement())
+  ApplicationId Int
+  Application   JobApplication @relation(fields: [ApplicationId], references: [Id], onDelete: Cascade)
+  Type          String         // "Online", "Offline", "Campus"
+  ScheduleTime  DateTime       @db.Timestamptz(6)
+  MeetLink      String         @default("")
+  Venue         String         @default("")
+  Status        String         @default("Scheduled") // "Scheduled", "Rescheduled", "Cancelled"
+  Feedback      String?        @default("")
+  CreatedAt     DateTime       @default(now()) @db.Timestamptz(6)
+  UpdatedAt     DateTime       @updatedAt @db.Timestamptz(6)
+}
+
+model SavedSearchAlert {
+  Id              Int      @id @default(autoincrement())
+  CompanyId       Int
+  TalentPoolId    Int
+  LastCheckedAt   DateTime @default(now()) @db.Timestamptz(6)
+  NewMatchesCount Int      @default(0)
+  IsNotified      Boolean  @default(false)
+  CreatedAt       DateTime @default(now()) @db.Timestamptz(6)
+}
+
+model AutomationLog {
+  Id        Int      @id @default(autoincrement())
+  Action    String
+  Timestamp DateTime @default(now()) @db.Timestamptz(6)
+  Details   String   @db.Text
+  Success   Boolean  @default(true)
+}
+
+
