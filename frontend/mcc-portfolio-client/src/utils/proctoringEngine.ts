@@ -1,5 +1,88 @@
 import { ViolationType } from "./examRiskEngine";
 
+// ─── Camera Error Classifier ──────────────────────────────────────────────────
+
+export interface CameraErrorResult {
+  title: string;
+  message: string;
+  isPermissionError: boolean;
+  isHardwareError: boolean;
+  isInUseError: boolean;
+}
+
+export function classifyCameraError(err: any): CameraErrorResult {
+  if (!err) {
+    return {
+      title: "Camera Access Error",
+      message: "An unknown error occurred while requesting camera access. Please check device connections.",
+      isPermissionError: false,
+      isHardwareError: false,
+      isInUseError: false,
+    };
+  }
+
+  const name = err.name || err.code || "";
+  const msg = err.message || "";
+
+  if (name === "NotAllowedError" || name === "PermissionDeniedError" || msg.includes("Permission denied")) {
+    return {
+      title: "Camera Permission Denied",
+      message: "Camera permission was blocked. Click the lock/camera icon in your browser address bar and change Camera to 'Allow', then retry.",
+      isPermissionError: true,
+      isHardwareError: false,
+      isInUseError: false,
+    };
+  }
+
+  if (name === "NotFoundError" || name === "DevicesNotFoundError" || msg.includes("Requested device not found")) {
+    return {
+      title: "No Camera Hardware Found",
+      message: "No webcam hardware detected. Please connect an external webcam or verify your device manager settings.",
+      isPermissionError: false,
+      isHardwareError: true,
+      isInUseError: false,
+    };
+  }
+
+  if (name === "NotReadableError" || name === "TrackStartError" || msg.includes("Could not start video source") || msg.includes("in use")) {
+    return {
+      title: "Camera Currently In Use",
+      message: "Your camera is in use by another app (e.g. Zoom, Teams, Skype, or another browser tab). Please close all video apps and retry.",
+      isPermissionError: false,
+      isHardwareError: false,
+      isInUseError: true,
+    };
+  }
+
+  if (name === "OverconstrainedError" || msg.includes("Constraints")) {
+    return {
+      title: "Camera Resolution Conflict",
+      message: "Your webcam hardware does not support the requested video resolution. Falling back to default constraints...",
+      isPermissionError: false,
+      isHardwareError: false,
+      isInUseError: false,
+    };
+  }
+
+  if (name === "TypeError" || (typeof window !== "undefined" && (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia))) {
+    return {
+      title: "Browser or Protocol Not Supported",
+      message: "Camera access requires HTTPS or localhost, and a modern browser like Chrome, Edge, or Firefox.",
+      isPermissionError: false,
+      isHardwareError: false,
+      isInUseError: false,
+    };
+  }
+
+  return {
+    title: "Webcam Connection Error",
+    message: err.message || "Failed to initialize webcam stream.",
+    isPermissionError: false,
+    isHardwareError: false,
+    isInUseError: false,
+  };
+}
+
 // ─── State Machine Config ─────────────────────────────────────────────────────
 
 export interface StateMachineConfig {

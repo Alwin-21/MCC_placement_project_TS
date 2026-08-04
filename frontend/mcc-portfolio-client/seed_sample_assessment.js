@@ -29,6 +29,7 @@ async function seed() {
         Stream: "Admin",
         Username: "superadmin",
         IsActive: true,
+        ProfileImageUrl: "",
       },
     });
   }
