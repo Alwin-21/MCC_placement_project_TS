@@ -51,14 +51,14 @@ export default function CompanyForgotPasswordPage() {
       <div className="w-full max-w-md space-y-6">
         <Link
           href="/company/login"
-          className="inline-flex items-center gap-2 text-xs font-extrabold text-slate-500 hover:text-blue-500 transition duration-200"
+          className="inline-flex items-center gap-2 text-xs font-extrabold text-slate-500 hover:text-[#781c1c] dark:hover:text-red-400 transition duration-200"
         >
           <ArrowLeft size={16} /> Back to Login
         </Link>
 
         <div className="glass-card rounded-3xl p-8 md:p-10 shadow-2xl space-y-6 border border-slate-200/80 dark:border-white/10 bg-white/40 dark:bg-white/[0.02] backdrop-blur-xl">
           <div className="text-center space-y-2">
-            <div className="w-12 h-12 bg-blue-500/20 text-blue-400 rounded-2xl flex items-center justify-center mx-auto shadow-md">
+            <div className="w-12 h-12 bg-red-500/20 text-red-400 rounded-2xl flex items-center justify-center mx-auto shadow-md">
               <KeyRound size={24} />
             </div>
             <h1 className="text-2xl font-black tracking-tight">Forgot Password</h1>
@@ -81,7 +81,7 @@ export default function CompanyForgotPasswordPage() {
                     placeholder="hr@company.com"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="w-full border text-sm pl-11 pr-4 py-3.5 rounded-xl outline-none transition bg-slate-50 dark:bg-white/5 border-slate-200 dark:border-white/10 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:border-blue-500 dark:focus:border-blue-400"
+                    className="w-full border text-sm pl-11 pr-4 py-3.5 rounded-xl outline-none transition bg-slate-50 dark:bg-white/5 border-slate-200 dark:border-white/10 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:border-[#781c1c] dark:focus:border-red-500"
                   />
                 </div>
               </div>
@@ -96,7 +96,7 @@ export default function CompanyForgotPasswordPage() {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full py-4 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs uppercase tracking-wider transition-all duration-200 shadow-xl cursor-pointer disabled:opacity-50"
+                className="w-full py-4 rounded-xl bg-[#781c1c] hover:bg-[#5f1515] text-white font-extrabold text-xs uppercase tracking-wider transition-all duration-200 shadow-xl shadow-red-900/20 hover:shadow-red-900/40 cursor-pointer disabled:opacity-50"
               >
                 {loading ? "Sending Request..." : "Request Reset Link"}
               </button>
@@ -109,8 +109,8 @@ export default function CompanyForgotPasswordPage() {
               </div>
 
               {simToken && (
-                <div className="p-5 rounded-2xl border border-blue-200 dark:border-blue-800/40 bg-blue-500/5 space-y-3">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-blue-500 dark:text-blue-400 block">
+                <div className="p-5 rounded-2xl border border-red-200 dark:border-red-800/40 bg-red-500/5 space-y-3">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-red-500 dark:text-red-400 block">
                     Developer Walkthrough Helper
                   </span>
                   <p className="text-xs text-slate-500 dark:text-slate-400">
@@ -118,7 +118,7 @@ export default function CompanyForgotPasswordPage() {
                   </p>
                   <Link
                     href={`/company/reset-password?email=${encodeURIComponent(email)}&token=${simToken}`}
-                    className="inline-block w-full py-2.5 rounded-xl bg-blue-600/10 hover:bg-blue-600/20 text-blue-500 dark:text-blue-300 font-extrabold text-xs uppercase text-center transition"
+                    className="inline-block w-full py-2.5 rounded-xl bg-red-600/10 hover:bg-red-600/20 text-red-500 dark:text-red-300 font-extrabold text-xs uppercase text-center transition"
                   >
                     Reset Password Now
                   </Link>

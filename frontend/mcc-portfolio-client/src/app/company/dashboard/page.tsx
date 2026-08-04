@@ -643,7 +643,7 @@ export default function CompanyDashboardPage() {
           <p className="text-xs text-slate-500 leading-relaxed">{error}</p>
           <button
             onClick={() => router.push("/company/login")}
-            className="px-6 py-2.5 bg-blue-600 text-white rounded-xl text-xs font-bold uppercase transition"
+            className="px-6 py-2.5 bg-[#781c1c] text-white rounded-xl text-xs font-bold uppercase transition"
           >
             Go to Login
           </button>
@@ -671,7 +671,7 @@ export default function CompanyDashboardPage() {
 
   const appStatusBadge: Record<string, string> = {
     Applied: "bg-slate-500/10 text-slate-500 border-slate-500/20",
-    Reviewed: "bg-blue-500/10 text-blue-500 border-blue-500/20",
+    Reviewed: "bg-red-500/10 text-red-500 border-red-500/20",
     Shortlisted: "bg-sky-500/10 text-sky-500 border-sky-500/20",
     InterviewScheduled: "bg-amber-500/10 text-amber-500 border-amber-500/20",
     Selected: "bg-violet-500/10 text-violet-500 border-violet-500/20",
@@ -692,7 +692,7 @@ export default function CompanyDashboardPage() {
       <header className="sticky top-0 z-40 backdrop-blur-md border-b border-slate-200/50 dark:border-white/10 p-4 bg-white/30 dark:bg-black/20">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-blue-600 text-white flex items-center justify-center shadow-md shadow-blue-500/25">
+            <div className="w-10 h-10 rounded-xl bg-[#781c1c] text-white flex items-center justify-center shadow-md shadow-red-900/25">
               <Building2 size={20} />
             </div>
             <div>
@@ -750,7 +750,7 @@ export default function CompanyDashboardPage() {
                 aria-label={`Navigate to ${tab.label}`}
                 className={`flex items-center gap-3 px-4 py-3 rounded-2xl text-xs font-extrabold uppercase tracking-wide transition shrink-0 cursor-pointer ${
                   active
-                    ? "bg-blue-600 text-white shadow-md shadow-blue-600/15"
+                    ? "bg-[#781c1c] text-white shadow-md shadow-red-900/15"
                     : isDark
                     ? "hover:bg-white/5 text-slate-400"
                     : "hover:bg-slate-100 text-slate-650"
@@ -799,7 +799,7 @@ export default function CompanyDashboardPage() {
                   { label: "Active Jobs", count: stats.activeJobs, color: "text-emerald-500 bg-emerald-500/5 border-emerald-500/10" },
                   { label: "Pending Jobs", count: stats.pendingJobs, color: "text-amber-500 bg-amber-500/5 border-amber-500/10" },
                   { label: "Rejected Jobs", count: stats.rejectedJobs, color: "text-red-500 bg-red-500/5 border-red-500/10" },
-                  { label: "Applications", count: stats.applicationsReceived, color: "text-blue-500 bg-blue-500/5 border-blue-500/10" },
+                  { label: "Applications", count: stats.applicationsReceived, color: "text-red-500 bg-red-500/5 border-red-500/10" },
                   { label: "Shortlisted", count: stats.studentsShortlisted, color: "text-cyan-500 bg-cyan-500/5 border-cyan-500/10" },
                   { label: "Interviews", count: stats.interviewsScheduled, color: "text-purple-500 bg-purple-500/5 border-purple-500/10" },
                   { label: "Offers Issued", count: stats.offersReleased, color: "text-indigo-500 bg-indigo-500/5 border-indigo-500/10" },
@@ -821,7 +821,7 @@ export default function CompanyDashboardPage() {
                     {stats.recentActivities.length > 0 ? (
                       stats.recentActivities.map((act: any) => (
                         <div key={act.id} className="flex gap-3 text-xs border-b border-slate-100 dark:border-white/5 pb-2.5 last:border-b-0">
-                          <Clock size={14} className="text-blue-500 shrink-0 mt-0.5" />
+                          <Clock size={14} className="text-red-500 shrink-0 mt-0.5" />
                           <div>
                             <span className="block font-bold">{act.action}</span>
                             <span className="block text-[10px] text-slate-400 mt-0.5">{act.details}</span>
@@ -869,7 +869,7 @@ export default function CompanyDashboardPage() {
                     <h3 className="text-base font-black uppercase tracking-wider text-slate-400">Company Information</h3>
                     <button
                       onClick={() => setIsEditingProfile(true)}
-                      className="px-4 py-2 bg-blue-600/10 hover:bg-blue-600/20 text-blue-500 dark:text-blue-300 text-xs font-extrabold uppercase rounded-xl transition flex items-center gap-2 cursor-pointer"
+                      className="px-4 py-2 bg-[#781c1c]/10 hover:bg-[#781c1c]/20 text-red-500 dark:text-red-300 text-xs font-extrabold uppercase rounded-xl transition flex items-center gap-2 cursor-pointer"
                     >
                       <Edit size={14} /> Edit Company Info
                     </button>
@@ -883,7 +883,7 @@ export default function CompanyDashboardPage() {
                         {company?.profile?.logoUrl ? (
                           <img src={company.profile.logoUrl} className="w-20 h-20 object-contain rounded-2xl border p-2 bg-white" alt="logo" />
                         ) : (
-                          <div className="w-20 h-20 bg-blue-500/10 text-blue-500 rounded-2xl flex items-center justify-center border"><Building2 size={36} /></div>
+                          <div className="w-20 h-20 bg-red-500/10 text-red-500 rounded-2xl flex items-center justify-center border"><Building2 size={36} /></div>
                         )}
                         <div>
                           <h4 className="font-black text-lg">{company?.name}</h4>
@@ -941,7 +941,7 @@ export default function CompanyDashboardPage() {
                       <div>
                         <span className="text-xs font-bold text-slate-400 block mb-1">Hiring & Internship Details</span>
                         <div className="flex flex-wrap gap-2 text-xs font-bold">
-                          <span className="px-2.5 py-1 bg-blue-500/10 text-blue-500 rounded-lg">Internships: {company?.profile?.internshipAvailable ? "Yes" : "No"}</span>
+                          <span className="px-2.5 py-1 bg-red-500/10 text-red-500 rounded-lg">Internships: {company?.profile?.internshipAvailable ? "Yes" : "No"}</span>
                           <span className="px-2.5 py-1 bg-emerald-500/10 text-emerald-500 rounded-lg">Placements: {company?.profile?.placementAvailable ? "Yes" : "No"}</span>
                         </div>
                       </div>
@@ -1190,7 +1190,7 @@ export default function CompanyDashboardPage() {
                     <button
                       type="submit"
                       disabled={saveProfileLoading}
-                      className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold uppercase rounded-xl transition cursor-pointer disabled:opacity-50"
+                      className="px-6 py-2.5 bg-[#781c1c] hover:bg-[#5f1515] text-white text-xs font-bold uppercase rounded-xl transition cursor-pointer disabled:opacity-50"
                     >
                       {saveProfileLoading ? "Saving..." : "Save Workspace"}
                     </button>
@@ -1213,7 +1213,7 @@ export default function CompanyDashboardPage() {
                 {!isPending && (
                   <button
                     onClick={() => handleOpenJobModal()}
-                    className="px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-extrabold uppercase rounded-xl transition flex items-center gap-2 cursor-pointer shadow-lg shadow-blue-500/10"
+                    className="px-4 py-2.5 bg-[#781c1c] hover:bg-[#5f1515] text-white text-xs font-extrabold uppercase rounded-xl transition flex items-center gap-2 cursor-pointer shadow-lg shadow-red-900/10"
                   >
                     <Plus size={14} /> Create Job Posting
                   </button>
@@ -1242,7 +1242,7 @@ export default function CompanyDashboardPage() {
 
                         <div>
                           <h4 className="text-lg font-black truncate">{job.title || job.Title}</h4>
-                          <span className="text-[10px] font-bold text-blue-500 uppercase tracking-wide block">{job.department || job.Department} · {job.jobType || job.JobType}</span>
+                          <span className="text-[10px] font-bold text-red-500 uppercase tracking-wide block">{job.department || job.Department} · {job.jobType || job.JobType}</span>
                         </div>
 
                         <p className="text-xs text-slate-400 line-clamp-3 leading-relaxed">{job.description || job.Description}</p>
@@ -1263,7 +1263,7 @@ export default function CompanyDashboardPage() {
                       <div className="flex gap-2 pt-4 border-t border-slate-100 dark:border-white/5">
                         <button
                           onClick={() => handleOpenJobModal(job)}
-                          className="flex-1 py-2 bg-blue-600/10 hover:bg-blue-600/20 text-blue-500 dark:text-blue-300 text-xs font-bold uppercase rounded-xl transition cursor-pointer"
+                          className="flex-1 py-2 bg-[#781c1c]/10 hover:bg-[#781c1c]/20 text-red-500 dark:text-red-300 text-xs font-bold uppercase rounded-xl transition cursor-pointer"
                         >
                           Edit Details
                         </button>
@@ -1278,8 +1278,8 @@ export default function CompanyDashboardPage() {
                   ))
                 ) : (
                    <div className="md:col-span-2 border border-dashed rounded-3xl p-14 text-center border-slate-200 dark:border-white/10">
-                    <div className="w-16 h-16 rounded-3xl bg-blue-500/10 flex items-center justify-center mx-auto mb-5">
-                      <Briefcase className="text-blue-400" size={30} />
+                    <div className="w-16 h-16 rounded-3xl bg-red-500/10 flex items-center justify-center mx-auto mb-5">
+                      <Briefcase className="text-red-400" size={30} />
                     </div>
                     <p className="text-base font-black text-slate-600 dark:text-slate-300 mb-2">No Job Postings Yet</p>
                     <p className="text-xs text-slate-400 max-w-xs mx-auto leading-relaxed mb-5">
@@ -1288,7 +1288,7 @@ export default function CompanyDashboardPage() {
                     {!isPending && (
                       <button
                         onClick={() => handleOpenJobModal()}
-                        className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-extrabold uppercase rounded-xl transition cursor-pointer shadow-lg shadow-blue-500/20"
+                        className="px-5 py-2.5 bg-[#781c1c] hover:bg-[#5f1515] text-white text-xs font-extrabold uppercase rounded-xl transition cursor-pointer shadow-lg shadow-red-900/20"
                       >
                         <span className="flex items-center gap-2"><Plus size={13} /> Create First Job</span>
                       </button>
@@ -1386,7 +1386,7 @@ export default function CompanyDashboardPage() {
 
                           {/* Assessment Score Display */}
                           {app.assessmentId && (
-                            <div className="text-[10px] font-extrabold bg-blue-500/5 dark:bg-blue-500/10 border border-blue-500/10 rounded-2xl p-3.5 text-left mt-2 max-w-md">
+                            <div className="text-[10px] font-extrabold bg-red-500/5 dark:bg-red-500/10 border border-red-500/10 rounded-2xl p-3.5 text-left mt-2 max-w-md">
                               <span className="text-slate-400 uppercase tracking-wide block mb-1">Attached Screening Test</span>
                               <div className="flex items-center justify-between">
                                 <span className="text-slate-300 font-bold">{app.assessmentTitle}</span>
@@ -1413,7 +1413,7 @@ export default function CompanyDashboardPage() {
                               target="_blank"
                               rel="noreferrer"
                               onClick={() => handleDownloadResume(app.student.fullName)}
-                              className="px-4 py-2 bg-blue-600/10 hover:bg-blue-600/20 text-blue-500 dark:text-blue-300 text-xs font-bold uppercase rounded-xl transition text-center flex items-center justify-center gap-1.5"
+                              className="px-4 py-2 bg-[#781c1c]/10 hover:bg-[#781c1c]/20 text-red-500 dark:text-red-300 text-xs font-bold uppercase rounded-xl transition text-center flex items-center justify-center gap-1.5"
                             >
                               <FileText size={12} /> View Resume
                             </a>
@@ -1450,7 +1450,7 @@ export default function CompanyDashboardPage() {
                               onClick={() => {
                                 setActiveSchedulerAppId(activeSchedulerAppId === app.id ? null : app.id);
                               }}
-                              className="px-3 py-1.5 bg-blue-600/10 hover:bg-blue-600/20 text-blue-500 dark:text-blue-300 text-[10px] font-bold uppercase rounded-xl transition cursor-pointer"
+                              className="px-3 py-1.5 bg-[#781c1c]/10 hover:bg-[#781c1c]/20 text-red-500 dark:text-red-300 text-[10px] font-bold uppercase rounded-xl transition cursor-pointer"
                             >
                               {activeSchedulerAppId === app.id ? "Close Calendar" : "Schedule Interview"}
                             </button>
@@ -1464,11 +1464,11 @@ export default function CompanyDashboardPage() {
                                   <div className="flex justify-between items-center">
                                     <span className="text-slate-250 uppercase font-black">{i.type} Interview</span>
                                     <span className={`px-2 py-0.5 rounded-full border text-[8px] font-extrabold uppercase ${
-                                      i.status === "Scheduled" ? "bg-blue-500/10 text-blue-400 border-blue-500/20" : i.status === "Rescheduled" ? "bg-amber-500/10 text-amber-400 border-amber-500/20" : "bg-red-500/10 text-red-400 border-red-500/20"
+                                      i.status === "Scheduled" ? "bg-red-500/10 text-red-400 border-red-500/20" : i.status === "Rescheduled" ? "bg-amber-500/10 text-amber-400 border-amber-500/20" : "bg-red-500/10 text-red-400 border-red-500/20"
                                     }`}>{i.status}</span>
                                   </div>
                                   <div>Time: {new Date(i.scheduleTime).toLocaleString()}</div>
-                                  {i.meetLink && <div className="truncate">Link: <a href={i.meetLink} target="_blank" rel="noreferrer" className="text-blue-500 underline">{i.meetLink}</a></div>}
+                                  {i.meetLink && <div className="truncate">Link: <a href={i.meetLink} target="_blank" rel="noreferrer" className="text-red-500 underline">{i.meetLink}</a></div>}
                                   {i.venue && <div>Venue: {i.venue}</div>}
                                 </div>
                               ))}
@@ -1528,7 +1528,7 @@ export default function CompanyDashboardPage() {
                               <button
                                 type="button"
                                 onClick={() => handleScheduleInterviewSubmit(app.id)}
-                                className="w-full py-2 bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-bold uppercase rounded-lg transition cursor-pointer"
+                                className="w-full py-2 bg-[#781c1c] hover:bg-[#5f1515] text-white text-[10px] font-bold uppercase rounded-lg transition cursor-pointer"
                               >
                                 Confirm Interview Schedule
                               </button>
@@ -1553,7 +1553,7 @@ export default function CompanyDashboardPage() {
                           {app.offerLetterUrl && (
                             <div className="p-3 bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/5 rounded-2xl text-[10px] space-y-1 text-slate-400 font-bold">
                               <div className="flex justify-between items-center">
-                                <span>Status: <strong className="text-blue-500 uppercase">{app.offerStatus || "Released"}</strong></span>
+                                <span>Status: <strong className="text-red-500 uppercase">{app.offerStatus || "Released"}</strong></span>
                                 {app.offerReleasedAt && <span>{new Date(app.offerReleasedAt).toLocaleDateString()}</span>}
                               </div>
                               <div className="pt-1">
@@ -1617,7 +1617,7 @@ export default function CompanyDashboardPage() {
                 </div>
                 <button
                   onClick={() => setPoolModalOpen(true)}
-                  className="px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-extrabold uppercase rounded-xl transition flex items-center gap-2 cursor-pointer shadow-lg shadow-blue-500/10"
+                  className="px-4 py-2.5 bg-[#781c1c] hover:bg-[#5f1515] text-white text-xs font-extrabold uppercase rounded-xl transition flex items-center gap-2 cursor-pointer shadow-lg shadow-red-900/10"
                 >
                   <FolderPlus size={14} /> Create Talent Pool
                 </button>
@@ -1658,7 +1658,7 @@ export default function CompanyDashboardPage() {
                         <div className="flex gap-2 border-t border-slate-100 dark:border-white/5 pt-4">
                           <button
                             onClick={() => handleViewPoolMembers(p)}
-                            className="flex-1 py-2 bg-blue-600/10 hover:bg-blue-600/20 text-blue-500 dark:text-blue-300 text-xs font-bold uppercase rounded-xl transition cursor-pointer"
+                            className="flex-1 py-2 bg-[#781c1c]/10 hover:bg-[#781c1c]/20 text-red-500 dark:text-red-300 text-xs font-bold uppercase rounded-xl transition cursor-pointer"
                           >
                             View Members
                           </button>
@@ -1698,7 +1698,7 @@ export default function CompanyDashboardPage() {
                   <button
                     type="button"
                     onClick={() => handleExport("csv")}
-                    className="px-3.5 py-2 bg-blue-600/10 hover:bg-blue-600/20 text-blue-500 rounded-xl text-xs font-bold uppercase transition cursor-pointer"
+                    className="px-3.5 py-2 bg-[#781c1c]/10 hover:bg-[#781c1c]/20 text-red-500 rounded-xl text-xs font-bold uppercase transition cursor-pointer"
                   >
                     CSV Format
                   </button>
@@ -1714,7 +1714,7 @@ export default function CompanyDashboardPage() {
 
               {analyticsLoading || !analyticsData ? (
                 <div className="p-12 text-center text-slate-500">
-                  <div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-2" />
+                  <div className="w-8 h-8 border-2 border-red-600 border-t-transparent rounded-full animate-spin mx-auto mb-2" />
                   <p className="text-xs font-bold">Computing candidate funnel analytics...</p>
                 </div>
               ) : (
@@ -1722,7 +1722,7 @@ export default function CompanyDashboardPage() {
                   {/* Stats Grid */}
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                     {[
-                      { label: "Total Applications", val: analyticsData.totalApplications, icon: Users, color: "text-blue-500 bg-blue-500/5" },
+                      { label: "Total Applications", val: analyticsData.totalApplications, icon: Users, color: "text-red-500 bg-red-500/5" },
                       { label: "Pipeline Placed Rate", val: `${analyticsData.conversionRate}%`, icon: CheckCircle, color: "text-emerald-500 bg-emerald-500/5" },
                       { label: "Average Candidate Match", val: `${analyticsData.averageMatchScore}%`, icon: Sparkles, color: "text-violet-500 bg-violet-500/5" },
                       { label: "Offer Acceptance Rate", val: `${analyticsData.offerAcceptanceRate}%`, icon: Briefcase, color: "text-amber-500 bg-amber-500/5" },
@@ -1746,7 +1746,7 @@ export default function CompanyDashboardPage() {
                     <div className="space-y-3.5">
                       {[
                         { label: "Applied", count: analyticsData.funnel.Applied, pct: 105, color: "bg-slate-500" },
-                        { label: "Reviewed", count: analyticsData.funnel.Reviewed, pct: analyticsData.totalApplications > 0 ? (analyticsData.funnel.Reviewed / analyticsData.totalApplications) * 100 : 0, color: "bg-blue-500" },
+                        { label: "Reviewed", count: analyticsData.funnel.Reviewed, pct: analyticsData.totalApplications > 0 ? (analyticsData.funnel.Reviewed / analyticsData.totalApplications) * 100 : 0, color: "bg-red-500" },
                         { label: "Shortlisted", count: analyticsData.funnel.Shortlisted, pct: analyticsData.totalApplications > 0 ? (analyticsData.funnel.Shortlisted / analyticsData.totalApplications) * 100 : 0, color: "bg-sky-500" },
                         { label: "Interview Scheduled", count: analyticsData.funnel.InterviewScheduled, pct: analyticsData.totalApplications > 0 ? (analyticsData.funnel.InterviewScheduled / analyticsData.totalApplications) * 100 : 0, color: "bg-amber-500" },
                         { label: "Selected", count: analyticsData.funnel.Selected, pct: analyticsData.totalApplications > 0 ? (analyticsData.funnel.Selected / analyticsData.totalApplications) * 100 : 0, color: "bg-purple-500" },
@@ -1783,7 +1783,7 @@ export default function CompanyDashboardPage() {
                                   <span className="text-slate-400">{s.count} matched</span>
                                 </div>
                                 <div className="w-full bg-slate-200 dark:bg-white/5 h-1.5 rounded-full overflow-hidden">
-                                  <div className="h-full bg-blue-500 rounded-full transition-all" style={{ width: `${pct}%` }} />
+                                  <div className="h-full bg-red-500 rounded-full transition-all" style={{ width: `${pct}%` }} />
                                 </div>
                               </div>
                             );
@@ -2118,7 +2118,7 @@ export default function CompanyDashboardPage() {
               </button>
               <button
                 type="submit"
-                className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold uppercase rounded-xl transition cursor-pointer"
+                className="px-6 py-2.5 bg-[#781c1c] hover:bg-[#5f1515] text-white text-xs font-bold uppercase rounded-xl transition cursor-pointer"
               >
                 Submit Listing
               </button>
@@ -2194,7 +2194,7 @@ export default function CompanyDashboardPage() {
                             type="checkbox"
                             checked={checked}
                             onChange={() => toggleStudentInPool(s.id)}
-                            className="rounded text-blue-600 focus:ring-blue-500 border-slate-350"
+                            className="rounded text-red-600 focus:ring-red-500 border-slate-350"
                           />
                           <div>
                             <span className="block font-bold">{s.fullName} ({s.cgpa} CGPA)</span>
@@ -2217,7 +2217,7 @@ export default function CompanyDashboardPage() {
               </button>
               <button
                 type="submit"
-                className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold uppercase rounded-xl transition cursor-pointer"
+                className="px-6 py-2 bg-[#781c1c] hover:bg-[#5f1515] text-white text-xs font-bold uppercase rounded-xl transition cursor-pointer"
               >
                 Save Pool
               </button>
@@ -2268,7 +2268,7 @@ export default function CompanyDashboardPage() {
               </button>
               <button
                 type="submit"
-                className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold uppercase rounded-xl transition cursor-pointer"
+                className="px-6 py-2 bg-[#781c1c] hover:bg-[#5f1515] text-white text-xs font-bold uppercase rounded-xl transition cursor-pointer"
               >
                 Save Dynamic Pool
               </button>
@@ -2305,7 +2305,7 @@ export default function CompanyDashboardPage() {
             <div className="flex-1 py-6 space-y-4 overflow-y-auto pr-1">
               {poolCandidatesLoading ? (
                 <div className="text-center py-12">
-                  <div className="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
+                  <div className="w-10 h-10 border-4 border-red-600 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
                   <p className="text-xs text-slate-450 font-semibold">Running matching queries...</p>
                 </div>
               ) : poolCandidates.length > 0 ? (
@@ -2333,7 +2333,7 @@ export default function CompanyDashboardPage() {
                       <Link
                         href={`/student/${cand.email.split("@")[0]}`}
                         target="_blank"
-                        className="px-3 py-1.5 bg-blue-600 text-white rounded-lg text-[10px] font-bold uppercase transition"
+                        className="px-3 py-1.5 bg-[#781c1c] text-white rounded-lg text-[10px] font-bold uppercase transition"
                       >
                         Profile
                       </Link>
