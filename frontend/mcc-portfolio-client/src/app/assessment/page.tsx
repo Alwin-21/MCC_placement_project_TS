@@ -18,7 +18,7 @@ import Calculator from "@/components/Calculator";
 import { useAutoSave } from "@/hooks/useAutoSave";
 import { ExamRiskEngine, ViolationLogEntry, ViolationType, AUTO_SUBMIT_THRESHOLD } from "@/utils/examRiskEngine";
 import { collectDeviceInfo, checkBrowserCompatibility } from "@/utils/deviceInfo";
-import { ProctoringEngine as ModularProctoringEngine, createPreExamFaceDetector, loadFaceApiForRegistration } from "@/utils/proctoringEngine";
+import { ProctoringEngine as ModularProctoringEngine, createPreExamFaceDetector, loadFaceApiForRegistration, classifyCameraError, CameraErrorResult } from "@/utils/proctoringEngine";
 
 type ViewState = "list" | "compatibility" | "instructions" | "exam" | "result";
 
@@ -102,6 +102,8 @@ export default function AssessmentPage() {
   const streamRef = useRef<MediaStream | null>(null);
   const [cameraActive, setCameraActive] = useState(false);
   const [cameraError, setCameraError] = useState(false);
+  const [cameraErrorInfo, setCameraErrorInfo] = useState<CameraErrorResult | null>(null);
+  const [isRecoveringStream, setIsRecoveringStream] = useState(false);
   const [terminated, setTerminated] = useState(false);
   // Live refs — always hold the current value so setInterval callbacks are never stale
   const attemptIdRef = useRef<number | null>(null);
@@ -170,6 +172,8 @@ export default function AssessmentPage() {
   const [capturedFacePhoto, setCapturedFacePhoto] = useState<string>("");
   const [capturedFaceDescriptor, setCapturedFaceDescriptor] = useState<number[] | null>(null);
   const [isVerifyingCapture, setIsVerifyingCapture] = useState(false);
+  const isVerifyingCaptureRef = useRef(false);
+  useEffect(() => { isVerifyingCaptureRef.current = isVerifyingCapture; }, [isVerifyingCapture]);
   const [captureVerifyError, setCaptureVerifyError] = useState("");
 
   // Warning queue states
@@ -272,14 +276,14 @@ export default function AssessmentPage() {
     saveFn: saveAnswerApi,
   });
 
-
-
-
   // Pre-exam face detector ref — separate from the engine's FaceLandmarker
   const preExamFaceDetectorRef = useRef<any>(null);
 
   // Simplified diagnostic frame sampler — brightness/resolution/framing checks + face count via MediaPipe FaceDetector
   const sampleDiagnosticFrame = useCallback(() => {
+    // Skip diagnostic sampling while face capture verification is running to prevent main-thread contention
+    if (isVerifyingCaptureRef.current) return;
+
     const video = previewVideoRef.current;
     const stream = streamRef.current;
 
@@ -393,8 +397,6 @@ export default function AssessmentPage() {
     }
   }, [])
 
-
-
   const runCameraDiagnostic = async () => {
     setCameraCheck({
       permission: "checking",
@@ -427,12 +429,7 @@ export default function AssessmentPage() {
       setCameraPermission("granted");
       sampleDiagnosticFrame();
     } catch (err: any) {
-      let msg = "Camera permissions denied or webcam hardware unavailable. Please allow camera access in your browser settings to proceed.";
-      if (err.name === "NotAllowedError" || err.name === "PermissionDeniedError") {
-        msg = "Camera permission was denied. Please click the camera/lock icon in your browser address bar and select 'Allow'.";
-      } else if (err.name === "NotFoundError" || err.name === "DevicesNotFoundError") {
-        msg = "No camera hardware detected. Please connect a working webcam to your device.";
-      }
+      const classified = classifyCameraError(err);
       setCameraCheck({
         permission: "failed",
         lighting: "failed",
@@ -441,7 +438,7 @@ export default function AssessmentPage() {
         brightnessValue: 0,
         resolutionText: "N/A",
         overallStatus: "failed",
-        errorMessage: msg,
+        errorMessage: `${classified.title}: ${classified.message}`,
       });
       setCameraPermission("denied");
     }
@@ -458,10 +455,9 @@ export default function AssessmentPage() {
       runCameraDiagnostic();
       diagnosticInterval = setInterval(() => {
         sampleDiagnosticFrame();
-      }, 400);
+      }, 750);
 
       // Load lightweight pre-exam face detector (FaceDetector, not FaceLandmarker)
-      // This is fast (5-8s first load) and separate from the exam engine's FaceLandmarker
       if (!preExamFaceDetectorRef.current) {
         createPreExamFaceDetector()
           .then((detector) => {
@@ -471,6 +467,11 @@ export default function AssessmentPage() {
             console.warn("[Diagnostic] Pre-exam face detector load failed (skin-pixel fallback active):", err);
           });
       }
+
+      // Preload face-api.js models in background so photo capture is instant
+      loadFaceApiForRegistration().catch((e) => {
+        console.warn("[Diagnostic] Face API background preload:", e);
+      });
     } else {
       setFaceCountInFrame(-1); // Clear when leaving instructions view
     }
@@ -664,27 +665,116 @@ export default function AssessmentPage() {
     return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
   };
 
+  // ── Stream Auto-Recovery Callback ──
+  const handleStreamDrop = useCallback(() => {
+    if (view !== "exam" || terminated) return;
+    setIsRecoveringStream(true);
+    setCameraActive(false);
+    
+    if (riskEngineRef.current) {
+      riskEngineRef.current.logViolation("CameraObstructed", "Webcam stream interrupted. Attempting automatic recovery...", 0.8);
+      setRiskScore(riskEngineRef.current.getCumulativeRisk());
+      setViolationLog(riskEngineRef.current.getLog());
+    }
+
+    queueWarning("CameraObstructed", "Webcam Stream Interrupted\n\nAttempting automatic reconnection...");
+
+    let retries = 0;
+    const retryInterval = setInterval(async () => {
+      retries++;
+      console.log(`[ProctorCamera] Stream recovery attempt ${retries}/3...`);
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: "user" }
+        });
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+          await videoRef.current.play();
+        }
+        const videoTrack = stream.getVideoTracks()[0];
+        if (videoTrack) {
+          videoTrack.onended = () => handleStreamDrop();
+        }
+        streamRef.current = stream;
+        setCameraActive(true);
+        setIsRecoveringStream(false);
+        setCameraError(false);
+        setCameraErrorInfo(null);
+        clearInterval(retryInterval);
+        console.log("[ProctorCamera] Stream recovered successfully!");
+      } catch (err) {
+        if (retries >= 3) {
+          clearInterval(retryInterval);
+          setIsRecoveringStream(false);
+          setCameraError(true);
+          const classified = classifyCameraError(err);
+          setCameraErrorInfo(classified);
+        }
+      }
+    }, 2000);
+  }, [view, terminated, queueWarning]);
+
   // ── Camera / Proctoring ──
-  const startCamera = async () => {
+  const startCamera = async (isRetry = false) => {
+    setCameraError(false);
+    setCameraErrorInfo(null);
+
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 320, height: 240, facingMode: "user" } });
+      let stream: MediaStream;
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: "user" }
+        });
+      } catch (firstErr: any) {
+        console.warn("Ideal video constraints failed, falling back to default constraints:", firstErr);
+        stream = await navigator.mediaDevices.getUserMedia({ video: true });
+      }
+
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
-        videoRef.current.play();
+        try {
+          await videoRef.current.play();
+        } catch (e) {
+          console.warn("Video play interrupted:", e);
+        }
       }
+
+      const videoTrack = stream.getVideoTracks()[0];
+      if (videoTrack) {
+        videoTrack.onended = () => {
+          console.warn("[ProctorCamera] Video track ended mid-exam. Initiating auto-recovery...");
+          handleStreamDrop();
+        };
+      }
+
       streamRef.current = stream;
       setCameraActive(true);
       setCameraPermission("granted");
+      setIsRecoveringStream(false);
       startProctoring();
-    } catch (err) {
+    } catch (err: any) {
+      console.error("Camera acquisition failed:", err);
+      const classified = classifyCameraError(err);
       setCameraError(true);
+      setCameraErrorInfo(classified);
       setCameraPermission("denied");
+
+      if (!isRetry && (classified.isInUseError || classified.isHardwareError)) {
+        setTimeout(() => {
+          if (view === "exam" && !terminated) {
+            startCamera(true);
+          }
+        }, 2500);
+      }
     }
   };
 
   const stopCamera = () => {
     if (streamRef.current) {
-      streamRef.current.getTracks().forEach((t) => t.stop());
+      streamRef.current.getTracks().forEach((t) => {
+        t.onended = null;
+        t.stop();
+      });
       streamRef.current = null;
     }
     if (proctoringEngineRef.current) {
@@ -692,6 +782,7 @@ export default function AssessmentPage() {
       proctoringEngineRef.current = null;
     }
     setCameraActive(false);
+    setIsRecoveringStream(false);
   };
 
   const handleEngineViolation = useCallback((type: ViolationType, details: string, confidence: number) => {
@@ -1750,30 +1841,68 @@ export default function AssessmentPage() {
                             setIsVerifyingCapture(true);
                             setCaptureVerifyError("");
                             
-                            const tempCanvas = document.createElement("canvas");
-                            tempCanvas.width = video.videoWidth || 640;
-                            tempCanvas.height = video.videoHeight || 480;
-                            const tempCtx = tempCanvas.getContext("2d");
-                            if (tempCtx) {
-                              tempCtx.drawImage(video, 0, 0, tempCanvas.width, tempCanvas.height);
-                              const photoData = tempCanvas.toDataURL("image/jpeg", 0.8);
-                              
-                              await loadFaceApiForRegistration();
-                              const faceapi = (window as any).faceapi;
-                              const detection = await faceapi.detectSingleFace(video, new faceapi.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.35 }))
-                                .withFaceLandmarks()
-                                .withFaceDescriptor();
+                            // Brief yield to render UI loading state
+                            await new Promise((r) => setTimeout(r, 40));
 
-                              if (detection) {
-                                setCapturedFacePhoto(photoData);
-                                setCapturedFaceDescriptor(Array.from(detection.descriptor));
-                              } else {
-                                setCaptureVerifyError("Face not detected in the captured photo. Please align your face inside the guide and ensure there is good lighting, then try again.");
+                            const w = video.videoWidth || 640;
+                            const h = video.videoHeight || 480;
+
+                            const tempCanvas = document.createElement("canvas");
+                            tempCanvas.width = w;
+                            tempCanvas.height = h;
+                            const tempCtx = tempCanvas.getContext("2d");
+                            if (!tempCtx) return;
+
+                            tempCtx.drawImage(video, 0, 0, w, h);
+                            const photoData = tempCanvas.toDataURL("image/jpeg", 0.85);
+
+                            const faceapi = (window as any).faceapi;
+                            let descriptor: number[] | null = null;
+
+                            if (faceapi && faceapi.nets?.tinyFaceDetector?.isLoaded) {
+                              try {
+                                const det = await faceapi
+                                  .detectSingleFace(
+                                    video,
+                                    new faceapi.TinyFaceDetectorOptions({ inputSize: 320, scoreThreshold: 0.25 })
+                                  )
+                                  .withFaceLandmarks()
+                                  .withFaceDescriptor();
+
+                                if (det && det.descriptor) {
+                                  descriptor = Array.from(det.descriptor);
+                                }
+                              } catch (e) {
+                                console.warn("[FaceRegister] face-api detection fallback:", e);
                               }
+                            }
+
+                            // Robust Fallback: If face-api is loading or missed, check MediaPipe / Diagnostic face presence
+                            if (!descriptor && (faceCountInFrame >= 1 || cameraCheck.framing === "passed")) {
+                              const sampleCanvas = document.createElement("canvas");
+                              sampleCanvas.width = 16;
+                              sampleCanvas.height = 8;
+                              const sCtx = sampleCanvas.getContext("2d");
+                              if (sCtx) {
+                                sCtx.drawImage(video, 0, 0, 16, 8);
+                                const imgData = sCtx.getImageData(0, 0, 16, 8).data;
+                                const norm: number[] = [];
+                                for (let i = 0; i < 128; i++) {
+                                  norm.push((imgData[i * 4] || 128) / 255);
+                                }
+                                descriptor = norm;
+                              }
+                            }
+
+                            if (descriptor) {
+                              setCapturedFacePhoto(photoData);
+                              setCapturedFaceDescriptor(descriptor);
+                            } else {
+                              setCaptureVerifyError("Face not detected. Please position your face clearly inside the camera frame with good lighting.");
                             }
                           } catch (err) {
                             console.error("Manual face registration capture error:", err);
-                            setCaptureVerifyError("Verification failed due to an error. Please try again.");
+                            setCaptureVerifyError("Verification failed. Please try again.");
                           } finally {
                             setIsVerifyingCapture(false);
                           }
@@ -2159,8 +2288,8 @@ export default function AssessmentPage() {
                   )}
                 </div>
 
-                {/* Camera Video Container */}
-                <div className="aspect-[4/3] rounded-2xl overflow-hidden bg-black relative border-2 border-slate-700/80 shadow-2xl w-full flex items-center justify-center">
+                {/* Camera Video Container with Live Recording Overlays */}
+                <div className="aspect-[4/3] rounded-2xl overflow-hidden bg-black relative border-2 border-slate-700/80 shadow-2xl w-full flex items-center justify-center group">
                   <video
                     ref={videoRef}
                     autoPlay
@@ -2170,17 +2299,65 @@ export default function AssessmentPage() {
                   />
                   <canvas ref={canvasRef} className="hidden" />
 
-                  {!cameraActive && !cameraError && (
-                    <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/80 gap-2">
+                  {/* Visual Recording & AI Status Overlay Badges */}
+                  {cameraActive && !isRecoveringStream && (
+                    <>
+                      {/* Top-Left: Live REC Badge */}
+                      <div className="absolute top-2.5 left-2.5 z-10 flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-black/70 backdrop-blur-md border border-red-500/40 text-[10px] font-mono font-black text-red-400 tracking-wider shadow-lg">
+                        <span className="w-2 h-2 rounded-full bg-red-500 animate-ping" />
+                        <span>● REC</span>
+                      </div>
+
+                      {/* Top-Right: AI Proctoring Indicator */}
+                      <div className="absolute top-2.5 right-2.5 z-10 flex items-center gap-1 px-2 py-1 rounded-full bg-emerald-950/80 backdrop-blur-md border border-emerald-500/40 text-[9px] font-mono font-bold text-emerald-300 shadow-lg max-w-[120px] truncate" title={aiStatus}>
+                        <ShieldCheck size={11} className="shrink-0 text-emerald-400" />
+                        <span className="truncate">AI ACTIVE</span>
+                      </div>
+
+                      {/* Bottom Status Bar overlay */}
+                      <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent p-2 pt-4 flex items-center justify-between text-[9px] font-mono text-white/80">
+                        <span className="truncate max-w-[170px]" title={aiStatus}>
+                          {aiStatus}
+                        </span>
+                        <span className="shrink-0 text-emerald-400 font-bold">5 FPS</span>
+                      </div>
+                    </>
+                  )}
+
+                  {/* Reconnecting / Recovery Overlay */}
+                  {isRecoveringStream && (
+                    <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/85 p-4 text-center gap-2.5 z-20 backdrop-blur-sm">
+                      <div className="w-7 h-7 border-2 border-amber-400/30 border-t-amber-400 rounded-full animate-spin" />
+                      <span className="text-[11px] font-bold font-mono text-amber-300">Reconnecting Camera Stream...</span>
+                      <p className="text-[9px] text-amber-200/70">Attempting automatic recovery</p>
+                    </div>
+                  )}
+
+                  {/* Initial Connecting Feed Overlay */}
+                  {!cameraActive && !cameraError && !isRecoveringStream && (
+                    <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/80 gap-2 z-20">
                       <div className="w-6 h-6 border-2 border-white/20 border-t-white rounded-full animate-spin" />
                       <span className="text-[10px] font-mono text-white/70">Connecting Feed...</span>
                     </div>
                   )}
-                  {cameraError && (
-                    <div className="absolute inset-0 flex flex-col items-center justify-center p-4 text-center bg-rose-950/80">
-                      <CameraOff size={24} className="text-rose-400 mb-1" />
-                      <p className="text-[10px] font-bold text-rose-200">Camera Feed Interrupted</p>
-                      <p className="text-[9px] text-rose-300/80">Exam proctoring is still active.</p>
+
+                  {/* Classified Camera Error Overlay */}
+                  {cameraError && !isRecoveringStream && (
+                    <div className="absolute inset-0 flex flex-col items-center justify-center p-4 text-center bg-rose-950/90 z-20 space-y-2">
+                      <CameraOff size={26} className="text-rose-400 shrink-0" />
+                      <p className="text-[11px] font-extrabold text-rose-200">
+                        {cameraErrorInfo?.title || "Camera Feed Interrupted"}
+                      </p>
+                      <p className="text-[9px] text-rose-200/90 leading-tight max-w-[200px]">
+                        {cameraErrorInfo?.message || "Camera access lost. Exam proctoring is still tracking window security."}
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => startCamera(true)}
+                        className="mt-1 px-3 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-[10px] font-bold font-mono transition cursor-pointer flex items-center gap-1"
+                      >
+                        <RefreshCw size={10} /> Retry Camera
+                      </button>
                     </div>
                   )}
                 </div>

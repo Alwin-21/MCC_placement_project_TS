@@ -12,23 +12,32 @@ const prisma = new PrismaClient({ adapter });
 async function main() {
   console.log("Seeding demo student...");
 
-  // 1. Check if user already exists
+  // 1. Check if user already exists (by Email or Username)
   const existingUser = await prisma.users.findFirst({
-    where: { Email: "21-cs-001@mcc.edu.in" }
+    where: {
+      OR: [
+        { Email: "21-cs-001@mcc.edu.in" },
+        { Username: "alwin" }
+      ]
+    }
   });
 
   if (existingUser) {
-    console.log("Demo student already exists. Cleaning up notifications and re-seeding clean details...");
-    await prisma.notifications.deleteMany({
-      where: { UserId: existingUser.Id }
-    });
-    await prisma.users.delete({
-      where: { Id: existingUser.Id }
-    });
+    console.log("Demo student already exists. Cleaning up all related records...");
+    await prisma.notifications.deleteMany({ where: { UserId: existingUser.Id } });
+    await prisma.skills.deleteMany({ where: { UserId: existingUser.Id } });
+    await prisma.projects.deleteMany({ where: { UserId: existingUser.Id } });
+    await prisma.experiences.deleteMany({ where: { UserId: existingUser.Id } });
+    await prisma.academicRecords.deleteMany({ where: { UserId: existingUser.Id } });
+    await prisma.certifications.deleteMany({ where: { UserId: existingUser.Id } });
+    await prisma.achievements.deleteMany({ where: { UserId: existingUser.Id } });
+    await prisma.savedResumes.deleteMany({ where: { UserId: existingUser.Id } });
+    await prisma.profiles.deleteMany({ where: { UserId: existingUser.Id } });
+    await prisma.users.delete({ where: { Id: existingUser.Id } });
   }
 
   // 2. Create Student User
-  const passwordHash = bcrypt.hashSync("password123", 10);
+  const passwordHash = bcrypt.hashSync("alwin123", 10);
   const user = await prisma.users.create({
     data: {
       FullName: "Alwin Joseph",
@@ -41,7 +50,7 @@ async function main() {
       Role: 1, // Student
       IsActive: true,
       CreatedAt: new Date(),
-      ProfileImageUrl: ""
+      ProfileImageUrl: "/alwin_avatar.png"
     }
   });
 
@@ -58,7 +67,7 @@ async function main() {
       GitHubUsername: "alwin-joseph",
       TargetCareer: "Software Engineer",
       CGPA: 8.95,
-      ProfileImageUrl: "",
+      ProfileImageUrl: "/alwin_avatar.png",
       SelectedTheme: "Professional",
       PersonalStory: "I started coding in my freshman year, building simple websites for college departments. That grew into a love for building scalable web platforms.",
       SOP: "My goal is to secure a software engineering role in an agile development team where I can apply my Next.js, React, and database design skills.",
