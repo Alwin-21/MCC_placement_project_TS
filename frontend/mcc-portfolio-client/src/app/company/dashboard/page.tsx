@@ -37,6 +37,7 @@ import {
   Share2,
   Sparkles,
   X,
+  Menu,
   BarChart3
 } from "lucide-react";
 import api from "@/services/api";
@@ -70,6 +71,7 @@ export default function CompanyDashboardPage() {
 
   const [activeTab, setActiveTab] = useState<TabType>("overview");
   const [loading, setLoading] = useState(true);
+  const [showMobileNav, setShowMobileNav] = useState(false);
   const [error, setError] = useState("");
   const [profile, setProfile] = useState<any>(null);
   const [company, setCompany] = useState<any>(null);
@@ -684,53 +686,22 @@ export default function CompanyDashboardPage() {
   return (
     <div
       style={{ fontFamily: "'Plus Jakarta Sans', 'Inter', system-ui, sans-serif" }}
-      className={`min-h-screen flex flex-col transition-colors duration-300 ${
-        isDark ? "bg-[#090d16] text-slate-100" : "bg-[#faf9f6] text-slate-900"
+      className={`h-screen h-[100dvh] overflow-hidden flex transition-colors duration-300 ${
+        themeMode === "dark" ? "bg-[#0d0d12] text-white" : "bg-[#fcfaf6] text-[#0f172a]"
       }`}
     >
-      {/* HEADER NAVBAR */}
-      <header className="sticky top-0 z-40 backdrop-blur-md border-b border-slate-200/50 dark:border-white/10 p-4 bg-white/30 dark:bg-black/20">
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-[#781c1c] text-white flex items-center justify-center shadow-md shadow-red-900/25">
-              <Building2 size={20} />
-            </div>
-            <div>
-              <span className="text-sm font-black uppercase tracking-wider block leading-none">
-                {company?.name || "MCC Portal"}
-              </span>
-              <span className="text-[10px] text-slate-400 font-bold block mt-1">
-                Company HR Workspace
-              </span>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-4">
-            <button
-              onClick={toggleThemeMode}
-              aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}
-              className={`w-9 h-9 rounded-xl border flex items-center justify-center cursor-pointer transition ${
-                isDark ? "bg-white/5 border-white/10 text-amber-300" : "bg-slate-100 border-slate-300 text-slate-700"
-              }`}
-            >
-              {isDark ? <Sun size={16} /> : <Moon size={16} />}
-            </button>
-            <button
-              onClick={handleLogout}
-              aria-label="Log out of HR workspace"
-              className="flex items-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl text-xs font-bold uppercase transition cursor-pointer shadow-lg shadow-red-900/10"
-            >
-              <LogOut size={14} /> Log Out
-            </button>
-          </div>
+      {/* DESKTOP SIDEBAR NAVIGATION */}
+      <div className="w-72 border-r border-slate-200/50 dark:border-white/5 relative z-20 flex flex-col justify-between shrink-0 h-screen sticky top-0 transition-colors duration-300 hidden md:flex mcc-sidebar bg-white dark:bg-[#090d16]">
+        <div className="p-6 border-b border-slate-200 dark:border-white/5 flex items-center justify-center shrink-0">
+          <img 
+            src={themeMode === "dark" ? "/mcc-logo-dark.png" : "/mcc-logo.jpg"} 
+            className="w-full max-w-[280px] h-auto object-contain rounded-lg transition-transform duration-200 hover:scale-[1.02]" 
+            alt="Madras Christian College Logo" 
+          />
         </div>
-      </header>
 
-      {/* WORKSPACE CONTENT LAYOUT */}
-      <div className="flex-1 max-w-7xl w-full mx-auto flex flex-col lg:flex-row gap-6 p-4 md:p-8">
-        
-        {/* SIDE BAR NAVIGATION */}
-        <aside className="w-full lg:w-64 shrink-0 flex flex-row lg:flex-col gap-2 overflow-x-auto pb-2 lg:pb-0" role="navigation" aria-label="Dashboard sections">
+        {/* Navigation Items */}
+        <nav className="p-4 space-y-1.5 overflow-y-auto flex-1 scrollbar-thin">
           {[
             { id: "overview", label: "Dashboard", icon: Sliders },
             { id: "profile", label: "Profile Setup", icon: Building2 },
@@ -746,24 +717,252 @@ export default function CompanyDashboardPage() {
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id as TabType)}
-                aria-current={active ? "page" : undefined}
-                aria-label={`Navigate to ${tab.label}`}
-                className={`flex items-center gap-3 px-4 py-3 rounded-2xl text-xs font-extrabold uppercase tracking-wide transition shrink-0 cursor-pointer ${
+                className={`w-full flex items-center gap-3.5 px-4 py-3 rounded-xl text-xs font-semibold tracking-wide transition-all duration-200 cursor-pointer ${
                   active
-                    ? "bg-[#781c1c] text-white shadow-md shadow-red-900/15"
-                    : isDark
-                    ? "hover:bg-white/5 text-slate-400"
-                    : "hover:bg-slate-100 text-slate-650"
+                    ? "mcc-active-tab font-bold"
+                    : themeMode === "dark"
+                      ? "text-slate-400 hover:text-white hover:bg-white/5"
+                      : "text-slate-700 hover:text-[#18233c] hover:bg-slate-100"
                 }`}
               >
-                <Icon size={16} aria-hidden="true" /> {tab.label}
+                <Icon
+                  size={16}
+                  className={
+                    active
+                      ? themeMode === "dark"
+                        ? "text-white"
+                        : "text-white"
+                      : "text-[#781c1c]"
+                  }
+                />
+                {tab.label}
               </button>
             );
           })}
-        </aside>
+        </nav>
 
-        {/* MAIN BODY AREA */}
-        <main className="flex-1 min-w-0 space-y-6">
+        {/* Recruiter Quick Controls */}
+        <div className="p-4 border-t border-slate-200 dark:border-white/5 space-y-3 shrink-0">
+          <div className={`px-3 py-2 rounded-xl text-[10px] font-mono font-bold flex items-center gap-2 ${
+            themeMode === "dark"
+              ? "bg-emerald-500/10 text-emerald-350 border border-emerald-500/20"
+              : "bg-emerald-50 text-emerald-700 border border-emerald-250"
+          }`}>
+            <CheckCircle size={11} className="text-emerald-400" />
+            Verified Recruiter
+          </div>
+
+          <button
+            onClick={handleLogout}
+            className="w-full flex items-center justify-center gap-3 bg-red-500/10 hover:bg-red-500/20 text-red-400 py-2.5 rounded-xl text-xs font-semibold transition cursor-pointer"
+          >
+            <LogOut size={15} /> Log Out
+          </button>
+        </div>
+      </div>
+
+      {/* MOBILE DRAWER SIDEBAR OVERLAY */}
+      {showMobileNav && (
+        <div className="fixed inset-0 z-[50] flex md:hidden animate-fade-in select-none">
+          <div 
+            className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm"
+            onClick={() => setShowMobileNav(false)}
+          />
+          
+          <div className="w-72 flex flex-col p-5 animate-slideIn h-screen border-r border-slate-200 dark:border-white/5 mcc-sidebar bg-white dark:bg-[#090d16] justify-between">
+            <div className="flex flex-col flex-1 min-h-0">
+              <div className="pb-6 border-b border-slate-200 dark:border-white/5 flex items-center justify-between shrink-0">
+                <img 
+                  src={themeMode === "dark" ? "/mcc-logo-dark.png" : "/mcc-logo.jpg"} 
+                  className="h-10 w-auto object-contain rounded-lg" 
+                  alt="MCC Logo" 
+                />
+                <button onClick={() => setShowMobileNav(false)} className="p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-white/5">
+                  <X size={20} />
+                </button>
+              </div>
+
+              <nav className="py-4 space-y-1.5 overflow-y-auto flex-1 scrollbar-thin">
+                {[
+                  { id: "overview", label: "Dashboard", icon: Sliders },
+                  { id: "profile", label: "Profile Setup", icon: Building2 },
+                  { id: "jobs", label: "Job Postings", icon: Briefcase },
+                  { id: "applications", label: "Candidates", icon: Users },
+                  { id: "talent-search", label: "Talent Match Engine", icon: Sparkles },
+                  { id: "talent-pools", label: "Talent Pools", icon: Bookmark },
+                  { id: "analytics", label: "Analytics & Reports", icon: BarChart3 },
+                ].map((tab) => {
+                  const Icon = tab.icon;
+                  const active = activeTab === tab.id;
+                  return (
+                    <button
+                      key={tab.id}
+                      onClick={() => {
+                        setActiveTab(tab.id as TabType);
+                        setShowMobileNav(false);
+                      }}
+                      className={`w-full flex items-center gap-3.5 px-4 py-3 rounded-xl text-xs font-semibold tracking-wide transition-all duration-200 cursor-pointer ${
+                        active
+                          ? "mcc-active-tab font-bold"
+                          : themeMode === "dark"
+                            ? "text-slate-400 hover:text-white hover:bg-white/5"
+                            : "text-slate-700 hover:text-[#18233c] hover:bg-slate-100"
+                      }`}
+                    >
+                      <Icon
+                        size={16}
+                        className={
+                          active
+                            ? themeMode === "dark"
+                              ? "text-white"
+                              : "text-white"
+                            : "text-[#781c1c]"
+                        }
+                      />
+                      {tab.label}
+                    </button>
+                  );
+                })}
+              </nav>
+            </div>
+
+            <div className="pt-4 border-t border-slate-200 dark:border-white/5 space-y-3 shrink-0">
+              <div className={`px-3 py-2 rounded-xl text-[10px] font-mono font-bold flex items-center gap-2 ${
+                themeMode === "dark"
+                  ? "bg-emerald-500/10 text-emerald-350 border border-emerald-500/20"
+                  : "bg-emerald-50 text-emerald-700 border border-emerald-250"
+              }`}>
+                <CheckCircle size={11} className="text-emerald-400" />
+                Verified Recruiter
+              </div>
+
+              <button
+                onClick={handleLogout}
+                className="w-full flex items-center justify-center gap-3 bg-red-500/10 hover:bg-red-500/20 text-red-400 py-2.5 rounded-xl text-xs font-semibold transition cursor-pointer"
+              >
+                <LogOut size={15} /> Log Out
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* RIGHT CONTENT WRAPPER */}
+      <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
+        
+        {/* MOBILE TOP HEADER BAR */}
+        <div className="sticky top-0 z-[49] md:hidden flex items-center justify-between p-4 bg-white/90 dark:bg-[#09090d]/90 backdrop-blur-md border-b border-slate-200 dark:border-white/5 select-none shadow-md shrink-0">
+          <div className="flex items-center gap-2.5">
+            <button
+              onClick={() => setShowMobileNav(true)}
+              className="p-2 rounded-xl bg-[#781c1c] hover:bg-[#5f1515] transition cursor-pointer flex items-center justify-center shrink-0"
+              style={{ color: '#ffffff' }}
+            >
+              <Menu size={18} style={{ color: '#ffffff' }} />
+            </button>
+            <span className="font-serif font-black text-[#18233c] dark:text-white tracking-tight text-xs uppercase">
+              Recruiter Menu
+            </span>
+          </div>
+          <button
+            onClick={toggleThemeMode}
+            aria-label="Toggle theme"
+            className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all duration-300 cursor-pointer shadow-md hover:scale-110 active:scale-95 border ${
+              themeMode === "dark"
+                ? "bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border-amber-500/30"
+                : "bg-indigo-900/40 hover:bg-indigo-900/60 text-white border-white/10"
+            }`}
+          >
+            {themeMode === "dark" ? <Sun size={18} /> : <Moon size={18} />}
+          </button>
+        </div>
+
+        {/* MAIN CONTAINER */}
+        <div className="flex-1 overflow-y-auto px-4 md:px-10 py-6 md:py-8 space-y-10">
+          
+          {/* BANNER SHOWCASE */}
+          <div className="relative rounded-2xl sm:rounded-3xl overflow-hidden min-h-[140px] sm:min-h-[160px] md:h-44 bg-[#18233c] text-white flex items-end p-4 sm:p-6 md:p-8 border border-amber-600/20 shadow-md mb-4 mcc-welcome-banner">
+            <div className="absolute inset-0 z-0">
+              <img 
+                src="/mcc-facade.jpg" 
+                alt="MCC Quadrangle" 
+                className="w-full h-full object-cover opacity-35 filter brightness-90 contrast-110"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-[#18233c] via-[#18233c]/40 to-transparent" />
+            </div>
+
+            {/* Desktop Theme Switcher */}
+            <div className="hidden md:flex absolute top-4 right-5 z-20 items-center">
+              <button
+                onClick={toggleThemeMode}
+                title="Toggle Light/Dark Mode"
+                className={`p-2.5 rounded-full transition-all duration-300 cursor-pointer border shadow-sm flex items-center justify-center ${
+                  themeMode === "dark"
+                    ? "bg-white/10 hover:bg-white/20 text-amber-300 border-white/15"
+                    : "bg-white/90 hover:bg-slate-100 text-slate-700 border-slate-200"
+                }`}
+              >
+                {themeMode === "dark" ? <Sun size={18} /> : <Moon size={18} />}
+              </button>
+            </div>
+
+            <div className="relative z-10 space-y-1 w-full text-left">
+              <span 
+                style={{ color: '#ffffff' }}
+                className="text-[9px] sm:text-[9.5px] uppercase font-mono font-black tracking-wider sm:tracking-widest bg-[#781c1c] px-2.5 sm:px-3.5 py-1 sm:py-1.5 rounded-full border border-amber-500/20 inline-block max-w-full truncate"
+              >
+                {company?.industry || "Recruiting Partner"} · {company?.companyType || "MNC"}
+              </span>
+              <h1 
+                style={{ color: '#ffffff' }}
+                className="font-serif text-lg sm:text-2xl md:text-3xl font-black mt-1.5 sm:mt-2 leading-tight break-words"
+              >
+                Welcome back, {profile?.fullName || "HR Representative"}
+              </h1>
+              <p 
+                style={{ color: 'rgba(255, 255, 255, 0.85)' }}
+                className="text-[11px] sm:text-xs leading-normal"
+              >
+                Onboard drives, post recruitment vacancies, evaluate candidate pipelines and portfolios.
+              </p>
+            </div>
+          </div>
+
+          {/* HEADER BAR */}
+          <div className={`mb-10 flex items-center justify-between flex-wrap gap-4 border-b pb-6 ${
+            themeMode === "dark" ? "border-white/5" : "border-slate-200"
+          }`}>
+            <div>
+              <span className="text-[10px] uppercase font-mono font-black tracking-widest text-[#781c1c] block mb-1 whitespace-nowrap">Madras Christian College</span>
+              <h2 className="font-serif text-3xl font-extrabold tracking-tight text-[#18233c] dark:text-white">HR Placement Console</h2>
+              <p className={`text-xs mt-1 ${themeMode === "dark" ? "text-gray-400" : "text-slate-500"}`}>
+                Post vacancies, evaluate talent portfolios, select applicants, and coordinate placements.
+              </p>
+            </div>
+          </div>
+
+          {/* STATUS BANNER */}
+          <div
+            className={`border rounded-3xl p-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 ${
+              statusColors[company?.status] || "bg-slate-500/10 text-slate-500 border-slate-500/20"
+            }`}
+          >
+            <div className="flex items-start gap-4">
+              <div className="p-3 bg-white/10 rounded-2xl shrink-0 mt-0.5">
+                {isPending ? <Clock size={24} /> : <CheckCircle size={24} />}
+              </div>
+              <div className="text-left space-y-1">
+                <span className="text-lg font-black uppercase tracking-wide block">
+                  Verification Status: {company?.status}
+                </span>
+                <p className="text-xs font-medium leading-relaxed opacity-90">
+                  {isPending
+                    ? "Your onboarding request is currently under review by the placement administration. Placement features (Job postings, applications) will become active once verified."
+                    : "Your account is verified! You can post jobs, evaluate candidate portfolios, schedule interviews, and manage recruitment."}
+                </p>
+              </div>
+            </div>
+          </div>
           
           {/* STATUS BANNER */}
           <div
@@ -816,7 +1015,7 @@ export default function CompanyDashboardPage() {
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 {/* Audit Activities Logs */}
                 <div className="lg:col-span-2 glass-card rounded-3xl border p-6 text-left space-y-4 border-slate-200/50 dark:border-white/5 bg-white/40 dark:bg-white/[0.01]">
-                  <h3 className="text-sm font-black uppercase tracking-wider text-slate-400">Recent Workspace Activities</h3>
+                  <span className="text-[10px] uppercase font-mono font-black tracking-widest text-[#781c1c] dark:text-red-400 block mb-2">Recent Workspace Activities</span>
                   <div className="space-y-3.5 max-h-[300px] overflow-y-auto pr-1">
                     {stats.recentActivities.length > 0 ? (
                       stats.recentActivities.map((act: any) => (
@@ -837,7 +1036,7 @@ export default function CompanyDashboardPage() {
 
                 {/* Notifications Alert Board */}
                 <div className="glass-card rounded-3xl border p-6 text-left space-y-4 border-slate-200/50 dark:border-white/5 bg-white/40 dark:bg-white/[0.01]">
-                  <h3 className="text-sm font-black uppercase tracking-wider text-slate-400">Announcements feed</h3>
+                  <span className="text-[10px] uppercase font-mono font-black tracking-widest text-[#781c1c] dark:text-red-400 block mb-2">Announcements Feed</span>
                   <div className="space-y-3 max-h-[300px] overflow-y-auto pr-1">
                     {stats.notifications.length > 0 ? (
                       stats.notifications.map((n: any) => (
@@ -866,7 +1065,7 @@ export default function CompanyDashboardPage() {
               {!isEditingProfile ? (
                 <div className="glass-card rounded-3xl p-6 border border-slate-200/80 dark:border-white/10 bg-white/40 dark:bg-white/[0.02] space-y-6 text-left">
                   <div className="flex justify-between items-center">
-                    <h3 className="text-base font-black uppercase tracking-wider text-slate-400">Company Information</h3>
+                    <h3 className="font-serif text-xl font-extrabold text-[#18233c] dark:text-white mb-2">Company Information</h3>
                     <button
                       onClick={() => setIsEditingProfile(true)}
                       className="px-4 py-2 bg-[#781c1c]/10 hover:bg-[#781c1c]/20 text-red-500 dark:text-red-300 text-xs font-extrabold uppercase rounded-xl transition flex items-center gap-2 cursor-pointer"
@@ -1207,7 +1406,7 @@ export default function CompanyDashboardPage() {
             <div className="space-y-6 animate-fade-in text-left">
               <div className="flex justify-between items-center">
                 <div>
-                  <h3 className="text-lg font-black uppercase tracking-wider text-slate-400">Hiring Opportunities</h3>
+                  <h2 className="font-serif text-2xl font-extrabold text-[#18233c] dark:text-white">Hiring Opportunities</h2>
                   <p className="text-xs text-slate-400">Post new listings and review approval statuses.</p>
                 </div>
                 {!isPending && (
@@ -1305,7 +1504,7 @@ export default function CompanyDashboardPage() {
           {activeTab === "applications" && (
             <div className="space-y-6 animate-fade-in text-left">
               <div>
-                <h3 className="text-lg font-black uppercase tracking-wider text-slate-400">Student Candidate Profiles</h3>
+                <h2 className="font-serif text-2xl font-extrabold text-[#18233c] dark:text-white">Student Candidate Profiles</h2>
                 <p className="text-xs text-slate-400">Monitor candidate evaluation pipelines and set review status.</p>
               </div>
 
@@ -1612,7 +1811,7 @@ export default function CompanyDashboardPage() {
             <div className="space-y-6 animate-fade-in text-left">
               <div className="flex justify-between items-center">
                 <div>
-                  <h3 className="text-lg font-black uppercase tracking-wider text-slate-400">Talent Pools</h3>
+                  <h2 className="font-serif text-2xl font-extrabold text-[#18233c] dark:text-white">Talent Pools</h2>
                   <p className="text-xs text-slate-400">Organize and save potential candidates for recruiting runs.</p>
                 </div>
                 <button
@@ -1690,7 +1889,7 @@ export default function CompanyDashboardPage() {
             <div className="space-y-6 animate-fade-in text-left">
               <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
                 <div>
-                  <h3 className="text-lg font-black uppercase tracking-wider text-slate-400">Recruiter Analytics & Export</h3>
+                  <h2 className="font-serif text-2xl font-extrabold text-[#18233c] dark:text-white">Recruiter Analytics & Export</h2>
                   <p className="text-xs text-slate-400">Monitor candidate conversion pipelines and download Excel/CSV reports.</p>
                 </div>
                 <div className="flex items-center gap-2">
@@ -1824,8 +2023,8 @@ export default function CompanyDashboardPage() {
               )}
             </div>
           )}
-        </main>
-      </div>
+        </div> {/* close main container */}
+      </div> {/* close right content wrapper */}
 
       {/* ==========================================
           MODAL: JOB CREATION / EDITING FORM
