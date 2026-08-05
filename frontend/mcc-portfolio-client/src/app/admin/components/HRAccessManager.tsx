@@ -138,11 +138,11 @@ export default function HRAccessManager() {
     }
   };
 
-  const filteredCompanies = companies.filter(
+  const filteredCompanies = (companies || []).filter(
     (c) =>
-      c.Name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      c.Email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      c.Users.some((u) => u.FullName.toLowerCase().includes(searchQuery.toLowerCase()))
+      (c?.Name && c.Name.toLowerCase().includes(searchQuery.toLowerCase())) ||
+      (c?.Email && c.Email.toLowerCase().includes(searchQuery.toLowerCase())) ||
+      (c?.Users && Array.isArray(c.Users) && c.Users.some((u) => u?.FullName && u.FullName.toLowerCase().includes(searchQuery.toLowerCase())))
   );
 
   const selectedCompany = companies.find((c) => c.Id === selectedCompanyId);
@@ -222,7 +222,7 @@ export default function HRAccessManager() {
               filteredCompanies.map((comp) => {
                 const isSelected = comp.Id === selectedCompanyId;
                 const hasRestrictions = Boolean(comp.AllowedDepartments && comp.AllowedDepartments.trim().length > 0);
-                const hrRep = comp.Users[0]?.FullName || "HR Admin";
+                const hrRep = (Array.isArray(comp.Users) && comp.Users[0]?.FullName) ? comp.Users[0].FullName : "HR Admin";
 
                 return (
                   <button
