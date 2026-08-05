@@ -172,11 +172,11 @@ const DEFAULT_SM_CONFIGS: Record<string, StateMachineConfig> = {
     cooldownMs: 8000,
   },
   FrequentEyeMovement: {
-    bufferSize: 5,            // 1 s window
-    percentThreshold: 0.50,   // at least 3 frames positive
-    minDurationFrames: 3,     // ~0.6 s of eye movement away before alert
-    minClearFrames: 4,
-    cooldownMs: 6000,
+    bufferSize: 1,            // immediate window
+    percentThreshold: 1.0,    // 100% of frames
+    minDurationFrames: 1,     // immediate trigger
+    minClearFrames: 1,        // immediate clear
+    cooldownMs: 6000,         // cooldown to prevent warning spam
   },
   FaceMissing: {
     bufferSize: 25,           // 5 s window
@@ -459,6 +459,11 @@ export class ProctoringEngine {
   private lastFrameTime = 0;
   private loopId: number | null = null;
 
+  // ── Eye movement tracking for repeated lookup ─────────────────────────────
+  private wasLookingAway = false;
+  private eyeAwayEventTimestamps: number[] = [];
+  private consecutiveEyeAwayFrames = 0;
+
   // ── AI model refs ─────────────────────────────────────────────────────────
   private faceLandmarker: any = null;
   private objectDetector: any = null;
@@ -560,6 +565,9 @@ export class ProctoringEngine {
     }
     this.prevPixels = [];
     this.cameraFrozenTicks = 0;
+    this.wasLookingAway = false;
+    this.eyeAwayEventTimestamps = [];
+    this.consecutiveEyeAwayFrames = 0;
     console.log("[ProctoringEngine] Stopped");
   }
 
@@ -980,9 +988,43 @@ export class ProctoringEngine {
     // Trigger on horizontal gaze shift, vertical shift, or closed eyes (long blink)
     const eyeAwaySignal = avgRatio < 0.40 || avgRatio > 0.60 || verticalAwaySignal || eyesClosed;
 
-    let detailsMsg = "";
+    // Track transitions to detect repeated off-screen lookups (e.g. looking at a phone or notes out of screen)
+    const isTransitionToAway = eyeAwaySignal && !this.wasLookingAway;
+    this.wasLookingAway = eyeAwaySignal;
+
+    if (isTransitionToAway) {
+      const now = Date.now();
+      this.eyeAwayEventTimestamps.push(now);
+      console.log(`[ProctoringEngine] Gaze shifted away. Event count in window: ${this.eyeAwayEventTimestamps.length}`);
+    }
+
+    // Keep events within a 15-second window
+    const fifteenSecondsAgo = Date.now() - 15000;
+    this.eyeAwayEventTimestamps = this.eyeAwayEventTimestamps.filter(t => t > fifteenSecondsAgo);
+
+    // Track consecutive frames
     if (eyeAwaySignal) {
-      if (eyesClosed) {
+      this.consecutiveEyeAwayFrames++;
+    } else {
+      this.consecutiveEyeAwayFrames = 0;
+    }
+
+    // Trigger violation if:
+    // 1. Look away for 3+ consecutive frames (fraction of a second)
+    // OR
+    // 2. Look away repeatedly (3+ separate times in 15 seconds)
+    const isConsecutiveViolation = this.consecutiveEyeAwayFrames >= 3;
+    const isRepeatedViolation = this.eyeAwayEventTimestamps.length >= 3;
+
+    const frequentEyeSignal = isConsecutiveViolation || isRepeatedViolation;
+
+    let detailsMsg = "";
+    if (frequentEyeSignal) {
+      if (isRepeatedViolation) {
+        detailsMsg = `Repeated off-screen eye gaze detected (${this.eyeAwayEventTimestamps.length} times in 15s window).`;
+        // Clear history so the next repeated event checks start fresh
+        this.eyeAwayEventTimestamps = [];
+      } else if (eyesClosed) {
         detailsMsg = "Sustained closed eyes or blink detected.";
       } else {
         detailsMsg = `Sustained off-screen eye gaze detected (h-ratio: ${avgRatio.toFixed(2)}, v-ratio: ${avgVertRatio.toFixed(2)}).`;
@@ -991,7 +1033,7 @@ export class ProctoringEngine {
 
     this.pushState(
       "FrequentEyeMovement",
-      eyeAwaySignal,
+      frequentEyeSignal,
       detailsMsg,
       1.0
     );

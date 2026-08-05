@@ -224,12 +224,12 @@ export default function CompanyDashboardPage() {
       try {
         const assRes = await api.get("/Company/assessments");
         setAvailableAssessments(assRes.data);
-      } catch (e) {}
+      } catch (e) { }
 
       try {
         const analyRes = await api.get("/Company/analytics");
         setAnalyticsData(analyRes.data);
-      } catch (e) {}
+      } catch (e) { }
     } catch (err: any) {
       console.error(err);
       setError("Failed to load company workspace. Verify your connection or credentials.");
@@ -597,11 +597,11 @@ export default function CompanyDashboardPage() {
       // Just record download action in audit logs
       await api.post("/Company/profile", {
         // dummy PUT triggering audit
-        name: company.Name, 
+        name: company.Name,
       });
       // Increment stats visually or re-fetch
       await fetchData();
-    } catch (e) {}
+    } catch (e) { }
   };
 
   // Close modals with Escape key
@@ -622,9 +622,8 @@ export default function CompanyDashboardPage() {
     return (
       <div
         style={{ fontFamily: "'Plus Jakarta Sans', 'Inter', system-ui, sans-serif" }}
-        className={`min-h-screen p-6 md:p-10 transition-colors duration-300 ${
-          isDark ? "bg-[#090d16]" : "bg-[#faf9f6]"
-        }`}
+        className={`min-h-screen p-6 md:p-10 transition-colors duration-300 ${isDark ? "bg-[#090d16]" : "bg-[#faf9f6]"
+          }`}
         aria-busy="true"
         aria-label="Loading company workspace"
       >
@@ -708,17 +707,16 @@ export default function CompanyDashboardPage() {
   return (
     <div
       style={{ fontFamily: "'Plus Jakarta Sans', 'Inter', system-ui, sans-serif" }}
-      className={`h-screen h-[100dvh] overflow-hidden flex transition-colors duration-300 ${
-        themeMode === "dark" ? "bg-[#0d0d12] text-white" : "bg-[#fcfaf6] text-[#0f172a]"
-      }`}
+      className={`h-screen h-[100dvh] overflow-hidden flex transition-colors duration-300 ${themeMode === "dark" ? "bg-[#0d0d12] text-white" : "bg-[#fcfaf6] text-[#0f172a]"
+        }`}
     >
       {/* DESKTOP SIDEBAR NAVIGATION */}
       <div className="w-72 border-r border-slate-200/50 dark:border-white/5 relative z-20 flex flex-col justify-between shrink-0 h-screen sticky top-0 transition-colors duration-300 hidden md:flex mcc-sidebar bg-white dark:bg-[#090d16]">
         <div className="p-6 border-b border-slate-200 dark:border-white/5 flex items-center justify-center shrink-0">
-          <img 
-            src={themeMode === "dark" ? "/mcc-logo-dark.png" : "/mcc-logo.jpg"} 
-            className="w-full max-w-[280px] h-auto object-contain rounded-lg transition-transform duration-200 hover:scale-[1.02]" 
-            alt="Madras Christian College Logo" 
+          <img
+            src={themeMode === "dark" ? "/mcc-logo-dark.png" : "/mcc-logo.jpg"}
+            className="w-full max-w-[280px] h-auto object-contain rounded-lg transition-transform duration-200 hover:scale-[1.02]"
+            alt="Madras Christian College Logo"
           />
         </div>
 
@@ -739,13 +737,12 @@ export default function CompanyDashboardPage() {
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id as TabType)}
-                className={`w-full flex items-center gap-3.5 px-4 py-3 rounded-xl text-xs font-semibold tracking-wide transition-all duration-200 cursor-pointer ${
-                  active
+                className={`w-full flex items-center gap-3.5 px-4 py-3 rounded-xl text-xs font-semibold tracking-wide transition-all duration-200 cursor-pointer ${active
                     ? "mcc-active-tab font-bold"
                     : themeMode === "dark"
                       ? "text-slate-400 hover:text-white hover:bg-white/5"
                       : "text-slate-700 hover:text-[#18233c] hover:bg-slate-100"
-                }`}
+                  }`}
               >
                 <Icon
                   size={16}
@@ -765,11 +762,10 @@ export default function CompanyDashboardPage() {
 
         {/* Recruiter Quick Controls */}
         <div className="p-4 border-t border-slate-200 dark:border-white/5 space-y-3 shrink-0">
-          <div className={`px-3 py-2 rounded-xl text-[10px] font-mono font-bold flex items-center gap-2 ${
-            themeMode === "dark"
+          <div className={`px-3 py-2 rounded-xl text-[10px] font-mono font-bold flex items-center gap-2 ${themeMode === "dark"
               ? "bg-emerald-500/10 text-emerald-350 border border-emerald-500/20"
               : "bg-emerald-50 text-emerald-700 border border-emerald-250"
-          }`}>
+            }`}>
             <CheckCircle size={11} className="text-emerald-400" />
             Verified Recruiter
           </div>
@@ -786,18 +782,18 @@ export default function CompanyDashboardPage() {
       {/* MOBILE DRAWER SIDEBAR OVERLAY */}
       {showMobileNav && (
         <div className="fixed inset-0 z-[50] flex md:hidden animate-fade-in select-none">
-          <div 
+          <div
             className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm"
             onClick={() => setShowMobileNav(false)}
           />
-          
+
           <div className="w-72 flex flex-col p-5 animate-slideIn h-screen border-r border-slate-200 dark:border-white/5 mcc-sidebar bg-white dark:bg-[#090d16] justify-between">
             <div className="flex flex-col flex-1 min-h-0">
               <div className="pb-6 border-b border-slate-200 dark:border-white/5 flex items-center justify-between shrink-0">
-                <img 
-                  src={themeMode === "dark" ? "/mcc-logo-dark.png" : "/mcc-logo.jpg"} 
-                  className="h-10 w-auto object-contain rounded-lg" 
-                  alt="MCC Logo" 
+                <img
+                  src={themeMode === "dark" ? "/mcc-logo-dark.png" : "/mcc-logo.jpg"}
+                  className="h-10 w-auto object-contain rounded-lg"
+                  alt="MCC Logo"
                 />
                 <button onClick={() => setShowMobileNav(false)} className="p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-white/5">
                   <X size={20} />
@@ -823,13 +819,12 @@ export default function CompanyDashboardPage() {
                         setActiveTab(tab.id as TabType);
                         setShowMobileNav(false);
                       }}
-                      className={`w-full flex items-center gap-3.5 px-4 py-3 rounded-xl text-xs font-semibold tracking-wide transition-all duration-200 cursor-pointer ${
-                        active
+                      className={`w-full flex items-center gap-3.5 px-4 py-3 rounded-xl text-xs font-semibold tracking-wide transition-all duration-200 cursor-pointer ${active
                           ? "mcc-active-tab font-bold"
                           : themeMode === "dark"
                             ? "text-slate-400 hover:text-white hover:bg-white/5"
                             : "text-slate-700 hover:text-[#18233c] hover:bg-slate-100"
-                      }`}
+                        }`}
                     >
                       <Icon
                         size={16}
@@ -849,11 +844,10 @@ export default function CompanyDashboardPage() {
             </div>
 
             <div className="pt-4 border-t border-slate-200 dark:border-white/5 space-y-3 shrink-0">
-              <div className={`px-3 py-2 rounded-xl text-[10px] font-mono font-bold flex items-center gap-2 ${
-                themeMode === "dark"
+              <div className={`px-3 py-2 rounded-xl text-[10px] font-mono font-bold flex items-center gap-2 ${themeMode === "dark"
                   ? "bg-emerald-500/10 text-emerald-350 border border-emerald-500/20"
                   : "bg-emerald-50 text-emerald-700 border border-emerald-250"
-              }`}>
+                }`}>
                 <CheckCircle size={11} className="text-emerald-400" />
                 Verified Recruiter
               </div>
@@ -871,7 +865,7 @@ export default function CompanyDashboardPage() {
 
       {/* RIGHT CONTENT WRAPPER */}
       <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
-        
+
         {/* MOBILE TOP HEADER BAR */}
         <div className="sticky top-0 z-[49] md:hidden flex items-center justify-between p-4 bg-white/90 dark:bg-[#09090d]/90 backdrop-blur-md border-b border-slate-200 dark:border-white/5 select-none shadow-md shrink-0">
           <div className="flex items-center gap-2.5">
@@ -889,11 +883,10 @@ export default function CompanyDashboardPage() {
           <button
             onClick={toggleThemeMode}
             aria-label="Toggle theme"
-            className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all duration-300 cursor-pointer shadow-md hover:scale-110 active:scale-95 border ${
-              themeMode === "dark"
+            className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all duration-300 cursor-pointer shadow-md hover:scale-110 active:scale-95 border ${themeMode === "dark"
                 ? "bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border-amber-500/30"
                 : "bg-indigo-900/40 hover:bg-indigo-900/60 text-white border-white/10"
-            }`}
+              }`}
           >
             {themeMode === "dark" ? <Sun size={18} /> : <Moon size={18} />}
           </button>
@@ -901,13 +894,13 @@ export default function CompanyDashboardPage() {
 
         {/* MAIN CONTAINER */}
         <div className="flex-1 overflow-y-auto px-4 md:px-10 py-6 md:py-8 space-y-10">
-          
+
           {/* BANNER SHOWCASE */}
           <div className="relative rounded-2xl sm:rounded-3xl overflow-hidden min-h-[140px] sm:min-h-[160px] md:h-44 bg-[#18233c] text-white flex items-end p-4 sm:p-6 md:p-8 border border-amber-600/20 shadow-md mb-4 mcc-welcome-banner">
             <div className="absolute inset-0 z-0">
-              <img 
-                src="/mcc-facade.jpg" 
-                alt="MCC Quadrangle" 
+              <img
+                src="/mcc-facade.jpg"
+                alt="MCC Quadrangle"
                 className="w-full h-full object-cover opacity-35 filter brightness-90 contrast-110"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-[#18233c] via-[#18233c]/40 to-transparent" />
@@ -918,30 +911,29 @@ export default function CompanyDashboardPage() {
               <button
                 onClick={toggleThemeMode}
                 title="Toggle Light/Dark Mode"
-                className={`p-2.5 rounded-full transition-all duration-300 cursor-pointer border shadow-sm flex items-center justify-center ${
-                  themeMode === "dark"
+                className={`p-2.5 rounded-full transition-all duration-300 cursor-pointer border shadow-sm flex items-center justify-center ${themeMode === "dark"
                     ? "bg-white/10 hover:bg-white/20 text-amber-300 border-white/15"
                     : "bg-white/90 hover:bg-slate-100 text-slate-700 border-slate-200"
-                }`}
+                  }`}
               >
                 {themeMode === "dark" ? <Sun size={18} /> : <Moon size={18} />}
               </button>
             </div>
 
             <div className="relative z-10 space-y-1 w-full text-left">
-              <span 
+              <span
                 style={{ color: '#ffffff' }}
                 className="text-[9px] sm:text-[9.5px] uppercase font-mono font-black tracking-wider sm:tracking-widest bg-[#781c1c] px-2.5 sm:px-3.5 py-1 sm:py-1.5 rounded-full border border-amber-500/20 inline-block max-w-full truncate"
               >
                 {company?.industry || "Recruiting Partner"} · {company?.companyType || "MNC"}
               </span>
-              <h1 
+              <h1
                 style={{ color: '#ffffff' }}
                 className="font-serif text-lg sm:text-2xl md:text-3xl font-black mt-1.5 sm:mt-2 leading-tight break-words"
               >
                 Welcome back, {profile?.fullName || "HR Representative"}
               </h1>
-              <p 
+              <p
                 style={{ color: 'rgba(255, 255, 255, 0.85)' }}
                 className="text-[11px] sm:text-xs leading-normal"
               >
@@ -951,9 +943,8 @@ export default function CompanyDashboardPage() {
           </div>
 
           {/* HEADER BAR */}
-          <div className={`mb-10 flex items-center justify-between flex-wrap gap-4 border-b pb-6 ${
-            themeMode === "dark" ? "border-white/5" : "border-slate-200"
-          }`}>
+          <div className={`mb-10 flex items-center justify-between flex-wrap gap-4 border-b pb-6 ${themeMode === "dark" ? "border-white/5" : "border-slate-200"
+            }`}>
             <div>
               <span className="text-[10px] uppercase font-mono font-black tracking-widest text-[#781c1c] block mb-1 whitespace-nowrap">Madras Christian College</span>
               <h2 className="font-serif text-3xl font-extrabold tracking-tight text-[#18233c] dark:text-white">HR Placement Console</h2>
@@ -965,9 +956,8 @@ export default function CompanyDashboardPage() {
 
           {/* STATUS BANNER */}
           <div
-            className={`border rounded-3xl p-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 ${
-              statusColors[company?.status] || "bg-slate-500/10 text-slate-500 border-slate-500/20"
-            }`}
+            className={`border rounded-3xl p-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 ${statusColors[company?.status] || "bg-slate-500/10 text-slate-500 border-slate-500/20"
+              }`}
           >
             <div className="flex items-start gap-4">
               <div className="p-3 bg-white/10 rounded-2xl shrink-0 mt-0.5">
@@ -985,7 +975,7 @@ export default function CompanyDashboardPage() {
               </div>
             </div>
           </div>
-          
+
 
           {/* ==========================================
               TAB: OVERVIEW (DASHBOARD)
@@ -1425,9 +1415,8 @@ export default function CompanyDashboardPage() {
                   jobs.map((job) => (
                     <div
                       key={job.id || job.Id}
-                      className={`p-6 border rounded-3xl flex flex-col justify-between h-80 shadow-md ${
-                        isDark ? "bg-white/5 border-white/5" : "bg-white border-slate-200"
-                      }`}
+                      className={`p-6 border rounded-3xl flex flex-col justify-between h-80 shadow-md ${isDark ? "bg-white/5 border-white/5" : "bg-white border-slate-200"
+                        }`}
                     >
                       <div className="space-y-3.5">
                         <div className="flex justify-between items-start">
@@ -1476,7 +1465,7 @@ export default function CompanyDashboardPage() {
                     </div>
                   ))
                 ) : (
-                   <div className="md:col-span-2 border border-dashed rounded-3xl p-14 text-center border-slate-200 dark:border-white/10">
+                  <div className="md:col-span-2 border border-dashed rounded-3xl p-14 text-center border-slate-200 dark:border-white/10">
                     <div className="w-16 h-16 rounded-3xl bg-red-500/10 flex items-center justify-center mx-auto mb-5">
                       <Briefcase className="text-red-400" size={30} />
                     </div>
@@ -1556,9 +1545,8 @@ export default function CompanyDashboardPage() {
                   .map((app) => (
                     <div
                       key={app.id}
-                      className={`p-6 border rounded-3xl flex flex-col justify-between gap-4 shadow-sm text-left ${
-                        isDark ? "bg-white/5 border-white/5" : "bg-white border-slate-200"
-                      }`}
+                      className={`p-6 border rounded-3xl flex flex-col justify-between gap-4 shadow-sm text-left ${isDark ? "bg-white/5 border-white/5" : "bg-white border-slate-200"
+                        }`}
                     >
                       <div className="flex flex-col md:flex-row justify-between gap-4">
                         <div className="space-y-3.5 flex-1 min-w-0">
@@ -1605,7 +1593,7 @@ export default function CompanyDashboardPage() {
 
                         <div className="flex flex-col justify-between items-end gap-3.5 shrink-0 w-full md:w-auto">
                           <span className="text-[10px] text-slate-500 font-semibold font-mono">Applied: {new Date(app.appliedAt).toLocaleDateString()}</span>
-                          
+
                           <div className="flex flex-col sm:flex-row md:flex-col gap-2 w-full">
                             <a
                               href={app.resumeUrl}
@@ -1662,9 +1650,8 @@ export default function CompanyDashboardPage() {
                                 <div key={i.id} className="p-3 bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/5 rounded-2xl text-[10px] space-y-1 text-slate-400 font-bold">
                                   <div className="flex justify-between items-center">
                                     <span className="text-slate-250 uppercase font-black">{i.type} Interview</span>
-                                    <span className={`px-2 py-0.5 rounded-full border text-[8px] font-extrabold uppercase ${
-                                      i.status === "Scheduled" ? "bg-red-500/10 text-red-400 border-red-500/20" : i.status === "Rescheduled" ? "bg-amber-500/10 text-amber-400 border-amber-500/20" : "bg-red-500/10 text-red-400 border-red-500/20"
-                                    }`}>{i.status}</span>
+                                    <span className={`px-2 py-0.5 rounded-full border text-[8px] font-extrabold uppercase ${i.status === "Scheduled" ? "bg-red-500/10 text-red-400 border-red-500/20" : i.status === "Rescheduled" ? "bg-amber-500/10 text-amber-400 border-amber-500/20" : "bg-red-500/10 text-red-400 border-red-500/20"
+                                      }`}>{i.status}</span>
                                   </div>
                                   <div>Time: {new Date(i.scheduleTime).toLocaleString()}</div>
                                   {i.meetLink && <div className="truncate">Link: <a href={i.meetLink} target="_blank" rel="noreferrer" className="text-red-500 underline">{i.meetLink}</a></div>}
@@ -1830,9 +1817,8 @@ export default function CompanyDashboardPage() {
                     return (
                       <div
                         key={p.Id || p.id}
-                        className={`p-6 border rounded-3xl flex flex-col justify-between h-48 shadow-md ${
-                          isDark ? "bg-white/5 border-white/5" : "bg-white border-slate-200"
-                        }`}
+                        className={`p-6 border rounded-3xl flex flex-col justify-between h-48 shadow-md ${isDark ? "bg-white/5 border-white/5" : "bg-white border-slate-200"
+                          }`}
                       >
                         <div className="space-y-2">
                           <div className="flex justify-between items-start">
@@ -1985,7 +1971,7 @@ export default function CompanyDashboardPage() {
                             return (
                               <div key={idx} className="space-y-1">
                                 <div className="flex justify-between items-center text-[10px] font-bold">
-                                  <span className="text-slate-350 font-mono">#{idx+1} {s.skill}</span>
+                                  <span className="text-slate-350 font-mono">#{idx + 1} {s.skill}</span>
                                   <span className="text-slate-400">{s.count} matched</span>
                                 </div>
                                 <div className="w-full bg-slate-200 dark:bg-white/5 h-1.5 rounded-full overflow-hidden">
@@ -2040,9 +2026,8 @@ export default function CompanyDashboardPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-end bg-black/60 backdrop-blur-sm">
           <form
             onSubmit={handleSaveJob}
-            className={`w-full max-w-2xl h-screen shadow-2xl relative overflow-y-auto flex flex-col justify-between p-8 text-left ${
-              isDark ? "bg-[#0b0b0f] text-white" : "bg-white text-slate-900"
-            }`}
+            className={`w-full max-w-2xl h-screen shadow-2xl relative overflow-y-auto flex flex-col justify-between p-8 text-left ${isDark ? "bg-[#0b0b0f] text-white" : "bg-white text-slate-900"
+              }`}
           >
             {/* Header */}
             <div className="flex justify-between items-center border-b border-slate-100 dark:border-white/5 pb-4">
@@ -2187,7 +2172,7 @@ export default function CompanyDashboardPage() {
               {/* Eligibility Fields */}
               <div className="p-4 bg-slate-55 dark:bg-white/5 rounded-3xl space-y-4">
                 <span className="text-[10px] font-extrabold uppercase tracking-wide text-slate-450 block">Candidate Eligibility criteria</span>
-                
+
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div>
                     <label className="text-[10px] uppercase font-bold text-slate-400 block mb-1">Eligible Academic Depts</label>
@@ -2340,9 +2325,8 @@ export default function CompanyDashboardPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
           <form
             onSubmit={handleCreatePool}
-            className={`w-full max-w-xl rounded-3xl shadow-2xl relative p-6 text-left border ${
-              isDark ? "bg-[#0b0b0f] text-white border-white/5" : "bg-white text-slate-900 border-slate-200"
-            }`}
+            className={`w-full max-w-xl rounded-3xl shadow-2xl relative p-6 text-left border ${isDark ? "bg-[#0b0b0f] text-white border-white/5" : "bg-white text-slate-900 border-slate-200"
+              }`}
           >
             <h3 className="text-base font-black uppercase tracking-wider text-slate-400 mb-4">
               Create New Saved Talent Pool
@@ -2364,7 +2348,7 @@ export default function CompanyDashboardPage() {
               {/* Student Search and select checkboxes */}
               <div>
                 <label className="text-[10px] uppercase font-bold text-slate-400 block mb-2">Select Candidate Portfolios</label>
-                
+
                 <div className="flex gap-2 mb-3">
                   <input
                     type="text"
@@ -2439,9 +2423,8 @@ export default function CompanyDashboardPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
           <form
             onSubmit={handleSaveDynamicPool}
-            className={`w-full max-w-md rounded-3xl border shadow-2xl p-6 text-left ${
-              isDark ? "bg-[#0b0b0f] border-white/15 text-white" : "bg-white border-slate-200 text-slate-900"
-            }`}
+            className={`w-full max-w-md rounded-3xl border shadow-2xl p-6 text-left ${isDark ? "bg-[#0b0b0f] border-white/15 text-white" : "bg-white border-slate-200 text-slate-900"
+              }`}
           >
             <h3 className="text-base font-black uppercase tracking-wider text-slate-400 mb-2">
               Save Dynamic Talent Pool
@@ -2488,9 +2471,8 @@ export default function CompanyDashboardPage() {
           ========================================== */}
       {selectedPoolNode && (
         <div className="fixed inset-0 z-50 flex items-center justify-end bg-black/60 backdrop-blur-sm">
-          <div className={`w-full max-w-2xl h-screen shadow-2xl relative overflow-y-auto flex flex-col justify-between p-8 text-left ${
-            isDark ? "bg-[#0b0b0f] text-white" : "bg-white text-slate-900"
-          }`}>
+          <div className={`w-full max-w-2xl h-screen shadow-2xl relative overflow-y-auto flex flex-col justify-between p-8 text-left ${isDark ? "bg-[#0b0b0f] text-white" : "bg-white text-slate-900"
+            }`}>
             {/* Header */}
             <div className="flex justify-between items-center border-b border-slate-100 dark:border-white/5 pb-4">
               <div>
@@ -2518,9 +2500,8 @@ export default function CompanyDashboardPage() {
                 poolCandidates.map((cand) => (
                   <div
                     key={cand.id}
-                    className={`p-5 border rounded-3xl flex justify-between gap-4 text-xs font-semibold ${
-                      isDark ? "bg-white/[0.02] border-white/5" : "bg-slate-50 border-slate-150"
-                    }`}
+                    className={`p-5 border rounded-3xl flex justify-between gap-4 text-xs font-semibold ${isDark ? "bg-white/[0.02] border-white/5" : "bg-slate-50 border-slate-150"
+                      }`}
                   >
                     <div className="space-y-1 flex-1 min-w-0">
                       <div className="flex items-center gap-2.5">

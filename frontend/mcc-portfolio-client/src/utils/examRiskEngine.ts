@@ -52,7 +52,7 @@ export const VIOLATION_WEIGHTS: Record<ViolationType, number> = {
   WindowResize:      10,
   DevToolsAttempt:   40,
   ExcessiveMovement: 15,
-  FrequentEyeMovement: 15,
+  FrequentEyeMovement: 0,
   Unknown:           10,
 };
 
