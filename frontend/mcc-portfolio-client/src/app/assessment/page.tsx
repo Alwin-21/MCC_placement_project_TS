@@ -799,7 +799,7 @@ export default function AssessmentPage() {
     } else if (type === "LookingAway") {
       popupMessage = "Please keep your face directed towards the screen.";
     } else if (type === "FrequentEyeMovement") {
-      popupMessage = "Suspicious Eye Movement Detected\n\nPlease keep your attention on the assessment.";
+      popupMessage = "Suspicious Eye Movement Detected\n\nLooking away from the screen repeatedly is prohibited. Please keep your focus on the test.";
     } else if (type === "FaceMismatch") {
       popupMessage = "Identity Verification Failed\n\nOnly the registered student may continue this assessment.";
     } else if (type === "BookDetected") {
@@ -1861,15 +1861,42 @@ export default function AssessmentPage() {
 
                             if (faceapi && faceapi.nets?.tinyFaceDetector?.isLoaded) {
                               try {
-                                const det = await faceapi
-                                  .detectSingleFace(
+                                const detections = await faceapi
+                                  .detectAllFaces(
                                     video,
                                     new faceapi.TinyFaceDetectorOptions({ inputSize: 320, scoreThreshold: 0.25 })
                                   )
                                   .withFaceLandmarks()
-                                  .withFaceDescriptor();
+                                  .withFaceDescriptors();
 
+                                if (detections.length === 0) {
+                                  setCaptureVerifyError("Face not detected. Please position your face clearly inside the camera frame with good lighting.");
+                                  setIsVerifyingCapture(false);
+                                  return;
+                                } else if (detections.length > 1) {
+                                  setCaptureVerifyError("Multiple persons detected on the screen. Please ensure only one person is in the camera frame.");
+                                  setIsVerifyingCapture(false);
+                                  return;
+                                }
+
+                                const det = detections[0];
                                 if (det && det.descriptor) {
+                                  const box = det.detection.box;
+                                  const faceCenterX = box.x + box.width / 2;
+                                  const faceCenterY = box.y + box.height / 2;
+                                  const frameCenterX = w / 2;
+                                  const frameCenterY = h / 2;
+
+                                  // Tolerance: face center must be within 15% of the frame size from the frame center
+                                  const toleranceX = w * 0.15;
+                                  const toleranceY = h * 0.15;
+
+                                  if (Math.abs(faceCenterX - frameCenterX) > toleranceX || Math.abs(faceCenterY - frameCenterY) > toleranceY) {
+                                    setCaptureVerifyError("Face is not centered. Please align your face to the center of the camera screen.");
+                                    setIsVerifyingCapture(false);
+                                    return;
+                                  }
+
                                   descriptor = Array.from(det.descriptor);
                                 }
                               } catch (e) {
@@ -1879,6 +1906,44 @@ export default function AssessmentPage() {
 
                             // Robust Fallback: If face-api is loading or missed, check MediaPipe / Diagnostic face presence
                             if (!descriptor && (faceCountInFrame >= 1 || cameraCheck.framing === "passed")) {
+                              if (faceCountInFrame > 1) {
+                                setCaptureVerifyError("Multiple persons detected. Please ensure only one person is in the camera frame.");
+                                setIsVerifyingCapture(false);
+                                return;
+                              }
+
+                              // Also check centering using MediaPipe FaceDetector if possible
+                              if (preExamFaceDetectorRef.current) {
+                                try {
+                                  const results = preExamFaceDetectorRef.current.detectForVideo
+                                    ? preExamFaceDetectorRef.current.detectForVideo(video, performance.now())
+                                    : preExamFaceDetectorRef.current.detect(video);
+                                  const detections = results.detections || [];
+                                  if (detections.length > 1) {
+                                    setCaptureVerifyError("Multiple persons detected. Please ensure only one person is in the camera frame.");
+                                    setIsVerifyingCapture(false);
+                                    return;
+                                  } else if (detections.length === 1) {
+                                    const bbox = detections[0].boundingBox;
+                                    if (bbox) {
+                                      const faceCenterX = bbox.originX + bbox.width / 2;
+                                      const faceCenterY = bbox.originY + bbox.height / 2;
+                                      const frameCenterX = w / 2;
+                                      const frameCenterY = h / 2;
+                                      const toleranceX = w * 0.15;
+                                      const toleranceY = h * 0.15;
+                                      if (Math.abs(faceCenterX - frameCenterX) > toleranceX || Math.abs(faceCenterY - frameCenterY) > toleranceY) {
+                                        setCaptureVerifyError("Face is not centered. Please align your face to the center of the camera screen.");
+                                        setIsVerifyingCapture(false);
+                                        return;
+                                      }
+                                    }
+                                  }
+                                } catch (err) {
+                                  console.warn("Fallback diagnostic centering check failed:", err);
+                                }
+                              }
+
                               const sampleCanvas = document.createElement("canvas");
                               sampleCanvas.width = 16;
                               sampleCanvas.height = 8;
