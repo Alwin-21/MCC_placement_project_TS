@@ -472,6 +472,7 @@ model Company {
   Name          String
   Email         String                 @unique
   Status        String                 @default("Pending") // Pending, Verified, Rejected, Suspended, Inactive, Archived
+  AllowedDepartments String            @default("")
   CreatedAt     DateTime               @default(now()) @db.Timestamptz(6)
   UpdatedAt     DateTime               @updatedAt @db.Timestamptz(6)
   Profile       CompanyProfile?

@@ -25,18 +25,26 @@ const DEFAULT_WEIGHTS: WeightsConfig = {
 export async function POST(request: Request) {
   try {
     const payload = getUserFromRequest(request);
-    if (!payload || payload.role !== "Company") {
+    const userRole = payload?.role || payload?.Role;
+    if (!payload || (userRole !== "Company" && userRole !== 4 && userRole !== "4")) {
       return NextResponse.json("Unauthorized", { status: 401 });
     }
 
     const hrUserId = parseInt(payload.nameid, 10);
     const hrUser = await prisma.companyUsers.findUnique({
-      where: { Id: hrUserId }
+      where: { Id: hrUserId },
+      include: {
+        Company: true,
+      },
     });
 
     if (!hrUser) {
       return NextResponse.json("HR User not found.", { status: 404 });
     }
+
+    const companyAllowedDepts = hrUser.Company?.AllowedDepartments
+      ? hrUser.Company.AllowedDepartments.split(";").map((d) => d.trim().toLowerCase()).filter(Boolean)
+      : [];
 
     const body = await request.json();
     const {
@@ -108,7 +116,8 @@ export async function POST(request: Request) {
         Achievements: true,
         SportsAchievements: true,
         StartupCompetitions: true,
-        AcademicRecords: true
+        AcademicRecords: true,
+        Resumes: true
       }
     });
 
@@ -118,7 +127,12 @@ export async function POST(request: Request) {
       const studentCgpa = profile?.CGPA || 0.0;
       const studentDept = student.Department.toLowerCase().trim();
       
-      // A. Department Filter (Hard constraint if specified)
+      // A. HR Department Permissions Restriction (Set by Admin)
+      if (companyAllowedDepts.length > 0 && !companyAllowedDepts.includes(studentDept)) {
+        return null; // Skip students outside assigned HR department permissions
+      }
+
+      // B. Department Filter (Hard constraint if specified in search query)
       if (departments.length > 0) {
         const lowerDepts = departments.map((d: string) => d.toLowerCase().trim());
         if (!lowerDepts.includes(studentDept)) {
@@ -307,17 +321,17 @@ export async function POST(request: Request) {
         graduationYear: item.student.Profiles[0]?.GraduationYear || null,
         linkedInUrl: item.student.Profiles[0]?.LinkedInUrl || "",
         gitHubUrl: item.student.Profiles[0]?.GitHubUrl || "",
-        projects: item.student.Projects.map((p: any) => ({
+        projects: (item.student.Projects || []).map((p: any) => ({
           title: p.Title,
           description: p.Description,
           technologies: p.Technologies,
           githubUrl: p.GithubUrl
         })),
-        resumes: item.student.Resumes.map((r: any) => ({
+        resumes: (item.student.Resumes || []).map((r: any) => ({
           title: r.ResumeTitle,
           url: r.ResumeUrl
         })),
-        certificates: item.student.Certifications.map((c: any) => ({
+        certificates: (item.student.Certifications || []).map((c: any) => ({
           title: c.Title,
           issuer: c.Issuer,
           date: c.IssueDate
@@ -327,6 +341,6 @@ export async function POST(request: Request) {
     return NextResponse.json(results);
   } catch (err: any) {
     console.error("POST Talent Matching Error:", err);
-    return NextResponse.json({ message: "Internal server error" }, { status: 500 });
+    return NextResponse.json({ message: "Internal server error", error: err?.message }, { status: 500 });
   }
 }

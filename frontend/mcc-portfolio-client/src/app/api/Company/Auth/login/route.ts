@@ -163,3 +163,14 @@ export async function POST(request: Request) {
     return NextResponse.json({ message: "Internal server error" }, { status: 500 });
   }
 }
+
+export async function GET() {
+  return NextResponse.json(
+    {
+      message: "Company Auth Login API endpoint is active. Please send a POST request with credentials.",
+      uiUrl: "/company/login",
+    },
+    { status: 405 }
+  );
+}
+
