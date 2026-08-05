@@ -1100,7 +1100,7 @@ export default function TakeAssessmentPage({ params }: PageProps) {
           eyeMovementWarningTicksRef.current += 1;
           if (eyeMovementWarningTicksRef.current >= 8) { // ~3 seconds of confirmed pattern
             eyeMovementWarningTicksRef.current = 0;
-            triggerWarning("FrequentEyeMovement", "Frequent Eye Movement Detected. Please keep your eyes focused on the assessment screen.");
+            triggerWarning("FrequentEyeMovement", "Suspicious Eye Movement Detected. Looking away from the screen repeatedly is prohibited. Please keep your focus on the test.");
           }
         } else {
           eyeMovementWarningTicksRef.current = Math.max(0, eyeMovementWarningTicksRef.current - 1);
