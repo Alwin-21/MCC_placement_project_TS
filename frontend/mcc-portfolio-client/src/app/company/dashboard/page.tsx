@@ -315,6 +315,28 @@ export default function CompanyDashboardPage() {
     }
   };
 
+  const handleBulkResumeExport = async (department: string = "all") => {
+    try {
+      const res = await api.post("/Company/students/bulk-resumes", {
+        department: department,
+      });
+
+      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(res.data, null, 2));
+      const downloadAnchor = document.createElement("a");
+      downloadAnchor.setAttribute("href", dataStr);
+      downloadAnchor.setAttribute(
+        "download",
+        `mcc_resumes_${department || "all"}_${new Date().toISOString().split("T")[0]}.json`
+      );
+      document.body.appendChild(downloadAnchor);
+      downloadAnchor.click();
+      downloadAnchor.remove();
+      alert(`Bulk resume report for ${department || "All Allowed Departments"} downloaded successfully (${res.data.totalStudents} student profiles exported).`);
+    } catch (err: any) {
+      alert(err.response?.data?.message || "Failed to export bulk resumes report.");
+    }
+  };
+
   // Profile Save
   const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -1885,6 +1907,13 @@ export default function CompanyDashboardPage() {
                     className="px-3.5 py-2 bg-indigo-600/10 hover:bg-indigo-600/20 text-indigo-500 rounded-xl text-xs font-bold uppercase transition cursor-pointer"
                   >
                     Excel Format
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleBulkResumeExport("all")}
+                    className="px-3.5 py-2 bg-emerald-600/10 hover:bg-emerald-600/20 text-emerald-500 rounded-xl text-xs font-bold uppercase transition cursor-pointer flex items-center gap-1.5"
+                  >
+                    <Download size={13} /> Bulk Resumes (Dept-wise)
                   </button>
                 </div>
               </div>

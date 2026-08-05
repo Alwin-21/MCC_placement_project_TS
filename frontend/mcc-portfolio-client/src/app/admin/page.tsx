@@ -59,6 +59,7 @@ import {
 import api from "@/services/api";
 import { useTheme } from "@/hooks/useTheme";
 import AssessmentAdminModule from "@/components/admin/AssessmentAdminModule";
+import HRAccessManager from "@/app/admin/components/HRAccessManager";
 
 type ActiveTab = 
   | "overview" 
@@ -73,7 +74,8 @@ type ActiveTab =
   | "assessments"
   | "companies"
   | "jobs"
-  | "taxonomy";
+  | "taxonomy"
+  | "hr-access";
 
 export default function AdminPage() {
   const router = useRouter();
@@ -1370,6 +1372,7 @@ export default function AdminPage() {
               { id: "students",       label: "Student Directory",    icon: Users,          superOnly: false },
               { id: "assessments",    label: "Assessment Module",    icon: ClipboardList,  superOnly: false },
               { id: "companies",     label: "Company Onboarding",   icon: Building,       superOnly: false },
+              { id: "hr-access",      label: "HR Data Access",       icon: Shield,         superOnly: false },
               { id: "jobs",          label: "Placement Opportunities", icon: Briefcase,     superOnly: false },
               { id: "taxonomy",      label: "Skill Taxonomy & Config", icon: Sliders,       superOnly: false },
               { id: "institution",   label: "Institution Details",  icon: Building,       superOnly: false },
@@ -3279,6 +3282,13 @@ export default function AdminPage() {
             ========================================== */}
         {activeTab === "assessments" && (
           <AssessmentAdminModule themeMode={themeMode} toggleThemeMode={toggleThemeMode} />
+        )}
+
+        {/* ==========================================
+            TAB: HR DATA ACCESS PERMISSIONS
+            ========================================== */}
+        {activeTab === "hr-access" && (
+          <HRAccessManager />
         )}
 
         {/* ==========================================

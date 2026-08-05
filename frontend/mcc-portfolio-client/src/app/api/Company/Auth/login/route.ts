@@ -19,13 +19,17 @@ export async function POST(request: Request) {
     const body = await request.json();
     const { email, password } = body;
 
-    const emailTrim = (email || "").trim().toLowerCase();
+    let emailTrim = (email || "").trim().toLowerCase();
     if (!emailTrim || !password) {
-      return NextResponse.json({ message: "Email and Password are required." }, { status: 400 });
+      return NextResponse.json({ message: "Email/Username and Password are required." }, { status: 400 });
+    }
+
+    if (emailTrim === "hrdemo") {
+      emailTrim = "hrdemo@mcc.edu.in";
     }
 
     if (!EMAIL_REGEX.test(emailTrim)) {
-      return NextResponse.json({ message: "Please enter a valid email address." }, { status: 400 });
+      return NextResponse.json({ message: "Please enter a valid email address or username." }, { status: 400 });
     }
 
     if (typeof password !== "string" || password.length < 8) {
@@ -159,3 +163,14 @@ export async function POST(request: Request) {
     return NextResponse.json({ message: "Internal server error" }, { status: 500 });
   }
 }
+
+export async function GET() {
+  return NextResponse.json(
+    {
+      message: "Company Auth Login API endpoint is active. Please send a POST request with credentials.",
+      uiUrl: "/company/login",
+    },
+    { status: 405 }
+  );
+}
+
