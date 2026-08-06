@@ -11,20 +11,51 @@ import api from "@/services/api";
 import { useTheme } from "@/hooks/useTheme";
 import RichTextEditor from "./RichTextEditor";
 
-const DEPARTMENTS = [
-  "Computer Science",
-  "Mathematics",
-  "Tamil",
+const AIDED_DEPARTMENTS = [
   "English",
+  "Tamil",
+  "Languages",
+  "History",
+  "Political Science",
+  "Public Administration",
+  "Economics",
+  "Philosophy",
   "Commerce",
+  "Social Work",
+  "Mathematics",
+  "Statistics",
   "Physics",
   "Chemistry",
-  "Economics",
-  "History",
-  "Aided",
-  "Self-Financed",
-  "All"
+  "Botany",
+  "Zoology",
+  "Physical Education"
 ];
+
+const SFS_DEPARTMENTS = [
+  "English",
+  "Tamil",
+  "Languages",
+  "Journalism",
+  "Social Work",
+  "Commerce",
+  "Business Administration",
+  "Communication",
+  "Geography",
+  "Tourism Studies",
+  "Mathematics",
+  "Physics",
+  "Chemistry",
+  "Microbiology",
+  "Computer Application (BCA)",
+  "Computer Science (B.Sc)",
+  "Computer Science (MCA)",
+  "Visual Communication",
+  "Physical Education, Health Education and Sports",
+  "Psychology",
+  "Data Science"
+];
+
+const ALL_DEPARTMENTS = Array.from(new Set([...AIDED_DEPARTMENTS, ...SFS_DEPARTMENTS])).sort();
 
 interface Question {
   id?: number;
@@ -68,6 +99,8 @@ export default function AssessmentAdminModule({ themeMode: propThemeMode, toggle
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [deptFilter, setDeptFilter] = useState("All");
+  const [streamFilter, setStreamFilter] = useState("All");
+  const [formStreamTab, setFormStreamTab] = useState<"Aided" | "SFS">("Aided");
 
   // Assessment Form Modal State
   const [showAssessmentModal, setShowAssessmentModal] = useState(false);
@@ -236,7 +269,7 @@ export default function AssessmentAdminModule({ themeMode: propThemeMode, toggle
     setEditingAssessment(item);
     setModalAttachedQuestions([]);
     setAttachedFileName("");
-    const depts = item.departments ? item.departments.split(";") : ["All"];
+    const depts = item.departments ? item.departments.split(/[,;]/).map(d => d.trim()).filter(Boolean) : ["All"];
     setFormData({
       title: item.title,
       description: item.description,
@@ -348,6 +381,39 @@ export default function AssessmentAdminModule({ themeMode: propThemeMode, toggle
     });
   };
 
+  const selectAllDepartmentsInStream = (stream: "Aided" | "SFS") => {
+    const list = stream === "Aided" ? AIDED_DEPARTMENTS : SFS_DEPARTMENTS;
+    setFormData((prev) => {
+      const allSelected = list.every((d) => prev.selectedDepts.includes(d));
+      let updated = prev.selectedDepts.filter((d) => d !== "All");
+      if (allSelected) {
+        updated = updated.filter((d) => !list.includes(d));
+      } else {
+        list.forEach((d) => {
+          if (!updated.includes(d)) updated.push(d);
+        });
+      }
+      return { ...prev, selectedDepts: updated.length === 0 ? ["All"] : updated };
+    });
+  };
+
+  const generateDefaultInstructions = () => {
+    const standardHTML = `
+      <h3>Standard Exam Instructions & Guidelines</h3>
+      <ul>
+        <li><strong>Webcam Proctoring:</strong> The exam is webcam-proctored. Ensure your camera remains enabled throughout the duration.</li>
+        <li><strong>No Tab Switching:</strong> Navigating away from the exam tab or window will trigger a security alert. Multiple alerts may result in automatic submission.</li>
+        <li><strong>Face Detection:</strong> Ensure your face is clearly visible, well-lit, and centered in the webcam view. Do not look away from the screen for prolonged periods.</li>
+        <li><strong>Authorized Material:</strong> A scientific calculator is integrated into the exam interface. No external calculators, mobile phones, or smart devices are permitted.</li>
+        <li><strong>Submission:</strong> Do not close the browser tab until you have submitted your responses. The exam will auto-submit when the timer expires.</li>
+      </ul>
+    `;
+    setFormData((prev) => ({
+      ...prev,
+      instructions: prev.instructions ? prev.instructions + "<br/>" + standardHTML : standardHTML
+    }));
+  };
+
   // ── Standalone Questions Manager ──
   const openQuestionsModal = async (assessment: Assessment) => {
     setCurrentAssessment(assessment);
@@ -433,8 +499,17 @@ export default function AssessmentAdminModule({ themeMode: propThemeMode, toggle
   // Filter Logic
   const filteredAssessments = assessments.filter((a) => {
     const matchesSearch = a.title.toLowerCase().includes(searchQuery.toLowerCase()) || a.description.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesStream =
+      streamFilter === "All" ||
+      a.departments.split(/[,;]/).some((d) => {
+        const deptTrim = d.trim();
+        return streamFilter === "Aided"
+          ? AIDED_DEPARTMENTS.includes(deptTrim)
+          : SFS_DEPARTMENTS.includes(deptTrim);
+      }) ||
+      a.departments.includes("All");
     const matchesDept = deptFilter === "All" || a.departments.includes(deptFilter) || a.departments.includes("All");
-    return matchesSearch && matchesDept;
+    return matchesSearch && matchesStream && matchesDept;
   });
 
   const totalAttemptsCount = assessments.reduce((acc, curr) => acc + (curr.attemptCount || 0), 0);
@@ -555,17 +630,34 @@ export default function AssessmentAdminModule({ themeMode: propThemeMode, toggle
               />
             </div>
 
-            <div className="flex items-center gap-2 justify-between sm:justify-end">
+            <div className="flex items-center gap-2 justify-between sm:justify-end flex-wrap">
               <div className="flex items-center gap-1.5">
                 <Filter className="w-3.5 h-3.5 text-slate-400" />
-                <span className="text-xs font-mono text-slate-500">Dept:</span>
+                <span className="text-xs font-mono text-slate-500">Filters:</span>
               </div>
+              <select
+                value={streamFilter}
+                onChange={(e) => {
+                  setStreamFilter(e.target.value);
+                  setDeptFilter("All");
+                }}
+                className="bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs rounded-xl px-3 py-2 text-slate-900 dark:text-white focus:outline-none focus:border-[#781c1c]"
+              >
+                <option value="All">All Streams</option>
+                <option value="Aided">Aided</option>
+                <option value="SFS">SFS</option>
+              </select>
               <select
                 value={deptFilter}
                 onChange={(e) => setDeptFilter(e.target.value)}
-                className="flex-1 sm:flex-none bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs rounded-xl px-3 py-2 text-slate-900 dark:text-white focus:outline-none focus:border-[#781c1c]"
+                className="bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs rounded-xl px-3 py-2 text-slate-900 dark:text-white focus:outline-none focus:border-[#781c1c]"
               >
-                {DEPARTMENTS.map((d) => (
+                {(streamFilter === "All"
+                  ? ["All", ...ALL_DEPARTMENTS]
+                  : streamFilter === "Aided"
+                  ? ["All", ...AIDED_DEPARTMENTS]
+                  : ["All", ...SFS_DEPARTMENTS]
+                ).map((d) => (
                   <option key={d} value={d}>{d}</option>
                 ))}
               </select>
@@ -619,7 +711,7 @@ export default function AssessmentAdminModule({ themeMode: propThemeMode, toggle
 
                     {/* Target Departments */}
                     <div className="mt-4 flex flex-wrap gap-1.5">
-                      {item.departments.split(";").map((d) => (
+                      {item.departments.split(/[,;]/).map((d) => (
                         <span key={d} className="text-[10px] font-mono bg-slate-100 dark:bg-slate-800 text-[#781c1c] dark:text-amber-300 font-bold px-2.5 py-0.5 rounded-lg border border-slate-200 dark:border-slate-700">
                           {d}
                         </span>
@@ -789,9 +881,8 @@ export default function AssessmentAdminModule({ themeMode: propThemeMode, toggle
         </div>
       )}
 
-      {/* CREATE / EDIT ASSESSMENT MODAL (WITH DIRECT CSV / EXCEL UPLOAD) */}
       {showAssessmentModal && (
-        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-md flex items-start justify-center p-4 py-8 overflow-y-auto">
+        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-md flex items-center justify-center p-4 py-8 overflow-y-auto">
           <div className="bg-white dark:bg-[#0f1117] border border-slate-200 dark:border-white/10 rounded-3xl w-full max-w-3xl p-6 md:p-8 shadow-2xl space-y-6 my-auto">
             <div className="flex items-center justify-between pb-4 border-b border-slate-200 dark:border-slate-800">
               <div>
@@ -828,7 +919,16 @@ export default function AssessmentAdminModule({ themeMode: propThemeMode, toggle
               </div>
 
               <div>
-                <label className="block font-mono font-bold text-slate-500 uppercase tracking-wider mb-1.5">Assessment Instructions</label>
+                <div className="flex justify-between items-center mb-1.5 flex-wrap gap-2">
+                  <label className="block font-mono font-bold text-slate-500 uppercase tracking-wider text-xs">Assessment Instructions</label>
+                  <button
+                    type="button"
+                    onClick={generateDefaultInstructions}
+                    className="px-2.5 py-1 bg-[#781c1c]/10 dark:bg-[#f43f5e]/15 border border-[#781c1c]/20 dark:border-[#f43f5e]/25 text-[#781c1c] dark:text-rose-350 hover:bg-[#781c1c]/20 dark:hover:bg-[#f43f5e]/25 rounded-lg text-[9px] font-extrabold font-mono uppercase tracking-wider transition-all duration-200 flex items-center gap-1.5 cursor-pointer shadow-xs active:scale-95"
+                  >
+                    <span>✨</span> Generate Standard Instructions
+                  </button>
+                </div>
                 <RichTextEditor
                   value={formData.instructions}
                   onChange={(val) => setFormData({ ...formData, instructions: val })}
@@ -880,18 +980,60 @@ export default function AssessmentAdminModule({ themeMode: propThemeMode, toggle
                 </div>
               </div>
 
-              {/* Department Multi-Select */}
-              <div>
-                <label className="block font-mono font-bold text-slate-500 uppercase tracking-wider mb-2">Target Departments *</label>
-                <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto p-2 bg-slate-50 dark:bg-slate-950 rounded-xl border border-slate-200 dark:border-slate-800">
-                  {DEPARTMENTS.map((dept) => {
+              {/* Department Multi-Select with Stream separation */}
+              <div className="space-y-3">
+                <div className="flex justify-between items-center">
+                  <label className="block font-mono font-bold text-slate-500 uppercase tracking-wider text-xs">Target Departments *</label>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setFormStreamTab("Aided")}
+                      className={`px-3 py-1 rounded-lg text-xs font-bold font-mono transition ${
+                        formStreamTab === "Aided"
+                          ? "bg-slate-200 dark:bg-white/10 text-[#781c1c] dark:text-[#f43f5e]"
+                          : "text-slate-400 hover:text-slate-600"
+                      }`}
+                    >
+                      Aided
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setFormStreamTab("SFS")}
+                      className={`px-3 py-1 rounded-lg text-xs font-bold font-mono transition ${
+                        formStreamTab === "SFS"
+                          ? "bg-slate-200 dark:bg-white/10 text-[#781c1c] dark:text-[#f43f5e]"
+                          : "text-slate-400 hover:text-slate-600"
+                      }`}
+                    >
+                      SFS
+                    </button>
+                  </div>
+                </div>
+
+                <div className="flex justify-between items-center px-1">
+                  <span className="text-[10px] text-slate-400 font-mono">
+                    Selected: {formData.selectedDepts.filter(d => d !== "All").length} depts
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => selectAllDepartmentsInStream(formStreamTab)}
+                    className="text-[10px] text-[#781c1c] dark:text-[#f43f5e] font-mono hover:underline"
+                  >
+                    {(formStreamTab === "Aided" ? AIDED_DEPARTMENTS : SFS_DEPARTMENTS).every(d => formData.selectedDepts.includes(d))
+                      ? "Deselect All Stream"
+                      : "Select All Stream"}
+                  </button>
+                </div>
+
+                <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto p-3 bg-slate-50 dark:bg-slate-950 rounded-xl border border-slate-200 dark:border-slate-800">
+                  {(formStreamTab === "Aided" ? AIDED_DEPARTMENTS : SFS_DEPARTMENTS).map((dept) => {
                     const isSelected = formData.selectedDepts.includes(dept);
                     return (
                       <button
                         type="button"
                         key={dept}
                         onClick={() => toggleDept(dept)}
-                        className={`text-xs font-bold px-3 py-1.5 rounded-xl border transition ${
+                        className={`text-[10px] font-bold px-3 py-1.5 rounded-xl border transition ${
                           isSelected
                             ? "bg-[#781c1c] text-white border-[#781c1c] shadow-xs"
                             : "bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-800 hover:text-slate-900 dark:hover:text-white"
@@ -904,79 +1046,7 @@ export default function AssessmentAdminModule({ themeMode: propThemeMode, toggle
                 </div>
               </div>
 
-              {/* AI PROCTORING & CALCULATOR CONFIGURATION */}
-              <div className="p-5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl space-y-4">
-                <div className="flex items-center gap-2 text-slate-900 dark:text-white font-bold font-mono text-xs uppercase tracking-wider">
-                  🔒 AI Proctoring & Tool Configurations
-                </div>
-                
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <label className="font-bold text-slate-500 font-mono uppercase tracking-wider">Enable Calculator</label>
-                      <input
-                        type="checkbox"
-                        checked={securitySettings.calculatorEnabled}
-                        onChange={(e) => setSecuritySettings({ ...securitySettings, calculatorEnabled: e.target.checked })}
-                        className="w-4 h-4 rounded text-[#781c1c] focus:ring-[#781c1c] bg-slate-100 border-slate-350"
-                      />
-                    </div>
-                    {securitySettings.calculatorEnabled && (
-                      <div className="flex flex-col gap-1">
-                        <span className="text-[10px] text-slate-450 uppercase tracking-widest font-mono">Calculator Mode</span>
-                        <select
-                          value={securitySettings.calculatorMode}
-                          onChange={(e) => setSecuritySettings({ ...securitySettings, calculatorMode: e.target.value as "Basic" | "Scientific" })}
-                          className="bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-slate-900 dark:text-white focus:outline-none"
-                        >
-                          <option value="Basic">Basic Mode</option>
-                          <option value="Scientific">Scientific Mode</option>
-                        </select>
-                      </div>
-                    )}
-                  </div>
 
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <label className="font-bold text-slate-500 font-mono uppercase tracking-wider">Object Detection</label>
-                      <input
-                        type="checkbox"
-                        checked={securitySettings.objectDetectionEnabled}
-                        onChange={(e) => setSecuritySettings({ ...securitySettings, objectDetectionEnabled: e.target.checked })}
-                        className="w-4 h-4 rounded text-[#781c1c] focus:ring-[#781c1c] bg-slate-100 border-slate-350"
-                      />
-                    </div>
-                    <span className="text-[10px] text-slate-400 font-mono block">Detects mobile phones and tablets during exams.</span>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 border-t border-slate-200 dark:border-slate-800">
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <label className="font-bold text-slate-500 font-mono uppercase tracking-wider">Pause Exam on Face Loss</label>
-                      <input
-                        type="checkbox"
-                        checked={securitySettings.pauseTimerOnFaceMissing}
-                        onChange={(e) => setSecuritySettings({ ...securitySettings, pauseTimerOnFaceMissing: e.target.checked })}
-                        className="w-4 h-4 rounded text-[#781c1c] focus:ring-[#781c1c] bg-slate-100 border-slate-350"
-                      />
-                    </div>
-                    <span className="text-[10px] text-slate-400 font-mono block">Automatically pauses the timer if the face is missing.</span>
-                  </div>
-
-                  <div className="flex flex-col gap-1.5">
-                    <span className="font-bold text-slate-500 font-mono uppercase tracking-wider">Face Missing Timeout (Seconds)</span>
-                    <input
-                      type="number"
-                      min={1}
-                      max={120}
-                      value={securitySettings.faceMissingTimeout}
-                      onChange={(e) => setSecuritySettings({ ...securitySettings, faceMissingTimeout: Number(e.target.value) })}
-                      className="w-full bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-slate-900 dark:text-white focus:outline-none"
-                    />
-                  </div>
-                </div>
-              </div>
 
               {/* DIRECT CSV / EXCEL UPLOAD SECTION */}
               <div className="p-5 bg-[#781c1c]/5 dark:bg-[#781c1c]/10 border border-[#781c1c]/20 rounded-2xl space-y-3">
@@ -1049,7 +1119,7 @@ export default function AssessmentAdminModule({ themeMode: propThemeMode, toggle
 
       {/* STANDALONE QUESTION MANAGER MODAL */}
       {showQuestionModal && currentAssessment && (
-        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-md flex items-start justify-center p-3 sm:p-4 py-6 sm:py-8 overflow-y-auto">
+        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-md flex items-center justify-center p-3 sm:p-4 py-6 sm:py-8 overflow-y-auto">
           <div className="bg-white dark:bg-[#0f1117] border border-slate-200 dark:border-white/10 rounded-2xl sm:rounded-3xl w-full max-w-4xl p-4 sm:p-6 md:p-8 shadow-2xl space-y-5 sm:space-y-6 my-auto">
             <div className="flex items-center justify-between pb-4 border-b border-slate-200 dark:border-slate-800">
               <div>
@@ -1240,7 +1310,7 @@ export default function AssessmentAdminModule({ themeMode: propThemeMode, toggle
 
       {/* MALPRACTICE INSPECTION MODAL */}
       {showMalpracticeModal && selectedAttemptMalpractice && (
-        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-md flex items-start justify-center p-3 sm:p-4 py-6 sm:py-8 overflow-y-auto">
+        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-md flex items-center justify-center p-3 sm:p-4 py-6 sm:py-8 overflow-y-auto">
           <div className="bg-white dark:bg-[#0f1117] border border-slate-200 dark:border-white/10 rounded-2xl sm:rounded-3xl w-full max-w-xl p-4 sm:p-6 md:p-8 shadow-2xl space-y-5 my-auto">
             <div className="flex items-center justify-between pb-4 border-b border-slate-200 dark:border-slate-800">
               <div>

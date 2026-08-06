@@ -25,6 +25,7 @@ export function useExamSecurity({ active, onViolation }: UseExamSecurityOptions)
   const [isFullscreen, setIsFullscreen] = useState(false);
   const activeRef = useRef(active);
   const resizeTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const isProgrammaticExitRef = useRef(false);
 
   // Keep ref in sync so event listeners always see latest value
   useEffect(() => {
@@ -47,11 +48,17 @@ export function useExamSecurity({ active, onViolation }: UseExamSecurityOptions)
     }
   }, []);
 
-  // ── Exit fullscreen (for cleanup) ─────────────────────────────────────────
   const exitFullscreen = useCallback(() => {
     try {
-      if (document.fullscreenElement) {
-        document.exitFullscreen().catch(() => {});
+      if (document.fullscreenElement || (document as any).webkitFullscreenElement || (document as any).mozFullScreenElement) {
+        isProgrammaticExitRef.current = true;
+        if (document.exitFullscreen) {
+          document.exitFullscreen().catch(() => {});
+        } else if ((document as any).webkitExitFullscreen) {
+          (document as any).webkitExitFullscreen();
+        } else if ((document as any).mozCancelFullScreen) {
+          (document as any).mozCancelFullScreen();
+        }
       }
     } catch {
       // ignore
@@ -150,9 +157,16 @@ export function useExamSecurity({ active, onViolation }: UseExamSecurityOptions)
       const isNowFullscreen = !!(
         document.fullscreenElement ||
         (document as any).webkitFullscreenElement ||
-        (document as any).mozFullScreenElement
+        (document as any).mozFullscreenElement
       );
       setIsFullscreen(isNowFullscreen);
+
+      if (isProgrammaticExitRef.current) {
+        if (!isNowFullscreen) {
+          isProgrammaticExitRef.current = false; // Reset the flag once exit is complete
+        }
+        return;
+      }
 
       if (activeRef.current && !isNowFullscreen) {
         onViolation("FullscreenExit", "Student exited fullscreen mode.", "fullscreenchange:exit");
