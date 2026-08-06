@@ -66,7 +66,7 @@ export default function AssessmentPage() {
   // Custom states/refs for AI Proctoring & Calculator additions
   const [examSettings, setExamSettings] = useState({
     calculatorEnabled: true,
-    calculatorMode: "Basic" as "Basic" | "Scientific",
+    calculatorMode: "Scientific" as "Basic" | "Scientific",
     faceMissingTimeout: 5,
     pauseTimerOnFaceMissing: false,
     objectDetectionEnabled: true
@@ -78,6 +78,7 @@ export default function AssessmentPage() {
   
   const [aiStatus, setAiStatus] = useState("Initializing proctoring...");
   const proctoringEngineRef = useRef<ModularProctoringEngine | null>(null);
+  const proctoringLimitRef = useRef<number>(5);
 
   // List state
   const [assessments, setAssessments] = useState<Assessment[]>([]);
@@ -548,6 +549,7 @@ export default function AssessmentPage() {
     
     loadProfile();
     fetchAssessments();
+    fetchProctoringConfig();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -615,6 +617,28 @@ export default function AssessmentPage() {
       setAssessments(res.data || []);
     } catch (err) { console.error(err); }
     finally { setLoadingList(false); }
+  };
+
+  const fetchProctoringConfig = async () => {
+    try {
+      const res = await api.get("/ExamSecurity/config");
+      if (res.data) {
+        if (typeof res.data.lookAwayDurationLimit === "number") {
+          proctoringLimitRef.current = res.data.lookAwayDurationLimit;
+        }
+        const updated = {
+          calculatorEnabled: true,
+          calculatorMode: "Scientific" as const,
+          faceMissingTimeout: typeof res.data.faceMissingTimeout === "number" ? res.data.faceMissingTimeout : 5,
+          pauseTimerOnFaceMissing: typeof res.data.pauseTimerOnFaceMissing === "boolean" ? res.data.pauseTimerOnFaceMissing : false,
+          objectDetectionEnabled: typeof res.data.objectDetectionEnabled === "boolean" ? res.data.objectDetectionEnabled : true
+        };
+        setExamSettings(updated);
+        examSettingsRef.current = updated;
+      }
+    } catch (err) {
+      console.error("[Proctor] Failed to load proctoring config:", err);
+    }
   };
 
   // ── Timer & Warnings (15m, 10m, 5m, 1m) ─────────────────────────────────
@@ -855,6 +879,10 @@ export default function AssessmentPage() {
           setAiStatus(status);
         },
         sampleFps: 5,
+        lookingAwayConfig: {
+          bufferSize: Math.ceil(proctoringLimitRef.current * 5),
+          minDurationFrames: Math.ceil(proctoringLimitRef.current * 5),
+        },
       });
 
       proctoringEngineRef.current = engine;
@@ -1005,14 +1033,13 @@ export default function AssessmentPage() {
         console.warn("Failed to store device info:", e);
       }
 
-      // Load settings
-      const savedSettings = localStorage.getItem(`assessment-settings-${activeAssessment.id}`);
-      const settings = savedSettings ? JSON.parse(savedSettings) : {
+      // Load settings from global config
+      const settings = {
         calculatorEnabled: true,
-        calculatorMode: "Basic",
-        faceMissingTimeout: 5,
-        pauseTimerOnFaceMissing: false,
-        objectDetectionEnabled: true
+        calculatorMode: "Scientific" as const,
+        faceMissingTimeout: examSettingsRef.current.faceMissingTimeout,
+        pauseTimerOnFaceMissing: examSettingsRef.current.pauseTimerOnFaceMissing,
+        objectDetectionEnabled: examSettingsRef.current.objectDetectionEnabled
       };
       setExamSettings(settings);
       examSettingsRef.current = settings;

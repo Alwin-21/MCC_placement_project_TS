@@ -18,6 +18,9 @@ import {
   FileText,
   Shield,
   Layers,
+  Save,
+  ShieldAlert,
+  RefreshCw,
   Activity,
   ArrowLeft,
   XCircle,
@@ -75,7 +78,8 @@ type ActiveTab =
   | "companies"
   | "jobs"
   | "taxonomy"
-  | "hr-access";
+  | "hr-access"
+  | "exam-security";
 
 export default function AdminPage() {
   const router = useRouter();
@@ -102,6 +106,16 @@ export default function AdminPage() {
   const [adminPermissions, setAdminPermissions] = useState<Record<string, string>>({});
   const [backingUp, setBackingUp] = useState(false);
   const [restoringBackup, setRestoringBackup] = useState(false);
+
+  const [proctoringConfig, setProctoringConfig] = useState({
+    lookAwayDurationLimit: 5,
+    faceMissingTimeout: 5,
+    pauseTimerOnFaceMissing: false,
+    objectDetectionEnabled: true,
+  });
+  const [proctoringLoading, setProctoringLoading] = useState(false);
+  const [proctoringSaving, setProctoringSaving] = useState(false);
+  const [proctoringStatus, setProctoringStatus] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
   // Admin placement analytics and automation states
   const [adminAnalytics, setAdminAnalytics] = useState<any>(null);
@@ -134,6 +148,37 @@ export default function AdminPage() {
   };
 
 
+  const fetchProctoringConfig = async () => {
+    try {
+      setProctoringLoading(true);
+      const res = await api.get("/ExamSecurity/config");
+      setProctoringConfig(res.data);
+    } catch (err) {
+      console.error("Proctoring config fetch failed", err);
+    } finally {
+      setProctoringLoading(false);
+    }
+  };
+
+  const handleSaveProctoringConfig = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!canWrite("exam-security")) {
+      setProctoringStatus({ type: "error", text: "You do not have write permission for Exam Security." });
+      return;
+    }
+    try {
+      setProctoringSaving(true);
+      setProctoringStatus(null);
+      await api.post("/ExamSecurity/config", proctoringConfig);
+      setProctoringStatus({ type: "success", text: "Proctoring configuration updated successfully!" });
+    } catch (err: any) {
+      console.error(err);
+      setProctoringStatus({ type: "error", text: err.response?.data || "Failed to update proctoring configuration." });
+    } finally {
+      setProctoringSaving(false);
+    }
+  };
+
   // ── Permission helpers ──────────────────────────────────────────────
   // Super Admin always has full write access. Sub-admins check their map.
   const canRead  = (mod: string): boolean => isSuperAdmin || (adminPermissions[mod] === "read" || adminPermissions[mod] === "write");
@@ -161,6 +206,7 @@ export default function AdminPage() {
     { id: "notifications", label: "Notification Manager", alwaysRead: false },
     { id: "assessments",   label: "Assessment Module",    alwaysRead: false },
     { id: "companies",     label: "Company Management",   alwaysRead: false },
+    { id: "exam-security",  label: "Exam Security Settings", alwaysRead: false },
   ];
 
   // ==========================================
@@ -453,6 +499,8 @@ export default function AdminPage() {
       fetchTaxonomyAndConfig();
     } else if (activeTab === "analytics") {
       fetchAdminAnalytics();
+    } else if (activeTab === "exam-security") {
+      fetchProctoringConfig();
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab]);
@@ -1375,6 +1423,7 @@ export default function AdminPage() {
               { id: "hr-access",      label: "HR Data Access",       icon: Shield,         superOnly: false },
               { id: "jobs",          label: "Placement Opportunities", icon: Briefcase,     superOnly: false },
               { id: "taxonomy",      label: "Skill Taxonomy & Config", icon: Sliders,       superOnly: false },
+              { id: "exam-security",  label: "Exam Security Settings", icon: ShieldAlert,    superOnly: false },
               { id: "institution",   label: "Institution Details",  icon: Building,       superOnly: false },
               { id: "analytics",     label: "Department Analytics", icon: BarChart2,      superOnly: false },
               { id: "reports",       label: "Analytics & Export",   icon: FileText,       superOnly: false },
@@ -1485,6 +1534,7 @@ export default function AdminPage() {
                   { id: "companies",     label: "Company Onboarding",   icon: Building,  superOnly: false },
                   { id: "jobs",          label: "Placement Opportunities", icon: Briefcase, superOnly: false },
                   { id: "taxonomy",      label: "Skill Taxonomy & Config", icon: Sliders,   superOnly: false },
+                  { id: "exam-security",  label: "Exam Security Settings", icon: ShieldAlert,superOnly: false },
                   { id: "institution",   label: "Institution Details",  icon: Building,  superOnly: false },
                   { id: "analytics",     label: "Department Analytics", icon: BarChart2, superOnly: false },
                   { id: "reports",       label: "Analytics & Export",   icon: FileText,  superOnly: false },
@@ -1550,7 +1600,7 @@ export default function AdminPage() {
       {/* ==========================================
           MAIN CONTENT AREA
           ========================================== */}
-      <div className="flex-1 min-w-0 p-6 md:p-8 relative z-10 overflow-y-auto overflow-x-hidden h-screen">
+      <div className="flex-1 min-w-0 p-6 md:p-8 relative overflow-y-auto overflow-x-hidden h-screen">
         
         {/* MOBILE TOP HEADER BAR */}
         <div className="md:hidden flex items-center justify-between p-4 bg-white dark:bg-[#09090d] border border-slate-200 dark:border-white/5 rounded-2xl select-none mb-6 shadow-xs">
@@ -1767,7 +1817,10 @@ export default function AdminPage() {
                   <label className="text-[9px] uppercase font-mono tracking-wider font-bold text-slate-400">Stream</label>
                   <select
                     value={streamFilter}
-                    onChange={(e) => setStreamFilter(e.target.value)}
+                    onChange={(e) => {
+                      setStreamFilter(e.target.value);
+                      setDeptFilter("all");
+                    }}
                     className={`px-3 h-[38px] rounded-xl text-xs font-semibold outline-none border cursor-pointer ${
                       themeMode === "dark" ? "bg-[#121217] border-white/5 text-white" : "bg-white border-slate-200 text-slate-700"
                     }`}
@@ -1794,9 +1847,32 @@ export default function AdminPage() {
                         ...(institution?.departments?.split(";").map((d: string) => d.trim()).filter(Boolean) || []),
                         ...students.map((s) => (s.department || s.Department || "").trim()).filter(Boolean)
                       ])
-                    ).sort().map((d) => (
-                      <option key={d} value={d}>{d}</option>
-                    ))}
+                    )
+                      .filter((d) => {
+                        if (streamFilter === "all") return true;
+                        const dLower = d.toLowerCase();
+                        if (streamFilter === "Aided") {
+                          return [
+                            "english", "tamil", "languages", "history", "political science", 
+                            "public administration", "economics", "philosophy", "commerce", 
+                            "social work", "mathematics", "statistics", "physics", "chemistry", 
+                            "botany", "zoology", "physical education"
+                          ].includes(dLower);
+                        } else {
+                          return [
+                            "english", "tamil", "languages", "journalism", "social work", 
+                            "commerce", "business administration", "communication", "geography", 
+                            "tourism studies", "mathematics", "physics", "chemistry", "microbiology", 
+                            "computer application (bca)", "computer science (b.sc)", "computer science (mca)", 
+                            "visual communication", "physical education, health education and sports", 
+                            "psychology", "data science"
+                          ].includes(dLower);
+                        }
+                      })
+                      .sort()
+                      .map((d) => (
+                        <option key={d} value={d}>{d}</option>
+                      ))}
                   </select>
                 </div>
 
@@ -3282,6 +3358,110 @@ export default function AdminPage() {
             ========================================== */}
         {activeTab === "assessments" && (
           <AssessmentAdminModule themeMode={themeMode} toggleThemeMode={toggleThemeMode} />
+        )}
+
+        {/* ==========================================
+            TAB: EXAM SECURITY SETTINGS
+            ========================================== */}
+        {activeTab === "exam-security" && (
+          <div className="space-y-6 animate-fade-in-up text-left max-w-xl">
+            <div>
+              <h2 className={`text-2xl font-black ${themeMode === "dark" ? "text-white" : "text-slate-900"}`}>Exam Security & Proctoring</h2>
+              <p className="text-gray-400 text-xs">Configure global webcam proctoring settings applied to all assessments.</p>
+            </div>
+
+            {proctoringStatus && (
+              <div className={`p-4 rounded-xl text-xs font-semibold flex items-center gap-2 border ${
+                proctoringStatus.type === "success"
+                  ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400"
+                  : "bg-red-500/10 border-red-500/20 text-red-400"
+              }`}>
+                {proctoringStatus.type === "success" ? <CheckCircle size={16} /> : <AlertCircle size={16} />}
+                {proctoringStatus.text}
+              </div>
+            )}
+
+            {proctoringLoading ? (
+              <div className="py-16 text-center text-slate-400 flex items-center justify-center gap-2">
+                <RefreshCw className="w-5 h-5 animate-spin text-[#781c1c]" /> Loading configuration...
+              </div>
+            ) : (
+              <form onSubmit={handleSaveProctoringConfig} className={`p-6 border rounded-3xl space-y-4 ${themeMode === "dark" ? "bg-white/5 border-white/5" : "bg-white border-slate-200"}`}>
+                <div className="space-y-4">
+                  <div className="space-y-1.5">
+                    <label className="block text-[10px] uppercase font-bold text-slate-400 tracking-wider">
+                      Look-Away Warning Threshold (seconds)
+                    </label>
+                    <p className="text-slate-400 text-[11px] leading-relaxed">
+                      Set the duration (in seconds) a student can look away from the screen or webcam before a malpractice warning is automatically logged.
+                    </p>
+                    <input
+                      type="number"
+                      min={2}
+                      max={30}
+                      value={proctoringConfig.lookAwayDurationLimit}
+                      onChange={(e) => setProctoringConfig({ ...proctoringConfig, lookAwayDurationLimit: Number(e.target.value) })}
+                      className="w-full text-xs px-4 py-2.5 rounded-xl border outline-none bg-slate-50 dark:bg-white/5 border-slate-200 dark:border-white/10 text-slate-900 dark:text-white"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5 pt-2 border-t border-slate-200 dark:border-white/5">
+                    <label className="block text-[10px] uppercase font-bold text-slate-400 tracking-wider">
+                      Face Missing Timeout (seconds)
+                    </label>
+                    <p className="text-slate-400 text-[11px] leading-relaxed">
+                      Duration in seconds before violation warning is triggered if no face is detected by the webcam.
+                    </p>
+                    <input
+                      type="number"
+                      min={1}
+                      max={120}
+                      value={proctoringConfig.faceMissingTimeout}
+                      onChange={(e) => setProctoringConfig({ ...proctoringConfig, faceMissingTimeout: Number(e.target.value) })}
+                      className="w-full text-xs px-4 py-2.5 rounded-xl border outline-none bg-slate-50 dark:bg-white/5 border-slate-200 dark:border-white/10 text-slate-900 dark:text-white"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 border-t border-slate-200 dark:border-white/5">
+                    <div className="flex items-center justify-between p-3 bg-slate-50 dark:bg-white/5 rounded-xl border border-slate-200 dark:border-white/10">
+                      <div className="flex flex-col gap-0.5 text-left">
+                        <span className="text-xs font-bold text-slate-900 dark:text-white">Object Detection</span>
+                        <span className="text-[9px] text-slate-400">Detect phone/tablet usage</span>
+                      </div>
+                      <input
+                        type="checkbox"
+                        checked={proctoringConfig.objectDetectionEnabled}
+                        onChange={(e) => setProctoringConfig({ ...proctoringConfig, objectDetectionEnabled: e.target.checked })}
+                        className="w-4 h-4 rounded text-[#781c1c] focus:ring-[#781c1c] bg-slate-100 border-slate-350"
+                      />
+                    </div>
+
+                    <div className="flex items-center justify-between p-3 bg-slate-50 dark:bg-white/5 rounded-xl border border-slate-200 dark:border-white/10">
+                      <div className="flex flex-col gap-0.5 text-left">
+                        <span className="text-xs font-bold text-slate-900 dark:text-white">Pause Exam on Face Loss</span>
+                        <span className="text-[9px] text-slate-400">Pause timer if face missing</span>
+                      </div>
+                      <input
+                        type="checkbox"
+                        checked={proctoringConfig.pauseTimerOnFaceMissing}
+                        onChange={(e) => setProctoringConfig({ ...proctoringConfig, pauseTimerOnFaceMissing: e.target.checked })}
+                        className="w-4 h-4 rounded text-[#781c1c] focus:ring-[#781c1c] bg-slate-100 border-slate-350"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={proctoringSaving}
+                  className="w-full flex items-center justify-center gap-2 bg-[#781c1c] hover:bg-[#5f1515] disabled:bg-slate-700 text-white font-bold py-2.5 rounded-xl text-xs uppercase font-mono shadow-md transition"
+                >
+                  {proctoringSaving ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Save size={14} />}
+                  Save Configuration
+                </button>
+              </form>
+            )}
+          </div>
         )}
 
         {/* ==========================================

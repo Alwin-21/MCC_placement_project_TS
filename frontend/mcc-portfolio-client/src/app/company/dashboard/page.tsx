@@ -43,6 +43,24 @@ import {
 import api from "@/services/api";
 import { useTheme } from "@/hooks/useTheme";
 
+const aidedDepartments = [
+  "English", "Tamil", "Languages", "History", "Political Science", 
+  "Public Administration", "Economics", "Philosophy", "Commerce", 
+  "Social Work", "Mathematics", "Statistics", "Physics", "Chemistry", 
+  "Botany", "Zoology", "Physical Education"
+];
+
+const sfsDepartments = [
+  "English", "Tamil", "Languages", "Journalism", "Social Work", 
+  "Commerce", "Business Administration", "Communication", "Geography", 
+  "Tourism Studies", "Mathematics", "Physics", "Chemistry", "Microbiology", 
+  "Computer Application (BCA)", "Computer Science (B.Sc)", "Computer Science (MCA)", 
+  "Visual Communication", "Physical Education, Health Education and Sports", 
+  "Psychology", "Data Science"
+];
+
+const allDepartments = Array.from(new Set([...aidedDepartments, ...sfsDepartments])).sort();
+
 const LinkedinIcon = ({ size = 16, className = "" }: { size?: number; className?: string }) => (
   <svg
     xmlns="http://www.w3.org/2000/svg"
@@ -129,6 +147,7 @@ export default function CompanyDashboardPage() {
   const [students, setStudents] = useState<any[]>([]);
   const [studentSearch, setStudentSearch] = useState("");
   const [studentDeptFilter, setStudentDeptFilter] = useState("all");
+  const [studentStreamFilter, setStudentStreamFilter] = useState("all");
   const [poolModalOpen, setPoolModalOpen] = useState(false);
   const [poolForm, setPoolForm] = useState({ name: "", studentIds: [] as number[] });
 
@@ -2349,7 +2368,7 @@ export default function CompanyDashboardPage() {
               <div>
                 <label className="text-[10px] uppercase font-bold text-slate-400 block mb-2">Select Candidate Portfolios</label>
 
-                <div className="flex gap-2 mb-3">
+                <div className="flex gap-2 mb-3 flex-wrap">
                   <input
                     type="text"
                     placeholder="Search by student name..."
@@ -2358,14 +2377,31 @@ export default function CompanyDashboardPage() {
                     className="flex-1 text-xs px-3 py-2 border rounded-xl outline-none transition bg-slate-50 dark:bg-white/5 border-slate-200 dark:border-white/10 text-slate-900 dark:text-white"
                   />
                   <select
+                    value={studentStreamFilter}
+                    onChange={(e) => {
+                      setStudentStreamFilter(e.target.value);
+                      setStudentDeptFilter("all");
+                    }}
+                    className="text-xs px-3 py-2 border rounded-xl outline-none transition bg-slate-50 dark:bg-white/5 border-slate-200 dark:border-white/10 text-slate-900 dark:text-white"
+                  >
+                    <option value="all">All Streams</option>
+                    <option value="Aided">Aided</option>
+                    <option value="SFS">SFS</option>
+                  </select>
+                  <select
                     value={studentDeptFilter}
                     onChange={(e) => setStudentDeptFilter(e.target.value)}
                     className="text-xs px-3 py-2 border rounded-xl outline-none transition bg-slate-50 dark:bg-white/5 border-slate-200 dark:border-white/10 text-slate-900 dark:text-white"
                   >
                     <option value="all">All Departments</option>
-                    <option value="Computer Science">Computer Science</option>
-                    <option value="Information Technology">Information Technology</option>
-                    <option value="MCA">MCA</option>
+                    {(studentStreamFilter === "all"
+                      ? allDepartments
+                      : studentStreamFilter === "Aided"
+                      ? aidedDepartments
+                      : sfsDepartments
+                    ).map((d) => (
+                      <option key={d} value={d}>{d}</option>
+                    ))}
                   </select>
                 </div>
 
@@ -2373,8 +2409,9 @@ export default function CompanyDashboardPage() {
                   {students
                     .filter((s) => {
                       const matchSearch = s.fullName.toLowerCase().includes(studentSearch.toLowerCase());
+                      const matchStream = studentStreamFilter === "all" || (s.stream || s.Stream || "").toLowerCase() === studentStreamFilter.toLowerCase();
                       const matchDept = studentDeptFilter === "all" || s.department === studentDeptFilter;
-                      return matchSearch && matchDept;
+                      return matchSearch && matchStream && matchDept;
                     })
                     .map((s) => {
                       const checked = poolForm.studentIds.includes(s.id);
