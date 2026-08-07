@@ -16,23 +16,23 @@ export async function GET(request: Request) {
       return NextResponse.json("Unauthorized", { status: 401 });
     }
 
-    const config = await prisma.matchingEngineConfig.findUnique({
-      where: { ConfigKey: "proctoring_config" }
-    });
-
-    if (!config) {
-      return NextResponse.json(DEFAULT_CONFIG);
-    }
-
     try {
-      const parsed = JSON.parse(config.ConfigVal);
-      return NextResponse.json({ ...DEFAULT_CONFIG, ...parsed });
+      const config = await prisma.matchingEngineConfig.findUnique({
+        where: { ConfigKey: "proctoring_config" }
+      });
+
+      if (config) {
+        const parsed = JSON.parse(config.ConfigVal);
+        return NextResponse.json({ ...DEFAULT_CONFIG, ...parsed });
+      }
     } catch (e) {
-      return NextResponse.json(DEFAULT_CONFIG);
+      console.warn("Could not fetch proctoring config from DB, returning defaults:", e);
     }
+
+    return NextResponse.json(DEFAULT_CONFIG);
   } catch (err: any) {
     console.error("GET Proctoring Config Error:", err);
-    return NextResponse.json({ message: "Internal server error" }, { status: 500 });
+    return NextResponse.json(DEFAULT_CONFIG);
   }
 }
 
