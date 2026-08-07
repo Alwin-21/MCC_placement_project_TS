@@ -56,7 +56,6 @@ const sidebarLinks = [
   { id: "patents-section", label: "Patents", icon: FileText },
   { id: "media-handles-section", label: "Media Handles", icon: Link },
   { id: "resume-section", label: "Resume", icon: FileText },
-  { id: "assessments-section", label: "Assessments", icon: BookOpen }
 ];
 
 export default function DashboardPage() {
@@ -249,6 +248,17 @@ export default function DashboardPage() {
 
   // Student Assessments State
   const [studentAssessments, setStudentAssessments] = useState<any[]>([]);
+
+  // Pending assessment count: assessments that are currently active (live) and not yet submitted
+  const pendingAssessmentCount = studentAssessments.filter(a => {
+    const now = new Date();
+    const start = new Date(a.startDate);
+    const end = new Date(a.endDate);
+    const isLive = !a.isClosed && now >= start && now <= end;
+    const isSubmitted = a.attempt?.isSubmitted;
+    const isMalpractice = a.attempt?.status === "MALPRACTICE_TERMINATED";
+    return isLive && !isSubmitted && !isMalpractice;
+  }).length;
 
   // Copy Link State
   const [copiedIdLink, setCopiedIdLink] = useState(false);
@@ -1443,7 +1453,7 @@ Report Generated: ${new Date().toLocaleDateString()}
 
   return (
     <div className={`h-screen h-[100dvh] overflow-hidden flex transition-colors duration-300 ${
-      themeMode === "dark" ? "bg-[#0d0d12] text-white" : "bg-[#fcfaf6] text-[#0f172a]"
+      themeMode === "dark" ? "bg-[#0d0d12] text-white" : "bg-[#F8F4EC] text-[#2B2620]"
     }`}>
             {/* SIDEBAR NAVIGATION */}
       <div className="w-72 border-r relative z-20 flex flex-col justify-between shrink-0 h-screen sticky top-0 transition-colors duration-300 hidden md:flex mcc-sidebar">
@@ -1491,14 +1501,6 @@ Report Generated: ${new Date().toLocaleDateString()}
           })}
 
           <div className="pt-4 border-t border-slate-200 dark:border-white/5 space-y-1.5">
-            <button
-              onClick={() => router.push("/assessment")}
-              className={`w-full flex items-center gap-3.5 px-4 py-3 rounded-xl text-xs font-semibold tracking-wide transition-all duration-200 cursor-pointer ${
-                themeMode === "dark" ? "hover:bg-white/5 text-indigo-400 hover:text-indigo-300 font-bold" : "hover:bg-indigo-50 text-indigo-700 font-bold"
-              }`}
-            >
-              <ClipboardList size={16} className="text-indigo-400" /> Department Assessments
-            </button>
 
             <button
               onClick={() => router.push("/dashboard/resumes")}
@@ -1830,9 +1832,14 @@ Report Generated: ${new Date().toLocaleDateString()}
           <div className="flex items-center gap-3">
             <button
               onClick={() => router.push("/assessment")}
-              className="bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs px-4 py-2.5 rounded-xl shadow-lg shadow-indigo-600/30 flex items-center gap-2 transition cursor-pointer"
+              className="relative bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs px-4 py-2.5 rounded-xl shadow-lg shadow-indigo-600/30 flex items-center gap-2 transition cursor-pointer"
             >
-              <ClipboardList size={15} /> Department Assessments
+              <ClipboardList size={15} /> Assessments
+              {pendingAssessmentCount > 0 && (
+                <span className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] px-1 bg-[#781c1c] text-white text-[9px] font-black rounded-full flex items-center justify-center border-2 border-indigo-600 leading-none shadow-sm">
+                  {pendingAssessmentCount > 99 ? "99+" : pendingAssessmentCount}
+                </span>
+              )}
             </button>
 
             <div className="bg-emerald-500/10 border border-emerald-500/20 px-4 py-2.5 rounded-xl flex items-center gap-2">
