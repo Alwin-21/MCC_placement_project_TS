@@ -192,10 +192,23 @@ export default function LoginPage() {
             playsInline
             preload="auto"
             src="/new.mp4"
-            className="w-full h-full object-cover filter brightness-105 contrast-105"
+            className={`w-full h-full object-cover transition-all duration-500 ${
+              isDark
+                ? "brightness-[0.45] saturate-[0.65] contrast-105"
+                : "brightness-105 contrast-105"
+            }`}
           />
-          {/* Deeper contrast overlay to keep fonts perfectly clear */}
-          <div className="absolute inset-0 bg-black/45" />
+          {/* Dark mode: deep navy-to-black gradient for night atmosphere */}
+          {isDark ? (
+            <div
+              className="absolute inset-0 z-[5] pointer-events-none"
+              style={{
+                background: "linear-gradient(160deg, rgba(2,6,18,0.72) 0%, rgba(4,10,30,0.65) 40%, rgba(0,0,0,0.60) 100%)"
+              }}
+            />
+          ) : (
+            <div className="absolute inset-0 bg-black/45" />
+          )}
         </div>
 
         {/* Placeholder to push copy down */}
