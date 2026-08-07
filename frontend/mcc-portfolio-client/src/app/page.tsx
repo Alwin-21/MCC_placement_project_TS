@@ -77,6 +77,7 @@ export default function HomePage() {
       <section className="relative flex-1 flex flex-col items-center justify-center min-h-[calc(100vh-140px)] sm:min-h-screen overflow-hidden py-10 sm:py-16 px-3 sm:px-4">
         {/* Permanently Cropped Background Drone Video - Plays Instantly with Zero Delay */}
         <div className="absolute inset-0 z-0 bg-[#090d16] h-full w-full">
+          {/* Video: light mode — natural daytime; dark mode — dimmed/desaturated for night feel */}
           <video
             autoPlay
             loop
@@ -84,10 +85,14 @@ export default function HomePage() {
             playsInline
             preload="auto"
             src="/new.mp4"
-            className="w-full h-full object-cover filter brightness-105 contrast-105"
+            className={`w-full h-full object-cover transition-all duration-500 ${
+              isDark
+                ? "brightness-[0.45] saturate-[0.65] contrast-105"
+                : "brightness-105 contrast-105"
+            }`}
           />
 
-          {/* Rich Dark-to-Transparency Fade Overlay (350px tall) */}
+          {/* Top fade gradient — same in both modes */}
           <div
             className="absolute top-0 left-0 right-0 h-[350px] pointer-events-none z-10 hidden sm:block"
             style={{
@@ -95,13 +100,23 @@ export default function HomePage() {
             }}
           />
 
-          {/* Minimal overlay to ensure maximum video clarity */}
-          <div className="absolute inset-0 bg-black/20" />
+          {/* Dark mode: deep navy-to-black gradient overlay for convincing night atmosphere */}
+          {isDark && (
+            <div
+              className="absolute inset-0 z-[5] pointer-events-none"
+              style={{
+                background: "linear-gradient(160deg, rgba(2,6,18,0.72) 0%, rgba(4,10,30,0.65) 40%, rgba(0,0,0,0.60) 100%)"
+              }}
+            />
+          )}
+
+          {/* Light mode: minimal overlay for video clarity */}
+          {!isDark && <div className="absolute inset-0 bg-black/20" />}
         </div>
 
-        {/* Floating Ultra-Translucent Glass Center Card (Enlarged for Desktop) */}
+        {/* Hero Content — fully transparent wrapper, no card chrome */}
         <div className="relative z-10 max-w-3xl lg:max-w-4xl mx-auto my-auto text-center px-2 sm:px-4 w-full animate-fade-in-up mt-12 sm:mt-24 lg:mt-36 lg:translate-y-4">
-          <div className="rounded-3xl p-6 sm:p-14 lg:p-16 bg-black/[0.03] border border-white/10 shadow-lg shadow-black/10" style={{ backdropFilter: "blur(0.5px)", WebkitBackdropFilter: "blur(0.5px)" }}>
+          <div className="rounded-3xl p-6 sm:p-14 lg:p-16">
             {/* Main Headline */}
             <h1
               className="text-3xl sm:text-6xl lg:text-7xl font-extrabold leading-[1.1] mb-4 sm:mb-6 text-white !text-white"
@@ -144,9 +159,12 @@ export default function HomePage() {
                 Sign In to Account
               </Link>
 
+              {/* Company / HR Portal — hidden but kept in DOM for easy re-enable */}
               <Link
                 href="/company/login"
-                className="w-full sm:w-auto px-8 sm:px-10 py-3.5 sm:py-4 rounded-2xl text-xs sm:text-base font-black bg-white/10 hover:bg-white/20 text-white backdrop-blur-md border border-white/20 hover:scale-105 active:scale-95 transition-all flex items-center justify-center uppercase tracking-wider"
+                className="hidden"
+                aria-hidden="true"
+                tabIndex={-1}
               >
                 Company / HR Portal
               </Link>
