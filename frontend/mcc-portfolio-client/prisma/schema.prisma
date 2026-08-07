@@ -1,0 +1,703 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model AcademicRecords {
+  Id            Int    @id(map: "PK_AcademicRecords") @default(autoincrement())
+  Institution   String
+  Degree        String
+  FieldOfStudy  String
+  Grade         String
+  StartYear     Int
+  EndYear       Int
+  AttachmentUrl String
+  UserId        Int
+  Users         Users  @relation(fields: [UserId], references: [Id], onDelete: Cascade, onUpdate: NoAction, map: "FK_AcademicRecords_Users_UserId")
+
+  @@index([UserId], map: "IX_AcademicRecords_UserId")
+}
+
+model Achievements {
+  Id              Int      @id(map: "PK_Achievements") @default(autoincrement())
+  Title           String
+  Description     String
+  AchievementUrl  String
+  AchievementDate DateTime @db.Timestamptz(6)
+  UserId          Int
+  Category        String   @default("")
+  Users           Users    @relation(fields: [UserId], references: [Id], onDelete: Cascade, onUpdate: NoAction, map: "FK_Achievements_Users_UserId")
+
+  @@index([UserId], map: "IX_Achievements_UserId")
+}
+
+model AuditLogs {
+  Id               Int      @id(map: "PK_AuditLogs") @default(autoincrement())
+  Action           String
+  PerformedByEmail String
+  Timestamp        DateTime @db.Timestamptz(6)
+  Details          String
+  IpAddress        String
+}
+
+model Certifications {
+  Id             Int      @id(map: "PK_Certifications") @default(autoincrement())
+  Title          String
+  Issuer         String
+  CertificateUrl String
+  IssueDate      DateTime @db.Timestamptz(6)
+  UserId         Int
+  Category       String   @default("")
+  Users          Users    @relation(fields: [UserId], references: [Id], onDelete: Cascade, onUpdate: NoAction, map: "FK_Certifications_Users_UserId")
+
+  @@index([UserId], map: "IX_Certifications_UserId")
+}
+
+model CommunityServices {
+  Id            Int      @id(map: "PK_CommunityServices") @default(autoincrement())
+  Title         String
+  Organization  String
+  Description   String
+  HoursServed   Float
+  Date          DateTime @db.Timestamptz(6)
+  AttachmentUrl String
+  UserId        Int
+  Users         Users    @relation(fields: [UserId], references: [Id], onDelete: Cascade, onUpdate: NoAction, map: "FK_CommunityServices_Users_UserId")
+
+  @@index([UserId], map: "IX_CommunityServices_UserId")
+}
+
+model CreativeWorks {
+  Id          Int      @id(map: "PK_CreativeWorks") @default(autoincrement())
+  Title       String
+  Category    String
+  Description String
+  WorkUrl     String
+  MediaUrl    String
+  Date        DateTime @db.Timestamptz(6)
+  UserId      Int
+  Users       Users    @relation(fields: [UserId], references: [Id], onDelete: Cascade, onUpdate: NoAction, map: "FK_CreativeWorks_Users_UserId")
+
+  @@index([UserId], map: "IX_CreativeWorks_UserId")
+}
+
+model Experiences {
+  Id          Int     @id(map: "PK_Experiences") @default(autoincrement())
+  Title       String
+  Company     String
+  Location    String
+  Description String
+  StartDate   String
+  EndDate     String
+  IsCurrent   Boolean
+  Category    String
+  UserId      Int
+  Users       Users   @relation(fields: [UserId], references: [Id], onDelete: Cascade, onUpdate: NoAction, map: "FK_Experiences_Users_UserId")
+
+  @@index([UserId], map: "IX_Experiences_UserId")
+}
+
+model Hackathons {
+  Id             Int      @id(map: "PK_Hackathons") @default(autoincrement())
+  Title          String
+  Organizer      String
+  Description    String
+  ProjectName    String
+  HackathonUrl   String
+  EventDate      DateTime @db.Timestamptz(6)
+  UserId         Int
+  CertificateUrl String   @default("")
+  Users          Users    @relation(fields: [UserId], references: [Id], onDelete: Cascade, onUpdate: NoAction, map: "FK_Hackathons_Users_UserId")
+
+  @@index([UserId], map: "IX_Hackathons_UserId")
+}
+
+model InstitutionDetails {
+  Id           Int    @id(map: "PK_InstitutionDetails") @default(autoincrement())
+  Name         String
+  Code         String
+  Description  String
+  Address      String
+  ContactEmail String
+  ContactPhone String
+  Website      String
+  LogoUrl      String
+  Departments  String
+}
+
+model NgoActivities {
+  Id               Int       @id(map: "PK_NgoActivities") @default(autoincrement())
+  OrganizationName String
+  Role             String
+  Description      String
+  HoursContributed Float
+  StartDate        DateTime  @db.Timestamptz(6)
+  EndDate          DateTime? @db.Timestamptz(6)
+  CertificateUrl   String
+  UserId           Int
+  Users            Users     @relation(fields: [UserId], references: [Id], onDelete: Cascade, onUpdate: NoAction, map: "FK_NgoActivities_Users_UserId")
+
+  @@index([UserId], map: "IX_NgoActivities_UserId")
+}
+
+model Notifications {
+  Id        Int      @id(map: "PK_Notifications") @default(autoincrement())
+  Title     String
+  Message   String
+  Type      String
+  IsRead    Boolean
+  CreatedAt DateTime @db.Timestamptz(6)
+  UserId    Int?
+  Users     Users?   @relation(fields: [UserId], references: [Id], onDelete: NoAction, onUpdate: NoAction, map: "FK_Notifications_Users_UserId")
+
+  @@index([UserId], map: "IX_Notifications_UserId")
+}
+
+model Olympiads {
+  Id             Int    @id(map: "PK_Olympiads") @default(autoincrement())
+  Name           String
+  Subject        String
+  Rank           String
+  Year           Int
+  Description    String
+  CertificateUrl String
+  UserId         Int
+  Users          Users  @relation(fields: [UserId], references: [Id], onDelete: Cascade, onUpdate: NoAction, map: "FK_Olympiads_Users_UserId")
+
+  @@index([UserId], map: "IX_Olympiads_UserId")
+}
+
+model Profiles {
+  Id                    Int     @id(map: "PK_Profiles") @default(autoincrement())
+  Bio                   String
+  LinkedInUrl           String
+  GitHubUrl             String
+  ProfileImageUrl       String
+  UserId                Int
+  IsApproved            Boolean @default(false)
+  SelectedTheme         String  @default("")
+  BehanceUrl            String  @default("")
+  CGPA                  Float   @default(0.0)
+  GitHubUsername        String  @default("")
+  TargetCareer          String  @default("")
+  PersonalStory         String  @default("")
+  SOP                   String  @default("")
+  CurrentCompany        String  @default("")
+  CurrentJobTitle       String  @default("")
+  GraduationYear        Int?
+  HigherStudyProgram    String  @default("")
+  HigherStudyUniversity String  @default("")
+  IsAlumni              Boolean @default(false)
+  BlogUrl               String  @default("")
+  Course                String  @default("")
+  CurrentLocation       String  @default("")
+  InstagramUrl          String  @default("")
+  Languages             String  @default("")
+  OtherHandles          String  @default("")
+  Patents               String  @default("")
+  Phone                 String  @default("")
+  TestScores            String  @default("")
+  YearOfStudy           String  @default("")
+  Users                 Users   @relation(fields: [UserId], references: [Id], onDelete: Cascade, onUpdate: NoAction, map: "FK_Profiles_Users_UserId")
+
+  @@index([UserId], map: "IX_Profiles_UserId")
+}
+
+model Projects {
+  Id           Int    @id(map: "PK_Projects") @default(autoincrement())
+  Title        String
+  Description  String
+  Technologies String
+  GithubUrl    String
+  LiveUrl      String
+  UserId       Int
+  Category     String @default("")
+  DemoVideoUrl String @default("")
+  ImageUrl     String @default("")
+  Users        Users  @relation(fields: [UserId], references: [Id], onDelete: Cascade, onUpdate: NoAction, map: "FK_Projects_Users_UserId")
+
+  @@index([UserId], map: "IX_Projects_UserId")
+}
+
+model ResearchPapers {
+  Id            Int      @id(map: "PK_ResearchPapers") @default(autoincrement())
+  Title         String
+  Abstract      String
+  Conference    String
+  PaperUrl      String
+  PublishedDate DateTime @db.Timestamptz(6)
+  UserId        Int
+  Category      String   @default("")
+  Users         Users    @relation(fields: [UserId], references: [Id], onDelete: Cascade, onUpdate: NoAction, map: "FK_ResearchPapers_Users_UserId")
+
+  @@index([UserId], map: "IX_ResearchPapers_UserId")
+}
+
+model Resumes {
+  Id          Int    @id(map: "PK_Resumes") @default(autoincrement())
+  ResumeTitle String
+  ResumeUrl   String
+  UserId      Int
+  Users       Users  @relation(fields: [UserId], references: [Id], onDelete: Cascade, onUpdate: NoAction, map: "FK_Resumes_Users_UserId")
+
+  @@index([UserId], map: "IX_Resumes_UserId")
+}
+
+model SavedResumes {
+  Id             Int      @id(map: "PK_SavedResumes") @default(autoincrement())
+  ResumeTitle    String
+  SelectedTheme  String
+  AccentColor    String
+  ResumeDataJson String
+  CreatedAt      DateTime @db.Timestamptz(6)
+  UpdatedAt      DateTime @db.Timestamptz(6)
+  UserId         Int
+  Users          Users    @relation(fields: [UserId], references: [Id], onDelete: Cascade, onUpdate: NoAction, map: "FK_SavedResumes_Users_UserId")
+
+  @@index([UserId], map: "IX_SavedResumes_UserId")
+}
+
+model Skills {
+  Id       Int    @id(map: "PK_Skills") @default(autoincrement())
+  Name     String
+  Level    String
+  UserId   Int
+  Category String @default("")
+  Users    Users  @relation(fields: [UserId], references: [Id], onDelete: Cascade, onUpdate: NoAction, map: "FK_Skills_Users_UserId")
+
+  @@index([UserId], map: "IX_Skills_UserId")
+}
+
+model SportsAchievements {
+  Id             Int      @id(map: "PK_SportsAchievements") @default(autoincrement())
+  SportName      String
+  Level          String
+  Achievement    String
+  Description    String
+  Date           DateTime @db.Timestamptz(6)
+  CertificateUrl String
+  UserId         Int
+  Users          Users    @relation(fields: [UserId], references: [Id], onDelete: Cascade, onUpdate: NoAction, map: "FK_SportsAchievements_Users_UserId")
+
+  @@index([UserId], map: "IX_SportsAchievements_UserId")
+}
+
+model StartupCompetitions {
+  Id              Int      @id(map: "PK_StartupCompetitions") @default(autoincrement())
+  CompetitionName String
+  ProjectName     String
+  Role            String
+  Result          String
+  Description     String
+  Date            DateTime @db.Timestamptz(6)
+  PitchDeckUrl    String
+  UserId          Int
+  Users           Users    @relation(fields: [UserId], references: [Id], onDelete: Cascade, onUpdate: NoAction, map: "FK_StartupCompetitions_Users_UserId")
+
+  @@index([UserId], map: "IX_StartupCompetitions_UserId")
+}
+
+model ThemeConfigs {
+  Id             Int     @id(map: "PK_ThemeConfigs") @default(autoincrement())
+  ThemeId        String
+  DisplayName    String
+  Description    String
+  IsActive       Boolean
+  FontFamily     String  @default("")
+  PrimaryColor   String  @default("")
+  SecondaryColor String  @default("")
+}
+
+model Users {
+  Id                  Int                   @id(map: "PK_Users") @default(autoincrement())
+  FullName            String
+  Email               String
+  PasswordHash        String
+  Department          String
+  RegisterNumber      String
+  ProfileImageUrl     String
+  Role                Int
+  CreatedAt           DateTime              @db.Timestamptz(6)
+  Stream              String                @default("")
+  IsTemporaryPassword Boolean               @default(false)
+  Username            String                @default("")
+  IsActive            Boolean               @default(false)
+  AdminPermissions    String                @default("")
+  AcademicRecords        AcademicRecords[]
+  Achievements           Achievements[]
+  Certifications         Certifications[]
+  CommunityServices      CommunityServices[]
+  CreativeWorks          CreativeWorks[]
+  Experiences            Experiences[]
+  Hackathons             Hackathons[]
+  NgoActivities          NgoActivities[]
+  Notifications          Notifications[]
+  Olympiads              Olympiads[]
+  Profiles               Profiles[]
+  Projects               Projects[]
+  ResearchPapers         ResearchPapers[]
+  Resumes                Resumes[]
+  SavedResumes           SavedResumes[]
+  Skills                 Skills[]
+  SportsAchievements     SportsAchievements[]
+  StartupCompetitions    StartupCompetitions[]
+  AssessmentsCreated     Assessments[]          @relation("AssessmentCreatedBy")
+  AssessmentAttempts     AssessmentAttempts[]   @relation("AttemptUser")
+  MalpracticeReports     MalpracticeReport[]    @relation("MalpracticeUser")
+  JobApplications        JobApplication[]
+}
+
+model Assessments {
+  Id                  Int                  @id @default(autoincrement())
+  Title               String
+  Description         String
+  Instructions        String
+  DurationMinutes     Int
+  TotalMarks          Int
+  StartDate           DateTime             @db.Timestamptz(6)
+  EndDate             DateTime             @db.Timestamptz(6)
+  Status              String               @default("Draft")
+  Departments         String
+  CreatedAt           DateTime             @db.Timestamptz(6)
+  UpdatedAt           DateTime             @db.Timestamptz(6)
+  CreatedByUserId     Int
+  CreatedBy           Users                @relation("AssessmentCreatedBy", fields: [CreatedByUserId], references: [Id])
+  AssessmentQuestions AssessmentQuestions[]
+  AssessmentAttempts  AssessmentAttempts[]
+  JobPostings         JobPosting[]
+
+  @@index([CreatedByUserId])
+}
+
+model AssessmentQuestions {
+  Id            Int                @id @default(autoincrement())
+  AssessmentId  Int
+  QuestionText  String
+  OptionA       String
+  OptionB       String
+  OptionC       String
+  OptionD       String
+  CorrectOption String
+  Marks         Int
+  OrderIndex    Int                @default(0)
+  Assessment    Assessments        @relation(fields: [AssessmentId], references: [Id], onDelete: Cascade)
+  StudentAnswers StudentAnswers[]
+
+  @@index([AssessmentId])
+}
+
+model AssessmentAttempts {
+  Id                 Int                @id @default(autoincrement())
+  AssessmentId       Int
+  UserId             Int
+  StartedAt          DateTime           @db.Timestamptz(6)
+  SubmittedAt        DateTime?          @db.Timestamptz(6)
+  Status             String             @default("InProgress")
+  IsMalpractice      Boolean            @default(false)
+  TotalQuestions     Int                @default(0)
+  AttemptedQuestions Int                @default(0)
+  CorrectAnswers     Int                @default(0)
+  WrongAnswers       Int                @default(0)
+  MarksObtained      Int                @default(0)
+  TotalMarks         Int                @default(0)
+  Percentage         Float              @default(0.0)
+  Assessment         Assessments        @relation(fields: [AssessmentId], references: [Id], onDelete: Cascade)
+  User               Users              @relation("AttemptUser", fields: [UserId], references: [Id], onDelete: Cascade)
+  StudentAnswers     StudentAnswers[]
+  ProctoringSession  ProctoringSession?
+  MalpracticeReport  MalpracticeReport?
+
+  @@index([AssessmentId])
+  @@index([UserId])
+}
+
+model StudentAnswers {
+  Id             Int                 @id @default(autoincrement())
+  AttemptId      Int
+  QuestionId     Int
+  SelectedOption String
+  IsCorrect      Boolean             @default(false)
+  Attempt        AssessmentAttempts  @relation(fields: [AttemptId], references: [Id], onDelete: Cascade)
+  Question       AssessmentQuestions @relation(fields: [QuestionId], references: [Id], onDelete: Cascade)
+
+  @@index([AttemptId])
+  @@index([QuestionId])
+}
+
+model ProctoringSession {
+  Id           Int                  @id @default(autoincrement())
+  AttemptId    Int                  @unique
+  WarningCount Int                  @default(0)
+  Attempt      AssessmentAttempts   @relation(fields: [AttemptId], references: [Id], onDelete: Cascade)
+  Warnings     ProctoringWarnings[]
+}
+
+model ProctoringWarnings {
+  Id          Int               @id @default(autoincrement())
+  SessionId   Int
+  WarningNum  Int
+  WarningType String
+  Timestamp   DateTime          @db.Timestamptz(6)
+  Details     String            @default("")
+  Session     ProctoringSession @relation(fields: [SessionId], references: [Id], onDelete: Cascade)
+
+  @@index([SessionId])
+}
+
+model MalpracticeReport {
+  Id           Int                @id @default(autoincrement())
+  AttemptId    Int                @unique
+  UserId       Int
+  AssessmentId Int
+  Reason       String
+  GeneratedAt  DateTime           @db.Timestamptz(6)
+  Attempt      AssessmentAttempts @relation(fields: [AttemptId], references: [Id], onDelete: Cascade)
+  User         Users              @relation("MalpracticeUser", fields: [UserId], references: [Id])
+  @@index([UserId])
+  @@index([AssessmentId])
+}
+
+model EFMigrationsHistory {
+  MigrationId    String @id(map: "PK___EFMigrationsHistory") @db.VarChar(150)
+  ProductVersion String @db.VarChar(32)
+
+  @@map("__EFMigrationsHistory")
+}
+
+model Company {
+  Id            Int                    @id @default(autoincrement())
+  Name          String
+  Email         String                 @unique
+  Status        String                 @default("Pending") // Pending, Verified, Rejected, Suspended, Inactive, Archived
+  AllowedDepartments String            @default("")
+  CreatedAt     DateTime               @default(now()) @db.Timestamptz(6)
+  UpdatedAt     DateTime               @updatedAt @db.Timestamptz(6)
+  Profile       CompanyProfile?
+  Documents     CompanyDocuments[]
+  Locations     CompanyLocations[]
+  Users         CompanyUsers[]
+  Verifications CompanyVerification[]
+  StatusHistory CompanyStatusHistory[]
+  AuditLogs     CompanyAuditLogs[]
+  JobPostings   JobPosting[]
+  SavedTalentPools SavedTalentPool[]
+}
+
+model CompanyProfile {
+  Id                  Int      @id @default(autoincrement())
+  CompanyId           Int      @unique
+  Company             Company  @relation(fields: [CompanyId], references: [Id], onDelete: Cascade)
+  LogoUrl             String?
+  CoverImageUrl       String?
+  Website             String?
+  LinkedInUrl         String?
+  Industry            String
+  CompanyType         String
+  CompanySize         String
+  FoundedYear         Int
+  Description         String
+  Mission             String?
+  Vision              String?
+  WorkCulture         String?
+  Benefits            String?
+  Awards              String?
+  Achievements        String?
+  RecruitmentProcess  String?
+  InternshipAvailable Boolean  @default(false)
+  PlacementAvailable  Boolean  @default(false)
+  Gallery             String?  @default("")
+  Videos              String?  @default("")
+  PlacementHistory    String?  @default("")
+  InternshipPrograms  String?  @default("")
+  FAQs                String?  @default("")
+  ContactDetails      String?  @default("")
+  SocialLinks         String?  @default("")
+}
+
+model CompanyDocuments {
+  Id         Int      @id @default(autoincrement())
+  CompanyId  Int
+  Company    Company  @relation(fields: [CompanyId], references: [Id], onDelete: Cascade)
+  DocType    String // GST, RegistrationCertificate, HiringAuthorization, etc.
+  FileUrl    String
+  UploadedAt DateTime @default(now()) @db.Timestamptz(6)
+}
+
+model CompanyLocations {
+  Id           Int     @id @default(autoincrement())
+  CompanyId    Int
+  Company      Company @relation(fields: [CompanyId], references: [Id], onDelete: Cascade)
+  Location     String
+  IsHeadOffice Boolean @default(false)
+  WorkMode     String // Remote, Hybrid, OnSite
+}
+
+model CompanyUsers {
+  Id                  Int       @id @default(autoincrement())
+  CompanyId           Int
+  Company             Company   @relation(fields: [CompanyId], references: [Id], onDelete: Cascade)
+  Email               String    @unique
+  PasswordHash        String
+  FullName            String
+  Designation         String
+  Phone               String
+  AlternatePhone      String?
+  IsActive            Boolean   @default(true)
+  FailedLoginAttempts Int       @default(0)
+  LockedUntil         DateTime? @db.Timestamptz(6)
+  CreatedAt           DateTime  @default(now()) @db.Timestamptz(6)
+  UpdatedAt           DateTime  @updatedAt @db.Timestamptz(6)
+}
+
+model CompanyVerification {
+  Id              Int      @id @default(autoincrement())
+  CompanyId       Int
+  Company         Company  @relation(fields: [CompanyId], references: [Id], onDelete: Cascade)
+  ReviewedByEmail String?
+  Action          String // Approve, Reject, RequestChanges
+  Comments        String?
+  Timestamp       DateTime @default(now()) @db.Timestamptz(6)
+}
+
+model CompanyStatusHistory {
+  Id        Int      @id @default(autoincrement())
+  CompanyId Int
+  Company   Company  @relation(fields: [CompanyId], references: [Id], onDelete: Cascade)
+  OldStatus String
+  NewStatus String
+  ChangedBy String // Email of Admin / System
+  Comments  String?
+  Timestamp DateTime @default(now()) @db.Timestamptz(6)
+}
+
+model CompanyAuditLogs {
+  Id               Int      @id @default(autoincrement())
+  CompanyId        Int?
+  Company          Company? @relation(fields: [CompanyId], references: [Id], onDelete: SetNull)
+  Action           String
+  PerformedByEmail String
+  Timestamp        DateTime @default(now()) @db.Timestamptz(6)
+  Details          String
+  IpAddress        String
+}
+
+model JobPosting {
+  Id                     Int              @id @default(autoincrement())
+  CompanyId              Int
+  Company                Company          @relation(fields: [CompanyId], references: [Id], onDelete: Cascade)
+  Title                  String
+  Department             String
+  Description            String           @db.Text
+  Responsibilities       String           @db.Text
+  Requirements           String           @db.Text
+  RequiredSkills         String           @db.Text
+  PreferredSkills        String           @db.Text
+  JobType                String           // "Internship", "FullTime", "PartTime", "Contract", "Freelance"
+  WorkMode               String           // "Remote", "Hybrid", "OnSite"
+  EligibilityDepartments String           // Semicolon-separated
+  EligibilityYears       String           // Semicolon-separated
+  EligibilityMinCGPA     Float            @default(0.0)
+  EligibilityExperience  String
+  Vacancies              Int              @default(1)
+  Salary                 String
+  LPA                    Float            @default(0.0)
+  Benefits               String           @db.Text
+  SelectionProcess       String           @db.Text
+  Deadlines              DateTime         @db.Timestamptz(6)
+  Attachments            String?          @default("")
+  Status                 String           @default("Pending") // "Pending", "Approved", "Rejected", "ChangesRequested"
+  ChangesFeedback        String?          @default("")
+  CreatedAt              DateTime         @default(now()) @db.Timestamptz(6)
+  UpdatedAt              DateTime         @updatedAt @db.Timestamptz(6)
+  Applications           JobApplication[]
+  AssessmentId           Int?
+  Assessment             Assessments?     @relation(fields: [AssessmentId], references: [Id], onDelete: SetNull)
+}
+
+model JobApplication {
+  Id                     Int              @id @default(autoincrement())
+  JobId                  Int
+  Job                    JobPosting       @relation(fields: [JobId], references: [Id], onDelete: Cascade)
+  StudentId              Int
+  Student                Users            @relation(fields: [StudentId], references: [Id], onDelete: Cascade)
+  ResumeUrl              String
+  Status                 String           @default("Applied") // "Applied", "Shortlisted", "InterviewScheduled", "Offered", "Rejected"
+  AppliedAt              DateTime         @default(now()) @db.Timestamptz(6)
+  UpdatedAt              DateTime         @updatedAt @db.Timestamptz(6)
+  OfferLetterUrl         String?          @default("")
+  OfferStatus            String?          @default("") // "Sent", "Accepted", "Rejected"
+  OfferFeedback          String?          @default("")
+  OfferReleasedAt        DateTime?        @db.Timestamptz(6)
+  Interviews             Interview[]
+  @@index([JobId])
+  @@index([StudentId])
+}
+
+model SavedTalentPool {
+  Id           Int              @id @default(autoincrement())
+  CompanyId    Int
+  Company      Company          @relation(fields: [CompanyId], references: [Id], onDelete: Cascade)
+  Name         String
+  StudentIds   String           @default("") // Comma-separated student user IDs (optional / backward compatible)
+  CriteriaJson String           @default("") // Saved recruiter search criteria JSON
+  CreatedAt    DateTime         @default(now()) @db.Timestamptz(6)
+  UpdatedAt    DateTime         @updatedAt @db.Timestamptz(6)
+  @@index([CompanyId])
+}
+
+model SkillTaxonomy {
+  Id            Int      @id @default(autoincrement())
+  Department    String   // Target department (e.g. "Computer Science", "Commerce") or "all"
+  Domain        String   // Sector domain (e.g. "Software Development", "Accounting")
+  SkillName     String   // Core skill name (e.g. "Web Development", "GST")
+  SubSkills     String   @default("") // Semicolon-separated subskills
+  Category      String   // Classification category: "Programming Languages", "Software", "Soft Skills", etc.
+  Aliases       String   @default("") // Semicolon-separated aliases (e.g. "excel;spreadsheets")
+  RelatedSkills String   @default("") // Semicolon-separated related skills (e.g. "tally;accounting")
+  CreatedAt     DateTime @default(now()) @db.Timestamptz(6)
+  UpdatedAt     DateTime @updatedAt @db.Timestamptz(6)
+}
+
+model MatchingEngineConfig {
+  Id        Int      @id @default(autoincrement())
+  ConfigKey String   @unique // e.g. "weights"
+  ConfigVal String   @db.Text // JSON configuration string
+  UpdatedAt DateTime @updatedAt @db.Timestamptz(6)
+}
+
+model Interview {
+  Id            Int            @id @default(autoincrement())
+  ApplicationId Int
+  Application   JobApplication @relation(fields: [ApplicationId], references: [Id], onDelete: Cascade)
+  Type          String         // "Online", "Offline", "Campus"
+  ScheduleTime  DateTime       @db.Timestamptz(6)
+  MeetLink      String         @default("")
+  Venue         String         @default("")
+  Status        String         @default("Scheduled") // "Scheduled", "Rescheduled", "Cancelled"
+  Feedback      String?        @default("")
+  CreatedAt     DateTime       @default(now()) @db.Timestamptz(6)
+  UpdatedAt     DateTime       @updatedAt @db.Timestamptz(6)
+}
+
+model SavedSearchAlert {
+  Id              Int      @id @default(autoincrement())
+  CompanyId       Int
+  TalentPoolId    Int
+  LastCheckedAt   DateTime @default(now()) @db.Timestamptz(6)
+  NewMatchesCount Int      @default(0)
+  IsNotified      Boolean  @default(false)
+  CreatedAt       DateTime @default(now()) @db.Timestamptz(6)
+}
+
+model AutomationLog {
+  Id        Int      @id @default(autoincrement())
+  Action    String
+  Timestamp DateTime @default(now()) @db.Timestamptz(6)
+  Details   String   @db.Text
+  Success   Boolean  @default(true)
+}
+
+

@@ -1,0 +1,4819 @@
+"use client";
+
+import { useEffect, useState, useRef } from "react";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
+import {
+  Eye,
+  EyeOff,
+  Users,
+  Code,
+  Award,
+  Trophy,
+  BookOpen,
+  Sparkles,
+  Search,
+  CheckCircle,
+  AlertCircle,
+  FileText,
+  Shield,
+  Layers,
+  Save,
+  ShieldAlert,
+  RefreshCw,
+  Activity,
+  ArrowLeft,
+  XCircle,
+  Settings,
+  Building,
+  Building2,
+  Briefcase,
+  BarChart2,
+  Download,
+  Bell,
+  Plus,
+  Trash2,
+  Edit2,
+  Globe,
+  Mail,
+  Phone,
+  MapPin,
+  ChevronRight,
+  TrendingUp,
+  Sun,
+  Moon,
+  Menu,
+  X,
+  UserCog,
+  Key,
+  ToggleLeft,
+  Sliders,
+  ToggleRight,
+  Lock,
+  ClipboardList,
+  Upload,
+  BookMarked,
+  AlertTriangle,
+  BarChart,
+  Clock,
+  ChevronDown,
+  Filter
+} from "lucide-react";
+import api from "@/services/api";
+import { useTheme } from "@/hooks/useTheme";
+import AssessmentAdminModule from "@/components/admin/AssessmentAdminModule";
+import HRAccessManager from "@/app/admin/components/HRAccessManager";
+
+type ActiveTab = 
+  | "overview" 
+  | "students" 
+  | "institution" 
+  | "analytics" 
+  | "reports" 
+  | "notifications"
+  | "audit-logs"
+  | "backup-restore"
+  | "rbac"
+  | "assessments"
+  | "companies"
+  | "jobs"
+  | "taxonomy"
+  | "hr-access"
+  | "exam-security";
+
+export default function AdminPage() {
+  const router = useRouter();
+  const [activeTab, setActiveTab] = useState<ActiveTab>("overview");
+  const [loading, setLoading] = useState(true);
+  const [themeMode, toggleThemeMode] = useTheme();
+  const [showMobileNav, setShowMobileNav] = useState(false);
+
+  // Data States
+  const [metrics, setMetrics] = useState<any>(null);
+  const [students, setStudents] = useState<any[]>([]);
+  const [institution, setInstitution] = useState<any>(null);
+  const [deptAnalytics, setDeptAnalytics] = useState<any[]>([]);
+  const [themes, setThemes] = useState<any[]>([]);
+  const [reportsSummary, setReportsSummary] = useState<any>(null);
+  const [notifications, setNotifications] = useState<any[]>([]);
+  
+  // Security & System States
+  const [auditLogs, setAuditLogs] = useState<any[]>([]);
+  const [adminRole, setAdminRole] = useState<string>("Admin");
+  const isSuperAdmin = adminRole === "Admin" || adminRole === "2";
+  const isReadOnly = adminRole === "Moderator" || adminRole === "3";
+  // adminPermissions: object map of moduleId -> "read" | "write" | undefined
+  const [adminPermissions, setAdminPermissions] = useState<Record<string, string>>({});
+  const [backingUp, setBackingUp] = useState(false);
+  const [restoringBackup, setRestoringBackup] = useState(false);
+
+  const [proctoringConfig, setProctoringConfig] = useState({
+    lookAwayDurationLimit: 5,
+    faceMissingTimeout: 5,
+    pauseTimerOnFaceMissing: false,
+    objectDetectionEnabled: true,
+  });
+  const [proctoringLoading, setProctoringLoading] = useState(false);
+  const [proctoringSaving, setProctoringSaving] = useState(false);
+  const [proctoringStatus, setProctoringStatus] = useState<{ type: "success" | "error"; text: string } | null>(null);
+
+  // Admin placement analytics and automation states
+  const [adminAnalytics, setAdminAnalytics] = useState<any>(null);
+  const [adminAnalyticsLoading, setAdminAnalyticsLoading] = useState(false);
+  const [automationRunning, setAutomationRunning] = useState(false);
+
+  const fetchAdminAnalytics = async () => {
+    try {
+      setAdminAnalyticsLoading(true);
+      const res = await api.get("/Admin/analytics");
+      setAdminAnalytics(res.data);
+    } catch (e) {
+      console.error("fetchAdminAnalytics failed", e);
+    } finally {
+      setAdminAnalyticsLoading(false);
+    }
+  };
+
+  const handleRunAutomation = async () => {
+    try {
+      setAutomationRunning(true);
+      const res = await api.post("/Automation/cron", {});
+      alert(`Placement automations check executed successfully:\n${res.data.details.join("\n")}`);
+      await fetchAdminAnalytics();
+    } catch (err) {
+      alert("Failed to execute automations check.");
+    } finally {
+      setAutomationRunning(false);
+    }
+  };
+
+
+  const fetchProctoringConfig = async () => {
+    try {
+      setProctoringLoading(true);
+      const res = await api.get("/ExamSecurity/config");
+      setProctoringConfig(res.data);
+    } catch (err) {
+      console.error("Proctoring config fetch failed", err);
+    } finally {
+      setProctoringLoading(false);
+    }
+  };
+
+  const handleSaveProctoringConfig = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!canWrite("exam-security")) {
+      setProctoringStatus({ type: "error", text: "You do not have write permission for Exam Security." });
+      return;
+    }
+    try {
+      setProctoringSaving(true);
+      setProctoringStatus(null);
+      await api.post("/ExamSecurity/config", proctoringConfig);
+      setProctoringStatus({ type: "success", text: "Proctoring configuration updated successfully!" });
+    } catch (err: any) {
+      console.error(err);
+      setProctoringStatus({ type: "error", text: err.response?.data || "Failed to update proctoring configuration." });
+    } finally {
+      setProctoringSaving(false);
+    }
+  };
+
+  // ── Permission helpers ──────────────────────────────────────────────
+  // Super Admin always has full write access. Sub-admins check their map.
+  const canRead  = (mod: string): boolean => isSuperAdmin || (adminPermissions[mod] === "read" || adminPermissions[mod] === "write");
+  const canWrite = (mod: string): boolean => isSuperAdmin || adminPermissions[mod] === "write";
+
+  // RBAC – Sub-Admin Management States
+  const [admins, setAdmins] = useState<any[]>([]);
+  const [rbacForm, setRbacForm] = useState({
+    fullName: "",
+    email: "",
+    username: "",
+    password: "",
+    permissions: {} as Record<string, string>,   // { students: "write", analytics: "read" }
+  });
+  const [editingAdmin, setEditingAdmin] = useState<any>(null);
+  const [rbacLoading, setRbacLoading] = useState(false);
+  const [rbacNewPassword, setRbacNewPassword] = useState("");
+
+  const ALL_PERMISSIONS = [
+    { id: "overview",       label: "Dashboard Overview",   alwaysRead: true  },
+    { id: "students",       label: "Student Directory",    alwaysRead: false },
+    { id: "institution",   label: "Institution Details",  alwaysRead: false },
+    { id: "analytics",     label: "Department Analytics", alwaysRead: true  },
+    { id: "reports",       label: "Analytics & Export",   alwaysRead: false },
+    { id: "notifications", label: "Notification Manager", alwaysRead: false },
+    { id: "assessments",   label: "Assessment Module",    alwaysRead: false },
+    { id: "companies",     label: "Company Management",   alwaysRead: false },
+    { id: "exam-security",  label: "Exam Security Settings", alwaysRead: false },
+  ];
+
+  // ==========================================
+  // COMPANY MODULE STATE
+  // ==========================================
+  const [companies, setCompanies] = useState<any[]>([]);
+  const [companiesLoading, setCompaniesLoading] = useState(false);
+  const [selectedCompany, setSelectedCompany] = useState<any>(null);
+  const [reviewModalOpen, setReviewModalOpen] = useState(false);
+  const [reviewAction, setReviewAction] = useState<"Approve" | "Reject" | "RequestChanges" | "Suspend" | "Restore" | "Delete" | "">("");
+  const [reviewComments, setReviewComments] = useState("");
+  const [companySearchQuery, setCompanySearchQuery] = useState("");
+  const [companyStatusFilter, setCompanyStatusFilter] = useState<"all" | "Pending" | "Verified" | "Rejected" | "Suspended">("all");
+
+  // ==========================================
+  // JOB PLACEMENT STATE (ADMIN REVIEW)
+  // ==========================================
+  const [adminJobs, setAdminJobs] = useState<any[]>([]);
+  const [adminJobsLoading, setAdminJobsLoading] = useState(false);
+  const [selectedAdminJob, setSelectedAdminJob] = useState<any>(null);
+  const [adminJobSearchQuery, setAdminJobSearchQuery] = useState("");
+  const [adminJobStatusFilter, setAdminJobStatusFilter] = useState<string>("all");
+  const [adminJobReviewComments, setAdminJobReviewComments] = useState("");
+  const [adminJobReviewLoading, setAdminJobReviewLoading] = useState(false);
+
+  const fetchAdminJobs = async () => {
+    try {
+      setAdminJobsLoading(true);
+      const res = await api.get("/Admin/jobs");
+      setAdminJobs(res.data);
+    } catch (err) {
+      console.error("Admin jobs fetch failed", err);
+    } finally {
+      setAdminJobsLoading(false);
+    }
+  };
+
+  const handleAdminJobReviewSubmit = async (action: string, comments: string) => {
+    if (!selectedAdminJob) return;
+    try {
+      setAdminJobReviewLoading(true);
+      await api.put(`/Admin/jobs/${selectedAdminJob.id}`, {
+        action,
+        comments,
+      });
+      setSelectedAdminJob(null);
+      setAdminJobReviewComments("");
+      await fetchAdminJobs();
+      alert(`Job status updated successfully to ${action}.`);
+    } catch (err: any) {
+      alert(err.response?.data || "Failed to submit job review.");
+    } finally {
+      setAdminJobReviewLoading(false);
+    }
+  };
+
+  // ==========================================
+  // SKILL TAXONOMY STATE
+  // ==========================================
+  const [taxonomyList, setTaxonomyList] = useState<any[]>([]);
+  const [taxonomyLoading, setTaxonomyLoading] = useState(false);
+  const [taxonomyPage, setTaxonomyPage] = useState(1);
+  const [taxonomyTotalPages, setTaxonomyTotalPages] = useState(1);
+  const [taxonomyTotalItems, setTaxonomyTotalItems] = useState(0);
+
+  const [weightsConfig, setWeightsConfig] = useState<any>({
+    skills: 0.35,
+    experience: 0.20,
+    projects: 0.15,
+    certifications: 0.10,
+    completeness: 0.10,
+    achievements: 0.05,
+    cgpa: 0.05
+  });
+  const [saveWeightsLoading, setSaveWeightsLoading] = useState(false);
+  const [taxonomyModalOpen, setTaxonomyModalOpen] = useState(false);
+  const [editingTaxonomyId, setEditingTaxonomyId] = useState<number | null>(null);
+  const [taxonomyForm, setTaxonomyForm] = useState({
+    department: "",
+    domain: "",
+    skillName: "",
+    subSkills: "",
+    category: "Programming Languages",
+    aliases: "",
+    relatedSkills: ""
+  });
+
+  const fetchTaxonomyAndConfig = async (page = 1) => {
+    try {
+      setTaxonomyLoading(true);
+      const taxRes = await api.get(`/Admin/skills-taxonomy?page=${page}&pageSize=10`);
+      if (taxRes.data && taxRes.data.items) {
+        setTaxonomyList(taxRes.data.items);
+        setTaxonomyTotalPages(taxRes.data.totalPages || 1);
+        setTaxonomyTotalItems(taxRes.data.totalItems || 0);
+        setTaxonomyPage(taxRes.data.currentPage || 1);
+      } else {
+        setTaxonomyList(taxRes.data);
+      }
+
+      const configRes = await api.get("/Admin/matching-config");
+      setWeightsConfig(configRes.data);
+    } catch (err) {
+      console.error("Failed to load taxonomy configuration", err);
+    } finally {
+      setTaxonomyLoading(false);
+    }
+  };
+
+  const handleSaveTaxonomy = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      if (editingTaxonomyId) {
+        await api.put(`/Admin/skills-taxonomy/${editingTaxonomyId}`, taxonomyForm);
+      } else {
+        await api.post("/Admin/skills-taxonomy", taxonomyForm);
+      }
+      setTaxonomyModalOpen(false);
+      await fetchTaxonomyAndConfig();
+      alert("Taxonomy item saved successfully.");
+    } catch (err) {
+      alert("Failed to save taxonomy item.");
+    }
+  };
+
+  const handleDeleteTaxonomy = async (id: number) => {
+    if (!confirm("Are you sure you want to delete this taxonomy node?")) return;
+    try {
+      await api.delete(`/Admin/skills-taxonomy/${id}`);
+      await fetchTaxonomyAndConfig();
+      alert("Taxonomy node deleted.");
+    } catch (err) {
+      alert("Failed to delete taxonomy node.");
+    }
+  };
+
+  const handleSaveWeights = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      setSaveWeightsLoading(true);
+      const parsedWeights = {
+        skills: parseFloat(weightsConfig.skills),
+        experience: parseFloat(weightsConfig.experience),
+        projects: parseFloat(weightsConfig.projects),
+        certifications: parseFloat(weightsConfig.certifications),
+        completeness: parseFloat(weightsConfig.completeness),
+        achievements: parseFloat(weightsConfig.achievements),
+        cgpa: parseFloat(weightsConfig.cgpa),
+      };
+      await api.post("/Admin/matching-config", { weights: parsedWeights });
+      alert("Weighted scoring configurations updated successfully.");
+      await fetchTaxonomyAndConfig();
+    } catch (err: any) {
+      alert(err.response?.data || "Failed to update weights configuration. Verify total sums to 100% (1.0).");
+    } finally {
+      setSaveWeightsLoading(false);
+    }
+  };
+
+
+  // ==========================================
+  // ASSESSMENT MODULE STATE
+  // ==========================================
+  const [assessments, setAssessments] = useState<any[]>([]);
+  const [assessmentLoading, setAssessmentLoading] = useState(false);
+  const [selectedAssessment, setSelectedAssessment] = useState<any>(null);
+  const [assessmentAttempts, setAssessmentAttempts] = useState<any[]>([]);
+  const [assessmentReport, setAssessmentReport] = useState<any>(null);
+  const [assessmentView, setAssessmentView] = useState<"list" | "create" | "edit" | "questions" | "attempts" | "report">("list");
+  const [importPreview, setImportPreview] = useState<any[]>([]);
+  const [importErrors, setImportErrors] = useState<number[]>([]);
+  const [importLoading, setImportLoading] = useState(false);
+  const [selectedAttempt, setSelectedAttempt] = useState<any>(null);
+  const csvFileRef = useRef<HTMLInputElement>(null);
+  const [assessmentForm, setAssessmentForm] = useState({
+    title: "",
+    description: "",
+    instructions: "",
+    durationMinutes: 60,
+    totalMarks: 100,
+    startDate: "",
+    endDate: "",
+    departments: [] as string[],
+  });
+
+  const [searchQuery, setSearchQuery] = useState("");
+  const [filter, setFilter] = useState<"all" | "pending" | "approved">("all");
+  const [alumniFilter, setAlumniFilter] = useState<"all" | "active" | "alumni">("all");
+
+  // CRUD Modals States
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [currentStudent, setCurrentStudent] = useState<any>(null);
+  const [isManageModalOpen, setIsManageModalOpen] = useState(false);
+  const [selectedStudent, setSelectedStudent] = useState<any>(null);
+  const [resetPasswordValue, setResetPasswordValue] = useState("");
+  const [showResetPassword, setShowResetPassword] = useState(false);
+  const [streamFilter, setStreamFilter] = useState("all");
+  const [deptFilter, setDeptFilter] = useState("all");
+  const [manageLoading, setManageLoading] = useState(false);
+
+  // Form States - Student Create/Edit
+  const [studentForm, setStudentForm] = useState({
+    fullName: "",
+    email: "",
+    password: "",
+    department: "",
+    registerNumber: "",
+    role: "Student"
+  });
+
+  // Form States - Department
+  const [newDeptName, setNewDeptName] = useState("");
+
+  // Form States - Notification Dispatch
+  const [notifForm, setNotifForm] = useState({
+    title: "",
+    message: "",
+    type: "Broadcast",
+    userId: 0,
+    recipientType: "Broadcast",
+    department: ""
+  });
+
+  const decodeToken = (token: string | null): { role: string | null; adminPermissions: Record<string, string> } => {
+    if (!token) return { role: null, adminPermissions: {} };
+    try {
+      const base64Url = token.split(".")[1];
+      const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
+      const jsonPayload = decodeURIComponent(
+        atob(base64)
+          .split("")
+          .map((c) => "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2))
+          .join("")
+      );
+      const payload = JSON.parse(jsonPayload);
+      const role = payload.role || payload["http://schemas.microsoft.com/ws/2008/06/identity/claims/role"] || null;
+      let perms: Record<string, string> = {};
+      if (payload.adminPermissions === "all") {
+        // Super admin – handled by isSuperAdmin; leave perms empty
+        perms = {};
+      } else if (payload.adminPermissions) {
+        try {
+          const parsed = JSON.parse(payload.adminPermissions);
+          // Support both new object format {students:"write"} and legacy array ["students"]
+          if (Array.isArray(parsed)) {
+            parsed.forEach((p: string) => { perms[p] = "write"; });
+          } else if (typeof parsed === "object") {
+            perms = parsed;
+          }
+        } catch { perms = {}; }
+      }
+      return { role, adminPermissions: perms };
+    } catch (e) {
+      return { role: null, adminPermissions: {} };
+    }
+  };
+
+  // Legacy alias used by loadAllData
+  const getAdminRoleFromToken = (token: string | null): string | null => decodeToken(token).role;
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const adminToken = localStorage.getItem("adminToken");
+      if (!adminToken) {
+        router.push("/admin/login");
+        return;
+      }
+      const { role, adminPermissions: perms } = decodeToken(adminToken);
+      if (role) setAdminRole(role);
+      if (Object.keys(perms).length > 0) setAdminPermissions(perms);
+      const savedTheme = localStorage.getItem("adminThemeMode") as "light" | "dark";
+      if (savedTheme) {
+        localStorage.setItem("mcc-theme", savedTheme);
+        localStorage.removeItem("adminThemeMode");
+      }
+    }
+    loadAllData();
+  }, []);
+
+  // Fetch assessments and companies whenever active tabs change
+  useEffect(() => {
+    if (activeTab === "assessments") {
+      fetchAssessments();
+    } else if (activeTab === "companies") {
+      fetchCompanies();
+    } else if (activeTab === "jobs") {
+      fetchAdminJobs();
+    } else if (activeTab === "taxonomy") {
+      fetchTaxonomyAndConfig();
+    } else if (activeTab === "analytics") {
+      fetchAdminAnalytics();
+    } else if (activeTab === "exam-security") {
+      fetchProctoringConfig();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab]);
+
+  // toggleThemeMode is now provided by useTheme hook — no local implementation needed
+
+  const loadAllData = async () => {
+    try {
+      setLoading(true);
+      
+      let currentRole = "Admin";
+      if (typeof window !== "undefined") {
+        const adminToken = localStorage.getItem("adminToken");
+        const { role: dec, adminPermissions: perms } = decodeToken(adminToken);
+        if (dec) {
+          currentRole = dec;
+          setAdminRole(dec);
+        }
+        if (Object.keys(perms).length > 0) setAdminPermissions(perms);
+      }
+
+      const promises = [
+        fetchMetrics(),
+        fetchStudents(),
+        fetchCompanies(),
+        fetchInstitution(),
+        fetchDepartmentAnalytics(),
+        fetchThemes(),
+        fetchReportsSummary(),
+        fetchNotifications(),
+        fetchAdminJobs(),
+        fetchTaxonomyAndConfig(),
+        fetchAdminAnalytics()
+      ];
+
+      if (currentRole === "Admin" || currentRole === "1") {
+        promises.push(fetchAuditLogs());
+        promises.push(fetchAdmins());
+      }
+
+      await Promise.all(promises);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchMetrics = async () => {
+    try {
+      const res = await api.get("/Admin/dashboard");
+      setMetrics(res.data);
+    } catch (err) {
+      console.error("Metrics fetch failed", err);
+    }
+  };
+
+  const fetchStudents = async () => {
+    try {
+      const res = await api.get("/Admin/students");
+      setStudents(res.data);
+    } catch (err) {
+      console.error("Students fetch failed", err);
+    }
+  };
+
+  const fetchInstitution = async () => {
+    try {
+      const res = await api.get("/Admin/institution");
+      setInstitution(res.data);
+    } catch (err) {
+      console.error("Institution fetch failed", err);
+    }
+  };
+
+  const fetchDepartmentAnalytics = async () => {
+    try {
+      const res = await api.get("/Admin/department-analytics");
+      setDeptAnalytics(res.data);
+    } catch (err) {
+      console.error("Department analytics fetch failed", err);
+    }
+  };
+
+  const fetchThemes = async () => {
+    try {
+      const res = await api.get("/Admin/themes");
+      setThemes(res.data);
+    } catch (err) {
+      console.error("Themes fetch failed", err);
+    }
+  };
+
+  const fetchReportsSummary = async () => {
+    try {
+      const res = await api.get("/Admin/reports");
+      setReportsSummary(res.data);
+    } catch (err) {
+      console.error("Reports summary fetch failed", err);
+    }
+  };
+
+  const fetchNotifications = async () => {
+    try {
+      const res = await api.get("/Admin/notifications");
+      setNotifications(res.data);
+    } catch (err) {
+      console.error("Notifications fetch failed", err);
+    }
+  };
+
+  const fetchAuditLogs = async () => {
+    try {
+      const res = await api.get("/Admin/audit-logs");
+      setAuditLogs(res.data);
+    } catch (err) {
+      console.error("Audit logs fetch failed", err);
+    }
+  };
+
+  const fetchAdmins = async () => {
+    try {
+      const res = await api.get("/Admin/admins");
+      setAdmins(res.data);
+    } catch (err) {
+      console.error("Admins fetch failed", err);
+    }
+  };
+
+  const fetchCompanies = async () => {
+    try {
+      setCompaniesLoading(true);
+      const res = await api.get("/Admin/companies");
+      setCompanies(res.data);
+    } catch (err) {
+      console.error("Companies fetch failed", err);
+    } finally {
+      setCompaniesLoading(false);
+    }
+  };
+
+  const handleCompanyReviewSubmit = async (action: string, comments: string) => {
+    if (!selectedCompany) return;
+    try {
+      setManageLoading(true);
+      await api.put(`/Admin/companies/${selectedCompany.id}`, {
+        action,
+        comments,
+      });
+      setReviewModalOpen(false);
+      setReviewComments("");
+      setReviewAction("");
+      setSelectedCompany(null);
+      await fetchCompanies();
+    } catch (err: any) {
+      alert(err.response?.data || "Failed to execute review action.");
+    } finally {
+      setManageLoading(false);
+    }
+  };
+
+  // ==========================================
+  // RBAC — SUB-ADMIN CRUD HANDLERS
+  // ==========================================
+
+  const handleCreateAdmin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!rbacForm.fullName.trim() || !rbacForm.email.trim() || !rbacForm.username.trim() || !rbacForm.password.trim()) {
+      alert("Full name, email, username and password are all required.");
+      return;
+    }
+    if (Object.keys(rbacForm.permissions).length === 0) {
+      alert("Please assign at least one module permission.");
+      return;
+    }
+    setRbacLoading(true);
+    try {
+      await api.post("/Admin/admins", rbacForm);
+      alert("Admin account created successfully.");
+      setRbacForm({ fullName: "", email: "", username: "", password: "", permissions: {} });
+      fetchAdmins();
+    } catch (err: any) {
+      alert(`Failed to create admin: ${err.response?.data?.message || err.message}`);
+    } finally {
+      setRbacLoading(false);
+    }
+  };
+
+  const handleUpdateAdminPermissions = async (adminId: number, permissions: Record<string, string>) => {
+    setRbacLoading(true);
+    try {
+      await api.put(`/Admin/admins/${adminId}`, { permissions });
+      alert("Permissions updated successfully.");
+      setEditingAdmin(null);
+      fetchAdmins();
+    } catch (err: any) {
+      alert(`Failed to update permissions: ${err.response?.data?.message || err.message}`);
+    } finally {
+      setRbacLoading(false);
+    }
+  };
+
+  const handleResetAdminPassword = async (adminId: number) => {
+    if (!rbacNewPassword.trim() || rbacNewPassword.length < 6) {
+      alert("Password must be at least 6 characters.");
+      return;
+    }
+    setRbacLoading(true);
+    try {
+      await api.put(`/Admin/admins/${adminId}`, { password: rbacNewPassword });
+      alert("Admin password reset successfully.");
+      setRbacNewPassword("");
+    } catch (err: any) {
+      alert(`Failed to reset password: ${err.response?.data?.message || err.message}`);
+    } finally {
+      setRbacLoading(false);
+    }
+  };
+
+  const handleToggleAdminActive = async (adminId: number, currentActive: boolean) => {
+    setRbacLoading(true);
+    try {
+      await api.put(`/Admin/admins/${adminId}`, { isActive: !currentActive });
+      alert(`Admin account ${!currentActive ? "activated" : "deactivated"} successfully.`);
+      fetchAdmins();
+    } catch (err: any) {
+      alert(`Failed to toggle account: ${err.response?.data?.message || err.message}`);
+    } finally {
+      setRbacLoading(false);
+    }
+  };
+
+  const handleDeleteAdmin = async (adminId: number, name: string) => {
+    if (!confirm(`Permanently delete admin account for "${name}"? This cannot be undone.`)) return;
+    setRbacLoading(true);
+    try {
+      await api.delete(`/Admin/admins/${adminId}`);
+      alert("Admin account deleted.");
+      if (editingAdmin?.id === adminId) setEditingAdmin(null);
+      fetchAdmins();
+    } catch (err: any) {
+      alert(`Failed to delete admin: ${err.response?.data?.message || err.message}`);
+    } finally {
+      setRbacLoading(false);
+    }
+  };
+
+  // Cycle form permission: none → read → write → none (skip write if alwaysRead)
+  const cyclePermissionInForm = (permId: string, alwaysRead: boolean) => {
+    setRbacForm(prev => {
+      const current = prev.permissions[permId];
+      const next = alwaysRead
+        ? current === "read" ? undefined : "read"
+        : current === undefined ? "read" : current === "read" ? "write" : undefined;
+      const updated = { ...prev.permissions };
+      if (next === undefined) delete updated[permId]; else updated[permId] = next;
+      return { ...prev, permissions: updated };
+    });
+  };
+
+  // Cycle edit permission for existing admin
+  const cycleEditPermission = (permId: string, alwaysRead: boolean) => {
+    if (!editingAdmin) return;
+    const current: Record<string, string> = (() => {
+      try {
+        const parsed = JSON.parse(editingAdmin.adminPermissions || "{}");
+        // Legacy array support
+        if (Array.isArray(parsed)) {
+          const obj: Record<string, string> = {};
+          parsed.forEach((p: string) => { obj[p] = "write"; });
+          return obj;
+        }
+        return parsed;
+      } catch { return {}; }
+    })();
+    const currentLevel = current[permId];
+    const next = alwaysRead
+      ? currentLevel === "read" ? undefined : "read"
+      : currentLevel === undefined ? "read" : currentLevel === "read" ? "write" : undefined;
+    const updated = { ...current };
+    if (next === undefined) delete updated[permId]; else updated[permId] = next;
+    setEditingAdmin({ ...editingAdmin, adminPermissions: JSON.stringify(updated) });
+  };
+
+  // Helper to get edit permissions as object
+  const getEditPerms = (): Record<string, string> => {
+    try {
+      const parsed = JSON.parse(editingAdmin?.adminPermissions || "{}");
+      if (Array.isArray(parsed)) {
+        const obj: Record<string, string> = {};
+        parsed.forEach((p: string) => { obj[p] = "write"; });
+        return obj;
+      }
+      return parsed;
+    } catch { return {}; }
+  };
+
+  const handleDownloadBackup = async () => {
+    try {
+      setBackingUp(true);
+      const res = await api.get("/Admin/backup");
+      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(res.data, null, 2));
+      const downloadAnchor = document.createElement("a");
+      downloadAnchor.setAttribute("href", dataStr);
+      downloadAnchor.setAttribute("download", `mcc_portfolio_backup_${new Date().toISOString().split('T')[0]}.json`);
+      document.body.appendChild(downloadAnchor);
+      downloadAnchor.click();
+      downloadAnchor.remove();
+      alert("System backup file downloaded successfully.");
+    } catch (err: any) {
+      alert(`Backup failed: ${err.response?.data || err.message}`);
+    } finally {
+      setBackingUp(false);
+    }
+  };
+
+  const handleRestoreBackup = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!confirm("WARNING: Restoring a backup will completely overwrite all current database tables and data. This action is irreversible. Do you want to proceed?")) {
+      return;
+    }
+
+    try {
+      setRestoringBackup(true);
+      const reader = new FileReader();
+      reader.onload = async (event) => {
+        try {
+          const json = JSON.parse(event.target?.result as string);
+          await api.post("/Admin/restore", json);
+          alert("Database successfully restored from backup payload. Reloading console...");
+          loadAllData();
+        } catch (err: any) {
+          alert(`Restore failed: ${err.response?.data || err.message || "Invalid JSON payload structure"}`);
+        }
+      };
+      reader.readAsText(file);
+    } catch (err: any) {
+      alert(`Failed to read file: ${err.message}`);
+    } finally {
+      setRestoringBackup(false);
+      // Reset input value
+      e.target.value = "";
+    }
+  };
+
+  // ==========================================
+  // STUDENT CRUD HANDLERS
+  // ==========================================
+
+  const handleCreateStudent = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!studentForm.fullName.trim() || !studentForm.registerNumber.trim() || !studentForm.email.trim() || !studentForm.department.trim()) {
+      alert("All fields (Full Name, Register Number, Email, and Department) are required.");
+      return;
+    }
+    try {
+      await api.post("/Admin/students", studentForm);
+      alert("Student account created successfully.");
+      setIsCreateModalOpen(false);
+      setStudentForm({
+        fullName: "",
+        email: "",
+        password: "",
+        department: "",
+        registerNumber: "",
+        role: "Student"
+      });
+      loadAllData();
+    } catch (err: any) {
+      alert(`Failed to create student: ${err.response?.data || err.message}`);
+    }
+  };
+
+  const handleEditStudent = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!currentStudent) return;
+    if (!studentForm.fullName.trim() || !studentForm.registerNumber.trim() || !studentForm.email.trim() || !studentForm.department.trim()) {
+      alert("All fields (Full Name, Register Number, Email, and Department) are required.");
+      return;
+    }
+    try {
+      await api.put(`/Admin/students/${currentStudent.id}`, studentForm);
+      alert("Student account updated successfully.");
+      setIsEditModalOpen(false);
+      loadAllData();
+    } catch (err: any) {
+      alert(`Failed to update student: ${err.response?.data || err.message}`);
+    }
+  };
+
+  const handleDeleteStudent = async (id: number, name: string) => {
+    if (!confirm(`Are you absolutely sure you want to permanently delete the portfolio and account for ${name}? This action cannot be undone.`)) {
+      return;
+    }
+    try {
+      await api.delete(`/Admin/students/${id}`);
+      alert("Student deleted successfully.");
+      loadAllData();
+    } catch (err: any) {
+      alert(`Failed to delete student: ${err.response?.data || err.message}`);
+    }
+  };
+
+  const openEditModal = (student: any) => {
+    setCurrentStudent(student);
+    setStudentForm({
+      fullName: student.fullName || student.FullName || "",
+      email: student.email || student.Email || "",
+      password: "", // Not required for edit
+      department: student.department || student.Department || "",
+      registerNumber: student.registerNumber || student.RegisterNumber || "",
+      role: student.role || student.Role || "Student"
+    });
+    setIsEditModalOpen(true);
+  };
+
+  const toggleApproval = async (studentId: number, currentStatus: boolean) => {
+    try {
+      await api.post(`/Admin/approve/${studentId}`, !currentStatus, {
+        headers: { "Content-Type": "application/json" }
+      });
+      await loadAllData();
+      alert(`Portfolio ${!currentStatus ? "Approved" : "Revoked"} successfully.`);
+    } catch (err: any) {
+      alert(`Failed to change approval: ${err.response?.data?.message || err.message}`);
+    }
+  };
+
+  const openManageModal = (student: any) => {
+    setSelectedStudent(student);
+    setResetPasswordValue("");
+    setShowResetPassword(false);
+    setIsManageModalOpen(true);
+  };
+
+  const handleToggleActive = async (studentId: number, currentActive: boolean) => {
+    setManageLoading(true);
+    try {
+      const s = selectedStudent;
+      await api.put(`/Admin/students/${studentId}`, {
+        fullName: s.fullName,
+        email: s.email,
+        department: s.department,
+        stream: s.stream || "Aided",
+        registerNumber: s.registerNumber,
+        role: s.role || "Student",
+        isActive: !currentActive
+      });
+      setSelectedStudent({ ...selectedStudent, isActive: !currentActive });
+      await loadAllData();
+      alert(`Account ${!currentActive ? "activated" : "deactivated"} successfully.`);
+    } catch (err: any) {
+      alert(`Failed to toggle account: ${err.response?.data || err.message}`);
+    } finally {
+      setManageLoading(false);
+    }
+  };
+
+  const handleAdminResetPassword = async (studentId: number) => {
+    if (!resetPasswordValue.trim() || resetPasswordValue.length < 6) {
+      alert("Password must be at least 6 characters.");
+      return;
+    }
+    setManageLoading(true);
+    try {
+      await api.post(`/Admin/students/${studentId}/reset-password`, { password: resetPasswordValue });
+      alert("Password reset successfully.");
+      setResetPasswordValue("");
+      setShowResetPassword(false);
+    } catch (err: any) {
+      alert(`Failed to reset password: ${err.response?.data || err.message}`);
+    } finally {
+      setManageLoading(false);
+    }
+  };
+
+  // ==========================================
+  // INSTITUTION SETTINGS HANDLERS
+  // ==========================================
+
+  const handleUpdateInstitution = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      await api.put("/Admin/institution", institution);
+      alert("Institution details updated successfully.");
+      loadAllData();
+    } catch (err: any) {
+      alert(`Failed to update institution details: ${err.response?.data || err.message}`);
+    }
+  };
+
+  const handleAddDepartment = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newDeptName.trim()) return;
+    try {
+      await api.post("/Admin/institution/departments", JSON.stringify(newDeptName.trim()), {
+        headers: { "Content-Type": "application/json" }
+      });
+      alert(`Department "${newDeptName}" added.`);
+      setNewDeptName("");
+      loadAllData();
+    } catch (err: any) {
+      alert(`Failed to add department: ${err.response?.data || err.message}`);
+    }
+  };
+
+  const handleDeleteDepartment = async (deptName: string) => {
+    if (!confirm(`Delete department "${deptName}"? This will only remove it from the managed list.`)) return;
+    try {
+      await api.delete(`/Admin/institution/departments/${encodeURIComponent(deptName)}`);
+      alert("Department removed from managed list.");
+      loadAllData();
+    } catch (err: any) {
+      alert(`Failed to remove department: ${err.response?.data || err.message}`);
+    }
+  };
+
+  // ==========================================
+  // USER ROLE MANAGEMENT HANDLERS
+  // ==========================================
+
+  const handleToggleRole = async (userId: number, currentRole: string) => {
+    const targetRole = currentRole === "Admin" ? "Student" : "Admin";
+    if (!confirm(`Are you sure you want to change this user's role to ${targetRole}?`)) return;
+    try {
+      await api.put(`/Admin/users/${userId}/role`, { role: targetRole });
+      alert(`User role changed to ${targetRole}.`);
+      loadAllData();
+    } catch (err: any) {
+      alert(`Failed to change role: ${err.response?.data || err.message}`);
+    }
+  };
+
+  // ==========================================
+  // THEME MANAGEMENT HANDLERS
+  // ==========================================
+
+  const handleToggleTheme = async (themeId: string, displayName: string, description: string, currentStatus: boolean) => {
+    try {
+      await api.put(`/Admin/themes/${themeId}`, {
+        displayName,
+        description,
+        isActive: !currentStatus
+      });
+      alert(`Theme "${displayName}" ${!currentStatus ? "activated" : "deactivated"}.`);
+      loadAllData();
+    } catch (err: any) {
+      alert(`Failed to update theme status: ${err.response?.data || err.message}`);
+    }
+  };
+
+  const handleUpdateThemeStyle = async (themeId: string, payload: any) => {
+    try {
+      await api.put(`/Admin/themes/${themeId}`, payload);
+      setThemes(prevThemes => prevThemes.map(t => t.themeId === themeId ? { ...t, ...payload } : t));
+    } catch (err: any) {
+      console.error("Failed to update theme style", err);
+    }
+  };
+
+  // ==========================================
+  // NOTIFICATION DISPATCH HANDLERS
+  // ==========================================
+
+  const handleSendNotification = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!notifForm.title || !notifForm.message) {
+      alert("Title and message are required.");
+      return;
+    }
+
+    if (notifForm.recipientType === "Department" && !notifForm.department) {
+      alert("Please select a department.");
+      return;
+    }
+
+    if (notifForm.recipientType === "Individual" && !notifForm.userId) {
+      alert("Please select a target student.");
+      return;
+    }
+
+    try {
+      const payload: any = {
+        title: notifForm.title,
+        message: notifForm.message,
+      };
+
+      if (notifForm.recipientType === "Broadcast") {
+        payload.type = "Broadcast";
+        payload.userId = 0;
+      } else if (notifForm.recipientType === "Department") {
+        payload.type = "Department";
+        payload.department = notifForm.department;
+      } else {
+        payload.type = notifForm.type === "Broadcast" ? "Info" : notifForm.type;
+        payload.userId = Number(notifForm.userId);
+      }
+
+      await api.post("/Admin/notifications", payload);
+      alert("Notification sent successfully.");
+      setNotifForm({
+        title: "",
+        message: "",
+        type: "Broadcast",
+        userId: 0,
+        recipientType: "Broadcast",
+        department: ""
+      });
+      loadAllData();
+    } catch (err: any) {
+      alert(`Failed to send notification: ${err.response?.data?.message || err.response?.data || err.message}`);
+    }
+  };
+
+  const handleDeleteNotification = async (id: number) => {
+    if (!confirm("Are you sure you want to delete this notification from history?")) return;
+    try {
+      await api.delete(`/Admin/notifications/${id}`);
+      alert("Notification deleted.");
+      loadAllData();
+    } catch (err: any) {
+      alert(`Failed to delete notification: ${err.response?.data || err.message}`);
+    }
+  };
+
+  // ==========================================
+  // REPORTS & GROWTH EXPORT
+  // ==========================================
+
+  const handleExportCSV = async () => {
+    const adminToken = localStorage.getItem("adminToken");
+    try {
+      const res = await fetch("/api/Admin/reports/export", {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${adminToken}`,
+        },
+      });
+      if (!res.ok) {
+        alert("Export failed: " + (await res.text()));
+        return;
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const dateStr = new Date().toISOString().split("T")[0].replace(/-/g, "");
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `mcc_portfolios_report_${dateStr}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (err: any) {
+      alert("Export error: " + err.message);
+    }
+  };
+
+  const handleExportAdminReport = async (reportType: string, format: string) => {
+    try {
+      const adminToken = localStorage.getItem("adminToken");
+      const response = await fetch(`/api/Admin/reports/export-details?reportType=${reportType}&format=${format}`, {
+        headers: {
+          "Authorization": `Bearer ${adminToken}`
+        }
+      });
+      if (!response.ok) throw new Error("Failed to export report");
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `mcc_${reportType}_report_${new Date().toISOString().split("T")[0]}.${format === "excel" ? "xls" : "csv"}`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    } catch (err) {
+      alert("Failed to export report.");
+    }
+  };
+
+  // Filter students list based on searchQuery, verification filter, and alumni status
+  const filteredStudents = students.filter((s) => {
+    if (!s) return false;
+    const name = s.fullName || s.FullName || "";
+    const dept = s.department || s.Department || "";
+    const stream = s.stream || s.Stream || "";
+    const regNum = s.registerNumber || s.RegisterNumber || "";
+    
+    const matchesSearch =
+      name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      regNum.toLowerCase().includes(searchQuery.toLowerCase());
+
+    if (!matchesSearch) return false;
+
+    if (streamFilter !== "all" && stream.toLowerCase() !== streamFilter.toLowerCase()) return false;
+    if (deptFilter !== "all" && dept.toLowerCase() !== deptFilter.toLowerCase()) return false;
+
+    const isApproved = s.isApproved !== undefined 
+      ? s.isApproved 
+      : (s.IsApproved !== undefined ? s.IsApproved : false);
+
+    if (filter === "pending") return !isApproved;
+    if (filter === "approved") return isApproved;
+
+    const isAlumni = s.isAlumni !== undefined
+      ? s.isAlumni
+      : (s.IsAlumni !== undefined ? s.IsAlumni : false);
+
+    if (alumniFilter === "active" && isAlumni) return false;
+    if (alumniFilter === "alumni" && !isAlumni) return false;
+
+    return true;
+  });
+
+  // ==========================================
+  // ASSESSMENT MODULE HANDLERS
+  // ==========================================
+  const fetchAssessments = async () => {
+    setAssessmentLoading(true);
+    try {
+      const res = await api.get("/Assessments");
+      setAssessments(res.data);
+    } catch (err) { console.error(err); }
+    finally { setAssessmentLoading(false); }
+  };
+
+  const fetchAssessmentAttempts = async (assessmentId: number) => {
+    try {
+      const res = await api.get(`/Assessments/${assessmentId}/attempts`);
+      setAssessmentAttempts(res.data);
+    } catch (err) { console.error(err); }
+  };
+
+  const fetchAssessmentReport = async (assessmentId: number) => {
+    try {
+      const res = await api.get(`/Assessments/${assessmentId}/report`);
+      setAssessmentReport(res.data);
+    } catch (err) { console.error(err); }
+  };
+
+  const handleCreateAssessment = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!assessmentForm.title.trim()) { alert("Title is required."); return; }
+    try {
+      await api.post("/Assessments", assessmentForm);
+      alert("Assessment created successfully.");
+      setAssessmentView("list");
+      fetchAssessments();
+    } catch (err: any) { alert(`Failed: ${err.response?.data?.message || err.message}`); }
+  };
+
+  const handleUpdateAssessment = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedAssessment) return;
+    try {
+      await api.put(`/Assessments/${selectedAssessment.id}`, assessmentForm);
+      alert("Assessment updated.");
+      setAssessmentView("list");
+      fetchAssessments();
+    } catch (err: any) { alert(`Failed: ${err.response?.data?.message || err.message}`); }
+  };
+
+  const handleDeleteAssessment = async (id: number, title: string) => {
+    if (!confirm(`Are you sure you want to permanently delete the assessment "${title}"? This will permanently delete all questions, student attempts, and warning logs associated with it. This action cannot be undone.`)) return;
+    try {
+      await api.delete(`/Assessments/${id}`);
+      alert("Assessment deleted.");
+      fetchAssessments();
+    } catch (err: any) {
+      console.error("Failed to delete assessment", err);
+      alert(`Failed to delete: ${err.response?.data?.message || err.message}`);
+    }
+  };
+
+  const handlePublishToggle = async (id: number) => {
+    try {
+      const res = await api.post(`/Assessments/${id}/publish`);
+      alert(`Assessment ${res.data.status}.`);
+      fetchAssessments();
+    } catch (err: any) { alert(`Failed: ${err.response?.data?.message || err.message}`); }
+  };
+
+  const handleCloseAssessment = async (id: number) => {
+    if (!confirm("Close this assessment? Students will no longer be able to take it.")) return;
+    try {
+      await api.post(`/Assessments/${id}/close`);
+      alert("Assessment closed.");
+      fetchAssessments();
+    } catch (err: any) { alert(`Failed: ${err.response?.data?.message || err.message}`); }
+  };
+
+  const handleExportQuestions = async (id: number) => {
+    const adminToken = localStorage.getItem("adminToken");
+    try {
+      const res = await fetch(`/api/Assessments/${id}/questions/export`, {
+        headers: { Authorization: `Bearer ${adminToken}` },
+      });
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url; a.download = `assessment_${id}_questions.csv`;
+      document.body.appendChild(a); a.click(); a.remove();
+      URL.revokeObjectURL(url);
+    } catch (err: any) { alert("Export failed."); }
+  };
+
+  const handleCSVImport = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      const text = evt.target?.result as string;
+      const lines = text.split(/\r?\n/).filter((l) => l.trim());
+      if (lines.length < 2) { alert("CSV must have a header row and at least one question row."); return; }
+      const headers = lines[0].split(",").map((h) => h.trim().replace(/^"|"$/g, "").toLowerCase());
+      const colMap: any = {};
+      ["questiontext","optiona","optionb","optionc","optiond","correctoption","marks"].forEach((k) => {
+        const idx = headers.findIndex((h) => h === k);
+        if (idx >= 0) colMap[k] = idx;
+      });
+
+      const parseRow = (row: string): string[] => {
+        const result: string[] = [];
+        let cur = ""; let inQ = false;
+        for (let i = 0; i < row.length; i++) {
+          const ch = row[i];
+          if (ch === '"') { inQ = !inQ; } 
+          else if (ch === "," && !inQ) { result.push(cur); cur = ""; }
+          else { cur += ch; }
+        }
+        result.push(cur);
+        return result.map((v) => v.trim().replace(/^"|"$/g, ""));
+      };
+
+      const errors: number[] = [];
+      const parsed = lines.slice(1).map((line, idx) => {
+        const cols = parseRow(line);
+        const q = {
+          questionText: cols[colMap.questiontext] || "",
+          optionA: cols[colMap.optiona] || "",
+          optionB: cols[colMap.optionb] || "",
+          optionC: cols[colMap.optionc] || "",
+          optionD: cols[colMap.optiond] || "",
+          correctOption: (cols[colMap.correctoption] || "").toUpperCase(),
+          marks: parseInt(cols[colMap.marks]) || 0,
+        };
+        const valid = q.questionText && q.optionA && q.optionB && q.optionC && q.optionD &&
+          ["A","B","C","D"].includes(q.correctOption) && q.marks > 0;
+        if (!valid) errors.push(idx);
+        return q;
+      });
+      setImportPreview(parsed);
+      setImportErrors(errors);
+    };
+    reader.readAsText(file);
+    if (csvFileRef.current) csvFileRef.current.value = "";
+  };
+
+  const handleImportSave = async () => {
+    if (!selectedAssessment) return;
+    const validRows = importPreview.filter((_, i) => !importErrors.includes(i));
+    if (validRows.length === 0) { alert("No valid rows to import."); return; }
+    setImportLoading(true);
+    try {
+      const res = await api.post(`/Assessments/${selectedAssessment.id}/questions`, {
+        questions: validRows,
+        replace: false,
+      });
+      alert(`Imported ${res.data.created} questions successfully.`);
+      setImportPreview([]);
+      setImportErrors([]);
+      fetchAssessments();
+    } catch (err: any) { alert(`Import failed: ${err.response?.data?.message || err.message}`); }
+    finally { setImportLoading(false); }
+  };
+
+  if (loading && !metrics) {
+    return (
+      <div className="min-h-screen bg-[#0d0d12] text-[#f3f4f6] flex flex-col items-center justify-center">
+        <div className="w-12 h-12 border-2 border-[#781c1c] border-t-transparent rounded-full animate-spin mb-4" />
+        <p className="text-gray-400 text-sm font-semibold tracking-widest uppercase animate-pulse">
+          Loading MCC Admin Console...
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className={`min-h-screen flex relative overflow-hidden transition-colors duration-300 ${
+      themeMode === "dark" ? "bg-[#0d0d12] text-[#f3f4f6]" : "bg-[#fcfaf6] text-[#0f172a]"
+    }`}>
+      {/* Background radial overlays */}
+      {themeMode === "dark" && (
+        <>
+          <div className="absolute top-[-10%] left-[-10%] w-[45%] h-[45%] bg-[#4f46e5]/5 rounded-full blur-[120px] pointer-events-none" />
+          <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-[#ec4899]/5 rounded-full blur-[140px] pointer-events-none" />
+        </>
+      )}
+
+      {/* ==========================================
+          SIDEBAR NAVIGATION
+          ========================================== */}
+      <div className={`w-72 border-r relative z-20 flex flex-col justify-between shrink-0 h-screen sticky top-0 transition-colors duration-300 hidden md:flex mcc-sidebar`}>
+        {/* Logo & Console Title */}
+        <div className="p-6 border-b border-slate-200 flex items-center justify-center shrink-0">
+          <img 
+            src={themeMode === "dark" ? "/mcc-logo-dark.png" : "/mcc-logo.jpg"} 
+            className="w-full max-w-[280px] h-auto object-contain rounded-lg transition-transform duration-200 hover:scale-[1.02]" 
+            alt="Madras Christian College Logo" 
+          />
+        </div>
+
+        {/* Navigation Items */}
+        <nav className="p-4 space-y-1.5 overflow-y-auto flex-1">
+            {([
+              { id: "overview",       label: "Dashboard Overview",  icon: Activity,       superOnly: false },
+              { id: "students",       label: "Student Directory",    icon: Users,          superOnly: false },
+              { id: "assessments",    label: "Assessment Module",    icon: ClipboardList,  superOnly: false },
+              { id: "companies",     label: "Company Onboarding",   icon: Building,       superOnly: false },
+              { id: "hr-access",      label: "HR Data Access",       icon: Shield,         superOnly: false },
+              { id: "jobs",          label: "Placement Opportunities", icon: Briefcase,     superOnly: false },
+              { id: "taxonomy",      label: "Skill Taxonomy & Config", icon: Sliders,       superOnly: false },
+              { id: "exam-security",  label: "Exam Security Settings", icon: ShieldAlert,    superOnly: false },
+              { id: "institution",   label: "Institution Details",  icon: Building,       superOnly: false },
+              { id: "analytics",     label: "Department Analytics", icon: BarChart2,      superOnly: false },
+              { id: "reports",       label: "Analytics & Export",   icon: FileText,       superOnly: false },
+              { id: "notifications", label: "Notification Manager", icon: Bell,           superOnly: false },
+              { id: "audit-logs",    label: "Security Audit Logs",  icon: Shield,         superOnly: true  },
+              { id: "backup-restore",label: "System Backup/Restore",icon: Settings,       superOnly: true  },
+              { id: "rbac",          label: "Access Control",       icon: UserCog,        superOnly: true  },
+            ] as const).filter((tab) => {
+              if (isSuperAdmin) return true;
+              // Sub-admins: only show what they can at least read
+              if (tab.superOnly) return false;
+              return canRead(tab.id);
+            }).map((tab) => {
+              const Icon = tab.icon;
+              const isActive = activeTab === tab.id;
+              const isRbac = tab.id === "rbac";
+              const readOnly = !isSuperAdmin && !canWrite(tab.id);
+              return (
+                <button
+                  key={tab.id}
+                  id={`tab-btn-${tab.id}`}
+                  onClick={() => setActiveTab(tab.id as ActiveTab)}
+                  className={`w-full flex items-center gap-3.5 px-4 py-3 rounded-xl text-xs font-semibold tracking-wide transition-all duration-200 ${
+                    isActive
+                      ? "mcc-active-tab font-bold"
+                      : isRbac
+                        ? themeMode === "dark"
+                          ? "text-violet-400 hover:text-violet-200 hover:bg-violet-500/10 border border-violet-500/20"
+                          : "text-violet-300 hover:text-white hover:bg-violet-500/20 border border-violet-400/30"
+                        : themeMode === "dark"
+                          ? "text-slate-400 hover:text-white hover:bg-white/5"
+                          : "text-slate-305 hover:text-white hover:bg-white/10"
+                  }`}
+                >
+                  <Icon size={16} className={isActive ? (themeMode === "dark" ? "text-black" : "text-[#18233c]") : isRbac && !isActive ? "text-violet-400" : "text-slate-400"} />
+                  {tab.label}
+                  {!isSuperAdmin && readOnly && !isActive && (
+                    <span className="ml-auto text-[8px] bg-amber-500/20 text-amber-300 px-1.5 py-0.5 rounded font-mono font-bold" title="Read-only access">R</span>
+                  )}
+                  {isRbac && !isActive && (
+                    <span className="ml-auto text-[8px] bg-violet-500/20 text-violet-300 px-1.5 py-0.5 rounded font-mono font-bold">SA</span>
+                  )}
+                </button>
+              );
+            })}
+          </nav>
+
+        {/* User Quick Controls */}
+        <div className={`p-4 border-t space-y-3 shrink-0 ${
+          themeMode === "dark" ? "border-white/5" : "border-[#781c1c]/10"
+        }`}>
+          {/* Role Badge */}
+          <div className={`px-3 py-2 rounded-xl text-[10px] font-mono font-bold flex items-center justify-center gap-2 ${
+            isSuperAdmin
+              ? "bg-violet-500/10 text-violet-300 border border-violet-500/20"
+              : "bg-blue-500/10 text-blue-300 border border-blue-500/20"
+          }`}>
+            <Shield size={11} className="shrink-0" />
+            {isSuperAdmin ? "Super Administrator" : "Sub-Admin"}
+          </div>
+
+
+          <Link
+            href="/"
+            className={`flex items-center justify-between text-[11px] transition px-2 ${
+              themeMode === "dark" ? "text-gray-400 hover:text-white" : "text-slate-500 hover:text-[#781c1c]"
+            }`}
+          >
+            <span className="flex items-center gap-2"><ArrowLeft size={12} /> Leave Admin Panel</span>
+            <ChevronRight size={10} />
+          </Link>
+          <button
+            onClick={() => {
+              localStorage.removeItem("adminToken");
+              localStorage.removeItem("admin");
+              router.push("/admin/login");
+            }}
+            className="w-full py-2.5 rounded-xl text-xs font-bold bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 transition duration-200"
+          >
+            Sign Out Console
+          </button>
+        </div>
+      </div>
+
+      {/* MOBILE DRAWER SIDEBAR OVERLAY */}
+      {showMobileNav && (
+        <div className="fixed inset-0 z-50 flex md:hidden bg-black/60 backdrop-blur-xs select-none">
+          <div className="w-72 flex flex-col justify-between p-5 animate-slideIn h-screen border-r mcc-sidebar">
+            {/* Header */}
+            <div className="flex justify-between items-center pb-4 border-b border-gray-250 shrink-0">
+              <div className="flex items-center justify-start py-1">
+                <img 
+                  src={themeMode === "dark" ? "/mcc-logo-dark.png" : "/mcc-logo.jpg"} 
+                  className="w-full max-w-[190px] h-auto object-contain rounded-lg" 
+                  alt="Madras Christian College Logo" 
+                />
+              </div>
+              <button onClick={() => setShowMobileNav(false)} className="text-slate-400 hover:text-white cursor-pointer p-1">
+                <X size={18} />
+              </button>
+            </div>
+            
+            <nav className="py-4 space-y-1.5 overflow-y-auto flex-1 scrollbar-thin">
+                {([
+                  { id: "overview",       label: "Dashboard Overview",  icon: Activity,  superOnly: false },
+                  { id: "students",       label: "Student Directory",    icon: Users,     superOnly: false },
+                  { id: "assessments",    label: "Assessments Manager",  icon: BookOpen,  superOnly: false },
+                  { id: "companies",     label: "Company Onboarding",   icon: Building,  superOnly: false },
+                  { id: "jobs",          label: "Placement Opportunities", icon: Briefcase, superOnly: false },
+                  { id: "taxonomy",      label: "Skill Taxonomy & Config", icon: Sliders,   superOnly: false },
+                  { id: "exam-security",  label: "Exam Security Settings", icon: ShieldAlert,superOnly: false },
+                  { id: "institution",   label: "Institution Details",  icon: Building,  superOnly: false },
+                  { id: "analytics",     label: "Department Analytics", icon: BarChart2, superOnly: false },
+                  { id: "reports",       label: "Analytics & Export",   icon: FileText,  superOnly: false },
+                  { id: "notifications", label: "Notification Manager", icon: Bell,      superOnly: false },
+                  { id: "audit-logs",    label: "Security Audit Logs",  icon: Shield,    superOnly: true  },
+                  { id: "backup-restore",label: "System Backup/Restore",icon: Settings,  superOnly: true  },
+                  { id: "rbac",          label: "Access Control",       icon: UserCog,   superOnly: true  },
+                ] as const).filter((tab) => {
+                  if (isSuperAdmin) return true;
+                  if (tab.superOnly) return false;
+                  return canRead(tab.id);
+                }).map((tab) => {
+                  const Icon = tab.icon;
+                  const isActive = activeTab === tab.id;
+                  const isRbac = tab.id === "rbac";
+                  const readOnly = !isSuperAdmin && !canWrite(tab.id);
+                  return (
+                    <button
+                      key={tab.id}
+                      onClick={() => { setActiveTab(tab.id as ActiveTab); setShowMobileNav(false); }}
+                      className={`w-full flex items-center gap-3.5 px-4 py-3 rounded-xl text-xs font-semibold tracking-wide transition-all duration-200 ${
+                        isActive
+                          ? "mcc-active-tab font-bold"
+                          : isRbac
+                            ? themeMode === "dark"
+                              ? "text-violet-400 hover:text-violet-200 hover:bg-violet-500/10 border border-violet-500/20"
+                              : "text-violet-300 hover:text-white hover:bg-violet-500/20 border border-violet-400/30"
+                            : themeMode === "dark"
+                              ? "text-slate-400 hover:text-white hover:bg-white/5"
+                              : "text-slate-305 hover:text-white hover:bg-white/10"
+                      }`}
+                    >
+                      <Icon size={16} className={isActive ? (themeMode === "dark" ? "text-black" : "text-[#18233c]") : isRbac && !isActive ? "text-violet-400" : "text-slate-400"} />
+                      {tab.label}
+                      {!isSuperAdmin && readOnly && !isActive && (
+                        <span className="ml-auto text-[8px] bg-amber-500/20 text-amber-300 px-1.5 py-0.5 rounded font-mono font-bold" title="Read-only access">R</span>
+                      )}
+                      {isRbac && !isActive && (
+                        <span className="ml-auto text-[8px] bg-violet-500/20 text-violet-300 px-1.5 py-0.5 rounded font-mono font-bold">SA</span>
+                      )}
+                    </button>
+                  );
+                })}
+              </nav>
+            
+            <div className="pt-4 border-t border-slate-800 shrink-0 space-y-2">
+              <button
+                onClick={() => {
+                  localStorage.removeItem("adminToken");
+                  localStorage.removeItem("admin");
+                  router.push("/admin/login");
+                }}
+                className="w-full py-2.5 rounded-xl text-xs font-bold bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 transition duration-200"
+              >
+                Sign Out Console
+              </button>
+            </div>
+          </div>
+          <div className="flex-1" onClick={() => setShowMobileNav(false)} />
+        </div>
+      )}
+
+      {/* ==========================================
+          MAIN CONTENT AREA
+          ========================================== */}
+      <div className="flex-1 min-w-0 p-6 md:p-8 relative overflow-y-auto overflow-x-hidden h-screen">
+        
+        {/* MOBILE TOP HEADER BAR */}
+        <div className="md:hidden flex items-center justify-between p-4 bg-white dark:bg-[#09090d] border border-slate-200 dark:border-white/5 rounded-2xl select-none mb-6 shadow-xs">
+          <div className="flex items-center gap-2.5">
+            <button
+              onClick={() => setShowMobileNav(true)}
+              className="p-2 rounded-xl bg-[#781c1c] hover:bg-[#5f1515] transition cursor-pointer flex items-center justify-center shrink-0"
+              style={{ color: '#ffffff' }}
+            >
+              <Menu size={18} style={{ color: '#ffffff' }} />
+            </button>
+            <span className="font-serif font-black text-[#18233c] dark:text-white tracking-tight text-xs uppercase">
+              Admin Console
+            </span>
+          </div>
+          <button
+            onClick={toggleThemeMode}
+            aria-label="Toggle theme"
+            className={`p-2 rounded-full flex items-center justify-center transition-all duration-200 cursor-pointer border shadow-sm ${
+              themeMode === "dark"
+                ? "bg-white/10 hover:bg-white/20 text-amber-300 border-white/15"
+                : "bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-300"
+            }`}
+          >
+            {themeMode === "dark" ? <Sun size={18} /> : <Moon size={18} />}
+          </button>
+        </div>
+
+
+
+        {/* ==========================================
+            TAB: OVERVIEW & PORTFOLIO APPROVALS
+            ========================================== */}
+        {activeTab === "overview" && (
+          <div className="space-y-10">
+            {/* Global Stats Grid */}
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+              {[
+                { label: "Students", val: metrics?.totalStudents, icon: Users, color: "text-[#781c1c]" },
+                { label: "Projects", val: metrics?.totalProjects, icon: Code, color: "text-pink-400" },
+                { label: "Skills", val: metrics?.totalSkills, icon: Layers, color: "text-[#781c1c]" },
+                { label: "Achievements", val: metrics?.totalAchievements, icon: Trophy, color: "text-amber-400" },
+                { label: "Papers", val: metrics?.totalResearchPapers, icon: BookOpen, color: "text-cyan-400" }
+              ].map((stat, idx) => {
+                const Icon = stat.icon;
+                return (
+                  <div key={idx} className={`border rounded-2xl p-5 transition duration-200 ${
+                    themeMode === "dark"
+                      ? "bg-[#0b0b0f] border-white/5 hover:bg-[#0c0c14]"
+                      : "bg-white border-slate-200 hover:bg-slate-50 hover:shadow-md"
+                  }`}>
+                    <Icon size={18} className={`${stat.color} mb-2.5`} />
+                    <span className={`text-xl md:text-2xl font-black block leading-none ${
+                      themeMode === "dark" ? "text-white" : "text-slate-900"
+                    }`}>
+                      {stat.val || 0}
+                    </span>
+                    <span className="text-[9px] uppercase font-mono tracking-wider font-bold text-gray-400 mt-1 block">
+                      {stat.label}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Quick Approvals Queue */}
+            <div className={`border rounded-3xl p-6 shadow-xl transition-colors duration-300 ${
+              themeMode === "dark" ? "bg-[#0b0b0f] border-white/5" : "bg-white border-slate-200"
+            }`}>
+              <div className="flex items-center justify-between mb-6 flex-wrap gap-4">
+                <div>
+                  <h3 className={`text-lg font-bold ${themeMode === "dark" ? "text-white" : "text-slate-900"}`}>Pending Portfolio Approvals</h3>
+                  <p className="text-gray-400 text-xs mt-1">Students waiting for administrative profile verification.</p>
+                </div>
+                <div className={`flex items-center gap-1 border p-1 rounded-xl ${
+                  themeMode === "dark" ? "bg-white/5 border-white/5" : "bg-slate-100 border-slate-200"
+                }`}>
+                  {[
+                    { id: "pending", label: "Pending Queue" },
+                    { id: "approved", label: "Approved List" },
+                    { id: "all", label: "All Accounts" }
+                  ].map((btn) => (
+                    <button
+                      key={btn.id}
+                      onClick={() => setFilter(btn.id as any)}
+                      className={`px-3.5 py-1.5 rounded-lg text-[10px] font-bold transition ${
+                        filter === btn.id
+                          ? themeMode === "dark"
+                            ? "bg-white text-black"
+                            : "bg-slate-900 text-white shadow-sm"
+                          : "text-gray-400 hover:text-white"
+                      }`}
+                    >
+                      {btn.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {filteredStudents.length > 0 ? (
+                <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-5">
+                  {filteredStudents.map((student) => {
+                    const studentApproved = student.isApproved;
+                    return (
+                      <div
+                        key={student.id}
+                        className={`border rounded-2xl p-5 transition-all duration-300 flex flex-col justify-between ${
+                          themeMode === "dark" ? "bg-[#121217]/50 border-white/5 hover:border-[#781c1c]/20" : "bg-slate-50 border-slate-200 hover:border-[#781c1c]/25 hover:shadow-md"
+                        }`}
+                      >
+                        <div>
+                          <div className="flex items-center justify-between mb-3.5 flex-wrap gap-2">
+                            <span className="text-[10px] uppercase font-mono tracking-widest text-[#781c1c] font-bold bg-[#a78bfa]/10 px-2 py-0.5 rounded border border-[#a78bfa]/15">
+                              {student.department || "No Department"}
+                            </span>
+                            <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider ${
+                              studentApproved ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/10" : "bg-amber-500/10 text-amber-400 border border-amber-500/10 animate-pulse"
+                            }`}>
+                              {studentApproved ? "Verified" : "Pending Approval"}
+                            </span>
+                          </div>
+
+                          <h4 className={`text-base font-bold truncate leading-tight mb-1 ${
+                            themeMode === "dark" ? "text-white" : "text-slate-900"
+                          }`}>{student.fullName}</h4>
+                          <span className="text-[10px] font-mono text-gray-500 block mb-2">{student.registerNumber}</span>
+                          <span className="text-[11px] text-gray-400 block truncate mb-4">✉️ {student.email}</span>
+                        </div>
+
+                        <div className={`flex gap-2 border-t pt-3.5 ${
+                          themeMode === "dark" ? "border-white/5" : "border-slate-200"
+                        }`}>
+                          <Link
+                            href={`/portfolio/${student.id}`}
+                            target="_blank"
+                            className={`flex-1 border py-2 rounded-lg text-xs font-bold text-center transition ${
+                              themeMode === "dark" ? "bg-white/5 hover:bg-white/10 text-white border-white/10" : "bg-white hover:bg-slate-100 text-slate-800 border-slate-200"
+                            }`}
+                          >
+                            View Portfolio
+                          </Link>
+                          <button
+                            onClick={() => openManageModal(student)}
+                            className="flex-1 py-2 rounded-lg text-xs font-bold bg-[#781c1c] hover:bg-[#5f1515] text-white transition"
+                          >
+                            Manage
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className={`text-center py-14 border border-dashed rounded-2xl ${
+                  themeMode === "dark" ? "border-white/5 bg-white/[0.01]" : "border-slate-200 bg-slate-50/50"
+                }`}>
+                  <CheckCircle size={36} className="text-gray-600 mx-auto mb-3" />
+                  <h4 className={`text-sm font-bold mb-1 ${themeMode === "dark" ? "text-white" : "text-slate-800"}`}>Queue is Clear</h4>
+                  <p className="text-gray-400 text-xs">No students currently match the selected filter category.</p>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* ==========================================
+            TAB: STUDENT DIRECTORY (CRUD)
+            ========================================== */}
+        {activeTab === "students" && (
+          <div className={`border rounded-3xl p-6 shadow-xl space-y-6 transition-colors duration-300 ${
+            themeMode === "dark" ? "bg-[#0b0b0f] border-white/5" : "bg-white border-slate-200"
+          }`}>
+            <div className="flex flex-col gap-4 mb-6">
+              {/* Search & Add Row */}
+              <div className="flex flex-col md:flex-row justify-between items-stretch md:items-center gap-4">
+                <div className={`flex-1 border rounded-xl px-4 h-[44px] flex items-center gap-2 ${
+                  themeMode === "dark" ? "bg-[#121217] border-white/5" : "bg-slate-50 border-slate-200"
+                }`}>
+                  <Search size={14} className="text-gray-500 shrink-0" />
+                  <input
+                    type="text"
+                    placeholder="Search students by Name or Register Number..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className={`bg-transparent border-none outline-none text-xs w-full ${
+                      themeMode === "dark" ? "text-white placeholder-gray-500" : "text-slate-900 placeholder-slate-400"
+                    }`}
+                  />
+                </div>
+                {canWrite("students") && (
+                  <button
+                    onClick={() => {
+                      setStudentForm({
+                        fullName: "",
+                        email: "",
+                        password: "",
+                        department: institution?.departments?.split(";")[0] || "",
+                        registerNumber: "",
+                        role: "Student"
+                      });
+                      setIsCreateModalOpen(true);
+                    }}
+                    className="inline-flex items-center justify-center gap-2 px-5 h-[44px] rounded-xl text-xs bg-[#781c1c] hover:bg-[#5f1515] text-white font-bold transition shadow-lg shadow-[#781c1c]/10 cursor-pointer shrink-0"
+                  >
+                    <Plus size={14} /> Add Student
+                  </button>
+                )}
+              </div>
+
+              {/* Filters Row */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                {/* Stream Filter */}
+                <div className="flex flex-col gap-1">
+                  <label className="text-[9px] uppercase font-mono tracking-wider font-bold text-slate-400">Stream</label>
+                  <select
+                    value={streamFilter}
+                    onChange={(e) => {
+                      setStreamFilter(e.target.value);
+                      setDeptFilter("all");
+                    }}
+                    className={`px-3 h-[38px] rounded-xl text-xs font-semibold outline-none border cursor-pointer ${
+                      themeMode === "dark" ? "bg-[#121217] border-white/5 text-white" : "bg-white border-slate-200 text-slate-700"
+                    }`}
+                  >
+                    <option value="all">All Streams</option>
+                    <option value="Aided">Aided</option>
+                    <option value="SFS">SFS</option>
+                  </select>
+                </div>
+
+                {/* Department Filter */}
+                <div className="flex flex-col gap-1">
+                  <label className="text-[9px] uppercase font-mono tracking-wider font-bold text-slate-400">Department</label>
+                  <select
+                    value={deptFilter}
+                    onChange={(e) => setDeptFilter(e.target.value)}
+                    className={`px-3 h-[38px] rounded-xl text-xs font-semibold outline-none border cursor-pointer ${
+                      themeMode === "dark" ? "bg-[#121217] border-white/5 text-white" : "bg-white border-slate-200 text-slate-700"
+                    }`}
+                  >
+                    <option value="all">All Departments</option>
+                    {Array.from(
+                      new Set([
+                        ...(institution?.departments?.split(";").map((d: string) => d.trim()).filter(Boolean) || []),
+                        ...students.map((s) => (s.department || s.Department || "").trim()).filter(Boolean)
+                      ])
+                    )
+                      .filter((d) => {
+                        if (streamFilter === "all") return true;
+                        const dLower = d.toLowerCase();
+                        if (streamFilter === "Aided") {
+                          return [
+                            "english", "tamil", "languages", "history", "political science", 
+                            "public administration", "economics", "philosophy", "commerce", 
+                            "social work", "mathematics", "statistics", "physics", "chemistry", 
+                            "botany", "zoology", "physical education"
+                          ].includes(dLower);
+                        } else {
+                          return [
+                            "english", "tamil", "languages", "journalism", "social work", 
+                            "commerce", "business administration", "communication", "geography", 
+                            "tourism studies", "mathematics", "physics", "chemistry", "microbiology", 
+                            "computer application (bca)", "computer science (b.sc)", "computer science (mca)", 
+                            "visual communication", "physical education, health education and sports", 
+                            "psychology", "data science"
+                          ].includes(dLower);
+                        }
+                      })
+                      .sort()
+                      .map((d) => (
+                        <option key={d} value={d}>{d}</option>
+                      ))}
+                  </select>
+                </div>
+
+                {/* Verification Status Filter */}
+                <div className="flex flex-col gap-1">
+                  <label className="text-[9px] uppercase font-mono tracking-wider font-bold text-slate-400">Verification Status</label>
+                  <select
+                    value={filter}
+                    onChange={(e) => setFilter(e.target.value as any)}
+                    className={`px-3 h-[38px] rounded-xl text-xs font-semibold outline-none border cursor-pointer ${
+                      themeMode === "dark" ? "bg-[#121217] border-white/5 text-white" : "bg-white border-slate-200 text-slate-700"
+                    }`}
+                  >
+                    <option value="all">All Status</option>
+                    <option value="approved">Verified Only</option>
+                    <option value="pending">Pending Only</option>
+                  </select>
+                </div>
+
+                {/* Alumni Status Filter */}
+                <div className="flex flex-col gap-1">
+                  <label className="text-[9px] uppercase font-mono tracking-wider font-bold text-slate-400">Alumni / Active</label>
+                  <select
+                    value={alumniFilter}
+                    onChange={(e) => setAlumniFilter(e.target.value as any)}
+                    className={`px-3 h-[38px] rounded-xl text-xs font-semibold outline-none border cursor-pointer ${
+                      themeMode === "dark" ? "bg-[#121217] border-white/5 text-white" : "bg-white border-slate-200 text-slate-700"
+                    }`}
+                  >
+                    <option value="all">All Students</option>
+                    <option value="active">Active Students</option>
+                    <option value="alumni">Alumni Only</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            {/* Student count */}
+            <p className={`text-xs mb-4 ${themeMode === "dark" ? "text-gray-500" : "text-slate-400"}`}>
+              Showing {filteredStudents.length} of {students.length} students
+            </p>
+
+            {filteredStudents.length > 0 ? (
+              <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-5">
+                {filteredStudents.map((student) => (
+                  <div
+                    key={student.id}
+                    className={`border rounded-2xl p-5 flex flex-col justify-between transition-all duration-200 ${
+                      themeMode === "dark"
+                        ? "bg-[#121217]/50 border-white/5 hover:border-[#781c1c]/20"
+                        : "bg-white border-slate-200 hover:border-[#781c1c]/25 hover:shadow-md"
+                    }`}
+                  >
+                    <div>
+                      {/* Top row: dept badge + status */}
+                      <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+                        <span className="text-[9px] uppercase font-mono tracking-widest text-[#781c1c] font-bold bg-[#781c1c]/5 px-2 py-0.5 rounded border border-[#781c1c]/15">
+                          {student.department || "No Dept"}
+                        </span>
+                        <div className="flex gap-1.5">
+                          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-bold ${
+                            student.isApproved ? "bg-emerald-500/10 text-emerald-400" : "bg-amber-500/10 text-amber-400 animate-pulse"
+                          }`}>
+                            {student.isApproved ? "Verified" : "Pending"}
+                          </span>
+                          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-bold ${
+                            student.isActive !== false ? "bg-blue-500/10 text-blue-400" : "bg-rose-500/10 text-rose-400"
+                          }`}>
+                            {student.isActive !== false ? "Active" : "Disabled"}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Name */}
+                      <h4 className={`text-sm font-bold truncate leading-tight mb-0.5 ${
+                        themeMode === "dark" ? "text-white" : "text-slate-900"
+                      }`}>{student.fullName}</h4>
+                      <span className="text-[10px] font-mono text-gray-500 block mb-0.5">{student.registerNumber || "No Reg #"}</span>
+                      <span className="text-[10px] text-gray-400 block truncate mb-1">✉️ {student.email}</span>
+                      <span className={`text-[10px] px-2 py-0.5 rounded font-mono ${
+                        themeMode === "dark" ? "bg-white/5 text-gray-400" : "bg-slate-100 text-slate-500"
+                      }`}>{student.stream || "—"}</span>
+                    </div>
+
+                    {/* Action buttons */}
+                    <div className={`flex gap-2 border-t pt-3.5 mt-3.5 ${
+                      themeMode === "dark" ? "border-white/5" : "border-slate-100"
+                    }`}>
+                      <button
+                        onClick={() => openManageModal(student)}
+                        className="flex-1 py-2 rounded-lg text-xs font-bold bg-[#781c1c] hover:bg-[#5f1515] text-white transition"
+                      >
+                        Manage
+                      </button>
+                      <Link
+                        href={`/portfolio/${student.id}`}
+                        target="_blank"
+                        className={`flex-1 py-2 rounded-lg text-xs font-bold text-center border transition ${
+                          themeMode === "dark" ? "bg-white/5 hover:bg-white/10 text-white border-white/10" : "bg-white hover:bg-slate-100 text-slate-800 border-slate-200"
+                        }`}
+                      >
+                        Portfolio
+                      </Link>
+                      {canWrite("students") && (
+                        <button
+                          onClick={() => handleDeleteStudent(student.id, student.fullName)}
+                          className="p-2 rounded-lg bg-rose-500/10 border border-rose-500/10 hover:bg-rose-500/20 text-rose-400 transition"
+                          title="Delete"
+                        >
+                          <Trash2 size={13} />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className={`text-center py-14 border border-dashed rounded-2xl ${
+                themeMode === "dark" ? "border-white/5 bg-white/[0.01]" : "border-slate-200 bg-slate-50/50"
+              }`}>
+                <Users size={36} className="text-gray-600 mx-auto mb-3" />
+                <h4 className={`text-sm font-bold mb-1 ${themeMode === "dark" ? "text-white" : "text-slate-800"}`}>No Students Found</h4>
+                <p className="text-gray-400 text-xs">No students match your current search or filter criteria.</p>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ==========================================
+            TAB: INSTITUTION MANAGEMENT
+            ========================================== */}
+        {activeTab === "institution" && institution && (
+          <div className="grid lg:grid-cols-3 gap-8">
+            {/* Left: General Settings Form */}
+            <div className={`lg:col-span-2 border rounded-3xl p-6 shadow-xl space-y-6 transition-colors duration-300 ${
+              themeMode === "dark" ? "bg-[#0b0b0f] border-white/5" : "bg-white border-slate-200"
+            }`}>
+              <div>
+                <h3 className={`text-lg font-bold ${themeMode === "dark" ? "text-white" : "text-slate-900"}`}>Ecosystem Configuration</h3>
+                <p className="text-gray-400 text-xs mt-1">Configure default naming and metadata for Madras Christian College.</p>
+              </div>
+
+              <form onSubmit={handleUpdateInstitution} className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-[10px] uppercase font-mono tracking-wider font-bold text-gray-400 block mb-2">College Name</label>
+                    <input
+                      type="text"
+                      value={institution.name}
+                      onChange={(e) => setInstitution({ ...institution, name: e.target.value })}
+                      disabled={!canWrite("institution")}
+                      className={`w-full border rounded-xl px-4 py-3 text-xs outline-none focus:border-[#781c1c] transition ${
+                        !canWrite("institution") ? "opacity-75 cursor-not-allowed bg-slate-100/50" : ""
+                      } ${
+                        themeMode === "dark" ? "bg-[#121217] border-white/5 text-white" : "bg-white border-slate-200 text-slate-900"
+                      }`}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] uppercase font-mono tracking-wider font-bold text-gray-400 block mb-2">Institution Code</label>
+                    <input
+                      type="text"
+                      value={institution.code}
+                      onChange={(e) => setInstitution({ ...institution, code: e.target.value })}
+                      disabled={!canWrite("institution")}
+                      className={`w-full border rounded-xl px-4 py-3 text-xs outline-none focus:border-[#781c1c] transition ${
+                        !canWrite("institution") ? "opacity-75 cursor-not-allowed bg-slate-100/50" : ""
+                      } ${
+                        themeMode === "dark" ? "bg-[#121217] border-white/5 text-white" : "bg-white border-slate-200 text-slate-900"
+                      }`}
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-[10px] uppercase font-mono tracking-wider font-bold text-gray-400 block mb-2">Description</label>
+                  <textarea
+                    rows={4}
+                    value={institution.description}
+                    onChange={(e) => setInstitution({ ...institution, description: e.target.value })}
+                    disabled={!canWrite("institution")}
+                    className={`w-full border rounded-xl px-4 py-3 text-xs outline-none focus:border-[#781c1c] transition resize-none ${
+                      !canWrite("institution") ? "opacity-75 cursor-not-allowed bg-slate-100/50" : ""
+                    } ${
+                      themeMode === "dark" ? "bg-[#121217] border-white/5 text-white" : "bg-white border-slate-200 text-slate-900"
+                    }`}
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-[10px] uppercase font-mono tracking-wider font-bold text-gray-400 block mb-2">Contact Email</label>
+                    <input
+                      type="email"
+                      value={institution.contactEmail}
+                      onChange={(e) => setInstitution({ ...institution, contactEmail: e.target.value })}
+                      disabled={!canWrite("institution")}
+                      className={`w-full border rounded-xl px-4 py-3 text-xs outline-none focus:border-[#781c1c] transition ${
+                        !canWrite("institution") ? "opacity-75 cursor-not-allowed bg-slate-100/50" : ""
+                      } ${
+                        themeMode === "dark" ? "bg-[#121217] border-white/5 text-white" : "bg-white border-slate-200 text-slate-900"
+                      }`}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] uppercase font-mono tracking-wider font-bold text-gray-400 block mb-2">Contact Phone</label>
+                    <input
+                      type="text"
+                      value={institution.contactPhone}
+                      onChange={(e) => setInstitution({ ...institution, contactPhone: e.target.value })}
+                      disabled={!canWrite("institution")}
+                      className={`w-full border rounded-xl px-4 py-3 text-xs outline-none focus:border-[#781c1c] transition ${
+                        !canWrite("institution") ? "opacity-75 cursor-not-allowed bg-slate-100/50" : ""
+                      } ${
+                        themeMode === "dark" ? "bg-[#121217] border-white/5 text-white" : "bg-white border-slate-200 text-slate-900"
+                      }`}
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-[10px] uppercase font-mono tracking-wider font-bold text-gray-400 block mb-2">Website URL</label>
+                    <input
+                      type="text"
+                      value={institution.website}
+                      onChange={(e) => setInstitution({ ...institution, website: e.target.value })}
+                      disabled={!canWrite("institution")}
+                      className={`w-full border rounded-xl px-4 py-3 text-xs outline-none focus:border-[#781c1c] transition ${
+                        !canWrite("institution") ? "opacity-75 cursor-not-allowed bg-slate-100/50" : ""
+                      } ${
+                        themeMode === "dark" ? "bg-[#121217] border-white/5 text-white" : "bg-white border-slate-200 text-slate-900"
+                      }`}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] uppercase font-mono tracking-wider font-bold text-gray-400 block mb-2">Logo Image URL</label>
+                    <input
+                      type="text"
+                      value={institution.logoUrl}
+                      onChange={(e) => setInstitution({ ...institution, logoUrl: e.target.value })}
+                      disabled={!canWrite("institution")}
+                      className={`w-full border rounded-xl px-4 py-3 text-xs outline-none focus:border-[#781c1c] transition ${
+                        !canWrite("institution") ? "opacity-75 cursor-not-allowed bg-slate-100/50" : ""
+                      } ${
+                        themeMode === "dark" ? "bg-[#121217] border-white/5 text-white" : "bg-white border-slate-200 text-slate-900"
+                      }`}
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-[10px] uppercase font-mono tracking-wider font-bold text-gray-400 block mb-2">Address</label>
+                  <input
+                    type="text"
+                    value={institution.address}
+                    onChange={(e) => setInstitution({ ...institution, address: e.target.value })}
+                    disabled={!canWrite("institution")}
+                    className={`w-full border rounded-xl px-4 py-3 text-xs outline-none focus:border-[#781c1c] transition ${
+                      !canWrite("institution") ? "opacity-75 cursor-not-allowed bg-slate-100/50" : ""
+                    } ${
+                      themeMode === "dark" ? "bg-[#121217] border-white/5 text-white" : "bg-white border-slate-200 text-slate-900"
+                    }`}
+                  />
+                </div>
+
+                {canWrite("institution") && (
+                  <button
+                    type="submit"
+                    className="px-6 py-3 rounded-xl bg-[#781c1c] hover:bg-[#5f1515] text-white text-xs font-bold transition shadow-lg shadow-[#781c1c]/10"
+                  >
+                    Save Configuration
+                  </button>
+                )}
+              </form>
+            </div>
+
+            {/* Right: Managed Departments List */}
+            <div className={`border rounded-3xl p-6 shadow-xl space-y-6 transition-colors duration-300 ${
+              themeMode === "dark" ? "bg-[#0b0b0f] border-white/5" : "bg-white border-slate-200"
+            }`}>
+              <div>
+                <h3 className={`text-lg font-bold ${themeMode === "dark" ? "text-white" : "text-slate-900"}`}>Department Catalog</h3>
+                <p className="text-gray-400 text-xs mt-1">Manage standard list of active streams inside the portal.</p>
+              </div>
+
+              {canWrite("institution") && (
+                <form onSubmit={handleAddDepartment} className="flex gap-2">
+                  <input
+                    type="text"
+                    placeholder="New department name..."
+                    value={newDeptName}
+                    onChange={(e) => setNewDeptName(e.target.value)}
+                    className={`flex-1 border rounded-xl px-3 py-2.5 text-xs outline-none focus:border-[#781c1c] transition ${
+                      themeMode === "dark" ? "bg-[#121217] border-white/5 text-white" : "bg-white border-slate-200 text-slate-900"
+                    }`}
+                  />
+                  <button
+                    type="submit"
+                    className="px-4 py-2.5 rounded-xl bg-[#781c1c] hover:bg-[#5f1515] text-white text-xs font-bold transition shrink-0"
+                  >
+                    Add
+                  </button>
+                </form>
+              )}
+
+              <div className="space-y-2 max-h-[300px] overflow-y-auto pr-1">
+                {institution.departments
+                  .split(";")
+                  .filter((d: string) => d.trim().length > 0)
+                  .map((dept: string, idx: number) => (
+                    <div
+                      key={idx}
+                      className={`flex items-center justify-between p-3 border rounded-xl transition ${
+                        themeMode === "dark" ? "bg-white/5 border-white/5 hover:bg-white/[0.08]" : "bg-slate-50 border-slate-200 hover:bg-slate-100"
+                      }`}
+                    >
+                      <span className={`text-xs font-semibold ${themeMode === "dark" ? "text-white" : "text-slate-700"}`}>{dept}</span>
+                      {canWrite("institution") && (
+                        <button
+                          onClick={() => handleDeleteDepartment(dept)}
+                          className="text-rose-400 p-1 hover:bg-rose-500/10 rounded transition"
+                          title="Remove stream"
+                        >
+                          <Trash2 size={13} />
+                        </button>
+                      )}
+                    </div>
+                  ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ==========================================
+            TAB: DEPARTMENT ANALYTICS
+            ========================================== */}
+        {activeTab === "analytics" && (
+          <div className="space-y-8">
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {deptAnalytics.map((dept, idx) => (
+                <div key={idx} className={`border rounded-3xl p-6 transition-all duration-300 hover:border-[#a78bfa]/20 ${
+                  themeMode === "dark" ? "bg-[#0b0b0f] border-white/5" : "bg-white border-slate-200"
+                }`}>
+                  <div className="flex justify-between items-start mb-4">
+                    <h4 className={`text-base font-extrabold truncate max-w-[160px] ${
+                      themeMode === "dark" ? "text-white" : "text-slate-800"
+                    }`} title={dept.department}>
+                      {dept.department}
+                    </h4>
+                    <span className="text-[10px] font-mono font-bold text-[#781c1c] bg-[#781c1c]/10 px-2 py-0.5 rounded shrink-0">
+                      {dept.studentCount} Students
+                    </span>
+                  </div>
+
+                  {/* Horizontal progress/metrics */}
+                  <div className={`space-y-3.5 border-t pt-4 ${
+                    themeMode === "dark" ? "border-white/5" : "border-slate-200"
+                  }`}>
+                    <div>
+                      <div className="flex justify-between text-[10px] font-semibold text-gray-400 mb-1">
+                        <span>Portfolio Verification Rate</span>
+                        <span className={`font-mono ${themeMode === "dark" ? "text-white" : "text-slate-900"}`}>{dept.approvalRate}%</span>
+                      </div>
+                      <div className={`w-full h-1.5 rounded-full overflow-hidden ${
+                        themeMode === "dark" ? "bg-white/5" : "bg-slate-100"
+                      }`}>
+                        <div
+                          className="bg-gradient-to-r from-emerald-500 to-green-600 h-full rounded-full"
+                          style={{ width: `${dept.approvalRate}%` }}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-3 gap-2 text-center pt-2">
+                      <div className={`border rounded-lg py-2 ${
+                        themeMode === "dark" ? "bg-white/[0.02] border-white/5" : "bg-slate-50 border-slate-100"
+                      }`}>
+                        <span className={`text-xs font-black block ${themeMode === "dark" ? "text-white" : "text-slate-900"}`}>{dept.projectCount}</span>
+                        <span className="text-[8px] uppercase tracking-wider text-gray-500 font-bold block">Projects</span>
+                      </div>
+                      <div className={`border rounded-lg py-2 ${
+                        themeMode === "dark" ? "bg-white/[0.02] border-white/5" : "bg-slate-50 border-slate-100"
+                      }`}>
+                        <span className={`text-xs font-black block ${themeMode === "dark" ? "text-white" : "text-slate-900"}`}>{dept.paperCount}</span>
+                        <span className="text-[8px] uppercase tracking-wider text-gray-500 font-bold block">Papers</span>
+                      </div>
+                      <div className={`border rounded-lg py-2 ${
+                        themeMode === "dark" ? "bg-white/[0.02] border-white/5" : "bg-slate-50 border-slate-100"
+                      }`}>
+                        <span className={`text-xs font-black block ${themeMode === "dark" ? "text-white" : "text-slate-900"}`}>{dept.skillCount}</span>
+                        <span className="text-[8px] uppercase tracking-wider text-gray-500 font-bold block">Skills</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* ALUMNI PLACEMENT & PROGRESSION DASHBOARD */}
+            <div className={`border rounded-3xl p-6 shadow-xl transition-colors duration-300 ${
+              themeMode === "dark" ? "bg-[#0b0b0f] border-white/5" : "bg-white border-slate-200"
+            }`}>
+              <div className="mb-6">
+                <h3 className={`text-lg font-bold ${themeMode === "dark" ? "text-white" : "text-slate-900"}`}>
+                  🎓 Alumni Career Progression & Placements
+                </h3>
+                <p className="text-gray-400 text-xs mt-1">
+                  Verifiable tracking statistics for Madras Christian College graduates.
+                </p>
+              </div>
+
+              {(() => {
+                const alumniList = students.filter(s => s && (s.isAlumni || s.IsAlumni));
+                const totalAlumni = alumniList.length;
+                const employedAlumni = alumniList.filter(s => s.currentCompany && s.currentCompany.trim().length > 0);
+                const higherEdAlumni = alumniList.filter(s => s.higherStudyUniversity && s.higherStudyUniversity.trim().length > 0);
+                
+                const placementRate = totalAlumni > 0 ? Math.round((employedAlumni.length / totalAlumni) * 100) : 0;
+                const higherEdRate = totalAlumni > 0 ? Math.round((higherEdAlumni.length / totalAlumni) * 100) : 0;
+                const otherRate = totalAlumni > 0 ? 100 - placementRate - higherEdRate : 0;
+
+                return (
+                  <div className="grid md:grid-cols-3 gap-6">
+                    {/* Stat Cards Column */}
+                    <div className="md:col-span-1 space-y-4">
+                      <div className={`border rounded-2xl p-5 ${
+                        themeMode === "dark" ? "bg-white/[0.02] border-white/5" : "bg-slate-50 border-slate-100"
+                      }`}>
+                        <span className="text-gray-400 text-[10px] uppercase font-mono tracking-wider font-bold">Total Alumni Tracked</span>
+                        <div className={`text-3xl font-black mt-1 ${themeMode === "dark" ? "text-white" : "text-slate-900"}`}>
+                          {totalAlumni}
+                        </div>
+                      </div>
+
+                      <div className={`border rounded-2xl p-5 ${
+                        themeMode === "dark" ? "bg-white/[0.02] border-white/5" : "bg-slate-50 border-slate-100"
+                      }`}>
+                        <span className="text-gray-400 text-[10px] uppercase font-mono tracking-wider font-bold">Industry Placements</span>
+                        <div className="text-3xl font-black mt-1 text-emerald-400">
+                          {employedAlumni.length} <span className="text-xs text-gray-500 font-normal">({placementRate}%)</span>
+                        </div>
+                      </div>
+
+                      <div className={`border rounded-2xl p-5 ${
+                        themeMode === "dark" ? "bg-white/[0.02] border-white/5" : "bg-slate-50 border-slate-100"
+                      }`}>
+                        <span className="text-gray-400 text-[10px] uppercase font-mono tracking-wider font-bold">Global Higher Education</span>
+                        <div className="text-3xl font-black mt-1 text-[#781c1c]">
+                          {higherEdAlumni.length} <span className="text-xs text-gray-500 font-normal">({higherEdRate}%)</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Progress Chart Column */}
+                    <div className="md:col-span-2 space-y-6">
+                      <h4 className={`text-sm font-bold ${themeMode === "dark" ? "text-white" : "text-slate-800"}`}>
+                        Destination Distribution
+                      </h4>
+
+                      <div className="space-y-4">
+                        {/* Placement bar */}
+                        <div>
+                          <div className="flex justify-between text-xs font-semibold text-gray-400 mb-1.5">
+                            <span>💼 Corporate Placements / Employed</span>
+                            <span className={themeMode === "dark" ? "text-white" : "text-slate-900"}>{placementRate}%</span>
+                          </div>
+                          <div className={`w-full h-3 rounded-full overflow-hidden ${
+                            themeMode === "dark" ? "bg-white/5" : "bg-slate-100"
+                          }`}>
+                            <div className="bg-gradient-to-r from-emerald-400 to-green-600 h-full rounded-full" style={{ width: `${placementRate}%` }} />
+                          </div>
+                        </div>
+
+                        {/* Higher studies bar */}
+                        <div>
+                          <div className="flex justify-between text-xs font-semibold text-gray-400 mb-1.5">
+                            <span>🏛️ Global Universities / Higher Studies</span>
+                            <span className={themeMode === "dark" ? "text-white" : "text-slate-900"}>{higherEdRate}%</span>
+                          </div>
+                          <div className={`w-full h-3 rounded-full overflow-hidden ${
+                            themeMode === "dark" ? "bg-white/5" : "bg-slate-100"
+                          }`}>
+                            <div className="bg-gradient-to-r from-[#781c1c] to-[#18233c] h-full rounded-full" style={{ width: `${higherEdRate}%` }} />
+                          </div>
+                        </div>
+
+                        {/* Other bar */}
+                        <div>
+                          <div className="flex justify-between text-xs font-semibold text-gray-400 mb-1.5">
+                            <span>🎯 Entrepreneurship / Self-Employed / Other</span>
+                            <span className={themeMode === "dark" ? "text-white" : "text-slate-900"}>{otherRate}%</span>
+                          </div>
+                          <div className={`w-full h-3 rounded-full overflow-hidden ${
+                            themeMode === "dark" ? "bg-white/5" : "bg-slate-100"
+                          }`}>
+                            <div className="bg-gradient-to-r from-blue-400 to-cyan-500 h-full rounded-full" style={{ width: `${otherRate}%` }} />
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Top destinations lists */}
+                      <div className={`grid grid-cols-2 gap-4 pt-4 border-t font-sans ${
+                        themeMode === "dark" ? "border-white/5" : "border-slate-200"
+                      }`}>
+                        <div>
+                          <span className="text-[10px] uppercase font-mono tracking-wider font-bold text-gray-500 block mb-2">Top Hiring Employers</span>
+                          <ul className={`text-xs space-y-1 ${themeMode === "dark" ? "text-gray-300" : "text-slate-700"}`}>
+                            {employedAlumni.slice(0, 3).map((a, i) => (
+                              <li key={i} className="truncate">🏢 {a.currentCompany} ({a.fullName})</li>
+                            ))}
+                            {employedAlumni.length === 0 && <li className="text-gray-500 italic">No placements logged yet</li>}
+                          </ul>
+                        </div>
+
+                        <div>
+                          <span className="text-[10px] uppercase font-mono tracking-wider font-bold text-gray-500 block mb-2">Top Academic Destinations</span>
+                          <ul className={`text-xs space-y-1 ${themeMode === "dark" ? "text-gray-300" : "text-slate-700"}`}>
+                            {higherEdAlumni.slice(0, 3).map((a, i) => (
+                              <li key={i} className="truncate">🎓 {a.higherStudyUniversity} ({a.fullName})</li>
+                            ))}
+                            {higherEdAlumni.length === 0 && <li className="text-gray-500 italic">No academic progressions logged yet</li>}
+                          </ul>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
+            </div>
+          </div>
+        )}
+
+
+
+
+        {/* ==========================================
+            TAB: REPORTS & EXPORTS
+            ========================================== */}
+        {activeTab === "reports" && reportsSummary && (
+          <div className="space-y-8">
+            <div className="grid md:grid-cols-3 gap-6">
+              {/* CSV Export Panel */}
+              <div className={`border rounded-3xl p-6 shadow-xl flex flex-col justify-between ${
+                themeMode === "dark" ? "bg-[#0b0b0f] border-white/5" : "bg-white border-slate-200"
+              }`}>
+                <div>
+                  <h4 className={`text-lg font-bold mb-1 ${themeMode === "dark" ? "text-white" : "text-slate-900"}`}>Export Database Reports</h4>
+                  <p className="text-gray-400 text-xs leading-relaxed mb-6">
+                    Download full list of registered student portfolios containing registration number, email, department, approval status, theme choice, and signup date.
+                  </p>
+                </div>
+                <button
+                  onClick={handleExportCSV}
+                  className={`w-full py-3.5 rounded-xl text-xs font-bold transition flex items-center justify-center gap-2 shadow-lg ${
+                    themeMode === "dark" ? "bg-white text-black hover:bg-gray-150" : "bg-slate-900 text-white hover:bg-slate-800"
+                  }`}
+                >
+                  <Download size={14} /> Download Student Portfolios (.CSV)
+                </button>
+              </div>
+
+              {/* Ecosystem growth status */}
+              <div className={`border rounded-3xl p-6 shadow-xl space-y-4 ${
+                themeMode === "dark" ? "bg-[#0b0b0f] border-white/5" : "bg-white border-slate-200"
+              }`}>
+                <h4 className="text-sm font-bold uppercase tracking-wider font-mono text-[#818cf8]">Ecosystem Speed</h4>
+                <div className="space-y-4">
+                  <div className="flex items-center gap-3">
+                    <TrendingUp className="text-emerald-400 shrink-0" size={20} />
+                    <div>
+                      <span className={`text-xl font-black block ${themeMode === "dark" ? "text-white" : "text-slate-900"}`}>+{reportsSummary.registeredLast30}</span>
+                      <span className="text-[10px] text-gray-400 block font-semibold uppercase tracking-wider">New signups (30 Days)</span>
+                    </div>
+                  </div>
+                  <div className={`border-t pt-4 ${themeMode === "dark" ? "border-white/5" : "border-slate-200"}`}>
+                    <span className="text-xs text-gray-400 font-semibold">Total User Base: <strong className={themeMode === "dark" ? "text-white" : "text-slate-800"}>{reportsSummary.totalUsers}</strong> Accounts</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Productivity highlights */}
+              <div className={`border rounded-3xl p-6 shadow-xl space-y-4 ${
+                themeMode === "dark" ? "bg-[#0b0b0f] border-white/5" : "bg-white border-slate-200"
+              }`}>
+                <h4 className="text-sm font-bold uppercase tracking-wider font-mono text-[#818cf8]">Ecosystem Output</h4>
+                <div className="grid grid-cols-2 gap-4 text-center">
+                  <div className={`border rounded-xl py-3.5 ${
+                    themeMode === "dark" ? "bg-white/[0.01] border-white/5" : "bg-slate-50 border-slate-100"
+                  }`}>
+                    <span className={`text-lg font-black block ${themeMode === "dark" ? "text-white" : "text-slate-900"}`}>{reportsSummary.totalProjects}</span>
+                    <span className="text-[9px] uppercase font-semibold text-gray-500">Total Projects</span>
+                  </div>
+                  <div className={`border rounded-xl py-3.5 ${
+                    themeMode === "dark" ? "bg-white/[0.01] border-white/5" : "bg-slate-50 border-slate-100"
+                  }`}>
+                    <span className={`text-lg font-black block ${themeMode === "dark" ? "text-white" : "text-slate-900"}`}>{reportsSummary.totalPapers}</span>
+                    <span className="text-[9px] uppercase font-semibold text-gray-500">Research Papers</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Popular Skills list */}
+            <div className={`border rounded-3xl p-6 shadow-xl space-y-6 ${
+              themeMode === "dark" ? "bg-[#0b0b0f] border-white/5" : "bg-white border-slate-200"
+            }`}>
+              <div>
+                <h3 className={`text-lg font-bold ${themeMode === "dark" ? "text-white" : "text-slate-900"}`}>In-demand Skill Taxonomy</h3>
+                <p className="text-gray-400 text-xs mt-1">Analytics on most popular core skills added by Madras Christian College students.</p>
+              </div>
+
+              <div className="grid sm:grid-cols-2 md:grid-cols-4 gap-4">
+                {reportsSummary.popularSkills.map((s: any, idx: number) => (
+                  <div
+                    key={idx}
+                    className={`p-4 border rounded-2xl transition duration-200 ${
+                      themeMode === "dark" ? "bg-white/5 border-white/5 hover:border-[#781c1c]/25" : "bg-slate-50 border-slate-250 hover:bg-slate-100 hover:shadow-sm"
+                    }`}
+                  >
+                    <span className={`text-xs font-bold block mb-1.5 ${themeMode === "dark" ? "text-white" : "text-slate-800"}`}>{s.skill}</span>
+                    <div className="flex justify-between items-center text-[10px] text-gray-400 font-semibold">
+                      <span>Shared by</span>
+                      <span className="text-[#781c1c] font-mono font-bold">{s.count} student(s)</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* ==========================================
+                CORPORATE & PLACEMENT ENGAGEMENT REPORT
+                ========================================== */}
+            <div className="grid md:grid-cols-2 gap-6 mt-8">
+              {/* Placement Automations Console */}
+              <div className={`border rounded-3xl p-6 shadow-xl space-y-4 text-left ${
+                themeMode === "dark" ? "bg-[#0b0b0f] border-white/5" : "bg-white border-slate-200"
+              }`}>
+                <div>
+                  <h4 className={`text-sm font-black uppercase tracking-wider mb-1 ${themeMode === "dark" ? "text-[#a78bfa]" : "text-[#781c1c]"}`}>System Automations Engine</h4>
+                  <p className="text-gray-400 text-xs leading-relaxed">
+                    Trigger background checks to transition expired jobs, flag inactive company workspaces (90 days no logs), send approaching deadline notifications (24h) to eligible students, and notify recruiters of saved search alerts.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  disabled={automationRunning}
+                  onClick={handleRunAutomation}
+                  className={`w-full py-3.5 rounded-xl text-xs font-bold transition flex items-center justify-center gap-2 shadow-lg cursor-pointer ${
+                    themeMode === "dark" ? "bg-[#781c1c] text-white hover:bg-[#5f1515]" : "bg-[#781c1c] text-white hover:bg-[#5f1515]"
+                  } disabled:opacity-50`}
+                >
+                  <Activity size={14} className={automationRunning ? "animate-spin" : ""} />
+                  {automationRunning ? "Executing Cron Checks..." : "Execute Placement Automations Cron"}
+                </button>
+              </div>
+
+              {/* Placement Export Console */}
+              <div className={`border rounded-3xl p-6 shadow-xl space-y-4 text-left ${
+                themeMode === "dark" ? "bg-[#0b0b0f] border-white/5" : "bg-white border-slate-200"
+              }`}>
+                <div>
+                  <h4 className={`text-sm font-black uppercase tracking-wider mb-1 ${themeMode === "dark" ? "text-[#a78bfa]" : "text-[#781c1c]"}`}>Multi-Format Report Exporter</h4>
+                  <p className="text-gray-400 text-xs leading-relaxed">
+                    Download targeted recruitment worksheets, corporate listing histories, and department salary distributions. Available in CSV and Microsoft Excel spreadsheet formats.
+                  </p>
+                </div>
+                <div className="grid grid-cols-3 gap-2.5">
+                  {["placement", "department", "company"].map((rep) => (
+                    <div key={rep} className="flex flex-col gap-1.5">
+                      <span className="text-[9px] uppercase font-bold text-slate-400 text-center truncate">{rep} Details</span>
+                      <div className="flex gap-1">
+                        <button
+                          type="button"
+                          onClick={() => handleExportAdminReport(rep, "csv")}
+                          className="flex-1 py-2 text-[10px] font-extrabold uppercase rounded-lg border border-blue-500/25 hover:bg-blue-500/10 text-blue-400 transition cursor-pointer"
+                        >
+                          CSV
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleExportAdminReport(rep, "excel")}
+                          className="flex-1 py-2 text-[10px] font-extrabold uppercase rounded-lg border border-indigo-500/25 hover:bg-indigo-500/10 text-indigo-400 transition cursor-pointer"
+                        >
+                          XLS
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Placements KPI Grid */}
+            {adminAnalytics && (
+              <div className="space-y-8 mt-8">
+                {/* Stats cards */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+                  {[
+                    { label: "Total Approved Jobs", val: adminAnalytics.placementStats.activeJobs, color: "text-blue-500 bg-blue-500/5" },
+                    { label: "Total Applications", val: adminAnalytics.placementStats.totalApplications, color: "text-violet-500 bg-violet-500/5" },
+                    { label: "Unique Placed Candidates", val: adminAnalytics.placementStats.totalPlacedStudents, color: "text-emerald-500 bg-emerald-500/5" },
+                    { label: "Verified Recruiter Accounts", val: adminAnalytics.companyStats.verifiedCompanies, color: "text-amber-500 bg-amber-500/5" }
+                  ].map((stat, idx) => (
+                    <div key={idx} className={`p-6 border rounded-3xl space-y-1 text-left ${stat.color} ${themeMode === "dark" ? "border-white/5" : "border-slate-200"}`}>
+                      <span className="text-[9px] uppercase font-black tracking-wide text-slate-400">{stat.label}</span>
+                      <span className="text-2xl font-black block">{stat.val}</span>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Department Salary Packages Table */}
+                <div className={`border rounded-3xl p-6 shadow-xl space-y-4 text-left ${
+                  themeMode === "dark" ? "bg-[#0b0b0f] border-white/5" : "bg-white border-slate-200"
+                }`}>
+                  <div className="flex justify-between items-center text-left">
+                    <div>
+                      <h4 className={`text-base font-black uppercase tracking-wider ${themeMode === "dark" ? "text-white" : "text-slate-800"}`}>Department Placement & Salary Summary</h4>
+                      <p className="text-gray-400 text-xs mt-0.5">Summary of placement statistics, highest salary, and average packages per academic department.</p>
+                    </div>
+                  </div>
+
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-xs border-collapse">
+                      <thead>
+                        <tr className="border-b border-slate-100 dark:border-white/5 text-slate-400 font-bold uppercase text-[9px] tracking-wider">
+                          <th className="py-3 px-4">Department / Stream</th>
+                          <th className="py-3 px-4 text-center">Total Enrolled</th>
+                          <th className="py-3 px-4 text-center">Placed count</th>
+                          <th className="py-3 px-4 text-center">Placement rate</th>
+                          <th className="py-3 px-4 text-right">Highest package</th>
+                          <th className="py-3 px-4 text-right">Average package</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {adminAnalytics.departmentReports.map((dept: any, idx: number) => (
+                          <tr key={idx} className="border-b border-slate-100 dark:border-white/5 hover:bg-slate-500/5 transition">
+                            <td className="py-3 px-4 font-bold">{dept.department}</td>
+                            <td className="py-3 px-4 text-center font-mono">{dept.totalStudents}</td>
+                            <td className="py-3 px-4 text-center font-mono">{dept.placedStudents}</td>
+                            <td className="py-3 px-4 text-center">
+                              <span className={`px-2 py-0.5 rounded font-mono font-bold text-[10px] ${
+                                dept.placementPercentage >= 75 ? "bg-emerald-500/10 text-emerald-400" : dept.placementPercentage >= 40 ? "bg-amber-500/10 text-amber-400" : "bg-slate-500/10 text-slate-400"
+                              }`}>{dept.placementPercentage}%</span>
+                            </td>
+                            <td className="py-3 px-4 text-right font-mono text-emerald-400 font-bold">{dept.highestPackage > 0 ? `${dept.highestPackage} LPA` : "0 LPA"}</td>
+                            <td className="py-3 px-4 text-right font-mono text-indigo-400 font-bold">{dept.averagePackage > 0 ? `${dept.averagePackage} LPA` : "0 LPA"}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                {/* Placements Trend & Year brackets */}
+                {adminAnalytics.studentTrends.length > 0 && (
+                  <div className={`border rounded-3xl p-6 shadow-xl space-y-4 text-left ${
+                    themeMode === "dark" ? "bg-[#0b0b0f] border-white/5" : "bg-white border-slate-200"
+                  }`}>
+                    <h4 className="text-xs font-black uppercase tracking-wider text-slate-400">Student Placement Graduation Trends</h4>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-2">
+                      {adminAnalytics.studentTrends.map((t: any, idx: number) => (
+                        <div key={idx} className="p-4 border rounded-2xl bg-slate-500/5 dark:border-white/5">
+                          <span className="text-[10px] font-mono text-slate-450 uppercase tracking-widest block font-bold">Graduation Year {t.year}</span>
+                          <span className="text-xl font-black block text-indigo-400 mt-1">{t.placedCount} Placed Student(s)</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ==========================================
+            TAB: NOTIFICATION CENTER
+            ========================================== */}
+        {activeTab === "notifications" && (
+          <div className="grid lg:grid-cols-3 gap-8">
+            {/* Left: Dispatch Announcement Form */}
+            {canWrite("notifications") ? (
+              <div className={`lg:col-span-2 border rounded-3xl p-6 shadow-xl space-y-6 transition-colors duration-300 ${
+                themeMode === "dark" ? "bg-[#0b0b0f] border-white/5" : "bg-white border-slate-200"
+              }`}>
+                <div>
+                  <h3 className={`text-lg font-bold ${themeMode === "dark" ? "text-white" : "text-slate-900"}`}>Create Announcement / Alert</h3>
+                  <p className="text-gray-400 text-xs mt-1">Publish a global broadcast message or send an alert directly to a specific student.</p>
+                </div>
+
+                <form onSubmit={handleSendNotification} className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-[10px] uppercase font-mono tracking-wider font-bold text-gray-400 block mb-2">Recipient Target</label>
+                      <select
+                        value={notifForm.recipientType}
+                        onChange={(e) => setNotifForm({ ...notifForm, recipientType: e.target.value })}
+                        className={`w-full border rounded-xl px-4 py-3 text-xs outline-none focus:border-[#781c1c] transition ${
+                          themeMode === "dark" ? "bg-[#121217] border-white/5 text-white" : "bg-white border-slate-200 text-slate-900"
+                        }`}
+                      >
+                        <option value="Broadcast">All Students (Global Broadcast)</option>
+                        <option value="Department">Filter by Department</option>
+                        <option value="Individual">Specific Student</option>
+                      </select>
+                    </div>
+
+                    {notifForm.recipientType === "Broadcast" && (
+                      <div>
+                        <label className="text-[10px] uppercase font-mono tracking-wider font-bold text-gray-400 block mb-2">Alert Severity</label>
+                        <select
+                          value={notifForm.type}
+                          onChange={(e) => setNotifForm({ ...notifForm, type: e.target.value })}
+                          className={`w-full border rounded-xl px-4 py-3 text-xs outline-none focus:border-[#781c1c] transition ${
+                            themeMode === "dark" ? "bg-[#121217] border-white/5 text-white" : "bg-white border-slate-200 text-slate-900"
+                          }`}
+                        >
+                          <option value="Broadcast">Broadcast Announcement</option>
+                          <option value="Info">Information Message</option>
+                          <option value="Warning">Warning Alert</option>
+                          <option value="Alert">Urgent Notice</option>
+                        </select>
+                      </div>
+                    )}
+
+                    {notifForm.recipientType === "Department" && (
+                      <div>
+                        <label className="text-[10px] uppercase font-mono tracking-wider font-bold text-gray-400 block mb-2">Target Department</label>
+                        <select
+                          value={notifForm.department}
+                          onChange={(e) => setNotifForm({ ...notifForm, department: e.target.value })}
+                          className={`w-full border rounded-xl px-4 py-3 text-xs outline-none focus:border-[#781c1c] transition ${
+                            themeMode === "dark" ? "bg-[#121217] border-white/5 text-white" : "bg-white border-slate-200 text-slate-900"
+                          }`}
+                        >
+                          <option value="">-- Choose Department --</option>
+                          {institution?.departments
+                            ?.split(";")
+                            .filter((d: string) => d.trim().length > 0)
+                            .map((dept: string, idx: number) => (
+                              <option key={idx} value={dept}>
+                                {dept}
+                              </option>
+                            ))}
+                        </select>
+                      </div>
+                    )}
+
+                    {notifForm.recipientType === "Individual" && (
+                      <div className="grid grid-cols-2 gap-2 col-span-2 sm:col-span-1">
+                        <div>
+                          <label className="text-[10px] uppercase font-mono tracking-wider font-bold text-gray-400 block mb-2">Target Student</label>
+                          <select
+                            value={notifForm.userId}
+                            onChange={(e) => setNotifForm({ ...notifForm, userId: Number(e.target.value) })}
+                            className={`w-full border rounded-xl px-4 py-3 text-xs outline-none focus:border-[#781c1c] transition ${
+                              themeMode === "dark" ? "bg-[#121217] border-white/5 text-white" : "bg-white border-slate-200 text-slate-900"
+                            }`}
+                          >
+                            <option value={0}>-- Select Student --</option>
+                            {students
+                              .filter(s => s.role !== "Admin")
+                              .map(s => (
+                                <option key={s.id} value={s.id}>
+                                  {s.fullName} ({s.registerNumber || s.email})
+                                </option>
+                              ))}
+                          </select>
+                        </div>
+                        <div>
+                          <label className="text-[10px] uppercase font-mono tracking-wider font-bold text-gray-400 block mb-2">Severity</label>
+                          <select
+                            value={notifForm.type}
+                            onChange={(e) => setNotifForm({ ...notifForm, type: e.target.value })}
+                            className={`w-full border rounded-xl px-4 py-3 text-xs outline-none focus:border-[#781c1c] transition ${
+                              themeMode === "dark" ? "bg-[#121217] border-white/5 text-white" : "bg-white border-slate-200 text-slate-900"
+                            }`}
+                          >
+                            <option value="Info">Info</option>
+                            <option value="Warning">Warning</option>
+                            <option value="Alert">Urgent</option>
+                          </select>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] uppercase font-mono tracking-wider font-bold text-gray-400 block mb-2">Notification Title</label>
+                    <input
+                      type="text"
+                      placeholder="E.g., Submission Deadline Extended"
+                      value={notifForm.title}
+                      onChange={(e) => setNotifForm({ ...notifForm, title: e.target.value })}
+                      className={`w-full border rounded-xl px-4 py-3 text-xs outline-none focus:border-[#781c1c] transition ${
+                        themeMode === "dark" ? "bg-[#121217] border-white/5 text-white" : "bg-white border-slate-200 text-slate-900"
+                      }`}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] uppercase font-mono tracking-wider font-bold text-gray-400 block mb-2">Message Body</label>
+                    <textarea
+                      rows={4}
+                      placeholder="Enter announcement description..."
+                      value={notifForm.message}
+                      onChange={(e) => setNotifForm({ ...notifForm, message: e.target.value })}
+                      className={`w-full border rounded-xl px-4 py-3 text-xs outline-none focus:border-[#781c1c] transition resize-none ${
+                        themeMode === "dark" ? "bg-[#121217] border-white/5 text-white" : "bg-white border-slate-200 text-slate-900"
+                      }`}
+                    />
+                  </div>
+
+                  <button
+                    type="submit"
+                    className="px-6 py-3 rounded-xl bg-[#781c1c] hover:bg-[#5f1515] text-white text-xs font-bold transition"
+                  >
+                    Send Announcement
+                  </button>
+                </form>
+              </div>
+            ) : (
+              <div className={`lg:col-span-2 border border-dashed rounded-3xl p-8 flex flex-col items-center justify-center text-center ${
+                themeMode === "dark" ? "bg-[#0b0b0f] border-white/5" : "bg-white border-slate-250"
+              }`}>
+                <Lock size={32} className="text-gray-500 mb-3" />
+                <h4 className={`text-sm font-bold mb-1.5 ${themeMode === "dark" ? "text-white" : "text-slate-800"}`}>Send Access Restricted</h4>
+                <p className="text-gray-400 text-xs max-w-sm leading-relaxed">
+                  You have read-only access to notifications. You can browse dispatch history but cannot broadcast new announcements.
+                </p>
+              </div>
+            )}
+
+            {/* Right: Sent Logs */}
+            <div className={`border rounded-3xl p-6 shadow-xl space-y-6 transition-colors duration-300 ${
+              themeMode === "dark" ? "bg-[#0b0b0f] border-white/5" : "bg-white border-slate-200"
+            }`}>
+              <div>
+                <h3 className={`text-lg font-bold ${themeMode === "dark" ? "text-white" : "text-slate-900"}`}>Broadcast History</h3>
+                <p className="text-gray-400 text-xs mt-1">Review recently dispatched system logs and alerts.</p>
+              </div>
+
+              <div className="space-y-3.5 max-h-[450px] overflow-y-auto pr-1">
+                {notifications.length > 0 ? (
+                  notifications.map((notif) => (
+                    <div
+                      key={notif.id}
+                      className={`p-4 border rounded-2xl flex flex-col justify-between hover:bg-white/[0.08] transition relative group ${
+                        themeMode === "dark" ? "bg-white/5 border-white/5" : "bg-slate-50 border-slate-200 hover:bg-slate-100"
+                      }`}
+                    >
+                      <div className="flex justify-between items-start mb-2">
+                        <span className="text-[10px] font-bold uppercase text-[#818cf8]">{notif.type}</span>
+                        {canWrite("notifications") && (
+                          <button
+                            onClick={() => handleDeleteNotification(notif.id)}
+                            className="text-rose-400 hover:bg-rose-500/10 p-1 rounded transition opacity-0 group-hover:opacity-100 cursor-pointer"
+                            title="Delete message"
+                          >
+                            <Trash2 size={12} />
+                          </button>
+                        )}
+                      </div>
+                      <h5 className={`text-xs font-bold leading-tight mb-1 ${themeMode === "dark" ? "text-white" : "text-slate-800"}`}>{notif.title}</h5>
+                      <p className="text-gray-400 text-[11px] leading-relaxed mb-3">{notif.message}</p>
+                      
+                      <div className={`border-t pt-2.5 flex justify-between text-[9px] text-gray-500 font-semibold ${
+                        themeMode === "dark" ? "border-white/5" : "border-slate-200"
+                      }`}>
+                        <span>Target: {notif.targetUser}</span>
+                        <span>{new Date(notif.createdAt).toLocaleDateString()}</span>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="text-center py-10 text-gray-600 text-xs">
+                    No announcements dispatched yet.
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ==========================================
+            TAB: SECURITY AUDIT LOGS
+            ========================================== */}
+        {activeTab === "audit-logs" && (
+          <div className={`border rounded-3xl p-6 shadow-xl space-y-6 transition-colors duration-300 ${
+            themeMode === "dark" ? "bg-[#0b0b0f] border-white/5" : "bg-white border-slate-200"
+          }`}>
+            <div>
+              <h3 className={`text-lg font-bold ${themeMode === "dark" ? "text-white" : "text-slate-900"}`}>Security Audit Logs</h3>
+              <p className="text-gray-400 text-xs mt-1">Real-time log of administrative and security events on the platform.</p>
+            </div>
+
+            <div className={`overflow-x-auto border rounded-2xl ${
+              themeMode === "dark" ? "border-white/5" : "border-slate-200"
+            }`}>
+              <table className="w-full text-left border-collapse text-xs">
+                <thead>
+                  <tr className={`border-b text-gray-400 font-bold uppercase tracking-wider ${
+                    themeMode === "dark" ? "bg-white/5 border-white/5" : "bg-slate-50 border-slate-200 text-slate-500"
+                  }`}>
+                    <th className="p-4">Timestamp</th>
+                    <th className="p-4">Action</th>
+                    <th className="p-4">Actor</th>
+                    <th className="p-4">IP Address</th>
+                    <th className="p-4">Details</th>
+                  </tr>
+                </thead>
+                <tbody className={`divide-y ${
+                  themeMode === "dark" ? "divide-white/5" : "divide-slate-200"
+                }`}>
+                  {auditLogs.length > 0 ? (
+                    auditLogs.map((log) => (
+                      <tr key={log.id} className={themeMode === "dark" ? "hover:bg-white/[0.02] transition" : "hover:bg-slate-50 transition"}>
+                        <td className="p-4 font-mono text-[#818cf8]">
+                          {new Date(log.timestamp).toLocaleString("en-IN")}
+                        </td>
+                        <td className={`p-4 font-bold ${themeMode === "dark" ? "text-white" : "text-slate-900"}`}>
+                          {log.action}
+                        </td>
+                        <td className="p-4 text-gray-400">
+                          {log.performedByEmail}
+                        </td>
+                        <td className="p-4 font-mono text-gray-500">
+                          {log.ipAddress || "Local"}
+                        </td>
+                        <td className="p-4 text-gray-405 max-w-xs truncate" title={log.details}>
+                          {log.details}
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan={5} className="p-10 text-center text-gray-500">
+                        No security audit logs found.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* ==========================================
+            TAB: SYSTEM BACKUP & RESTORE
+            ========================================== */}
+        {activeTab === "backup-restore" && (
+          <div className="grid md:grid-cols-2 gap-8">
+            {/* Backup card */}
+            <div className={`border rounded-3xl p-8 shadow-xl space-y-6 flex flex-col justify-between transition-colors duration-300 ${
+              themeMode === "dark" ? "bg-[#0b0b0f] border-white/5" : "bg-white border-slate-200"
+            }`}>
+              <div className="space-y-3">
+                <div className="w-12 h-12 rounded-2xl bg-[#781c1c]/10 border border-[#781c1c]/20 flex items-center justify-center">
+                  <Download size={22} className="text-[#781c1c]" />
+                </div>
+                <h3 className={`text-xl font-bold ${themeMode === "dark" ? "text-white" : "text-slate-900"}`}>Download Database Backup</h3>
+                <p className="text-gray-400 text-xs leading-relaxed">
+                  Generate and download a complete JSON payload backup of the Madras Christian College portfolio database. This backup compiles all user registrations, profile settings, student projects, certifications, research papers, resumes, and notifications.
+                </p>
+              </div>
+              <button
+                onClick={handleDownloadBackup}
+                disabled={backingUp}
+                className="w-full py-3.5 rounded-xl text-xs font-bold bg-[#8b5cf6] hover:bg-[#7c3aed] text-white shadow-lg transition duration-200"
+              >
+                {backingUp ? "Generating Backup JSON..." : "Download Full JSON Backup"}
+              </button>
+            </div>
+
+            {/* Restore card */}
+            <div className={`border rounded-3xl p-8 shadow-xl space-y-6 flex flex-col justify-between transition-colors duration-300 ${
+              themeMode === "dark" ? "bg-[#0b0b0f] border-white/5" : "bg-white border-slate-200"
+            }`}>
+              <div className="space-y-3">
+                <div className="w-12 h-12 rounded-2xl bg-rose-500/10 border border-rose-500/20 flex items-center justify-center">
+                  <Shield size={22} className="text-rose-400" />
+                </div>
+                <h3 className={`text-xl font-bold ${themeMode === "dark" ? "text-white" : "text-slate-900"}`}>Restore Database from Backup</h3>
+                <p className="text-gray-400 text-xs leading-relaxed">
+                  Restore database tables from a previously downloaded backup JSON file. 
+                  <strong className="text-rose-400 block mt-2">
+                    ⚠ WARNING: This action will permanently drop and overwrite all current database tables. Make sure to download a current backup first.
+                  </strong>
+                </p>
+              </div>
+              
+              <div className="relative">
+                <input
+                  type="file"
+                  accept=".json"
+                  onChange={handleRestoreBackup}
+                  disabled={restoringBackup}
+                  id="restore-file-upload"
+                  className="hidden"
+                />
+                <label
+                  htmlFor="restore-file-upload"
+                  className={`w-full py-3.5 rounded-xl text-xs font-bold text-center block cursor-pointer transition shadow-lg ${
+                    restoringBackup 
+                      ? "bg-rose-500/20 text-rose-300 cursor-not-allowed" 
+                      : "bg-rose-600 hover:bg-rose-700 text-white"
+                  }`}
+                >
+                  {restoringBackup ? "Restoring Database..." : "Select Backup JSON & Restore"}
+                </label>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ==========================================
+            TAB: ACCESS CONTROL (RBAC) — SUPER ADMIN ONLY
+            ========================================== */}
+        {activeTab === "rbac" && isSuperAdmin && (
+          <div className="space-y-8 mcc-access-control">
+
+            {/* Header */}
+            <div className={`border rounded-3xl p-6 ${themeMode === "dark" ? "bg-[#0b0b0f] border-white/5" : "bg-white border-slate-200"}`}>
+              <div className="flex items-center gap-3 mb-2">
+                <div className="w-10 h-10 rounded-xl bg-violet-500/10 border border-violet-500/20 flex items-center justify-center">
+                  <UserCog size={20} className="text-violet-400" />
+                </div>
+                <div>
+                  <h3 className={`text-lg font-bold ${themeMode === "dark" ? "text-white" : "text-slate-900"}`}>Access Control & Admin Management</h3>
+                  <p className="text-xs text-gray-400">Create sub-admin accounts and assign module-level permissions. Sub-admins only see what you grant them.</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="grid lg:grid-cols-2 gap-8">
+
+              {/* ── LEFT: Create New Admin ── */}
+              <div className={`border rounded-3xl p-6 space-y-5 ${themeMode === "dark" ? "bg-[#0b0b0f] border-white/5" : "bg-white border-slate-200"}`}>
+                <div className="flex items-center gap-2 mb-1">
+                  <Plus size={16} className="text-violet-400" />
+                  <h4 className={`text-sm font-bold ${themeMode === "dark" ? "text-white" : "text-slate-900"}`}>Create New Admin Account</h4>
+                </div>
+
+                <form onSubmit={handleCreateAdmin} className="space-y-4">
+                  {/* Full Name */}
+                  <div>
+                    <label className={`text-[10px] uppercase font-mono font-bold tracking-wider block mb-1.5 ${themeMode === "dark" ? "text-gray-400" : "text-slate-500"}`}>Full Name</label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="e.g. Dr. Priya Rajan"
+                      value={rbacForm.fullName}
+                      onChange={e => setRbacForm(prev => ({ ...prev, fullName: e.target.value }))}
+                      className={`w-full border rounded-xl px-4 py-2.5 text-xs outline-none focus:border-violet-500 transition ${themeMode === "dark" ? "bg-[#121217] border-white/5 text-white placeholder-gray-600" : "bg-slate-50 border-slate-200 text-slate-900 placeholder-slate-400"}`}
+                    />
+                  </div>
+
+                  {/* Username */}
+                  <div>
+                    <label className={`text-[10px] uppercase font-mono font-bold tracking-wider block mb-1.5 ${themeMode === "dark" ? "text-gray-400" : "text-slate-500"}`}>Username (for login)</label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="e.g. priya.admin"
+                      value={rbacForm.username}
+                      onChange={e => setRbacForm(prev => ({ ...prev, username: e.target.value.toLowerCase().replace(/\s/g, "") }))}
+                      className={`w-full border rounded-xl px-4 py-2.5 text-xs outline-none focus:border-violet-500 transition font-mono ${themeMode === "dark" ? "bg-[#121217] border-white/5 text-white placeholder-gray-600" : "bg-slate-50 border-slate-200 text-slate-900 placeholder-slate-400"}`}
+                    />
+                  </div>
+
+                  {/* Email */}
+                  <div>
+                    <label className={`text-[10px] uppercase font-mono font-bold tracking-wider block mb-1.5 ${themeMode === "dark" ? "text-gray-400" : "text-slate-500"}`}>Email Address</label>
+                    <input
+                      type="email"
+                      required
+                      placeholder="e.g. priya@mcc.edu.in"
+                      value={rbacForm.email}
+                      onChange={e => setRbacForm(prev => ({ ...prev, email: e.target.value }))}
+                      className={`w-full border rounded-xl px-4 py-2.5 text-xs outline-none focus:border-violet-500 transition ${themeMode === "dark" ? "bg-[#121217] border-white/5 text-white placeholder-gray-600" : "bg-slate-50 border-slate-200 text-slate-900 placeholder-slate-400"}`}
+                    />
+                  </div>
+
+                  {/* Password */}
+                  <div>
+                    <label className={`text-[10px] uppercase font-mono font-bold tracking-wider block mb-1.5 ${themeMode === "dark" ? "text-gray-400" : "text-slate-500"}`}>Password</label>
+                    <input
+                      type="password"
+                      required
+                      placeholder="Min 6 characters"
+                      value={rbacForm.password}
+                      onChange={e => setRbacForm(prev => ({ ...prev, password: e.target.value }))}
+                      className={`w-full border rounded-xl px-4 py-2.5 text-xs outline-none focus:border-violet-500 transition ${themeMode === "dark" ? "bg-[#121217] border-white/5 text-white placeholder-gray-600" : "bg-slate-50 border-slate-200 text-slate-900 placeholder-slate-400"}`}
+                    />
+                  </div>
+
+                  {/* Module Permissions */}
+                  <div>
+                    <div className="flex items-center justify-between mb-3">
+                      <label className={`text-[10px] uppercase font-mono font-bold tracking-wider ${themeMode === "dark" ? "text-gray-400" : "text-slate-500"}`}>
+                        Module Access Permissions
+                      </label>
+                      <div className="flex items-center gap-2 text-[9px] font-mono">
+                        <span className="bg-gray-500/15 text-gray-400 px-1.5 py-0.5 rounded">None</span>
+                        <span className="bg-amber-500/15 text-amber-300 px-1.5 py-0.5 rounded">Read</span>
+                        <span className="bg-emerald-500/15 text-emerald-300 px-1.5 py-0.5 rounded">Write</span>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-1 gap-2">
+                      {ALL_PERMISSIONS.map(perm => {
+                        const level = rbacForm.permissions[perm.id]; // undefined | "read" | "write"
+                        return (
+                          <button
+                            key={perm.id}
+                            type="button"
+                            onClick={() => cyclePermissionInForm(perm.id, perm.alwaysRead)}
+                            className={`flex items-center gap-3 px-4 py-2.5 rounded-xl border text-xs font-semibold transition text-left ${
+                              level === "write"
+                                ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-300"
+                                : level === "read"
+                                  ? "bg-amber-500/10 border-amber-500/30 text-amber-300"
+                                  : themeMode === "dark"
+                                    ? "border-white/5 text-gray-500 hover:border-white/15"
+                                    : "border-slate-200 text-slate-400 hover:border-slate-300"
+                            }`}
+                          >
+                            {/* 3-state indicator */}
+                            <div className={`w-6 h-6 rounded-lg flex items-center justify-center text-[9px] font-black shrink-0 transition ${
+                              level === "write"
+                                ? "bg-emerald-500 text-white"
+                                : level === "read"
+                                  ? "bg-amber-500 text-white"
+                                  : themeMode === "dark" ? "bg-white/5 text-gray-600" : "bg-slate-100 text-slate-300"
+                            }`}>
+                              {level === "write" ? "W" : level === "read" ? "R" : "—"}
+                            </div>
+                            <span className="flex-1">{perm.label}</span>
+                            {perm.alwaysRead && (
+                              <span className="text-[9px] bg-slate-500/15 text-slate-400 px-1.5 py-0.5 rounded font-mono">view only</span>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    {Object.keys(rbacForm.permissions).length > 0 && (
+                      <div className="flex gap-2 mt-2 flex-wrap">
+                        {Object.entries(rbacForm.permissions).map(([mod, lvl]) => (
+                          <span key={mod} className={`text-[9px] px-2 py-0.5 rounded-full font-mono font-bold border ${
+                            lvl === "write"
+                              ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
+                              : "bg-amber-500/10 text-amber-400 border-amber-500/20"
+                          }`}>
+                            {mod} [{lvl === "write" ? "R+W" : "R"}]
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={rbacLoading}
+                    className="w-full py-3 rounded-xl bg-violet-600 hover:bg-violet-700 text-white text-xs font-bold transition disabled:opacity-50"
+                  >
+                    {rbacLoading ? "Creating Admin..." : "Create Admin Account"}
+                  </button>
+                </form>
+              </div>
+
+              {/* ── RIGHT: Existing Admins List ── */}
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <h4 className={`text-sm font-bold flex items-center gap-2 ${themeMode === "dark" ? "text-white" : "text-slate-900"}`}>
+                    <Users size={15} className="text-violet-400" />
+                    Existing Admin Accounts
+                    <span className="text-[10px] bg-violet-500/15 text-violet-300 px-2 py-0.5 rounded-full font-mono">{admins.length}</span>
+                  </h4>
+                  <button onClick={fetchAdmins} className="text-[10px] text-gray-400 hover:text-white transition font-mono">↺ Refresh</button>
+                </div>
+
+                {admins.length === 0 ? (
+                  <div className={`border rounded-2xl p-8 text-center ${themeMode === "dark" ? "border-white/5 bg-[#0b0b0f]" : "border-slate-200 bg-slate-50"}`}>
+                    <UserCog size={32} className="text-gray-600 mx-auto mb-3" />
+                    <p className="text-gray-500 text-xs">No admin accounts created yet.</p>
+                    <p className="text-gray-600 text-[10px] mt-1">Use the form to create your first sub-admin.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {admins.map((admin: any) => {
+                      const isEditing = editingAdmin?.id === admin.id;
+                      const permsObj: Record<string, string> = (() => {
+                        try {
+                          const p = JSON.parse(admin.adminPermissions || "{}");
+                          if (Array.isArray(p)) {
+                            const o: Record<string, string> = {};
+                            p.forEach((x: string) => { o[x] = "write"; });
+                            return o;
+                          }
+                          return p;
+                        } catch { return {}; }
+                      })();
+
+                      return (
+                        <div key={admin.id} className={`border rounded-2xl p-4 space-y-3 transition ${themeMode === "dark" ? "bg-[#0b0b0f] border-white/5" : "bg-white border-slate-200"}`}>
+                          {/* Admin Header */}
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-2 flex-wrap mb-1">
+                                <div className={`font-bold text-sm truncate ${themeMode === "dark" ? "text-white" : "text-slate-900"}`}>{admin.fullName}</div>
+                                {admin.isActive ? (
+                                  <span className="text-[8px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2 py-0.5 rounded-full font-mono font-bold">ACTIVE</span>
+                                ) : (
+                                  <span className="text-[8px] bg-rose-500/10 text-rose-450 border border-rose-500/20 px-2 py-0.5 rounded-full font-mono font-bold">INACTIVE</span>
+                                )}
+                              </div>
+                              <div className="text-[10px] text-gray-400 font-mono truncate">{admin.username} · {admin.email}</div>
+                              
+                              {/* Display Credentials */}
+                              <div className={`mt-3 p-2.5 rounded-xl border text-[11px] font-sans flex flex-col gap-1.5 ${
+                                themeMode === "dark" ? "bg-white/[0.02] border-white/5" : "bg-slate-50 border-slate-100"
+                              }`}>
+                                <div className="flex items-center justify-between">
+                                  <span className={themeMode === "dark" ? "text-gray-400" : "text-slate-500"}>Username:</span>
+                                  <span className={`font-mono font-bold ${themeMode === "dark" ? "text-violet-400" : "text-violet-600"}`}>{admin.username}</span>
+                                </div>
+                                <div className="flex items-center justify-between">
+                                  <span className={themeMode === "dark" ? "text-gray-400" : "text-slate-500"}>Password:</span>
+                                  {(() => {
+                                    const isHashed = admin.passwordHash && (
+                                      admin.passwordHash.startsWith("$2a$") ||
+                                      admin.passwordHash.startsWith("$2b$") ||
+                                      admin.passwordHash.startsWith("$2y$")
+                                    );
+                                    return (
+                                      <span className={`font-mono font-bold ${
+                                        isHashed
+                                          ? "text-gray-400 italic font-normal"
+                                          : (themeMode === "dark" ? "text-violet-400" : "text-violet-600")
+                                      }`}>
+                                        {isHashed ? "•••••• (Legacy Hash)" : (admin.passwordHash || "—")}
+                                      </span>
+                                    );
+                                  })()}
+                                </div>
+                              </div>
+
+                              {/* Display Permissions */}
+                              <div className={`mt-3 p-3 rounded-xl border space-y-2 text-[11px] ${
+                                themeMode === "dark" ? "bg-white/[0.01] border-white/5" : "bg-slate-50 border-slate-150"
+                              }`}>
+                                <div className={`font-mono text-[9px] uppercase tracking-wider mb-2 font-bold ${
+                                  themeMode === "dark" ? "text-gray-400" : "text-slate-500"
+                                }`}>Module Permissions:</div>
+                                <div className="grid grid-cols-1 gap-1.5">
+                                  {ALL_PERMISSIONS.map(perm => {
+                                    const level = permsObj[perm.id]; // undefined | "read" | "write"
+                                    return (
+                                      <div key={perm.id} className="flex items-center gap-1.5 justify-between">
+                                        <span className={themeMode === "dark" ? "text-gray-300" : "text-slate-700"}>{perm.label}:</span>
+                                        <span className={`px-2 py-0.5 rounded text-[9px] font-bold ${
+                                          level === "write"
+                                            ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
+                                            : level === "read"
+                                              ? "bg-amber-500/10 text-amber-400 border border-amber-500/20"
+                                              : "bg-gray-500/5 text-gray-400 border border-gray-500/10"
+                                        }`}>
+                                          {level === "write" ? "Read & Write" : level === "read" ? "Read-Only" : "No Access"}
+                                        </span>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            </div>
+                            <div className="flex gap-1.5 shrink-0">
+                              <button
+                                onClick={() => setEditingAdmin(isEditing ? null : admin)}
+                                className={`p-1.5 rounded-lg transition text-xs ${isEditing ? "bg-violet-500/20 text-violet-300" : themeMode === "dark" ? "text-gray-400 hover:text-white hover:bg-white/5" : "text-slate-400 hover:text-slate-700 hover:bg-slate-100"}`}
+                                title="Edit permissions"
+                              >
+                                <Edit2 size={13} />
+                              </button>
+                              <button
+                                onClick={() => handleToggleAdminActive(admin.id, admin.isActive)}
+                                className={`p-1.5 rounded-lg transition ${admin.isActive ? "text-amber-400 hover:bg-amber-500/10" : "text-emerald-400 hover:bg-emerald-500/10"}`}
+                                title={admin.isActive ? "Deactivate" : "Activate"}
+                              >
+                                {admin.isActive ? <ToggleRight size={14} /> : <ToggleLeft size={14} />}
+                              </button>
+                              <button
+                                onClick={() => handleDeleteAdmin(admin.id, admin.fullName)}
+                                className="p-1.5 rounded-lg text-rose-400 hover:bg-rose-500/10 transition"
+                                title="Delete admin"
+                              >
+                                <Trash2 size={13} />
+                              </button>
+                            </div>
+                          </div>
+
+                          {/* Edit Panel */}
+                          {isEditing && (
+                            <div className={`border-t pt-3 space-y-3 ${themeMode === "dark" ? "border-white/5" : "border-slate-100"}`}>
+                              <p className={`text-[10px] uppercase font-mono font-bold tracking-wider mb-1 ${themeMode === "dark" ? "text-gray-500" : "text-slate-400"}`}>Edit Module Access</p>
+                              <p className={`text-[9px] mb-3 ${themeMode === "dark" ? "text-gray-600" : "text-slate-400"}`}>Click to cycle: <span className="text-gray-400">None</span> → <span className="text-amber-400">Read</span> → <span className="text-emerald-400">Write</span></p>
+                              <div className="grid grid-cols-1 gap-1.5">
+                                {ALL_PERMISSIONS.map(perm => {
+                                  const editPerms = getEditPerms();
+                                  const level = editPerms[perm.id];
+                                  return (
+                                    <button
+                                      key={perm.id}
+                                      type="button"
+                                      onClick={() => cycleEditPermission(perm.id, perm.alwaysRead)}
+                                      className={`flex items-center gap-3 px-3 py-2.5 rounded-xl border text-xs font-semibold transition text-left ${
+                                        level === "write"
+                                          ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-300"
+                                          : level === "read"
+                                            ? "bg-amber-500/10 border-amber-500/30 text-amber-300"
+                                            : themeMode === "dark"
+                                              ? "border-white/5 text-gray-500 hover:border-white/15"
+                                              : "border-slate-200 text-slate-400 hover:border-slate-300"
+                                      }`}
+                                    >
+                                      <div className={`w-6 h-6 rounded-lg flex items-center justify-center text-[9px] font-black shrink-0 transition ${
+                                        level === "write"
+                                          ? "bg-emerald-500 text-white"
+                                          : level === "read"
+                                            ? "bg-amber-500 text-white"
+                                            : themeMode === "dark" ? "bg-white/5 text-gray-600" : "bg-slate-100 text-slate-300"
+                                      }`}>
+                                        {level === "write" ? "W" : level === "read" ? "R" : "—"}
+                                      </div>
+                                      <span className="flex-1">{perm.label}</span>
+                                      {perm.alwaysRead && (
+                                        <span className="text-[9px] bg-slate-500/15 text-slate-400 px-1.5 py-0.5 rounded font-mono">view only</span>
+                                      )}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                              <button
+                                onClick={() => handleUpdateAdminPermissions(admin.id, getEditPerms())}
+                                disabled={rbacLoading}
+                                className="w-full py-2 rounded-xl bg-violet-600 hover:bg-violet-700 text-white text-xs font-bold transition disabled:opacity-50"
+                              >
+                                {rbacLoading ? "Saving..." : "Save Permissions"}
+                              </button>
+
+                              {/* Reset Password */}
+                              <div className={`border-t pt-3 ${themeMode === "dark" ? "border-white/5" : "border-slate-100"}`}>
+                                <p className={`text-[10px] uppercase font-mono font-bold tracking-wider mb-2 ${themeMode === "dark" ? "text-gray-500" : "text-slate-400"}`}>Reset Password</p>
+                                <div className="flex gap-2">
+                                  <input
+                                    type="password"
+                                    placeholder="New password (min 6 chars)"
+                                    value={rbacNewPassword}
+                                    onChange={e => setRbacNewPassword(e.target.value)}
+                                    className={`flex-1 border rounded-xl px-3 py-2 text-xs outline-none focus:border-violet-500 transition ${themeMode === "dark" ? "bg-[#121217] border-white/5 text-white placeholder-gray-600" : "bg-slate-50 border-slate-200 text-slate-900 placeholder-slate-400"}`}
+                                  />
+                                  <button
+                                    onClick={() => handleResetAdminPassword(admin.id)}
+                                    disabled={rbacLoading}
+                                    className="px-3 py-2 rounded-xl bg-[#18233c] hover:bg-[#1f2d4f] text-white text-xs font-bold transition disabled:opacity-50 flex items-center gap-1.5"
+                                  >
+                                    <Key size={11} /> Reset
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ==========================================
+            TAB: ASSESSMENTS MANAGER
+            ========================================== */}
+        {activeTab === "assessments" && (
+          <AssessmentAdminModule themeMode={themeMode} toggleThemeMode={toggleThemeMode} />
+        )}
+
+        {/* ==========================================
+            TAB: EXAM SECURITY SETTINGS
+            ========================================== */}
+        {activeTab === "exam-security" && (
+          <div className="space-y-6 animate-fade-in-up text-left max-w-xl">
+            <div>
+              <h2 className={`text-2xl font-black ${themeMode === "dark" ? "text-white" : "text-slate-900"}`}>Exam Security & Proctoring</h2>
+              <p className="text-gray-400 text-xs">Configure global webcam proctoring settings applied to all assessments.</p>
+            </div>
+
+            {proctoringStatus && (
+              <div className={`p-4 rounded-xl text-xs font-semibold flex items-center gap-2 border ${
+                proctoringStatus.type === "success"
+                  ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400"
+                  : "bg-red-500/10 border-red-500/20 text-red-400"
+              }`}>
+                {proctoringStatus.type === "success" ? <CheckCircle size={16} /> : <AlertCircle size={16} />}
+                {proctoringStatus.text}
+              </div>
+            )}
+
+            {proctoringLoading ? (
+              <div className="py-16 text-center text-slate-400 flex items-center justify-center gap-2">
+                <RefreshCw className="w-5 h-5 animate-spin text-[#781c1c]" /> Loading configuration...
+              </div>
+            ) : (
+              <form onSubmit={handleSaveProctoringConfig} className={`p-6 border rounded-3xl space-y-4 ${themeMode === "dark" ? "bg-white/5 border-white/5" : "bg-white border-slate-200"}`}>
+                <div className="space-y-4">
+                  <div className="space-y-1.5">
+                    <label className="block text-[10px] uppercase font-bold text-slate-400 tracking-wider">
+                      Look-Away Warning Threshold (seconds)
+                    </label>
+                    <p className="text-slate-400 text-[11px] leading-relaxed">
+                      Set the duration (in seconds) a student can look away from the screen or webcam before a malpractice warning is automatically logged.
+                    </p>
+                    <input
+                      type="number"
+                      min={2}
+                      max={30}
+                      value={proctoringConfig.lookAwayDurationLimit}
+                      onChange={(e) => setProctoringConfig({ ...proctoringConfig, lookAwayDurationLimit: Number(e.target.value) })}
+                      className="w-full text-xs px-4 py-2.5 rounded-xl border outline-none bg-slate-50 dark:bg-white/5 border-slate-200 dark:border-white/10 text-slate-900 dark:text-white"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5 pt-2 border-t border-slate-200 dark:border-white/5">
+                    <label className="block text-[10px] uppercase font-bold text-slate-400 tracking-wider">
+                      Face Missing Timeout (seconds)
+                    </label>
+                    <p className="text-slate-400 text-[11px] leading-relaxed">
+                      Duration in seconds before violation warning is triggered if no face is detected by the webcam.
+                    </p>
+                    <input
+                      type="number"
+                      min={1}
+                      max={120}
+                      value={proctoringConfig.faceMissingTimeout}
+                      onChange={(e) => setProctoringConfig({ ...proctoringConfig, faceMissingTimeout: Number(e.target.value) })}
+                      className="w-full text-xs px-4 py-2.5 rounded-xl border outline-none bg-slate-50 dark:bg-white/5 border-slate-200 dark:border-white/10 text-slate-900 dark:text-white"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 border-t border-slate-200 dark:border-white/5">
+                    <div className="flex items-center justify-between p-3 bg-slate-50 dark:bg-white/5 rounded-xl border border-slate-200 dark:border-white/10">
+                      <div className="flex flex-col gap-0.5 text-left">
+                        <span className="text-xs font-bold text-slate-900 dark:text-white">Object Detection</span>
+                        <span className="text-[9px] text-slate-400">Detect phone/tablet usage</span>
+                      </div>
+                      <input
+                        type="checkbox"
+                        checked={proctoringConfig.objectDetectionEnabled}
+                        onChange={(e) => setProctoringConfig({ ...proctoringConfig, objectDetectionEnabled: e.target.checked })}
+                        className="w-4 h-4 rounded text-[#781c1c] focus:ring-[#781c1c] bg-slate-100 border-slate-350"
+                      />
+                    </div>
+
+                    <div className="flex items-center justify-between p-3 bg-slate-50 dark:bg-white/5 rounded-xl border border-slate-200 dark:border-white/10">
+                      <div className="flex flex-col gap-0.5 text-left">
+                        <span className="text-xs font-bold text-slate-900 dark:text-white">Pause Exam on Face Loss</span>
+                        <span className="text-[9px] text-slate-400">Pause timer if face missing</span>
+                      </div>
+                      <input
+                        type="checkbox"
+                        checked={proctoringConfig.pauseTimerOnFaceMissing}
+                        onChange={(e) => setProctoringConfig({ ...proctoringConfig, pauseTimerOnFaceMissing: e.target.checked })}
+                        className="w-4 h-4 rounded text-[#781c1c] focus:ring-[#781c1c] bg-slate-100 border-slate-350"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={proctoringSaving}
+                  className="w-full flex items-center justify-center gap-2 bg-[#781c1c] hover:bg-[#5f1515] disabled:bg-slate-700 text-white font-bold py-2.5 rounded-xl text-xs uppercase font-mono shadow-md transition"
+                >
+                  {proctoringSaving ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Save size={14} />}
+                  Save Configuration
+                </button>
+              </form>
+            )}
+          </div>
+        )}
+
+        {/* ==========================================
+            TAB: HR DATA ACCESS PERMISSIONS
+            ========================================== */}
+        {activeTab === "hr-access" && (
+          <HRAccessManager />
+        )}
+
+        {/* ==========================================
+            TAB: COMPANY MANAGEMENT
+            ========================================== */}
+        {activeTab === "companies" && (
+          <div className="space-y-6 animate-fade-in-up text-left">
+            {/* Header Title */}
+            <div className="flex justify-between items-center">
+              <div>
+                <h2 className={`text-2xl font-black ${themeMode === "dark" ? "text-white" : "text-slate-900"}`}>Company Onboarding & Verification</h2>
+                <p className="text-gray-400 text-xs">Manage placement partners, review documents, and verify credentials.</p>
+              </div>
+            </div>
+
+            {/* Metrics Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div className={`p-5 border rounded-3xl ${themeMode === "dark" ? "bg-white/5 border-white/5" : "bg-white border-slate-200"}`}>
+                <span className="text-[10px] uppercase font-bold text-slate-400 block mb-1">Total Companies</span>
+                <span className="text-2xl font-black block">{companies.length}</span>
+              </div>
+              <div className="p-5 border rounded-3xl bg-amber-500/10 border-amber-500/20 text-amber-500">
+                <span className="text-[10px] uppercase font-bold block mb-1">Pending Verification</span>
+                <span className="text-2xl font-black block">{companies.filter(c => c.status === "Pending").length}</span>
+              </div>
+              <div className="p-5 border rounded-3xl bg-emerald-500/10 border-emerald-500/20 text-emerald-500">
+                <span className="text-[10px] uppercase font-bold block mb-1">Verified Partners</span>
+                <span className="text-2xl font-black block">{companies.filter(c => c.status === "Verified").length}</span>
+              </div>
+              <div className="p-5 border rounded-3xl bg-red-500/10 border-red-500/20 text-red-500">
+                <span className="text-[10px] uppercase font-bold block mb-1">Suspended/Rejected</span>
+                <span className="text-2xl font-black block">{companies.filter(c => c.status === "Suspended" || c.status === "Rejected").length}</span>
+              </div>
+            </div>
+
+            {/* Search and Filters */}
+            <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
+              <div className="relative w-full md:w-96">
+                <Search className="absolute left-4 top-3 text-slate-400" size={16} />
+                <input
+                  type="text"
+                  placeholder="Search by company name or industry..."
+                  value={companySearchQuery}
+                  onChange={(e) => setCompanySearchQuery(e.target.value)}
+                  className={`w-full text-xs pl-10 pr-4 py-3 border rounded-xl outline-none transition ${
+                    themeMode === "dark"
+                      ? "bg-white/5 border-white/10 text-white focus:border-blue-500"
+                      : "bg-white border-slate-205 text-slate-900 focus:border-blue-500"
+                  }`}
+                />
+              </div>
+
+              <div className="flex items-center gap-2 w-full md:w-auto">
+                <span className="text-xs font-bold text-slate-400">Status:</span>
+                <select
+                  value={companyStatusFilter}
+                  onChange={(e) => setCompanyStatusFilter(e.target.value as any)}
+                  className={`text-xs px-4 py-3 border rounded-xl outline-none transition ${
+                    themeMode === "dark"
+                      ? "bg-white/5 border-white/10 text-white focus:border-blue-500"
+                      : "bg-white border-slate-205 text-slate-900 focus:border-blue-500"
+                  }`}
+                >
+                  <option value="all">All Statuses</option>
+                  <option value="Pending">Pending</option>
+                  <option value="Verified">Verified</option>
+                  <option value="Rejected">Rejected</option>
+                  <option value="Suspended">Suspended</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Companies List */}
+            {companiesLoading ? (
+              <div className="text-center py-12">
+                <div className="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
+                <p className="text-xs text-slate-400 font-semibold">Loading partners...</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {companies
+                  .filter((c) => {
+                    const matchQuery = (c.name || "").toLowerCase().includes(companySearchQuery.toLowerCase()) || 
+                      (c.profile?.industry && c.profile.industry.toLowerCase().includes(companySearchQuery.toLowerCase()));
+                    const matchStatus = companyStatusFilter === "all" || c.status === companyStatusFilter;
+                    return matchQuery && matchStatus;
+                  })
+                  .map((comp) => {
+                    const primaryHr = comp.users?.[0] || null;
+                    const statusStyle = comp.status === "Pending" ? "bg-amber-500/10 text-amber-500 border-amber-500/20" : comp.status === "Verified" ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/20" : comp.status === "Rejected" ? "bg-red-500/10 text-red-500 border-red-500/20" : "bg-rose-500/10 text-rose-500 border-rose-500/20";
+                    return (
+                      <div
+                        key={comp.id}
+                        className={`p-6 border rounded-3xl flex flex-col justify-between h-72 shadow-md hover:scale-[1.01] transition duration-200 ${
+                          themeMode === "dark" ? "bg-white/5 border-white/5" : "bg-white border-slate-200"
+                        }`}
+                      >
+                        <div className="space-y-4 text-left">
+                          <div className="flex justify-between items-start">
+                            {comp.profile?.logoUrl ? (
+                              <img src={comp.profile.logoUrl} className="w-12 h-12 object-contain rounded-xl border p-1 bg-white" />
+                            ) : (
+                              <div className="w-12 h-12 bg-blue-500/10 text-blue-500 dark:text-blue-300 rounded-xl flex items-center justify-center border">
+                                <Building2 size={24} />
+                              </div>
+                            )}
+                            <span className={`text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full border ${statusStyle}`}>
+                              {comp.status}
+                            </span>
+                          </div>
+
+                          <div className="space-y-1">
+                            <h4 className="text-base font-black truncate">{comp.name}</h4>
+                            <span className="text-[10px] uppercase font-bold text-slate-400 block leading-none">
+                              {comp.profile?.industry || "Not Specified"}
+                            </span>
+                          </div>
+
+                          <div className="text-xs font-semibold text-slate-400 space-y-1">
+                            <div className="truncate text-left font-semibold">HR Contact: {primaryHr?.fullName || "None"}</div>
+                            <div className="truncate text-left font-semibold">Email: {primaryHr?.email || comp.email}</div>
+                          </div>
+                        </div>
+
+                        <button
+                          onClick={() => setSelectedCompany(comp)}
+                          className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs uppercase rounded-xl transition cursor-pointer text-center"
+                        >
+                          Review & Verify
+                        </button>
+                      </div>
+                    );
+                  })}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ==========================================
+            COMPANY DETAILS MODAL (ADMIN REVIEW)
+            ========================================== */}
+        {selectedCompany && (
+          <div className="fixed inset-0 z-50 flex items-center justify-end bg-[#0d0d12]/75 backdrop-blur-sm">
+            <div className={`w-full max-w-2xl h-screen shadow-2xl relative overflow-y-auto flex flex-col justify-between p-8 ${
+              themeMode === "dark" ? "bg-[#0b0b0f] text-white" : "bg-white text-slate-900"
+            }`}>
+              {/* Modal Header */}
+              <div className="flex justify-between items-start border-b border-slate-200/50 dark:border-white/5 pb-4">
+                <div className="flex items-center gap-3">
+                  {selectedCompany.profile?.logoUrl ? (
+                    <img src={selectedCompany.profile.logoUrl} className="w-12 h-12 object-contain rounded-xl border p-1 bg-white" />
+                  ) : (
+                    <div className="w-12 h-12 bg-blue-500/10 text-blue-500 rounded-xl flex items-center justify-center border">
+                      <Building2 size={24} />
+                    </div>
+                  )}
+                  <div className="text-left">
+                    <h3 className="text-xl font-black">{selectedCompany.name}</h3>
+                    <span className="text-xs text-slate-400 font-bold uppercase">{selectedCompany.profile?.industry}</span>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setSelectedCompany(null)}
+                  className="p-1 rounded-full hover:bg-slate-100 dark:hover:bg-white/5 text-slate-400"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+
+              {/* Modal Content */}
+              <div className="flex-1 py-6 space-y-6 overflow-y-auto">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs font-semibold">
+                  <div className="p-3 bg-slate-50 dark:bg-white/5 rounded-2xl text-left">
+                    <span className="text-[10px] text-slate-400 block">Founded Year</span>
+                    <span>{selectedCompany.profile?.foundedYear || "N/A"}</span>
+                  </div>
+                  <div className="p-3 bg-slate-50 dark:bg-white/5 rounded-2xl text-left">
+                    <span className="text-[10px] text-slate-400 block">Company Size</span>
+                    <span>{selectedCompany.profile?.companySize || "N/A"}</span>
+                  </div>
+                  <div className="p-3 bg-slate-50 dark:bg-white/5 rounded-2xl text-left">
+                    <span className="text-[10px] text-slate-400 block">Company Type</span>
+                    <span>{selectedCompany.profile?.companyType || "N/A"}</span>
+                  </div>
+                </div>
+
+                <div className="text-left">
+                  <span className="text-xs font-bold text-slate-400 block mb-1">Description</span>
+                  <p className="text-sm font-medium leading-relaxed">{selectedCompany.profile?.description}</p>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-left">
+                  <div>
+                    <span className="text-xs font-bold text-slate-400 block mb-1">Mission</span>
+                    <p className="text-sm font-medium leading-relaxed">{selectedCompany.profile?.mission || "N/A"}</p>
+                  </div>
+                  <div>
+                    <span className="text-xs font-bold text-slate-400 block mb-1">Vision</span>
+                    <p className="text-sm font-medium leading-relaxed">{selectedCompany.profile?.vision || "N/A"}</p>
+                  </div>
+                </div>
+
+                {/* Locations */}
+                <div className="text-left">
+                  <span className="text-xs font-bold text-slate-400 block mb-1">Office Locations</span>
+                  <div className="flex flex-wrap gap-2 text-xs font-bold">
+                    {selectedCompany.locations?.map((loc: any) => (
+                      <span key={loc.id} className="px-2.5 py-1 bg-blue-500/10 text-blue-500 dark:text-blue-300 rounded-lg">
+                        {loc.location} {loc.isHeadOffice ? "(HQ)" : ""} - {loc.workMode}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+
+                {/* HR Representative */}
+                <div className="p-5 bg-slate-50 dark:bg-white/5 rounded-3xl space-y-3 text-left">
+                  <span className="text-[10px] font-extrabold uppercase text-slate-400 block">HR Contact Information</span>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs font-semibold">
+                    <div>Name: {selectedCompany.users?.[0]?.fullName}</div>
+                    <div>Designation: {selectedCompany.users?.[0]?.designation}</div>
+                    <div>Email: {selectedCompany.users?.[0]?.email}</div>
+                    <div>Phone: {selectedCompany.users?.[0]?.phone}</div>
+                  </div>
+                </div>
+
+                {/* Verification Documents Uploads */}
+                <div className="space-y-2 text-left">
+                  <span className="text-xs font-bold text-slate-400 block">Uploaded Verification Certificates</span>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs font-bold">
+                    {selectedCompany.documents?.map((doc: any) => (
+                      <a
+                        key={doc.id}
+                        href={doc.fileUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="flex items-center gap-2 p-3 bg-slate-100 dark:bg-white/10 rounded-2xl border border-slate-200/50 dark:border-white/5 hover:bg-slate-200 transition"
+                      >
+                        <FileText className="text-blue-500 shrink-0" size={16} />
+                        <span className="truncate">{doc.docType}</span>
+                      </a>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Verification Audit Trail */}
+                <div className="space-y-3 text-left">
+                  <span className="text-xs font-bold text-slate-400 block">Verification Audit Logs</span>
+                  <div className="space-y-2 max-h-40 overflow-y-auto pr-2 scrollbar-thin">
+                    {selectedCompany.verifications?.map((v: any) => (
+                      <div key={v.id} className="p-3 bg-slate-50 dark:bg-white/5 rounded-2xl text-xs space-y-1 text-left">
+                        <div className="flex justify-between font-bold">
+                          <span>Action: {v.action}</span>
+                          <span className="text-[10px] text-slate-400">{new Date(v.timestamp).toLocaleString()}</span>
+                        </div>
+                        <div className="text-[10px] text-slate-400 text-left">Reviewed By: {v.reviewedByEmail}</div>
+                        {v.comments && <div className="text-slate-500 italic mt-1 text-left">Comment: "{v.comments}"</div>}
+                      </div>
+                    ))}
+                    {selectedCompany.verifications?.length === 0 && (
+                      <div className="text-xs text-slate-400 italic">No verification history logs recorded.</div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Review Comments Input */}
+                <div className="border-t border-slate-200/50 dark:border-white/5 pt-4 space-y-2 text-left">
+                  <label className="text-[11px] uppercase font-bold text-slate-400 block">Review Feedback Notes / Reasons *</label>
+                  <textarea
+                    rows={2}
+                    placeholder="Enter approval comments, rejection notes, or details for requested changes..."
+                    value={reviewComments}
+                    onChange={(e) => setReviewComments(e.target.value)}
+                    className="w-full border text-xs px-4 py-3 rounded-xl outline-none bg-slate-50 dark:bg-white/5 border-slate-200 dark:border-white/10 text-slate-900 dark:text-white"
+                  />
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="border-t border-slate-200/50 dark:border-white/5 pt-4 flex flex-wrap gap-2 justify-end">
+                {selectedCompany.status !== "Verified" && (
+                  <button
+                    onClick={() => handleCompanyReviewSubmit("Approve", reviewComments)}
+                    disabled={manageLoading}
+                    className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold uppercase rounded-xl transition cursor-pointer disabled:opacity-50 animate-pulse"
+                  >
+                    Approve
+                  </button>
+                )}
+                {selectedCompany.status === "Verified" && (
+                  <button
+                    onClick={() => handleCompanyReviewSubmit("Suspend", reviewComments)}
+                    disabled={manageLoading}
+                    className="px-5 py-2.5 bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold uppercase rounded-xl transition cursor-pointer disabled:opacity-50"
+                  >
+                    Suspend
+                  </button>
+                )}
+                {selectedCompany.status === "Suspended" && (
+                  <button
+                    onClick={() => handleCompanyReviewSubmit("Restore", reviewComments)}
+                    disabled={manageLoading}
+                    className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold uppercase rounded-xl transition cursor-pointer disabled:opacity-50"
+                  >
+                    Restore
+                  </button>
+                )}
+                {selectedCompany.status === "Pending" && (
+                  <>
+                    <button
+                      onClick={() => handleCompanyReviewSubmit("Reject", reviewComments)}
+                      disabled={manageLoading}
+                      className="px-5 py-2.5 bg-red-600 hover:bg-red-700 text-white text-xs font-bold uppercase rounded-xl transition cursor-pointer disabled:opacity-50"
+                    >
+                      Reject
+                    </button>
+                    <button
+                      onClick={() => handleCompanyReviewSubmit("RequestChanges", reviewComments)}
+                      disabled={manageLoading}
+                      className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold uppercase rounded-xl transition cursor-pointer disabled:opacity-50"
+                    >
+                      Request Changes
+                    </button>
+                  </>
+                )}
+                <button
+                  onClick={() => {
+                    if (confirm("Are you absolutely sure you want to delete this company and all its data? This cannot be undone.")) {
+                      handleCompanyReviewSubmit("Delete", "");
+                    }
+                  }}
+                  disabled={manageLoading}
+                  className="px-5 py-2.5 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold uppercase rounded-xl transition cursor-pointer disabled:opacity-50"
+                >
+                  Delete Company
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ==========================================
+            TAB: PLACEMENT OPPORTUNITIES REVIEW
+            ========================================== */}
+        {activeTab === "jobs" && (
+          <div className="space-y-6 animate-fade-in-up text-left">
+            <div className="flex justify-between items-center">
+              <div>
+                <h2 className={`text-2xl font-black ${themeMode === "dark" ? "text-white" : "text-slate-900"}`}>Placements Job Opportunities</h2>
+                <p className="text-gray-400 text-xs">Review placement opportunities, verify candidate eligibility, and approve postings.</p>
+              </div>
+            </div>
+
+            {/* Metrics */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div className={`p-5 border rounded-3xl ${themeMode === "dark" ? "bg-white/5 border-white/5" : "bg-white border-slate-200"}`}>
+                <span className="text-[10px] uppercase font-bold text-slate-400 block mb-1">Total Job Postings</span>
+                <span className="text-2xl font-black block">{adminJobs.length}</span>
+              </div>
+              <div className="p-5 border rounded-3xl bg-amber-500/10 border-amber-500/20 text-amber-500">
+                <span className="text-[10px] uppercase font-bold block mb-1">Pending Review</span>
+                <span className="text-2xl font-black block">{adminJobs.filter(j => j.status === "Pending").length}</span>
+              </div>
+              <div className="p-5 border rounded-3xl bg-emerald-500/10 border-emerald-500/20 text-emerald-500">
+                <span className="text-[10px] uppercase font-bold block mb-1">Approved Opportunities</span>
+                <span className="text-2xl font-black block">{adminJobs.filter(j => j.status === "Approved").length}</span>
+              </div>
+              <div className="p-5 border rounded-3xl bg-red-500/10 border-red-500/20 text-red-500">
+                <span className="text-[10px] uppercase font-bold block mb-1">Rejected Listings</span>
+                <span className="text-2xl font-black block">{adminJobs.filter(j => j.status === "Rejected" || j.status === "ChangesRequested").length}</span>
+              </div>
+            </div>
+
+            {/* Search and Filters */}
+            <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
+              <div className="relative w-full md:w-96">
+                <Search className="absolute left-4 top-3 text-slate-400" size={16} />
+                <input
+                  type="text"
+                  placeholder="Search by job title or company..."
+                  value={adminJobSearchQuery}
+                  onChange={(e) => setAdminJobSearchQuery(e.target.value)}
+                  className={`w-full text-xs pl-10 pr-4 py-3 border rounded-xl outline-none transition ${
+                    themeMode === "dark"
+                      ? "bg-white/5 border-white/10 text-white focus:border-blue-500"
+                      : "bg-white border-slate-205 text-slate-900 focus:border-blue-500"
+                  }`}
+                />
+              </div>
+
+              <div className="flex items-center gap-2 w-full md:w-auto">
+                <span className="text-xs font-bold text-slate-400">Status:</span>
+                <select
+                  value={adminJobStatusFilter}
+                  onChange={(e) => setAdminJobStatusFilter(e.target.value)}
+                  className={`text-xs px-4 py-3 border rounded-xl outline-none transition ${
+                    themeMode === "dark"
+                      ? "bg-white/5 border-white/10 text-white focus:border-blue-500"
+                      : "bg-white border-slate-205 text-slate-900 focus:border-blue-500"
+                  }`}
+                >
+                  <option value="all">All Jobs</option>
+                  <option value="Pending">Pending</option>
+                  <option value="Approved">Approved</option>
+                  <option value="Rejected">Rejected</option>
+                  <option value="ChangesRequested">Changes Requested</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Listings Grid */}
+            {adminJobsLoading ? (
+              <div className="text-center py-12">
+                <div className="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
+                <p className="text-xs text-slate-400 font-semibold">Loading job listings...</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-fade-in">
+                {adminJobs
+                  .filter((j) => {
+                    const matchQuery = 
+                      (j.title || "").toLowerCase().includes(adminJobSearchQuery.toLowerCase()) || 
+                      (j.companyName || "").toLowerCase().includes(adminJobSearchQuery.toLowerCase());
+                    const matchStatus = adminJobStatusFilter === "all" || j.status === adminJobStatusFilter;
+                    return matchQuery && matchStatus;
+                  })
+                  .map((j) => {
+                    const statusBadgeStyle = 
+                      j.status === "Pending" 
+                        ? "bg-amber-500/10 text-amber-500 border-amber-500/20" 
+                        : j.status === "Approved" 
+                          ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/20" 
+                          : "bg-red-500/10 text-red-500 border-red-500/20";
+                    return (
+                      <div
+                        key={j.id}
+                        className={`p-6 border rounded-3xl flex flex-col justify-between h-72 shadow-md hover:scale-[1.01] transition duration-200 ${
+                          themeMode === "dark" ? "bg-white/5 border-white/5" : "bg-white border-slate-200"
+                        }`}
+                      >
+                        <div className="space-y-4 text-left">
+                          <div className="flex justify-between items-start">
+                            <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">
+                              {j.companyName}
+                            </span>
+                            <span className={`text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full border ${statusBadgeStyle}`}>
+                              {j.status}
+                            </span>
+                          </div>
+
+                          <div className="space-y-1">
+                            <h4 className="text-base font-black truncate">{j.title}</h4>
+                            <span className="text-[10px] uppercase font-bold text-slate-400 block leading-none">
+                              {j.department} · {j.jobType}
+                            </span>
+                          </div>
+
+                          <div className="text-xs font-semibold text-slate-400 space-y-1">
+                            <div>Experience: {j.eligibilityExperience || "N/A"}</div>
+                            <div>LPA: {j.lpa} LPA · Min CGPA: {j.eligibilityMinCGPA}</div>
+                            <div className="truncate">Deadlines: {new Date(j.deadlines).toLocaleDateString()}</div>
+                          </div>
+                        </div>
+
+                        <button
+                          onClick={() => setSelectedAdminJob(j)}
+                          className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs uppercase rounded-xl transition cursor-pointer text-center"
+                        >
+                          Review Opportunity
+                        </button>
+                      </div>
+                    );
+                  })}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ==========================================
+            TAB: SKILL TAXONOMY & MATCH CONFIG
+            ========================================== */}
+        {activeTab === "taxonomy" && (
+          <div className="space-y-10 text-left animate-fade-in">
+            {/* Headers */}
+            <div>
+              <h2 className={`text-2xl font-black ${themeMode === "dark" ? "text-white" : "text-slate-900"}`}>Universal Skill Taxonomy & Matching Engine Config</h2>
+              <p className="text-gray-400 text-xs">Define institutional skill structures across all academic streams and calibrate recruiter search matching weights.</p>
+            </div>
+
+            {/* Split layout: Matching Config & Taxonomy manager */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+              
+              {/* Left Column: Weighted Scoring Configuration */}
+              <div className={`p-6 border rounded-3xl h-fit space-y-6 ${
+                themeMode === "dark" ? "bg-white/5 border-white/5" : "bg-white border-slate-205"
+              }`}>
+                <div>
+                  <h3 className="text-base font-black uppercase tracking-wider text-slate-400">Scoring Engine Weights</h3>
+                  <p className="text-[10px] text-gray-400">Calibrate default parameters for search ranking calculations. Values must sum up to exactly 100%.</p>
+                </div>
+
+                <form onSubmit={handleSaveWeights} className="space-y-4">
+                  {[
+                    { key: "skills", label: "Skills Matching" },
+                    { key: "experience", label: "Tenure / Experiences" },
+                    { key: "projects", label: "Projects / Research" },
+                    { key: "certifications", label: "Certifications" },
+                    { key: "completeness", label: "Portfolio Completeness" },
+                    { key: "achievements", label: "Achievements & Extra-Curricular" },
+                    { key: "cgpa", label: "CGPA Scale" }
+                  ].map((item) => (
+                    <div key={item.key} className="space-y-1.5">
+                      <div className="flex justify-between text-xs font-bold">
+                        <span>{item.label}</span>
+                        <span className="text-blue-500 font-mono">{(weightsConfig[item.key] * 100).toFixed(0)}%</span>
+                      </div>
+                      <input
+                        type="range"
+                        min="0"
+                        max="1"
+                        step="0.05"
+                        value={weightsConfig[item.key]}
+                        onChange={(e) => setWeightsConfig({ ...weightsConfig, [item.key]: parseFloat(e.target.value) })}
+                        className="w-full h-1 bg-slate-200 dark:bg-white/10 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                      />
+                    </div>
+                  ))}
+
+                  <div className="border-t border-slate-200 dark:border-white/5 pt-4 flex justify-between items-center text-xs font-extrabold">
+                    <span>Weights Total:</span>
+                    <span className={`font-mono ${
+                      Math.abs((Object.values(weightsConfig) as any[]).reduce((a: number, b: any) => a + parseFloat(b), 0) - 1.0) < 0.01
+                        ? "text-emerald-500"
+                        : "text-red-500"
+                    }`}>
+                      {((Object.values(weightsConfig) as any[]).reduce((a: number, b: any) => a + parseFloat(b), 0) * 100).toFixed(0)}% / 100%
+                    </span>
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={saveWeightsLoading}
+                    className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-extrabold text-xs uppercase rounded-xl transition cursor-pointer text-center"
+                  >
+                    {saveWeightsLoading ? "Saving Calibration..." : "Calibrate Weights"}
+                  </button>
+                </form>
+              </div>
+
+              {/* Right Column: Taxonomy Manager list */}
+              <div className="lg:col-span-2 space-y-4">
+                <div className="flex justify-between items-center">
+                  <div>
+                    <h3 className="text-base font-black uppercase tracking-wider text-slate-400">Skill Taxonomy Registry</h3>
+                    <p className="text-[10px] text-gray-400">Add mappings mapping department streams to domain skills and aliases.</p>
+                  </div>
+                  <button
+                    onClick={() => {
+                      setEditingTaxonomyId(null);
+                      setTaxonomyForm({
+                        department: "",
+                        domain: "",
+                        skillName: "",
+                        subSkills: "",
+                        category: "Programming Languages",
+                        aliases: "",
+                        relatedSkills: ""
+                      });
+                      setTaxonomyModalOpen(true);
+                    }}
+                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs uppercase rounded-xl transition flex items-center gap-1.5 cursor-pointer shadow-lg shadow-blue-500/10"
+                  >
+                    <Plus size={14} /> Add Skill Node
+                  </button>
+                </div>
+
+                {/* Taxonomy Data List */}
+                <div className="space-y-4">
+                  {taxonomyList.length > 0 ? (
+                    taxonomyList.map((node) => (
+                      <div
+                        key={node.id}
+                        className={`p-5 border rounded-3xl flex flex-col md:flex-row justify-between gap-4 shadow-xs ${
+                          themeMode === "dark" ? "bg-white/5 border-white/5" : "bg-white border-slate-200"
+                        }`}
+                      >
+                        <div className="space-y-2 flex-1 min-w-0">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="text-[8px] px-2 py-0.5 bg-blue-500/10 text-blue-500 rounded-full font-bold uppercase">
+                              {node.department}
+                            </span>
+                            <span className="text-[8px] px-2 py-0.5 bg-indigo-500/10 text-indigo-500 rounded-full font-bold uppercase">
+                              {node.domain}
+                            </span>
+                            <span className="text-[8px] px-2 py-0.5 bg-purple-500/10 text-purple-500 rounded-full font-bold uppercase">
+                              {node.category}
+                            </span>
+                          </div>
+
+                          <div>
+                            <h4 className="text-sm font-black truncate">{node.skillName}</h4>
+                            {node.subSkills && (
+                              <p className="text-[10px] text-slate-400 mt-0.5">
+                                Subskills: <span className="text-slate-350">{node.subSkills.split(";").join(", ")}</span>
+                              </p>
+                            )}
+                          </div>
+
+                          <div className="flex flex-wrap gap-4 text-[9px] font-bold text-slate-400">
+                            {node.aliases && <span>Aliases: {node.aliases.split(";").join(", ")}</span>}
+                            {node.relatedSkills && <span>Related: {node.relatedSkills.split(";").join(", ")}</span>}
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-2 shrink-0 justify-end">
+                          <button
+                            onClick={() => {
+                              setEditingTaxonomyId(node.id);
+                              setTaxonomyForm({
+                                department: node.department,
+                                domain: node.domain,
+                                skillName: node.skillName,
+                                subSkills: node.subSkills,
+                                category: node.category,
+                                aliases: node.aliases,
+                                relatedSkills: node.relatedSkills
+                              });
+                              setTaxonomyModalOpen(true);
+                            }}
+                            className="p-2 bg-blue-600/15 hover:bg-blue-600/25 text-blue-400 rounded-xl transition cursor-pointer"
+                          >
+                            <Edit2 size={13} />
+                          </button>
+                          <button
+                            onClick={() => handleDeleteTaxonomy(node.id)}
+                            className="p-2 bg-red-600/15 hover:bg-red-600/25 text-red-400 rounded-xl transition cursor-pointer"
+                          >
+                            <Trash2 size={13} />
+                          </button>
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="border border-dashed rounded-3xl p-12 text-center text-slate-500 border-slate-205 dark:border-white/10">
+                      <Sliders className="mx-auto mb-3 text-slate-400" size={32} />
+                      <p className="text-sm font-bold">No taxonomy records found.</p>
+                      <p className="text-xs text-gray-400 mt-1">Populate the centralized taxonomy configuration registry to support recruit matches.</p>
+                    </div>
+                  )}
+                  {/* Pagination Controls */}
+                  {taxonomyTotalPages > 1 && (
+                    <div className="flex items-center justify-between border-t border-slate-100 dark:border-white/5 pt-4 text-xs font-bold text-slate-400">
+                      <span>Showing page {taxonomyPage} of {taxonomyTotalPages} ({taxonomyTotalItems} nodes)</span>
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          disabled={taxonomyPage <= 1}
+                          onClick={() => fetchTaxonomyAndConfig(taxonomyPage - 1)}
+                          className="px-3.5 py-1.5 rounded-lg border border-slate-200 dark:border-white/10 hover:bg-slate-100 dark:hover:bg-white/5 transition disabled:opacity-50 cursor-pointer"
+                        >
+                          Prev
+                        </button>
+                        <button
+                          type="button"
+                          disabled={taxonomyPage >= taxonomyTotalPages}
+                          onClick={() => fetchTaxonomyAndConfig(taxonomyPage + 1)}
+                          className="px-3.5 py-1.5 rounded-lg border border-slate-200 dark:border-white/10 hover:bg-slate-100 dark:hover:bg-white/5 transition disabled:opacity-50 cursor-pointer"
+                        >
+                          Next
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Taxonomy creation modal */}
+            {taxonomyModalOpen && (
+              <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+                <form
+                  onSubmit={handleSaveTaxonomy}
+                  className={`w-full max-w-lg rounded-3xl shadow-2xl relative p-6 text-left border ${
+                    themeMode === "dark" ? "bg-[#0b0b0f] text-white border-white/5" : "bg-white text-slate-900 border-slate-200"
+                  }`}
+                >
+                  <h3 className="text-base font-black uppercase tracking-wider text-slate-400 mb-4">
+                    {editingTaxonomyId ? "Modify Taxonomy Node" : "Register Taxonomy Skill Mapping"}
+                  </h3>
+
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="text-[10px] uppercase font-bold text-slate-400 block mb-1">Target Department *</label>
+                        <input
+                          type="text"
+                          required
+                          placeholder="e.g. Computer Science, Commerce"
+                          value={taxonomyForm.department}
+                          onChange={(e) => setTaxonomyForm({ ...taxonomyForm, department: e.target.value })}
+                          className="w-full border text-xs px-4 py-2.5 rounded-xl outline-none bg-slate-50 dark:bg-white/5 border-slate-205 dark:border-white/10 text-slate-900 dark:text-white"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] uppercase font-bold text-slate-400 block mb-1">Sector Domain *</label>
+                        <input
+                          type="text"
+                          required
+                          placeholder="e.g. Software, Accounting"
+                          value={taxonomyForm.domain}
+                          onChange={(e) => setTaxonomyForm({ ...taxonomyForm, domain: e.target.value })}
+                          className="w-full border text-xs px-4 py-2.5 rounded-xl outline-none bg-slate-50 dark:bg-white/5 border-slate-205 dark:border-white/10 text-slate-900 dark:text-white"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="text-[10px] uppercase font-bold text-slate-400 block mb-1">Skill Title *</label>
+                        <input
+                          type="text"
+                          required
+                          placeholder="e.g. Web Development, GST"
+                          value={taxonomyForm.skillName}
+                          onChange={(e) => setTaxonomyForm({ ...taxonomyForm, skillName: e.target.value })}
+                          className="w-full border text-xs px-4 py-2.5 rounded-xl outline-none bg-slate-50 dark:bg-white/5 border-slate-205 dark:border-white/10 text-slate-900 dark:text-white"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] uppercase font-bold text-slate-400 block mb-1">Category Classification</label>
+                        <select
+                          value={taxonomyForm.category}
+                          onChange={(e) => setTaxonomyForm({ ...taxonomyForm, category: e.target.value })}
+                          className="w-full border text-xs px-4 py-2.5 rounded-xl outline-none bg-slate-50 dark:bg-white/5 border-slate-205 dark:border-white/10 text-slate-900 dark:text-white"
+                        >
+                          <option value="Programming Languages">Programming Languages</option>
+                          <option value="Software">Software Systems</option>
+                          <option value="Research Methods">Research Methods</option>
+                          <option value="Laboratory Skills">Laboratory Skills</option>
+                          <option value="Creative Skills">Creative Skills</option>
+                          <option value="Business Skills">Business Skills</option>
+                          <option value="Teaching Skills">Teaching Skills</option>
+                          <option value="Communication Skills">Communication Skills</option>
+                          <option value="Languages">Languages</option>
+                          <option value="Certifications">Certifications</option>
+                          <option value="Soft Skills">Soft Skills</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="text-[10px] uppercase font-bold text-slate-400 block mb-1">Sub Skills (Semicolon split)</label>
+                      <input
+                        type="text"
+                        placeholder="e.g. Next.js;React;Node.js;Express"
+                        value={taxonomyForm.subSkills}
+                        onChange={(e) => setTaxonomyForm({ ...taxonomyForm, subSkills: e.target.value })}
+                        className="w-full border text-xs px-4 py-2.5 rounded-xl outline-none bg-slate-50 dark:bg-white/5 border-slate-205 dark:border-white/10 text-slate-900 dark:text-white"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="text-[10px] uppercase font-bold text-slate-400 block mb-1">Aliases (Semicolon split)</label>
+                        <input
+                          type="text"
+                          placeholder="e.g. reactjs;react.js"
+                          value={taxonomyForm.aliases}
+                          onChange={(e) => setTaxonomyForm({ ...taxonomyForm, aliases: e.target.value })}
+                          className="w-full border text-xs px-4 py-2.5 rounded-xl outline-none bg-slate-50 dark:bg-white/5 border-slate-205 dark:border-white/10 text-slate-900 dark:text-white"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] uppercase font-bold text-slate-400 block mb-1">Related Skills (Semicolon split)</label>
+                        <input
+                          type="text"
+                          placeholder="e.g. vuejs;angular"
+                          value={taxonomyForm.relatedSkills}
+                          onChange={(e) => setTaxonomyForm({ ...taxonomyForm, relatedSkills: e.target.value })}
+                          className="w-full border text-xs px-4 py-2.5 rounded-xl outline-none bg-slate-50 dark:bg-white/5 border-slate-205 dark:border-white/10 text-slate-900 dark:text-white"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex justify-end gap-3 border-t border-slate-100 dark:border-white/5 pt-4 mt-6">
+                    <button
+                      type="button"
+                      onClick={() => setTaxonomyModalOpen(false)}
+                      className="px-4 py-2 bg-slate-200 dark:bg-white/5 text-slate-800 dark:text-white text-xs font-bold uppercase rounded-xl transition cursor-pointer"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold uppercase rounded-xl transition cursor-pointer"
+                    >
+                      Save Node
+                    </button>
+                  </div>
+                </form>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ==========================================
+            JOB OPPORTUNITY DETAILS MODAL (ADMIN REVIEW)
+            ========================================== */}
+        {selectedAdminJob && (
+          <div className="fixed inset-0 z-50 flex items-center justify-end bg-[#0d0d12]/75 backdrop-blur-sm">
+            <div className={`w-full max-w-2xl h-screen shadow-2xl relative overflow-y-auto flex flex-col justify-between p-8 ${
+              themeMode === "dark" ? "bg-[#0b0b0f] text-white" : "bg-white text-slate-900"
+            }`}>
+              {/* Modal Header */}
+              <div className="flex justify-between items-start border-b border-slate-200/50 dark:border-white/5 pb-4">
+                <div className="text-left">
+                  <span className="text-xs text-slate-400 font-bold uppercase block">{selectedAdminJob.companyName}</span>
+                  <h3 className="text-xl font-black mt-1">{selectedAdminJob.title}</h3>
+                  <span className="text-[10px] font-bold text-blue-500 uppercase tracking-wide block mt-1">{selectedAdminJob.department} · {selectedAdminJob.jobType} · {selectedAdminJob.workMode}</span>
+                </div>
+                <button
+                  onClick={() => setSelectedAdminJob(null)}
+                  className="p-1 rounded-full hover:bg-slate-100 dark:hover:bg-white/5 text-slate-400"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+
+              {/* Modal Content */}
+              <div className="flex-1 py-6 space-y-6 overflow-y-auto pr-1">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs font-semibold">
+                  <div className="p-3 bg-slate-50 dark:bg-white/5 rounded-2xl text-left">
+                    <span className="text-[10px] text-slate-400 block">Salary / Compensation</span>
+                    <span>{selectedAdminJob.salary || "N/A"} ({selectedAdminJob.lpa} LPA)</span>
+                  </div>
+                  <div className="p-3 bg-slate-50 dark:bg-white/5 rounded-2xl text-left">
+                    <span className="text-[10px] text-slate-400 block">Min CGPA Required</span>
+                    <span>{selectedAdminJob.eligibilityMinCGPA} CGPA</span>
+                  </div>
+                  <div className="p-3 bg-slate-50 dark:bg-white/5 rounded-2xl text-left">
+                    <span className="text-[10px] text-slate-400 block">Deadlines Date</span>
+                    <span>{new Date(selectedAdminJob.deadlines).toLocaleDateString()}</span>
+                  </div>
+                </div>
+
+                <div className="text-left">
+                  <span className="text-xs font-bold text-slate-400 block mb-1">Description</span>
+                  <p className="text-sm font-medium leading-relaxed">{selectedAdminJob.description}</p>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-left">
+                  <div>
+                    <span className="text-xs font-bold text-slate-400 block mb-1">Responsibilities</span>
+                    <p className="text-xs font-medium leading-relaxed text-slate-400 whitespace-pre-line">{selectedAdminJob.responsibilities || "N/A"}</p>
+                  </div>
+                  <div>
+                    <span className="text-xs font-bold text-slate-400 block mb-1">Requirements</span>
+                    <p className="text-xs font-medium leading-relaxed text-slate-400 whitespace-pre-line">{selectedAdminJob.requirements || "N/A"}</p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-left">
+                  <div>
+                    <span className="text-xs font-bold text-slate-400 block mb-1">Required Skills</span>
+                    <p className="text-xs font-medium leading-relaxed text-slate-400">{selectedAdminJob.requiredSkills || "N/A"}</p>
+                  </div>
+                  <div>
+                    <span className="text-xs font-bold text-slate-400 block mb-1">Preferred Skills</span>
+                    <p className="text-xs font-medium leading-relaxed text-slate-400">{selectedAdminJob.preferredSkills || "N/A"}</p>
+                  </div>
+                </div>
+
+                {/* Eligibility criteria info */}
+                <div className="p-5 bg-slate-50 dark:bg-white/5 rounded-3xl space-y-3 text-left">
+                  <span className="text-[10px] font-extrabold uppercase text-slate-400 block">Eligibility Criteria Summary</span>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs font-semibold">
+                    <div>Eligible Departments: {selectedAdminJob.eligibilityDepartments || "All Departments"}</div>
+                    <div>Eligible Graduation Years: {selectedAdminJob.eligibilityYears || "All Years"}</div>
+                    <div>Experience level: {selectedAdminJob.eligibilityExperience || "Freshers"}</div>
+                    <div>Vacancies: {selectedAdminJob.vacancies} open position(s)</div>
+                  </div>
+                </div>
+
+                {/* Selection Process */}
+                <div className="text-left">
+                  <span className="text-xs font-bold text-slate-400 block mb-1">Selection Process</span>
+                  <p className="text-xs font-medium leading-relaxed text-slate-450">{selectedAdminJob.selectionProcess || "N/A"}</p>
+                </div>
+
+                {/* Benefits */}
+                <div className="text-left">
+                  <span className="text-xs font-bold text-slate-400 block mb-1">Benefits & Perks</span>
+                  <p className="text-xs font-medium leading-relaxed text-slate-450">{selectedAdminJob.benefits || "N/A"}</p>
+                </div>
+
+                {/* Feedback Notes */}
+                <div className="border-t border-slate-200/50 dark:border-white/5 pt-4 space-y-2 text-left">
+                  <label className="text-[11px] uppercase font-bold text-slate-400 block">Feedback Notes (Required for changes requested) *</label>
+                  <textarea
+                    rows={2}
+                    placeholder="Enter approval details, changes requested description or rejection comments..."
+                    value={adminJobReviewComments}
+                    onChange={(e) => setAdminJobReviewComments(e.target.value)}
+                    className="w-full border text-xs px-4 py-3 rounded-xl outline-none bg-slate-50 dark:bg-white/5 border-slate-200 dark:border-white/10 text-slate-900 dark:text-white"
+                  />
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="border-t border-slate-200/50 dark:border-white/5 pt-4 flex flex-wrap gap-2 justify-end">
+                {selectedAdminJob.status !== "Approved" && (
+                  <button
+                    onClick={() => handleAdminJobReviewSubmit("Approve", adminJobReviewComments)}
+                    disabled={adminJobReviewLoading}
+                    className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold uppercase rounded-xl transition cursor-pointer disabled:opacity-50"
+                  >
+                    Approve Posting
+                  </button>
+                )}
+                {selectedAdminJob.status === "Pending" && (
+                  <>
+                    <button
+                      onClick={() => handleAdminJobReviewSubmit("Reject", adminJobReviewComments)}
+                      disabled={adminJobReviewLoading}
+                      className="px-5 py-2.5 bg-red-600 hover:bg-red-700 text-white text-xs font-bold uppercase rounded-xl transition cursor-pointer disabled:opacity-50"
+                    >
+                      Reject Posting
+                    </button>
+                    <button
+                      onClick={() => handleAdminJobReviewSubmit("RequestChanges", adminJobReviewComments)}
+                      disabled={adminJobReviewLoading}
+                      className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold uppercase rounded-xl transition cursor-pointer disabled:opacity-50"
+                    >
+                      Request Changes
+                    </button>
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+      </div>
+
+      {/* ==========================================
+          MODAL: CREATE STUDENT
+          ========================================== */}
+      {isCreateModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#0d0d12]/75 backdrop-blur-sm">
+          <div className={`border rounded-3xl p-8 w-full max-w-lg shadow-2xl relative ${
+            themeMode === "dark" ? "bg-[#0b0b0f] border-white/10" : "bg-white border-slate-200"
+          }`}>
+            <h3 className={`text-xl font-bold mb-2 ${themeMode === "dark" ? "text-white" : "text-slate-900"}`}>Add New Student Account</h3>
+            <p className="text-gray-400 text-xs mb-6">Create a student registration to the Madras Christian College directory.</p>
+
+            <form onSubmit={handleCreateStudent} className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-[10px] uppercase font-mono tracking-wider font-bold text-gray-400 block mb-1.5">Full Name</label>
+                  <input
+                    type="text"
+                    required
+                    value={studentForm.fullName}
+                    onChange={(e) => setStudentForm({ ...studentForm, fullName: e.target.value })}
+                    className={`w-full border rounded-xl px-4 py-3 text-xs outline-none focus:border-[#781c1c] ${
+                      themeMode === "dark" ? "bg-[#121217] border-white/5 text-white" : "bg-white border-slate-200 text-slate-900"
+                    }`}
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] uppercase font-mono tracking-wider font-bold text-gray-400 block mb-1.5">Register Number</label>
+                  <input
+                    type="text"
+                    required
+                    value={studentForm.registerNumber}
+                    onChange={(e) => setStudentForm({ ...studentForm, registerNumber: e.target.value })}
+                    className={`w-full border rounded-xl px-4 py-3 text-xs outline-none focus:border-[#781c1c] ${
+                      themeMode === "dark" ? "bg-[#121217] border-white/5 text-white" : "bg-white border-slate-200 text-slate-900"
+                    }`}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="text-[10px] uppercase font-mono tracking-wider font-bold text-gray-400 block mb-1.5">Email Address</label>
+                <input
+                  type="email"
+                  required
+                  value={studentForm.email}
+                  onChange={(e) => setStudentForm({ ...studentForm, email: e.target.value })}
+                  className={`w-full border rounded-xl px-4 py-3 text-xs outline-none focus:border-[#781c1c] ${
+                    themeMode === "dark" ? "bg-[#121217] border-white/5 text-white" : "bg-white border-slate-200 text-slate-900"
+                  }`}
+                />
+              </div>
+
+              <div>
+                <label className="text-[10px] uppercase font-mono tracking-wider font-bold text-gray-400 block mb-1.5">Password</label>
+                <input
+                  type="password"
+                  required
+                  value={studentForm.password}
+                  onChange={(e) => setStudentForm({ ...studentForm, password: e.target.value })}
+                  className={`w-full border rounded-xl px-4 py-3 text-xs outline-none focus:border-[#781c1c] ${
+                    themeMode === "dark" ? "bg-[#121217] border-white/5 text-white" : "bg-white border-slate-200 text-slate-900"
+                  }`}
+                />
+              </div>
+
+              <div>
+                <label className="text-[10px] uppercase font-mono tracking-wider font-bold text-gray-400 block mb-1.5">Department / Stream</label>
+                <select
+                  value={studentForm.department}
+                  onChange={(e) => setStudentForm({ ...studentForm, department: e.target.value })}
+                  className={`w-full border rounded-xl px-4 py-3 text-xs outline-none focus:border-[#781c1c] ${
+                    themeMode === "dark" ? "bg-[#121217] border-white/5 text-white" : "bg-white border-slate-200 text-slate-900"
+                  }`}
+                >
+                  {institution?.departments
+                    ?.split(";")
+                    .filter((d: string) => d.trim().length > 0)
+                    .map((dept: string, idx: number) => (
+                      <option key={idx} value={dept}>{dept}</option>
+                    ))}
+                </select>
+              </div>
+
+              <div className={`flex justify-end gap-3 border-t pt-6 mt-6 ${
+                themeMode === "dark" ? "border-white/5" : "border-slate-200"
+              }`}>
+                <button
+                  type="button"
+                  onClick={() => setIsCreateModalOpen(false)}
+                  className={`px-4 py-2.5 rounded-xl border text-xs font-semibold transition ${
+                    themeMode === "dark" ? "border-white/10 text-white hover:bg-white/5" : "border-slate-200 text-slate-700 hover:bg-slate-150"
+                  }`}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2.5 rounded-xl bg-[#781c1c] hover:bg-[#5f1515] text-white text-xs font-bold transition shadow-lg shadow-[#781c1c]/10"
+                >
+                  Create Student
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ==========================================
+          MODAL: EDIT STUDENT
+          ========================================== */}
+      {isEditModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#0d0d12]/75 backdrop-blur-sm">
+          <div className={`border rounded-3xl p-8 w-full max-w-lg shadow-2xl relative ${
+            themeMode === "dark" ? "bg-[#0b0b0f] border-white/10" : "bg-white border-slate-200"
+          }`}>
+            <h3 className={`text-xl font-bold mb-2 ${themeMode === "dark" ? "text-white" : "text-slate-900"}`}>Edit Student Details</h3>
+            <p className="text-gray-400 text-xs mb-6">Modify records for student inside the platform.</p>
+
+            <form onSubmit={handleEditStudent} className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-[10px] uppercase font-mono tracking-wider font-bold text-gray-400 block mb-1.5">Full Name</label>
+                  <input
+                    type="text"
+                    required
+                    value={studentForm.fullName}
+                    onChange={(e) => setStudentForm({ ...studentForm, fullName: e.target.value })}
+                    className={`w-full border rounded-xl px-4 py-3 text-xs outline-none focus:border-[#781c1c] ${
+                      themeMode === "dark" ? "bg-[#121217] border-white/5 text-white" : "bg-white border-slate-200 text-slate-900"
+                    }`}
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] uppercase font-mono tracking-wider font-bold text-gray-400 block mb-1.5">Register Number</label>
+                  <input
+                    type="text"
+                    required
+                    value={studentForm.registerNumber}
+                    onChange={(e) => setStudentForm({ ...studentForm, registerNumber: e.target.value })}
+                    className={`w-full border rounded-xl px-4 py-3 text-xs outline-none focus:border-[#781c1c] ${
+                      themeMode === "dark" ? "bg-[#121217] border-white/5 text-white" : "bg-white border-slate-200 text-slate-900"
+                    }`}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="text-[10px] uppercase font-mono tracking-wider font-bold text-gray-400 block mb-1.5">Email Address</label>
+                <input
+                  type="email"
+                  required
+                  value={studentForm.email}
+                  onChange={(e) => setStudentForm({ ...studentForm, email: e.target.value })}
+                  className={`w-full border rounded-xl px-4 py-3 text-xs outline-none focus:border-[#781c1c] ${
+                    themeMode === "dark" ? "bg-[#121217] border-white/5 text-white" : "bg-white border-slate-200 text-slate-900"
+                  }`}
+                />
+              </div>
+
+              <div>
+                <label className="text-[10px] uppercase font-mono tracking-wider font-bold text-gray-400 block mb-1.5">Department / Stream</label>
+                <select
+                  value={studentForm.department}
+                  onChange={(e) => setStudentForm({ ...studentForm, department: e.target.value })}
+                  className={`w-full border rounded-xl px-4 py-3 text-xs outline-none focus:border-[#781c1c] ${
+                    themeMode === "dark" ? "bg-[#121217] border-white/5 text-white" : "bg-white border-slate-200 text-slate-900"
+                  }`}
+                >
+                  {institution?.departments
+                    ?.split(";")
+                    .filter((d: string) => d.trim().length > 0)
+                    .map((dept: string, idx: number) => (
+                      <option key={idx} value={dept}>{dept}</option>
+                    ))}
+                </select>
+              </div>
+
+              <div className={`flex justify-end gap-3 border-t pt-6 mt-6 ${
+                themeMode === "dark" ? "border-white/5" : "border-slate-200"
+              }`}>
+                <button
+                  type="button"
+                  onClick={() => setIsEditModalOpen(false)}
+                  className={`px-4 py-2.5 rounded-xl border text-xs font-semibold transition ${
+                    themeMode === "dark" ? "border-white/10 text-white hover:bg-white/5" : "border-slate-200 text-slate-700 hover:bg-slate-150"
+                  }`}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2.5 rounded-xl bg-[#781c1c] hover:bg-[#5f1515] text-white text-xs font-bold transition shadow-lg shadow-[#781c1c]/10"
+                >
+                  Save Changes
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ==========================================
+          MODAL: MANAGE STUDENT
+          ========================================== */}
+      {isManageModalOpen && selectedStudent && (
+        <div className="fixed inset-0 z-50 flex items-start justify-center bg-[#0d0d12]/80 backdrop-blur-sm overflow-y-auto py-8 px-4">
+          <div className={`border rounded-3xl p-0 w-full max-w-2xl shadow-2xl relative overflow-hidden ${
+            themeMode === "dark" ? "bg-[#0b0b0f] border-white/10" : "bg-white border-slate-200"
+          }`}>
+            {/* Modal Header */}
+            <div className="bg-gradient-to-br from-[#781c1c] to-[#18233c] p-6 text-white">
+              <div className="flex items-center justify-between">
+                <div>
+                  <span className="text-[10px] font-mono uppercase tracking-widest text-amber-300">Student Management</span>
+                  <h3 className="text-xl font-bold mt-1">{selectedStudent.fullName}</h3>
+                  <p className="text-xs text-white/70 mt-0.5">
+                    {selectedStudent.registerNumber} · {selectedStudent.department} · {selectedStudent.stream}
+                  </p>
+                </div>
+                <button
+                  onClick={() => setIsManageModalOpen(false)}
+                  className="p-2 rounded-xl bg-white/10 hover:bg-white/20 transition text-white"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              {/* Status badges row */}
+              <div className="flex gap-2 mt-4 flex-wrap">
+                <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-[10px] font-bold ${
+                  selectedStudent.isApproved ? "bg-emerald-400/20 text-emerald-300" : "bg-amber-400/20 text-amber-300"
+                }`}>
+                  {selectedStudent.isApproved ? "✓ Portfolio Approved" : "⏳ Pending Approval"}
+                </span>
+                <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-[10px] font-bold ${
+                  selectedStudent.isActive !== false ? "bg-blue-400/20 text-blue-300" : "bg-rose-400/20 text-rose-300"
+                }`}>
+                  {selectedStudent.isActive !== false ? "✓ Account Active" : "✗ Account Disabled"}
+                </span>
+                <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-[10px] font-bold bg-white/10 text-white/80">
+                  👤 {selectedStudent.username || "—"}
+                </span>
+                <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-[10px] font-bold bg-white/10 text-white/80">
+                  ✉️ {selectedStudent.email}
+                </span>
+              </div>
+            </div>
+
+            <div className="p-6 space-y-6">
+
+              {/* ── ACCOUNT CONTROLS ── */}
+              <div className={`border rounded-2xl p-5 space-y-4 ${themeMode === "dark" ? "border-white/5 bg-white/[0.02]" : "border-slate-200 bg-slate-50"}`}>
+                <h4 className={`text-xs uppercase font-mono font-bold tracking-widest ${themeMode === "dark" ? "text-gray-400" : "text-slate-500"}`}>Account Controls</h4>
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    onClick={() => canWrite("students") && toggleApproval(selectedStudent.id, selectedStudent.isApproved)}
+                    disabled={manageLoading || !canWrite("students")}
+                    className={`py-3 rounded-xl text-xs font-bold transition flex items-center justify-center gap-2 ${
+                      !canWrite("students")
+                        ? "bg-slate-500/10 text-slate-500 cursor-not-allowed border border-slate-500/15"
+                        : selectedStudent.isApproved
+                        ? "bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20"
+                        : "bg-emerald-500 hover:bg-emerald-600 text-black"
+                    }`}
+                  >
+                    <CheckCircle size={13} />
+                    {selectedStudent.isApproved ? "Revoke Portfolio" : "Approve Portfolio"}
+                  </button>
+                  <button
+                    onClick={() => canWrite("students") && handleToggleActive(selectedStudent.id, selectedStudent.isActive !== false)}
+                    disabled={manageLoading || !canWrite("students")}
+                    className={`py-3 rounded-xl text-xs font-bold transition flex items-center justify-center gap-2 ${
+                      !canWrite("students")
+                        ? "bg-slate-500/10 text-slate-500 cursor-not-allowed border border-slate-500/15"
+                        : selectedStudent.isActive !== false
+                        ? "bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/20"
+                        : "bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 border border-blue-500/20"
+                    }`}
+                  >
+                    <Shield size={13} />
+                    {selectedStudent.isActive !== false ? "Deactivate Account" : "Activate Account"}
+                  </button>
+                </div>
+              </div>
+
+              {/* ── RESET PASSWORD ── */}
+              {canWrite("students") && (
+                <div className={`border rounded-2xl p-5 space-y-3 ${themeMode === "dark" ? "border-white/5 bg-white/[0.02]" : "border-slate-200 bg-slate-50"}`}>
+                  <h4 className={`text-xs uppercase font-mono font-bold tracking-widest ${themeMode === "dark" ? "text-gray-400" : "text-slate-500"}`}>Reset Password</h4>
+                  <div className="flex gap-3">
+                    <div className="relative flex-1">
+                      <input
+                        type={showResetPassword ? "text" : "password"}
+                        placeholder="Enter new password (min 6 chars)"
+                        value={resetPasswordValue}
+                        onChange={(e) => setResetPasswordValue(e.target.value)}
+                        className={`w-full border rounded-xl pl-4 pr-10 py-2.5 text-xs outline-none focus:border-[#781c1c] ${
+                          themeMode === "dark" ? "bg-[#121217] border-white/5 text-white placeholder-gray-600" : "bg-white border-slate-200 text-slate-900 placeholder-slate-400"
+                        }`}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowResetPassword(!showResetPassword)}
+                        className={`absolute right-3 top-1/2 -translate-y-1/2 transition ${
+                          themeMode === "dark" ? "text-gray-400 hover:text-white" : "text-slate-400 hover:text-slate-600"
+                        }`}
+                      >
+                        {showResetPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                      </button>
+                    </div>
+                    <button
+                      onClick={() => handleAdminResetPassword(selectedStudent.id)}
+                      disabled={manageLoading || !resetPasswordValue}
+                      className="px-4 py-2.5 rounded-xl bg-[#781c1c] hover:bg-[#5f1515] text-white text-xs font-bold transition disabled:opacity-40 shrink-0"
+                    >
+                      Reset
+                    </button>
+                  </div>
+                  <p className={`text-[10px] ${themeMode === "dark" ? "text-gray-600" : "text-slate-400"}`}>
+                    The new password will be set immediately. Student will need to use the new password on next login.
+                  </p>
+                </div>
+              )}
+
+              {/* ── ACTIVITY TIMELINE ── */}
+              {canRead("students") && (
+                <div className={`border rounded-2xl p-5 space-y-3 ${themeMode === "dark" ? "border-white/5 bg-white/[0.02]" : "border-slate-200 bg-slate-50"}`}>
+                  <h4 className={`text-xs uppercase font-mono font-bold tracking-widest ${themeMode === "dark" ? "text-gray-400" : "text-slate-500"}`}>
+                    Activity Timeline
+                  </h4>
+                  {(() => {
+                    const studentLogs = auditLogs.filter(
+                      (log) => log.performedByEmail === selectedStudent.email
+                    ).sort((a: any, b: any) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+                    
+                    if (studentLogs.length === 0) {
+                      return (
+                        <p className="text-xs text-gray-500 text-center py-4">No activity recorded yet for this student.</p>
+                      );
+                    }
+                    
+                    return (
+                      <div className="space-y-2 max-h-56 overflow-y-auto pr-1 scrollbar-thin">
+                        {studentLogs.map((log: any, i: number) => (
+                          <div key={log.id || i} className={`flex gap-3 items-start text-xs pb-2 border-b last:border-b-0 ${themeMode === "dark" ? "border-white/5" : "border-slate-100"}`}>
+                            <div className="w-1.5 h-1.5 rounded-full bg-[#781c1c] mt-1.5 shrink-0" />
+                            <div className="min-w-0">
+                              <span className={`font-bold block truncate ${themeMode === "dark" ? "text-white" : "text-slate-900"}`}>
+                                {log.action}
+                              </span>
+                              <span className="text-gray-500 text-[10px] block">
+                                {new Date(log.timestamp).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" })}
+                                {log.ipAddress && log.ipAddress !== "127.0.0.1" ? ` · ${log.ipAddress}` : ""}
+                              </span>
+                              {log.details && (
+                                <span className="text-gray-500 text-[10px] truncate block">{log.details}</span>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    );
+                  })()}
+                </div>
+              )}
+
+              {/* ── QUICK LINKS ── */}
+              <div className="flex gap-3 pt-1">
+                <Link
+                  href={`/portfolio/${selectedStudent.id}`}
+                  target="_blank"
+                  className={`flex-1 py-2.5 rounded-xl text-xs font-bold text-center border transition ${
+                    themeMode === "dark" ? "border-white/10 text-white hover:bg-white/5" : "border-slate-200 text-slate-700 hover:bg-slate-100"
+                  }`}
+                >
+                  View Public Portfolio ↗
+                </Link>
+                {!isReadOnly && (
+                  <>
+                    <button
+                      onClick={() => { openEditModal(selectedStudent); setIsManageModalOpen(false); }}
+                      className="flex-1 py-2.5 rounded-xl text-xs font-bold bg-[#18233c] hover:bg-[#1f2d4f] text-white text-center transition"
+                    >
+                      Edit Details
+                    </button>
+                    <button
+                      onClick={() => { handleDeleteStudent(selectedStudent.id, selectedStudent.fullName); setIsManageModalOpen(false); }}
+                      className="flex-1 py-2.5 rounded-xl text-xs font-bold bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 text-center transition"
+                    >
+                      Delete Account
+                    </button>
+                  </>
+                )}
+              </div>
+
+            </div>
+          </div>
+        </div>
+      )}
+
+
+    </div>
+  );
+}
