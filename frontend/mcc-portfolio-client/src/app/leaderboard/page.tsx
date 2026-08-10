@@ -121,7 +121,7 @@ export default function LeaderboardPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between gap-4">
           <Link href="/" className="flex items-center gap-3 group">
             <img
-              src={isDark ? "/mcc-logo-dark.png" : "/mcc-logo.jpg"}
+              src={isDark ? "/mcc-logo-dark.png" : "/mcc-logo.png"}
               alt="Madras Christian College"
               className="h-12 w-auto object-contain transition-transform group-hover:scale-105"
             />

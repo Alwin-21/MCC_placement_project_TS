@@ -16,7 +16,9 @@ export interface TokenPayload {
   nameid: string;
   unique_name: string;
   email: string;
-  role: string;
+  role: any;
+  Email?: string;
+  Role?: any;
   "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier": string;
   "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name": string;
   "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress": string;
@@ -24,6 +26,7 @@ export interface TokenPayload {
   adminPermissions?: string;
   iss?: string;
   aud?: string;
+  [key: string]: any;
 }
 
 export function generateToken(user: { Id: number; FullName: string; Email: string; Role: number; adminPermissions?: string }): string {
