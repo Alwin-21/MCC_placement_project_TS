@@ -4,16 +4,7 @@ import { verifyPassword, generateToken } from "@/utils/auth";
 import { logActionAndNotify } from "@/utils/audit";
 
 export async function GET(request: Request) {
-  const accept = request.headers.get("accept") || "";
-  const secFetchDest = request.headers.get("sec-fetch-dest") || "";
-
-  if (accept.includes("text/html") || secFetchDest === "document") {
-    return NextResponse.redirect(new URL("/login", request.url));
-  }
-
-  return NextResponse.json({
-    message: "This is an API endpoint that accepts POST requests for user authentication. To log in using the web UI, please navigate to /login."
-  });
+  return NextResponse.redirect(new URL("/login", request.url), 307);
 }
 
 export async function POST(request: Request) {

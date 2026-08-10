@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useResizableSidebar } from "@/hooks/useResizableSidebar";
+import MCCLoader from "@/components/MCCLoader";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
@@ -85,6 +87,7 @@ type TabType = "overview" | "profile" | "jobs" | "applications" | "talent-pools"
 export default function CompanyDashboardPage() {
   const router = useRouter();
   const [themeMode, toggleThemeMode] = useTheme();
+  const { sidebarWidth, startResizing, resetWidth } = useResizableSidebar({ storageKey: "mcc_company_sidebar_width" });
   const isDark = themeMode === "dark";
 
   const [activeTab, setActiveTab] = useState<TabType>("overview");
@@ -730,11 +733,14 @@ export default function CompanyDashboardPage() {
         }`}
     >
       {/* DESKTOP SIDEBAR NAVIGATION */}
-      <div className="w-72 border-r border-slate-200/50 dark:border-white/5 relative z-20 flex flex-col justify-between shrink-0 h-screen sticky top-0 transition-colors duration-300 hidden md:flex mcc-sidebar bg-white dark:bg-[#090d16]">
-        <div className="p-6 border-b border-slate-200 dark:border-white/5 flex items-center justify-center shrink-0">
+      <div 
+        style={{ width: `${sidebarWidth}px` }}
+        className="border-r border-slate-200/50 dark:border-white/5 relative z-20 flex flex-col justify-between shrink-0 h-screen sticky top-0 transition-colors duration-300 hidden md:flex mcc-sidebar bg-white dark:bg-[#090d16]"
+      >
+        <div className="py-2.5 px-3 border-b border-slate-200 dark:border-white/5 flex items-center justify-center shrink-0">
           <img
             src={themeMode === "dark" ? "/mcc-logo-dark.png" : "/mcc-logo.jpg"}
-            className="w-full max-w-[280px] h-auto object-contain rounded-lg transition-transform duration-200 hover:scale-[1.02]"
+            className="h-20 md:h-[88px] w-auto max-w-full object-contain rounded-lg transition-transform duration-200 hover:scale-[1.02] shrink-0"
             alt="Madras Christian College Logo"
           />
         </div>
@@ -795,6 +801,16 @@ export default function CompanyDashboardPage() {
           >
             <LogOut size={15} /> Log Out
           </button>
+        </div>
+
+        {/* Interactive Drag Handle for Sidebar Resizing */}
+        <div
+          onMouseDown={startResizing}
+          onDoubleClick={resetWidth}
+          title="Click and drag to resize sidebar width. Double-click to reset."
+          className="absolute top-0 -right-1 bottom-0 w-2.5 cursor-col-resize hover:bg-[#781c1c]/50 active:bg-[#781c1c] transition-colors z-40 group flex items-center justify-center"
+        >
+          <div className="w-0.5 h-10 bg-slate-500/30 group-hover:bg-[#d4af37] rounded-full" />
         </div>
       </div>
 
@@ -2529,10 +2545,7 @@ export default function CompanyDashboardPage() {
             {/* List */}
             <div className="flex-1 py-6 space-y-4 overflow-y-auto pr-1">
               {poolCandidatesLoading ? (
-                <div className="text-center py-12">
-                  <div className="w-10 h-10 border-4 border-red-600 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
-                  <p className="text-xs text-slate-450 font-semibold">Running matching queries...</p>
-                </div>
+                <MCCLoader fullScreen={false} compact text="Running matching queries..." subtext="MCC Talent Search" isDark={isDark} />
               ) : poolCandidates.length > 0 ? (
                 poolCandidates.map((cand) => (
                   <div

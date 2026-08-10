@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
+import { useResizableSidebar } from "@/hooks/useResizableSidebar";
+import MCCLoader from "@/components/MCCLoader";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
@@ -86,6 +88,7 @@ export default function AdminPage() {
   const [activeTab, setActiveTab] = useState<ActiveTab>("overview");
   const [loading, setLoading] = useState(true);
   const [themeMode, toggleThemeMode] = useTheme();
+  const { sidebarWidth, startResizing, resetWidth } = useResizableSidebar({ storageKey: "mcc_admin_sidebar_width" });
   const [showMobileNav, setShowMobileNav] = useState(false);
 
   // Data States
@@ -1378,14 +1381,7 @@ export default function AdminPage() {
   };
 
   if (loading && !metrics) {
-    return (
-      <div className="min-h-screen bg-[#0d0d12] text-[#f3f4f6] flex flex-col items-center justify-center">
-        <div className="w-12 h-12 border-2 border-[#781c1c] border-t-transparent rounded-full animate-spin mb-4" />
-        <p className="text-gray-400 text-sm font-semibold tracking-widest uppercase animate-pulse">
-          Loading MCC Admin Console...
-        </p>
-      </div>
-    );
+    return <MCCLoader isDark={themeMode === "dark"} text="Loading MCC Admin Console..." subtext="MCC Administration" />;
   }
 
   return (
@@ -1403,12 +1399,15 @@ export default function AdminPage() {
       {/* ==========================================
           SIDEBAR NAVIGATION
           ========================================== */}
-      <div className={`w-72 border-r relative z-20 flex flex-col justify-between shrink-0 h-screen sticky top-0 transition-colors duration-300 hidden md:flex mcc-sidebar`}>
+      <div 
+        style={{ width: `${sidebarWidth}px` }}
+        className="border-r relative z-20 flex flex-col justify-between shrink-0 h-screen sticky top-0 transition-colors duration-300 hidden md:flex mcc-sidebar"
+      >
         {/* Logo & Console Title */}
-        <div className="p-6 border-b border-slate-200 flex items-center justify-center shrink-0">
+        <div className="py-2.5 px-3 border-b border-slate-200 flex items-center justify-center shrink-0">
           <img 
             src={themeMode === "dark" ? "/mcc-logo-dark.png" : "/mcc-logo.jpg"} 
-            className="w-full max-w-[280px] h-auto object-contain rounded-lg transition-transform duration-200 hover:scale-[1.02]" 
+            className="h-20 md:h-[88px] w-auto max-w-full object-contain rounded-lg transition-transform duration-200 hover:scale-[1.02] shrink-0" 
             alt="Madras Christian College Logo" 
           />
         </div>
@@ -1505,6 +1504,16 @@ export default function AdminPage() {
           >
             Sign Out Console
           </button>
+        </div>
+
+        {/* Interactive Drag Handle for Sidebar Resizing */}
+        <div
+          onMouseDown={startResizing}
+          onDoubleClick={resetWidth}
+          title="Click and drag to resize sidebar width. Double-click to reset."
+          className="absolute top-0 -right-1 bottom-0 w-2.5 cursor-col-resize hover:bg-[#781c1c]/50 active:bg-[#781c1c] transition-colors z-40 group flex items-center justify-center"
+        >
+          <div className="w-0.5 h-10 bg-slate-500/30 group-hover:bg-[#d4af37] rounded-full" />
         </div>
       </div>
 

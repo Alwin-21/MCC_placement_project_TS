@@ -139,7 +139,7 @@ export default function HomePage() {
                 textShadow: "0 2px 15px rgba(0,0,0,0.85), 0 1px 4px rgba(0,0,0,0.95)"
               }}
             >
-              A minimalist, certified showcase of student portfolios, research, and verified competencies at Madras Christian College.
+              Madras Christian College’s official placement and portfolio platform bridges academic excellence with industry opportunities.
             </p>
 
             {/* CTA Buttons */}

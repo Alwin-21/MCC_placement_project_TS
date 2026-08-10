@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
+import MCCLoader from "@/components/MCCLoader";
 import { useParams, useRouter } from "next/navigation";
 import {
   ArrowLeft,
@@ -1480,12 +1481,7 @@ export default function ResumeEditorPage() {
   };
 
   if (loading || !resumeData) {
-    return (
-      <div className={`flex flex-col items-center justify-center h-screen gap-4 ${themeMode === "dark" ? "bg-[#09090d] text-white" : "bg-slate-50 text-slate-900"}`}>
-        <div className="w-12 h-12 border-4 border-[#781c1c] border-t-transparent rounded-full animate-spin"></div>
-        <p className="text-sm opacity-70">Loading Resume Builder Workspace...</p>
-      </div>
-    );
+    return <MCCLoader isDark={themeMode === "dark"} text="Loading Resume Builder Workspace..." />;
   }
 
   const pInfo = resumeData.personalInfo;

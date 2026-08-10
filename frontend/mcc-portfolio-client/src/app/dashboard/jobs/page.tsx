@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import MCCLoader from "@/components/MCCLoader";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
@@ -141,14 +142,7 @@ export default function StudentJobsPage() {
   };
 
   if (loading) {
-    return (
-      <div className={`min-h-screen flex items-center justify-center ${isDark ? "bg-[#090d16]" : "bg-[#faf9f6]"}`}>
-        <div className="text-center space-y-4">
-          <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto" />
-          <p className="text-sm font-semibold text-slate-500">Loading placement board...</p>
-        </div>
-      </div>
-    );
+    return <MCCLoader isDark={isDark} text="Loading Placement Board..." />;
   }
 
   const appStatusColors: Record<string, string> = {
