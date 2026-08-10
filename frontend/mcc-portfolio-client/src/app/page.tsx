@@ -24,12 +24,18 @@ export default function HomePage() {
         }`}
       >
         <div className="max-w-full w-full px-4 sm:px-8 md:px-12 lg:px-16 py-3 sm:py-4 flex items-center justify-between gap-4 relative z-20">
-          {/* Left: Prominent MCC Crest Logo + Aligned Brand Title */}
           <Link href="/" className="flex items-center gap-3 sm:gap-4 group shrink-0">
+            {/* Mobile Logo (Theme Responsive for Mobile Header Background) */}
+            <img
+              src={isDark ? "/mcc-logo-dark.png" : "/mcc-logo.png"}
+              alt="Madras Christian College Logo"
+              className="h-10 sm:hidden w-auto object-contain shrink-0 transition-all duration-300 group-hover:scale-105"
+            />
+            {/* Desktop Logo (White Logo for Dark Video Background Overlay) */}
             <img
               src="/mcc-logo-dark.png"
               alt="Madras Christian College Logo"
-              className="h-10 sm:h-14 md:h-16 w-auto object-contain shrink-0 transition-all duration-300 group-hover:scale-105"
+              className="hidden sm:block h-14 md:h-16 w-auto object-contain shrink-0 transition-all duration-300 group-hover:scale-105"
             />
             {/* Vertical Divider */}
             <div
