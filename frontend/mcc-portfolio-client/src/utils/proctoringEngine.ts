@@ -137,65 +137,65 @@ export interface ProctoringEngineConfig {
 
 const DEFAULT_SM_CONFIGS: Record<string, StateMachineConfig> = {
   FaceMismatch: {
-    bufferSize: 15,           // 3 s window
-    percentThreshold: 0.70,   // 70 % of frames must mismatch
-    minDurationFrames: 8,     // ~1.6 s continuous before alert
+    bufferSize: 10,           // 2 s window
+    percentThreshold: 1.0,    // 100 % of frames must mismatch
+    minDurationFrames: 10,    // 2 s continuous before alert
     minClearFrames: 5,
     cooldownMs: 10000,
   },
   MultipleFaces: {
-    bufferSize: 15,           // 3 s window
-    percentThreshold: 0.75,   // 75 % of frames show multiple faces
-    minDurationFrames: 10,    // ~2 s continuous before alert
+    bufferSize: 10,           // 2 s window
+    percentThreshold: 1.0,    // 100 % of frames show multiple faces
+    minDurationFrames: 10,    // 2 s continuous before alert
     minClearFrames: 10,
     cooldownMs: 10000,
   },
   PhoneDetected: {
-    bufferSize: 4,            // 0.8 s window
-    percentThreshold: 0.50,   // at least 2 frames positive
-    minDurationFrames: 2,     // ~0.4 s before warning
+    bufferSize: 10,           // 2 s window
+    percentThreshold: 1.0,    // 100 % of frames show phone
+    minDurationFrames: 10,    // 2 s continuous before alert
     minClearFrames: 10,
     cooldownMs: 8000,
   },
   CameraObstructed: {
-    bufferSize: 15,           // 3 s window
-    percentThreshold: 0.80,
-    minDurationFrames: 12,    // ~2.4 s continuous before alert
+    bufferSize: 10,           // 2 s window
+    percentThreshold: 1.0,    // 100 % of frames obstructed
+    minDurationFrames: 10,    // 2 s continuous before alert
     minClearFrames: 8,
     cooldownMs: 10000,
   },
   LookingAway: {
-    bufferSize: 8,            // 1.6 s window
-    percentThreshold: 0.60,   // 60% of frames
-    minDurationFrames: 5,     // ~1 s deviation
+    bufferSize: 10,           // 2 s window
+    percentThreshold: 1.0,    // 100 % of frames looking away
+    minDurationFrames: 10,    // 2 s continuous before alert
     minClearFrames: 2,
     cooldownMs: 8000,
   },
   FrequentEyeMovement: {
-    bufferSize: 1,            // immediate window
-    percentThreshold: 1.0,    // 100% of frames
-    minDurationFrames: 1,     // immediate trigger
-    minClearFrames: 1,        // immediate clear
+    bufferSize: 10,           // 2 s window
+    percentThreshold: 1.0,    // 100 % of frames looking away
+    minDurationFrames: 10,    // 2 s continuous before alert
+    minClearFrames: 1,        // clear immediately if looking back
     cooldownMs: 6000,         // cooldown to prevent warning spam
   },
   FaceMissing: {
-    bufferSize: 25,           // 5 s window
-    percentThreshold: 0.90,
-    minDurationFrames: 25,    // ~5 s continuous before alert
+    bufferSize: 10,           // 2 s window
+    percentThreshold: 1.0,    // 100 % of frames face missing
+    minDurationFrames: 10,    // 2 s continuous before alert
     minClearFrames: 5,
     cooldownMs: 10000,
   },
   BookDetected: {
-    bufferSize: 6,            // 1.2 s window
-    percentThreshold: 0.60,
-    minDurationFrames: 4,     // ~0.8 s before warning
+    bufferSize: 10,           // 2 s window
+    percentThreshold: 1.0,    // 100 % of frames book detected
+    minDurationFrames: 10,    // 2 s continuous before alert
     minClearFrames: 8,
     cooldownMs: 8000,
   },
   AdditionalPerson: {
-    bufferSize: 6,            // 1.2 s window
-    percentThreshold: 0.60,
-    minDurationFrames: 4,     // ~0.8 s before warning
+    bufferSize: 10,           // 2 s window
+    percentThreshold: 1.0,    // 100 % of frames additional person visible
+    minDurationFrames: 10,    // 2 s continuous before alert
     minClearFrames: 8,
     cooldownMs: 8000,
   },
@@ -474,6 +474,22 @@ export class ProctoringEngine {
   /** Consecutive frozen-frame count (requires 3 before flagging) */
   private cameraFrozenTicks = 0;
 
+  // ── Optimization Cache ───────────────────────────────────────────────────
+  private frameCount = 0;
+  private lastFaceCount = 1;
+  private lastIdentityMismatch = false;
+  private lastIdentityDetails = "";
+  private lastIdentityConfidence = 0;
+  private lastPhoneDetected = false;
+  private lastPhoneDetails = "";
+  private lastPhoneConfidence = 0;
+  private lastBookDetected = false;
+  private lastBookDetails = "";
+  private lastBookConfidence = 0;
+  private lastAdditionalPerson = false;
+  private lastAdditionalPersonDetails = "";
+  private lastAdditionalPersonConfidence = 0;
+
   constructor(config: ProctoringEngineConfig) {
     this.video = config.videoElement;
     this.canvas = config.canvasElement;
@@ -607,6 +623,8 @@ export class ProctoringEngine {
   private async processFrame(): Promise<void> {
     if (!this.video || this.video.readyState < 2) return;
 
+    this.frameCount++;
+
     // ── Step 1: Camera Health ─────────────────────────────────────────────────
     const obstructedSignal = this.checkCameraHealth();
     this.pushState("CameraObstructed", obstructedSignal, "Camera is blocked, frozen, or unavailable.", 1.0);
@@ -618,6 +636,7 @@ export class ProctoringEngine {
       this.pushState("FaceMismatch", false, "", 0);
       this.pushState("LookingAway", false, "", 0);
       this.pushState("FrequentEyeMovement", false, "", 0);
+      this.lastFaceCount = 0;
       return;
     }
 
@@ -683,8 +702,13 @@ export class ProctoringEngine {
 
     // ── Step 4: Per-Face Analysis (only when exactly one face is present) ─────
     if (faceCount === 1) {
-      // A) Identity Verification
-      await this.checkIdentity(faceapiDetections);
+      // A) Identity Verification (Throttled to once every 25 frames, or on face count change)
+      const faceCountChanged = this.lastFaceCount !== faceCount;
+      if (this.frameCount % 25 === 0 || faceCountChanged || !this.lastIdentityDetails) {
+        await this.checkIdentity(faceapiDetections);
+      } else {
+        this.pushState("FaceMismatch", this.lastIdentityMismatch, this.lastIdentityDetails, this.lastIdentityConfidence);
+      }
 
       // B) Head Pose (Looking Away)
       this.checkHeadPose(mainLandmarks, mainMatrix);
@@ -697,6 +721,8 @@ export class ProctoringEngine {
       this.pushState("LookingAway", false, "", 0);
       this.pushState("FrequentEyeMovement", false, "", 0);
     }
+
+    this.lastFaceCount = faceCount;
 
     // ── Step 5: Object Detection (Phone, Book, Additional Person) ─────────────
     await this.checkObjectDetection();
@@ -766,12 +792,18 @@ export class ProctoringEngine {
    */
   private async checkIdentity(faceapiDetections: any[]): Promise<void> {
     if (!this.registeredDescriptor) {
+      this.lastIdentityMismatch = false;
+      this.lastIdentityDetails = "";
+      this.lastIdentityConfidence = 0;
       this.pushState("FaceMismatch", false, "", 0);
       return;
     }
 
     const faceapi = (window as any).faceapi;
     if (!faceapi) {
+      this.lastIdentityMismatch = false;
+      this.lastIdentityDetails = "";
+      this.lastIdentityConfidence = 0;
       this.pushState("FaceMismatch", false, "", 0);
       return;
     }
@@ -807,18 +839,29 @@ export class ProctoringEngine {
         );
         const mismatch = dist > this.faceMismatchThreshold;
         identityConfidence = Math.max(0, Math.min(1, 1 - dist));
+        this.lastIdentityMismatch = mismatch;
+        this.lastIdentityDetails = mismatch
+          ? "Identity verification failed: face does not match the registered student."
+          : "";
+        this.lastIdentityConfidence = identityConfidence;
         this.pushState(
           "FaceMismatch",
           mismatch,
-          "Identity verification failed: face does not match the registered student.",
-          identityConfidence
+          this.lastIdentityDetails,
+          this.lastIdentityConfidence
         );
       } else {
         // No descriptor obtained — do not flag as mismatch (could be a transient miss)
+        this.lastIdentityMismatch = false;
+        this.lastIdentityDetails = "";
+        this.lastIdentityConfidence = 0;
         this.pushState("FaceMismatch", false, "", 0);
       }
     } catch (err) {
       console.warn("[ProctoringEngine] Identity check error:", err);
+      this.lastIdentityMismatch = false;
+      this.lastIdentityDetails = "";
+      this.lastIdentityConfidence = 0;
       this.pushState("FaceMismatch", false, "", 0);
     }
   }
@@ -1049,72 +1092,91 @@ export class ProctoringEngine {
    */
   private async checkObjectDetection(): Promise<void> {
     if (!this.objectDetector) {
+      this.lastPhoneDetected = false;
+      this.lastPhoneDetails = "";
+      this.lastPhoneConfidence = 0;
+      this.lastBookDetected = false;
+      this.lastBookDetails = "";
+      this.lastBookConfidence = 0;
+      this.lastAdditionalPerson = false;
+      this.lastAdditionalPersonDetails = "";
+      this.lastAdditionalPersonConfidence = 0;
+
       this.pushState("PhoneDetected", false, "", 0);
       this.pushState("BookDetected", false, "", 0);
       this.pushState("AdditionalPerson", false, "", 0);
       return;
     }
 
-    try {
-      const predictions = await this.objectDetector.detect(this.video);
+    if (this.frameCount % 5 === 0 || !this.lastPhoneDetails) {
+      try {
+        const predictions = await this.objectDetector.detect(this.video);
 
-      // 1. Phone Detection (cell phone, remote)
-      const phoneClasses = new Set(["cell phone", "remote"]);
-      const phoneMatch = predictions.find(
-        (p: any) =>
-          phoneClasses.has(p.class) && p.score >= this.phoneConfidenceThreshold
-      );
-
-      if (phoneMatch) {
-        this.pushState(
-          "PhoneDetected",
-          true,
-          `Prohibited device detected: ${phoneMatch.class} (${Math.round(phoneMatch.score * 100)}% confidence).`,
-          phoneMatch.score
+        // 1. Phone Detection (cell phone, remote)
+        const phoneClasses = new Set(["cell phone", "remote"]);
+        const phoneMatch = predictions.find(
+          (p: any) =>
+            phoneClasses.has(p.class) && p.score >= this.phoneConfidenceThreshold
         );
-      } else {
-        this.pushState("PhoneDetected", false, "", 0);
-      }
 
-      // 2. Book Detection (book / study materials)
-      const bookMatch = predictions.find(
-        (p: any) => p.class === "book" && p.score >= 0.40
-      );
+        if (phoneMatch) {
+          this.lastPhoneDetected = true;
+          this.lastPhoneDetails = `Prohibited device detected: ${phoneMatch.class} (${Math.round(phoneMatch.score * 100)}% confidence).`;
+          this.lastPhoneConfidence = phoneMatch.score;
+        } else {
+          this.lastPhoneDetected = false;
+          this.lastPhoneDetails = "";
+          this.lastPhoneConfidence = 0;
+        }
 
-      if (bookMatch) {
-        this.pushState(
-          "BookDetected",
-          true,
-          `Prohibited study material detected: book (${Math.round(bookMatch.score * 100)}% confidence).`,
-          bookMatch.score
+        // 2. Book Detection (book / study materials)
+        const bookMatch = predictions.find(
+          (p: any) => p.class === "book" && p.score >= 0.40
         );
-      } else {
-        this.pushState("BookDetected", false, "", 0);
-      }
 
-      // 3. Additional Person Detection
-      const personPredictions = predictions.filter(
-        (p: any) => p.class === "person" && p.score >= 0.55
-      );
+        if (bookMatch) {
+          this.lastBookDetected = true;
+          this.lastBookDetails = `Prohibited study material detected: book (${Math.round(bookMatch.score * 100)}% confidence).`;
+          this.lastBookConfidence = bookMatch.score;
+        } else {
+          this.lastBookDetected = false;
+          this.lastBookDetails = "";
+          this.lastBookConfidence = 0;
+        }
 
-      if (personPredictions.length > 1) {
-        const highestScore = Math.max(...personPredictions.map((p: any) => p.score));
-        this.pushState(
-          "AdditionalPerson",
-          true,
-          `Additional person detected in camera view (${personPredictions.length} people visible).`,
-          highestScore
+        // 3. Additional Person Detection
+        const personPredictions = predictions.filter(
+          (p: any) => p.class === "person" && p.score >= 0.55
         );
-      } else {
-        this.pushState("AdditionalPerson", false, "", 0);
-      }
 
-    } catch (err) {
-      console.warn("[ProctoringEngine] Object detection error:", err);
-      this.pushState("PhoneDetected", false, "", 0);
-      this.pushState("BookDetected", false, "", 0);
-      this.pushState("AdditionalPerson", false, "", 0);
+        if (personPredictions.length > 1) {
+          const highestScore = Math.max(...personPredictions.map((p: any) => p.score));
+          this.lastAdditionalPerson = true;
+          this.lastAdditionalPersonDetails = `Additional person detected in camera view (${personPredictions.length} people visible).`;
+          this.lastAdditionalPersonConfidence = highestScore;
+        } else {
+          this.lastAdditionalPerson = false;
+          this.lastAdditionalPersonDetails = "";
+          this.lastAdditionalPersonConfidence = 0;
+        }
+
+      } catch (err) {
+        console.warn("[ProctoringEngine] Object detection error:", err);
+        this.lastPhoneDetected = false;
+        this.lastPhoneDetails = "";
+        this.lastPhoneConfidence = 0;
+        this.lastBookDetected = false;
+        this.lastBookDetails = "";
+        this.lastBookConfidence = 0;
+        this.lastAdditionalPerson = false;
+        this.lastAdditionalPersonDetails = "";
+        this.lastAdditionalPersonConfidence = 0;
+      }
     }
+
+    this.pushState("PhoneDetected", this.lastPhoneDetected, this.lastPhoneDetails, this.lastPhoneConfidence);
+    this.pushState("BookDetected", this.lastBookDetected, this.lastBookDetails, this.lastBookConfidence);
+    this.pushState("AdditionalPerson", this.lastAdditionalPerson, this.lastAdditionalPersonDetails, this.lastAdditionalPersonConfidence);
   }
 
   // ── State Machine Router ───────────────────────────────────────────────────
