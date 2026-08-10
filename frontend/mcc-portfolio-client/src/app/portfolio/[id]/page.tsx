@@ -1775,14 +1775,14 @@ function PortfolioPageContent() {
           {!isSidebarCollapsed ? (
             <div className="flex items-center justify-center gap-3.5 w-full">
               <img 
-                src={isDark ? "/mcc-logo-dark.png" : "/mcc-logo.jpg"}
+                src={isDark ? "/mcc-logo-dark.png" : "/mcc-logo.png"}
                 className="h-20 md:h-[88px] w-auto max-w-full object-contain rounded-lg transition-transform duration-200 hover:scale-[1.02] shrink-0" 
                 alt="Madras Christian College Logo" 
               />
             </div>
           ) : (
-            <div className="w-12 h-12 rounded-full bg-white flex items-center justify-center mx-auto border-2 border-[#d4af37] shadow-md overflow-hidden p-1 transition-transform hover:scale-110" title="Madras Christian College">
-              <img src="/mcc-crest.png" className="w-full h-full object-contain" alt="MCC Crest" />
+            <div className="w-12 h-12 rounded-full bg-white/10 dark:bg-slate-900/50 flex items-center justify-center mx-auto border-2 border-[#d4af37] shadow-md overflow-hidden p-1 transition-transform hover:scale-110" title="Madras Christian College">
+              <img src={isDark ? "/mcc-crest-dark.png" : "/mcc-crest.png"} className="w-full h-full object-contain" alt="MCC Crest" />
             </div>
           )}
         </div>
@@ -1880,7 +1880,7 @@ function PortfolioPageContent() {
             <div className="flex justify-between items-center pb-4 border-b border-slate-500/20">
               <div className="flex items-center justify-start py-1">
                 <img 
-                  src={isDark ? "/mcc-logo-dark.png" : "/mcc-logo.jpg"}
+                  src={isDark ? "/mcc-logo-dark.png" : "/mcc-logo.png"}
                   className="w-full max-w-[180px] h-auto object-contain rounded-lg" 
                   alt="Madras Christian College Logo" 
                 />
@@ -2021,14 +2021,6 @@ function PortfolioPageContent() {
               </span>
             </button>
 
-            {/* Student Name Pill */}
-            <div className={`px-3 sm:px-4 py-1.5 rounded-full border flex items-center justify-center font-serif ${
-              isDark ? "bg-slate-900 border-slate-800 text-slate-100" : "bg-slate-100 border-slate-200 text-[#18233c]"
-            }`}>
-              <span className="text-xs font-bold uppercase truncate max-w-[90px] sm:max-w-[170px]" title={user.fullName}>
-                {user.fullName}
-              </span>
-            </div>
           </div>
         </header>
 

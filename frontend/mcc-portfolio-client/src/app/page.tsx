@@ -15,7 +15,7 @@ export default function HomePage() {
       style={{ fontFamily: "'Plus Jakarta Sans', 'Inter', system-ui, sans-serif" }}
       className="relative min-h-screen flex flex-col justify-between overflow-x-hidden bg-[#090d16] text-slate-100"
     >
-      {/* ── HEADER WITH MOBILE THEME TOGGLE & ENLARGED LOGO ──────────────── */}
+      {/* ── HEADER WITH MOBILE THEME TOGGLE ──────────────── */}
       <header
         className={`relative sm:absolute top-0 left-0 right-0 z-50 backdrop-blur-md sm:backdrop-blur-none transition-all duration-300 ${
           isDark
@@ -26,26 +26,19 @@ export default function HomePage() {
         <div className="max-w-full w-full px-4 sm:px-8 md:px-12 lg:px-16 py-3 sm:py-4 flex items-center justify-between gap-4 relative z-20">
           {/* Left: Prominent MCC Crest Logo + Aligned Brand Title */}
           <Link href="/" className="flex items-center gap-3 sm:gap-4 group shrink-0">
-            {/* Mobile Logo (Theme Responsive) */}
-            <img
-              src={isDark ? "/mcc-logo-dark.png" : "/mcc-logo.png"}
-              alt="Madras Christian College Crest"
-              className="h-14 sm:hidden w-auto object-contain shrink-0 transition-all duration-300 group-hover:scale-105"
-            />
-            {/* Desktop Logo (Enlarged for Impactful Presentation) */}
             <img
               src="/mcc-logo-dark.png"
-              alt="Madras Christian College Crest"
-              className="hidden sm:block h-24 md:h-28 lg:h-32 w-auto object-contain shrink-0 transition-all duration-300 group-hover:scale-105"
+              alt="Madras Christian College Logo"
+              className="h-10 sm:h-14 md:h-16 w-auto object-contain shrink-0 transition-all duration-300 group-hover:scale-105"
             />
             {/* Vertical Divider */}
             <div
-              className="h-12 sm:h-16 w-[2px] hidden sm:block shrink-0"
+              className="h-7 sm:h-10 w-[2px] hidden sm:block shrink-0"
               style={{
                 background: "linear-gradient(to bottom, rgba(255,255,255,0.1), rgba(255,255,255,0.3), rgba(255,255,255,0.1))"
               }}
             />
-            {/* Brand Title (Kept at exact size requested) */}
+            {/* Brand Title */}
             <div className="flex flex-col space-y-0.5">
               <span className={`text-sm sm:text-xl md:text-2xl font-black uppercase tracking-wider leading-none transition-transform group-hover:scale-105 ${
                 isDark ? "text-white" : "text-slate-900 sm:text-white"
@@ -114,8 +107,8 @@ export default function HomePage() {
           {!isDark && <div className="absolute inset-0 bg-black/20" />}
         </div>
 
-        {/* Hero Content — fully transparent wrapper, no card chrome */}
-        <div className="relative z-10 max-w-3xl lg:max-w-4xl mx-auto my-auto text-center px-2 sm:px-4 w-full animate-fade-in-up mt-12 sm:mt-24 lg:mt-36 lg:translate-y-4">
+        {/* Hero Content — fully transparent wrapper centered perfectly in all responsive layouts */}
+        <div className="relative z-10 max-w-3xl lg:max-w-4xl mx-auto my-auto flex flex-col items-center justify-center text-center px-2 sm:px-4 w-full animate-fade-in-up">
           <div className="rounded-3xl p-6 sm:p-14 lg:p-16">
             {/* Main Headline */}
             <h1
@@ -139,7 +132,7 @@ export default function HomePage() {
                 textShadow: "0 2px 15px rgba(0,0,0,0.85), 0 1px 4px rgba(0,0,0,0.95)"
               }}
             >
-              A minimalist, certified showcase of student portfolios, research, and verified competencies at Madras Christian College.
+              Madras Christian College’s official placement and portfolio platform bridges academic excellence with industry opportunities.
             </p>
 
             {/* CTA Buttons */}

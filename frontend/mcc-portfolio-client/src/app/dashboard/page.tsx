@@ -1463,7 +1463,7 @@ Report Generated: ${new Date().toLocaleDateString()}
       >
         <div className="py-2.5 px-3 border-b border-slate-200 flex items-center justify-center shrink-0">
           <img 
-            src={themeMode === "dark" ? "/mcc-logo-dark.png" : "/mcc-logo.jpg"} 
+            src={themeMode === "dark" ? "/mcc-logo-dark.png" : "/mcc-logo.png"} 
             className="h-20 md:h-[88px] w-auto max-w-full object-contain rounded-lg transition-transform duration-200 hover:scale-[1.02] shrink-0" 
             alt="Madras Christian College Logo" 
           />
@@ -1611,7 +1611,7 @@ Report Generated: ${new Date().toLocaleDateString()}
             <div className="flex justify-between items-center pb-4 border-b border-slate-200 dark:border-white/5">
               <div className="flex items-center justify-start py-0.5">
                 <img 
-                  src={themeMode === "dark" ? "/mcc-logo-dark.png" : "/mcc-logo.jpg"} 
+                  src={themeMode === "dark" ? "/mcc-logo-dark.png" : "/mcc-logo.png"} 
                   className="h-16 sm:h-20 w-auto max-w-[220px] object-contain rounded-lg shrink-0" 
                   alt="Madras Christian College Logo" 
                 />
