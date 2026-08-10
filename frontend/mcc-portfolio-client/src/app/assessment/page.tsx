@@ -880,8 +880,9 @@ export default function AssessmentPage() {
         },
         sampleFps: 5,
         lookingAwayConfig: {
-          bufferSize: Math.ceil(proctoringLimitRef.current * 5),
-          minDurationFrames: Math.ceil(proctoringLimitRef.current * 5),
+          bufferSize: 10,
+          percentThreshold: 1.0,
+          minDurationFrames: 10,
         },
       });
 
