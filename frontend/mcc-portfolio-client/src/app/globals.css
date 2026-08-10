@@ -30,8 +30,8 @@ body {
 
 html.dark {
   --mcc-bg-page: #0d0d12;
-  --mcc-bg-sidebar: #000000;
-  --mcc-border-sidebar: rgba(255, 255, 255, 0.05);
+  --mcc-bg-sidebar: #18233c;
+  --mcc-border-sidebar: rgba(255, 255, 255, 0.08);
   --mcc-bg-card: #0b0b0f;
   --mcc-border-card: rgba(255, 255, 255, 0.05);
   --mcc-bg-subcard: #0b0b0f;
@@ -346,10 +346,10 @@ div.mcc-sidebar {
 html.dark .mcc-sidebar,
 html.dark aside.mcc-sidebar,
 html.dark div.mcc-sidebar {
-  background-color: #000000 !important;
-  background: #000000 !important;
+  background-color: #18233c !important;
+  background: #18233c !important;
   color: #f3f4f6 !important;
-  border-right: 1px solid rgba(255,255,255,0.05) !important;
+  border-right: 1px solid rgba(255,255,255,0.08) !important;
 }
 
 .mcc-sidebar span,

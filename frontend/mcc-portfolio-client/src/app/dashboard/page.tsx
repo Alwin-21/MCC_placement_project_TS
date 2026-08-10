@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useResizableSidebar } from "@/hooks/useResizableSidebar";
 import { useRouter } from "next/navigation";
 import {
   User,
@@ -93,6 +94,7 @@ export default function DashboardPage() {
 
   // Theme states
   const [themeMode, toggleThemeMode] = useTheme();
+  const { sidebarWidth, startResizing, resetWidth } = useResizableSidebar({ storageKey: "mcc_dashboard_sidebar_width" });
   const [selectedTheme, setSelectedTheme] = useState("Academic");
   const [availableThemes, setAvailableThemes] = useState<any[]>([]);
 
@@ -1455,12 +1457,14 @@ Report Generated: ${new Date().toLocaleDateString()}
     <div className={`h-screen h-[100dvh] overflow-hidden flex transition-colors duration-300 ${
       themeMode === "dark" ? "bg-[#0d0d12] text-white" : "bg-[#F8F4EC] text-[#2B2620]"
     }`}>
-            {/* SIDEBAR NAVIGATION */}
-      <div className="w-72 border-r relative z-20 flex flex-col justify-between shrink-0 h-screen sticky top-0 transition-colors duration-300 hidden md:flex mcc-sidebar">
-        <div className="p-6 border-b border-slate-200 flex items-center justify-center shrink-0">
+      <div 
+        style={{ width: `${sidebarWidth}px` }}
+        className="border-r relative z-20 flex flex-col justify-between shrink-0 h-screen sticky top-0 transition-colors duration-300 hidden md:flex mcc-sidebar"
+      >
+        <div className="py-2.5 px-3 border-b border-slate-200 flex items-center justify-center shrink-0">
           <img 
             src={themeMode === "dark" ? "/mcc-logo-dark.png" : "/mcc-logo.jpg"} 
-            className="w-full max-w-[280px] h-auto object-contain rounded-lg transition-transform duration-200 hover:scale-[1.02]" 
+            className="h-20 md:h-[88px] w-auto max-w-full object-contain rounded-lg transition-transform duration-200 hover:scale-[1.02] shrink-0" 
             alt="Madras Christian College Logo" 
           />
         </div>
@@ -1589,16 +1593,26 @@ Report Generated: ${new Date().toLocaleDateString()}
             <LogOut size={15} /> Log Out
           </button>
         </div>
+
+        {/* Interactive Drag Handle for Sidebar Resizing */}
+        <div
+          onMouseDown={startResizing}
+          onDoubleClick={resetWidth}
+          title="Click and drag to resize sidebar width. Double-click to reset."
+          className="absolute top-0 -right-1 bottom-0 w-2.5 cursor-col-resize hover:bg-[#781c1c]/50 active:bg-[#781c1c] transition-colors z-40 group flex items-center justify-center"
+        >
+          <div className="w-0.5 h-10 bg-slate-500/30 group-hover:bg-[#d4af37] rounded-full" />
+        </div>
       </div>
       {/* MOBILE DRAWER SIDEBAR OVERLAY */}
       {showMobileNav && (
         <div className="fixed inset-0 z-50 flex md:hidden bg-black/60 backdrop-blur-xs select-none">
           <div className="w-72 flex flex-col p-5 animate-slideIn h-screen border-r mcc-sidebar">
             <div className="flex justify-between items-center pb-4 border-b border-slate-200 dark:border-white/5">
-              <div className="flex items-center justify-start py-1">
+              <div className="flex items-center justify-start py-0.5">
                 <img 
                   src={themeMode === "dark" ? "/mcc-logo-dark.png" : "/mcc-logo.jpg"} 
-                  className="w-full max-w-[190px] h-auto object-contain rounded-lg" 
+                  className="h-16 sm:h-20 w-auto max-w-[220px] object-contain rounded-lg shrink-0" 
                   alt="Madras Christian College Logo" 
                 />
               </div>
