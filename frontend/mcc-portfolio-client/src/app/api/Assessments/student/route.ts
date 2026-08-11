@@ -14,7 +14,10 @@ export async function GET(request: Request) {
     const user = await prisma.users.findUnique({ where: { Id: userId } });
     if (!user) return NextResponse.json("User not found", { status: 404 });
 
-    const dept = user.Department?.toLowerCase() || "";
+    const userStream = user.Stream?.trim().toLowerCase() || "";
+    const userDept = user.Department?.trim().toLowerCase() || "";
+    const fullAidedSfsDept = userStream && userDept ? `${userStream} - ${userDept}` : "";
+    const altParenDept = userStream && userDept ? `${userDept} (${userStream})` : "";
 
     // Get all Published assessments
     const allAssessments = await prisma.assessments.findMany({
@@ -22,10 +25,23 @@ export async function GET(request: Request) {
       orderBy: { StartDate: "desc" },
     });
 
-    // Filter by department (case-insensitive, support multi-dept)
+    // Filter by department (case-insensitive, support multi-dept & stream differentiation)
     const relevant = allAssessments.filter((a) => {
-      const depts = a.Departments.split(";").map((d) => d.trim().toLowerCase());
-      return depts.includes(dept) || depts.includes("all") || depts.includes("");
+      if (!a.Departments) return false;
+      const depts = a.Departments.split(/[,;]/).map((d) => d.trim().toLowerCase());
+      if (depts.includes("all") || depts.includes("")) return true;
+
+      return depts.some((d) => {
+        if (!d) return false;
+        // Exact match with "aided - social work" or "sfs - social work"
+        if (fullAidedSfsDept && d === fullAidedSfsDept) return true;
+        if (altParenDept && d === altParenDept) return true;
+        // Legacy fallback: if target department has no stream prefix/suffix, match userDept
+        if (!d.startsWith("aided -") && !d.startsWith("sfs -") && !d.includes("(aided)") && !d.includes("(sfs)")) {
+          return d === userDept;
+        }
+        return false;
+      });
     });
 
     // Get attempts for this student
