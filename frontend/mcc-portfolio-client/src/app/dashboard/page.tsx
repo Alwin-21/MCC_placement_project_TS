@@ -1491,13 +1491,13 @@ Report Generated: ${new Date().toLocaleDateString()}
               >
                 <Icon
                   size={16}
-                  className={
+                  className={`shrink-0 ${
                     isActive
                       ? themeMode === "dark"
                         ? "text-white"
                         : "text-white"
                       : "text-[#781c1c]"
-                  }
+                  }`}
                 />
                 {linkItem.label}
               </button>
@@ -1643,13 +1643,13 @@ Report Generated: ${new Date().toLocaleDateString()}
                   >
                     <Icon
                       size={16}
-                      className={
+                      className={`shrink-0 ${
                         isActive
                           ? themeMode === "dark"
                             ? "text-white"
                             : "text-white"
                           : "text-[#781c1c]"
-                      }
+                      }`}
                     />
                     {linkItem.label}
                   </button>
@@ -1843,12 +1843,12 @@ Report Generated: ${new Date().toLocaleDateString()}
             </p>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 flex-wrap">
             <button
               onClick={() => router.push("/assessment")}
-              className="relative bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs px-4 py-2.5 rounded-xl shadow-lg shadow-indigo-600/30 flex items-center gap-2 transition cursor-pointer"
+              className="relative bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs px-4 py-2.5 rounded-xl shadow-lg shadow-indigo-600/30 flex items-center gap-2 transition cursor-pointer shrink-0"
             >
-              <ClipboardList size={15} /> Assessments
+              <ClipboardList size={15} className="shrink-0" /> Assessments
               {pendingAssessmentCount > 0 && (
                 <span className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] px-1 bg-[#781c1c] text-white text-[9px] font-black rounded-full flex items-center justify-center border-2 border-indigo-600 leading-none shadow-sm">
                   {pendingAssessmentCount > 99 ? "99+" : pendingAssessmentCount}
@@ -1856,27 +1856,27 @@ Report Generated: ${new Date().toLocaleDateString()}
               )}
             </button>
 
-            <div className="bg-emerald-500/10 border border-emerald-500/20 px-4 py-2.5 rounded-xl flex items-center gap-2">
-              <Activity className="text-emerald-400 animate-pulse" size={14} />
-              <span className="text-[10px] uppercase font-mono text-emerald-400 font-bold">Server Connection:</span>
-              <span className={`text-[10px] font-bold ${themeMode === "dark" ? "text-white" : "text-slate-800"}`}>Online & Healthy</span>
+            <div className="bg-emerald-500/10 border border-emerald-500/20 px-3.5 py-2.5 rounded-xl flex items-center gap-2 shrink-0">
+              <Activity className="text-emerald-400 animate-pulse shrink-0" size={14} />
+              <span className="text-[10px] uppercase font-mono text-emerald-400 font-bold">Server:</span>
+              <span className={`text-[10px] font-bold ${themeMode === "dark" ? "text-white" : "text-slate-800"}`}>Online</span>
             </div>
 
             {/* Alert Bell */}
-            <div className="relative">
+            <div className="relative shrink-0">
               <button
                 onClick={() => setShowNotifications(!showNotifications)}
                 className={`p-3 rounded-2xl border transition relative ${
                   themeMode === "dark" ? "bg-white/5 border-white/10 hover:bg-white/10 text-white" : "bg-white border-slate-200 hover:bg-slate-50 text-slate-800 shadow-sm"
                 }`}
               >
-                <Bell size={18} />
+                <Bell size={18} className="shrink-0" />
                 {notifications.some(n => !n.isRead) && (
                   <span className="absolute top-2 right-2 w-2 h-2 bg-[#781c1c] rounded-full" />
                 )}
               </button>
               {showNotifications && (
-                <div className={`absolute right-0 mt-3 w-80 rounded-2xl border p-4 shadow-2xl z-50 transition-all duration-300 ${
+                <div className={`absolute left-0 sm:left-auto sm:right-0 mt-3 w-[calc(100vw-48px)] max-w-xs sm:w-80 rounded-2xl border p-4 shadow-2xl z-50 transition-all duration-300 ${
                   themeMode === "dark" ? "bg-[#0b0b0f] border-white/15 text-white" : "bg-white border-slate-200 text-slate-800"
                 }`}>
                   <h4 className="font-bold text-xs border-b pb-2 mb-2 flex items-center justify-between border-white/5">

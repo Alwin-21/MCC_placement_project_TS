@@ -159,13 +159,8 @@ export default function ResumesDashboardPage() {
         {/* Logo & Console Title */}
         <div className="py-2.5 px-3 border-b border-slate-200 flex items-center justify-center shrink-0">
           <img 
-<<<<<<< HEAD
-            src={themeMode === "dark" ? "/mcc-logo-dark.png" : "/mcc-logo.jpg"} 
-            className="h-20 md:h-[88px] w-auto max-w-full object-contain rounded-lg transition-transform duration-200 hover:scale-[1.02] shrink-0" 
-=======
             src={themeMode === "dark" ? "/mcc-logo-dark.png" : "/mcc-logo.png"} 
-            className="w-full max-w-[280px] h-auto object-contain rounded-lg transition-transform duration-200 hover:scale-[1.02]" 
->>>>>>> e3eac30 (feat: Add grainless transparent logos, MCCLoader, logo responsiveness, and portfolio UI updates)
+            className="h-20 md:h-[88px] w-auto max-w-full object-contain rounded-lg transition-transform duration-200 hover:scale-[1.02] shrink-0" 
             alt="Madras Christian College Logo" 
           />
         </div>

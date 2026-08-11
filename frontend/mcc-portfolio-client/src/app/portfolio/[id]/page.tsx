@@ -2001,7 +2001,7 @@ function PortfolioPageContent() {
               }`}
               title="Share portfolio URL"
             >
-              {copiedLink ? <Check size={14} /> : <Share2 size={14} />}
+              {copiedLink ? <Check size={14} className="shrink-0" /> : <Share2 size={14} className="shrink-0" />}
               <span className="hidden sm:inline">{copiedLink ? "Link Copied!" : "Share Profile"}</span>
             </button>
 
@@ -2043,7 +2043,7 @@ function PortfolioPageContent() {
                 }`}>
                   Official Verified Portfolio
                 </span>
-                <h1 className={`text-lg sm:text-2xl font-black font-serif tracking-tight truncate ${
+                <h1 className={`text-lg sm:text-2xl font-black font-serif tracking-tight break-words leading-snug ${
                   isDark ? "text-white" : "text-[#18233c]"
                 }`}>
                   Welcome to {user.fullName}'s Portfolio
