@@ -50,6 +50,21 @@ api.interceptors.response.use(
     return response;
   },
   (error) => {
+    if (typeof window !== "undefined") {
+      const status = error.response?.status;
+      if (status === 401 || status === 403) {
+        const isAdminRoute = window.location.pathname.startsWith("/admin");
+        if (isAdminRoute) {
+          localStorage.removeItem("adminToken");
+          localStorage.removeItem("admin");
+          window.location.href = "/admin/login";
+        } else {
+          localStorage.removeItem("token");
+          localStorage.removeItem("user");
+          window.location.href = "/login";
+        }
+      }
+    }
     return Promise.reject(error);
   }
 );
