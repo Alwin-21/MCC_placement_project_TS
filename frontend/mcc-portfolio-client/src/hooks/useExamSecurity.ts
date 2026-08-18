@@ -213,6 +213,32 @@ export function useExamSecurity({ active, onViolation }: UseExamSecurityOptions)
       onViolation("LookingAway", "Mouse cursor moved outside the exam viewport. Keep focus inside the test area.", "document:mouseleave");
     };
 
+    // ── DevTools active detector ───────────────────────────────────────────
+    let devToolsInterval: NodeJS.Timeout | null = null;
+    if (activeRef.current) {
+      // 1. Image getter detection trick: triggers getter if DevTools tries to format/log the image
+      const detectDevToolsElement = new Image();
+      Object.defineProperty(detectDevToolsElement, "id", {
+        get: () => {
+          onViolation("DevToolsAttempt", "Developer console detected open.", "devtools:console");
+        },
+      });
+
+      devToolsInterval = setInterval(() => {
+        if (!activeRef.current) return;
+        
+        // Trigger console log format evaluation
+        console.log("%c", detectDevToolsElement);
+        
+        // 2. Window difference check (DevTools docked side/bottom)
+        const widthDiff = window.outerWidth - window.innerWidth > 160;
+        const heightDiff = window.outerHeight - window.innerHeight > 160;
+        if (widthDiff || heightDiff) {
+          onViolation("DevToolsAttempt", "Developer tools window detected.", "devtools:window");
+        }
+      }, 1000);
+    }
+
     // Attach all listeners
     document.addEventListener("keydown", handleKeyDown, { capture: true });
     document.addEventListener("contextmenu", handleContextMenu, { capture: true });
@@ -261,6 +287,7 @@ export function useExamSecurity({ active, onViolation }: UseExamSecurityOptions)
       window.removeEventListener("beforeunload", handleBeforeUnload);
 
       if (resizeTimerRef.current) clearTimeout(resizeTimerRef.current);
+      if (devToolsInterval) clearInterval(devToolsInterval);
 
       // Remove injected styles
       document.getElementById("exam-security-styles")?.remove();

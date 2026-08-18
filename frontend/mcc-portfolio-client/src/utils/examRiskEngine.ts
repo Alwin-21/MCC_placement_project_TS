@@ -52,7 +52,7 @@ export const VIOLATION_WEIGHTS: Record<ViolationType, number> = {
   WindowResize:      10,
   DevToolsAttempt:   40,
   ExcessiveMovement: 15,
-  FrequentEyeMovement: 0,
+  FrequentEyeMovement: 10,
   Unknown:           10,
 };
 
@@ -81,7 +81,7 @@ export const VIOLATION_SEVERITY: Record<ViolationType, ViolationSeverity> = {
 
 // ─── Thresholds ───────────────────────────────────────────────────────────────
 /** Risk score above which exam is auto-submitted */
-export const AUTO_SUBMIT_THRESHOLD = 100;
+export const AUTO_SUBMIT_THRESHOLD = 200;
 
 /** Cooldown in ms between same-type violation logs (prevents spam) */
 export const VIOLATION_COOLDOWN_MS = 8000;

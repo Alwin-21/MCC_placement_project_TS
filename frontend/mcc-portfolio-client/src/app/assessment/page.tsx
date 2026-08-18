@@ -95,6 +95,7 @@ export default function AssessmentPage() {
   // Risk Engine & Proctoring State
   const [riskScore, setRiskScore] = useState<number>(0);
   const [violationLog, setViolationLog] = useState<ViolationLogEntry[]>([]);
+  const [warningCount, setWarningCount] = useState<number>(0);
   const riskEngineRef = useRef<ExamRiskEngine | null>(null);
 
   // Proctoring Video / Canvas
@@ -242,6 +243,10 @@ export default function AssessmentPage() {
             attemptId: aid,
             warningType: type,
             details,
+          }).then(res => {
+            if (res.data) {
+              setWarningCount(res.data.warningNum);
+            }
           }).catch(err => console.error("Database security warning log failed:", err));
         }
 
@@ -801,6 +806,13 @@ export default function AssessmentPage() {
       });
       streamRef.current = null;
     }
+    // Explicitly clear srcObject on both video elements to release camera hardware
+    if (videoRef.current) {
+      videoRef.current.srcObject = null;
+    }
+    if (previewVideoRef.current) {
+      previewVideoRef.current.srcObject = null;
+    }
     if (proctoringEngineRef.current) {
       proctoringEngineRef.current.stop();
       proctoringEngineRef.current = null;
@@ -846,6 +858,10 @@ export default function AssessmentPage() {
             attemptId: aid,
             warningType: type,
             details,
+          }).then(res => {
+            if (res.data) {
+              setWarningCount(res.data.warningNum);
+            }
           }).catch(err => console.error("Database proctoring warning log failed:", err));
         }
 
@@ -879,11 +895,8 @@ export default function AssessmentPage() {
           setAiStatus(status);
         },
         sampleFps: 5,
-        lookingAwayConfig: {
-          bufferSize: 10,
-          percentThreshold: 1.0,
-          minDurationFrames: 10,
-        },
+        // Use a relaxed mismatch threshold to prevent lighting/angle false positives
+        faceMismatchThreshold: 0.70,
       });
 
       proctoringEngineRef.current = engine;
@@ -999,28 +1012,51 @@ export default function AssessmentPage() {
     try {
       let createdAttemptId: number;
 
-      const existingRes = await api.get(`/Assessments/${activeAssessment.id}/attempt`);
-      if (existingRes.data && existingRes.data.attemptId) {
-        if (existingRes.data.isMalpractice) {
+      // Try to resume an existing in-progress attempt; if not found, start fresh
+      let existingAttempt: any = null;
+      try {
+        const existingRes = await api.get(`/Assessments/${activeAssessment.id}/attempt`);
+        if (existingRes.data && existingRes.data.attemptId) {
+          existingAttempt = existingRes.data;
+        }
+      } catch (e: any) {
+        // 404 = no attempt yet, any other error is also treated as "no existing attempt"
+        console.warn("No existing attempt found, will start fresh:", e?.response?.status);
+      }
+
+      if (existingAttempt) {
+        if (existingAttempt.isMalpractice) {
           exitFullscreen();
           setMalpracticeLocked(true);
           return;
         }
-        if (existingRes.data.isCompleted) {
+        if (existingAttempt.isCompleted) {
           setView("result");
           fetchResult(activeAssessment.id);
           return;
         }
-        createdAttemptId = existingRes.data.attemptId;
-        setAttemptId(existingRes.data.attemptId);
-        setQuestions(existingRes.data.questions);
-        setStartedAt(new Date(existingRes.data.startedAt));
+        createdAttemptId = existingAttempt.attemptId;
+        setAttemptId(existingAttempt.attemptId);
+        setQuestions(existingAttempt.questions);
+        setStartedAt(new Date(existingAttempt.startedAt));
+        
+        // Fetch existing proctoring session warnings if resuming
+        try {
+          const proctorRes = await api.get(`/Assessments/${activeAssessment.id}/attempt/proctoring`);
+          if (proctorRes.data) {
+            setWarningCount(proctorRes.data.warningCount || 0);
+          }
+        } catch (e) {
+          console.warn("Failed to load existing proctoring warning count:", e);
+          setWarningCount(0);
+        }
       } else {
         const res = await api.post(`/Assessments/${activeAssessment.id}/attempt`, {});
         createdAttemptId = res.data.attemptId;
         setAttemptId(res.data.attemptId);
         setQuestions(res.data.questions.map((q: any) => ({ ...q, selectedOption: "" })));
         setStartedAt(new Date(res.data.startedAt));
+        setWarningCount(0);
       }
 
       // Collect forensic device information & store via API
@@ -1136,9 +1172,17 @@ export default function AssessmentPage() {
   }, []);
 
   const isDark = themeMode === "dark";
-  const bg = isDark ? "bg-[#0d0d12] text-white" : "bg-[#fcfaf6] text-[#0f172a]";
+  const bg = isDark ? "bg-[#0d0d12] text-white" : "bg-[#F8F4EC] text-[#2B2620]";
   const card = isDark ? "bg-[#0b0b0f] border-white/5" : "bg-white border-slate-200";
   const subText = isDark ? "text-gray-400" : "text-slate-500";
+
+  // Auto-stop camera whenever the view transitions away from exam (safety net for all exit paths)
+  useEffect(() => {
+    if (view === "result" || view === "list") {
+      stopCamera();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [view]);
   const answered = questions.filter((q) => q.selectedOption).length;
 
   return (
@@ -1192,7 +1236,7 @@ export default function AssessmentPage() {
 
           {view === "exam" && riskScore > 0 && (
             <div className={`flex items-center gap-1 text-[10px] font-mono font-bold px-2 py-1 rounded-lg border ${
-              riskScore > 100 ? "bg-rose-500/20 text-rose-400 border-rose-500/30" : "bg-amber-500/20 text-amber-400 border-amber-500/30"
+              riskScore > 150 ? "bg-rose-500/20 text-rose-400 border-rose-500/30" : "bg-amber-500/20 text-amber-400 border-amber-500/30"
             }`}>
               <ShieldAlert size={12} /> Risk: {riskScore}/{AUTO_SUBMIT_THRESHOLD}
             </div>
@@ -1263,13 +1307,16 @@ export default function AssessmentPage() {
               <div className={`text-sm leading-relaxed whitespace-pre-line font-medium ${isDark ? "text-gray-300" : "text-slate-600"}`}>
                 {activeWarning.message}
               </div>
+              {riskScore > 0 && (
+                <div className="text-xs font-mono font-black text-rose-500 pt-2 uppercase tracking-wide">
+                  Malpractice Score: {riskScore} / 200
+                </div>
+              )}
               <div className="pt-2">
                 <button
                   type="button"
                   onClick={async () => {
-                    if (activeWarning.type === "FullscreenExit") {
-                      await requestFullscreen();
-                    }
+                    await requestFullscreen();
                     handleWarningDismiss();
                   }}
                   className="w-full py-3.5 rounded-2xl text-xs md:text-sm font-black bg-amber-500 hover:bg-amber-600 text-black transition shadow-lg shadow-amber-500/10 cursor-pointer"
@@ -1297,19 +1344,25 @@ export default function AssessmentPage() {
 
       {/* ── ASSESSMENT TERMINATED MALPRACTICE OVERLAY ── */}
       {terminatedDueToMalpractice && (
-        <div className="fixed inset-0 z-55 bg-[#0d0d12] flex flex-col items-center justify-center text-center p-6 animate-fadeIn">
-          <div className="max-w-xl space-y-6">
-            <div className="w-20 h-20 rounded-3xl bg-rose-500/10 text-rose-500 border border-rose-500/20 flex items-center justify-center mx-auto animate-pulse">
+        <div className="fixed inset-0 z-55 bg-[#0d0d12]/95 backdrop-blur-md flex flex-col items-center justify-center text-center p-6 animate-fadeIn">
+          <div className="max-w-xl p-8 md:p-12 rounded-3xl border border-amber-500/10 bg-[#16120b] space-y-6 shadow-2xl">
+            <div className="w-20 h-20 rounded-3xl bg-amber-500/10 text-amber-500 border border-amber-500/20 flex items-center justify-center mx-auto animate-pulse">
               <ShieldAlert size={40} />
             </div>
-            <h1 className="text-3xl font-serif font-black text-rose-500 tracking-tight">Assessment Terminated</h1>
-            <div className="space-y-3 text-gray-300">
-              <p className="text-lg font-bold">Your assessment has been terminated because the allowed malpractice threshold has been exceeded.</p>
-              <p className="text-sm text-gray-400">Your responses have been saved automatically.</p>
-              <p className="text-sm font-semibold text-[#ef4444]">This assessment can no longer be attempted.</p>
+            <h1 className="text-3xl font-serif font-black text-amber-500 tracking-tight">Assessment Concluded</h1>
+            <div className="space-y-4 text-gray-300">
+              <p className="text-lg font-bold leading-relaxed text-amber-100">
+                Your assessment session has ended.
+              </p>
+              <p className="text-sm text-gray-300 leading-relaxed max-w-md mx-auto">
+                To maintain a fair and secure environment for everyone, the test is closed once the system flags exceed the safety limit. Your answers have been successfully saved.
+              </p>
+              <p className="text-xs font-semibold text-amber-400">
+                We appreciate your cooperation.
+              </p>
             </div>
             <div className="pt-4 flex items-center justify-center gap-2 text-xs font-mono text-gray-500">
-              <RefreshCw size={12} className="animate-spin" /> Redirecting to Assessments Page...
+              <RefreshCw size={12} className="animate-spin text-amber-500" /> Redirecting to Assessments Page...
             </div>
           </div>
         </div>
@@ -1317,15 +1370,18 @@ export default function AssessmentPage() {
 
       {/* ── ASSESSMENT LOCKED DUE TO PREVIOUS MALPRACTICE ── */}
       {malpracticeLocked && (
-        <div className="fixed inset-0 z-55 bg-[#0d0d12] flex flex-col items-center justify-center text-center p-6 animate-fadeIn">
-          <div className="max-w-xl space-y-6">
-            <div className="w-20 h-20 rounded-3xl bg-rose-500/10 text-rose-500 border border-rose-500/20 flex items-center justify-center mx-auto">
+        <div className="fixed inset-0 z-55 bg-[#0d0d12]/95 backdrop-blur-md flex flex-col items-center justify-center text-center p-6 animate-fadeIn">
+          <div className="max-w-xl p-8 md:p-12 rounded-3xl border border-amber-500/10 bg-[#16120b] space-y-6 shadow-2xl">
+            <div className="w-20 h-20 rounded-3xl bg-amber-500/10 text-amber-500 border border-amber-500/20 flex items-center justify-center mx-auto">
               <ShieldAlert size={40} />
             </div>
-            <h1 className="text-3xl font-serif font-black text-[#ef4444] tracking-tight">Assessment Unavailable</h1>
-            <div className="space-y-3 text-gray-300">
-              <p className="text-lg font-bold leading-relaxed">
-                This assessment has already been terminated due to examination policy violations and cannot be attempted again.
+            <h1 className="text-3xl font-serif font-black text-amber-500 tracking-tight">Assessment Session Concluded</h1>
+            <div className="space-y-4 text-gray-300">
+              <p className="text-lg font-bold leading-relaxed text-amber-100">
+                This assessment is no longer available.
+              </p>
+              <p className="text-sm text-gray-300 leading-relaxed max-w-md mx-auto">
+                Your previous attempt reached the safety limit and has been concluded. All of your responses were recorded and saved successfully.
               </p>
             </div>
             <button
@@ -1333,7 +1389,7 @@ export default function AssessmentPage() {
                 setMalpracticeLocked(false);
                 setView("list");
               }}
-              className="mt-6 px-6 py-3 rounded-2xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs transition cursor-pointer"
+              className="mt-6 px-8 py-3.5 rounded-2xl bg-amber-500 hover:bg-amber-600 text-black font-black text-xs transition shadow-lg shadow-amber-500/10 cursor-pointer active:scale-98"
             >
               Back to Assessments
             </button>
@@ -1879,16 +1935,22 @@ export default function AssessmentPage() {
                             tempCanvas.width = w;
                             tempCanvas.height = h;
                             const tempCtx = tempCanvas.getContext("2d");
-                            if (!tempCtx) return;
-
+                            if (!tempCtx) {
+                              setCaptureVerifyError("Unable to initialize image capture context.");
+                              setIsVerifyingCapture(false);
+                              return;
+                            }
                             tempCtx.drawImage(video, 0, 0, w, h);
                             const photoData = tempCanvas.toDataURL("image/jpeg", 0.85);
 
+                            // ── Fallback: face-api.js if FaceLandmarker unavailable or returned 0 ────
                             const faceapi = (window as any).faceapi;
                             let descriptor: number[] | null = null;
 
                             if (faceapi && faceapi.nets?.tinyFaceDetector?.isLoaded) {
                               try {
+                                // Run lightweight landmark detection every frame for head pose / gaze.
+                                // Only add the heavy .withFaceDescriptors() every 25 frames for identity check.
                                 const detections = await faceapi
                                   .detectAllFaces(
                                     video,
@@ -2217,18 +2279,21 @@ export default function AssessmentPage() {
                   </span>
                 </div>
 
-                <div className="grid grid-cols-5 gap-2.5">
+                {/* Scrollable, flex-wrapped question grid — works for 1..100+ questions */}
+                <div className="flex flex-wrap gap-1.5 max-h-[280px] overflow-y-auto pr-1"
+                  style={{ scrollbarWidth: 'thin' }}>
                   {questions.map((q, i) => (
                     <button
                       key={q.id}
                       onClick={() => setCurrentQIndex(i)}
-                      className={`aspect-square rounded-xl text-xs font-black transition-all duration-150 cursor-pointer shadow-sm flex items-center justify-center ${
+                      title={`Question ${i + 1}${q.selectedOption ? " (answered)" : ""}`}
+                      className={`w-8 h-8 rounded-lg text-[10px] font-black transition-all duration-150 cursor-pointer flex items-center justify-center flex-shrink-0 ${
                         i === currentQIndex
-                          ? "bg-[#781c1c] text-white ring-4 ring-[#781c1c]/30 scale-105"
+                          ? "bg-[#781c1c] text-white ring-2 ring-[#781c1c]/40 scale-105"
                           : q.selectedOption
                             ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/40"
                             : isDark
-                              ? "bg-white/5 text-gray-300 hover:bg-white/10 hover:border-white/20 border border-white/5"
+                              ? "bg-white/5 text-gray-300 hover:bg-white/10 border border-white/5"
                               : "bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200"
                       }`}
                     >

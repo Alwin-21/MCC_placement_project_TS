@@ -137,66 +137,66 @@ export interface ProctoringEngineConfig {
 
 const DEFAULT_SM_CONFIGS: Record<string, StateMachineConfig> = {
   FaceMismatch: {
-    bufferSize: 10,           // 2 s window
-    percentThreshold: 1.0,    // 100 % of frames must mismatch
-    minDurationFrames: 10,    // 2 s continuous before alert
+    bufferSize: 5,            // 1 s window
+    percentThreshold: 0.8,    // 80 % of frames must mismatch
+    minDurationFrames: 4,     // 800 ms continuous before alert
     minClearFrames: 5,
     cooldownMs: 10000,
   },
   MultipleFaces: {
-    bufferSize: 10,           // 2 s window
-    percentThreshold: 1.0,    // 100 % of frames show multiple faces
-    minDurationFrames: 10,    // 2 s continuous before alert
-    minClearFrames: 10,
+    bufferSize: 5,            // 1 s window
+    percentThreshold: 0.8,    // 80 % of frames show multiple faces
+    minDurationFrames: 3,     // 600 ms continuous before alert
+    minClearFrames: 5,
     cooldownMs: 10000,
   },
   PhoneDetected: {
-    bufferSize: 10,           // 2 s window
-    percentThreshold: 1.0,    // 100 % of frames show phone
-    minDurationFrames: 10,    // 2 s continuous before alert
-    minClearFrames: 10,
+    bufferSize: 5,            // 1 s window
+    percentThreshold: 0.6,    // 60 % of frames show phone
+    minDurationFrames: 2,     // 400 ms continuous before alert
+    minClearFrames: 5,
     cooldownMs: 8000,
   },
   CameraObstructed: {
-    bufferSize: 10,           // 2 s window
-    percentThreshold: 1.0,    // 100 % of frames obstructed
-    minDurationFrames: 10,    // 2 s continuous before alert
-    minClearFrames: 8,
+    bufferSize: 5,            // 1 s window
+    percentThreshold: 0.8,    // 80 % of frames obstructed
+    minDurationFrames: 5,     // 1 s continuous before alert
+    minClearFrames: 5,
     cooldownMs: 10000,
   },
   LookingAway: {
-    bufferSize: 10,           // 2 s window
-    percentThreshold: 1.0,    // 100 % of frames looking away
-    minDurationFrames: 10,    // 2 s continuous before alert
+    bufferSize: 5,            // 1 s window
+    percentThreshold: 0.6,    // 60 % of frames looking away
+    minDurationFrames: 3,     // 600 ms continuous before alert
     minClearFrames: 2,
     cooldownMs: 8000,
   },
   FrequentEyeMovement: {
-    bufferSize: 10,           // 2 s window
-    percentThreshold: 1.0,    // 100 % of frames looking away
-    minDurationFrames: 10,    // 2 s continuous before alert
+    bufferSize: 3,            // small window
+    percentThreshold: 0.5,    // 50 % of frames looking away
+    minDurationFrames: 1,     // trigger immediately once frequent eye signal is true
     minClearFrames: 1,        // clear immediately if looking back
     cooldownMs: 6000,         // cooldown to prevent warning spam
   },
   FaceMissing: {
-    bufferSize: 10,           // 2 s window
-    percentThreshold: 1.0,    // 100 % of frames face missing
-    minDurationFrames: 10,    // 2 s continuous before alert
-    minClearFrames: 5,
+    bufferSize: 6,            // 1.2 s window
+    percentThreshold: 0.8,    // 80 % of frames face missing
+    minDurationFrames: 4,     // 800 ms continuous before alert
+    minClearFrames: 3,
     cooldownMs: 10000,
   },
   BookDetected: {
-    bufferSize: 10,           // 2 s window
-    percentThreshold: 1.0,    // 100 % of frames book detected
-    minDurationFrames: 10,    // 2 s continuous before alert
-    minClearFrames: 8,
+    bufferSize: 5,            // 1 s window
+    percentThreshold: 0.6,    // 60 % of frames book detected
+    minDurationFrames: 3,     // 600 ms continuous before alert
+    minClearFrames: 5,
     cooldownMs: 8000,
   },
   AdditionalPerson: {
-    bufferSize: 10,           // 2 s window
-    percentThreshold: 1.0,    // 100 % of frames additional person visible
-    minDurationFrames: 10,    // 2 s continuous before alert
-    minClearFrames: 8,
+    bufferSize: 5,            // 1 s window
+    percentThreshold: 0.6,    // 60 % of frames additional person visible
+    minDurationFrames: 3,     // 600 ms continuous before alert
+    minClearFrames: 5,
     cooldownMs: 8000,
   },
 };
@@ -501,8 +501,8 @@ export class ProctoringEngine {
     // Geometry thresholds
     this.faceMismatchThreshold = config.faceMismatchThreshold ?? 0.55;
     this.phoneConfidenceThreshold = config.phoneConfidenceThreshold ?? 0.35;
-    this.yawThreshold = config.yawThreshold ?? 14;
-    this.pitchThreshold = config.pitchThreshold ?? 10;
+    this.yawThreshold = config.yawThreshold ?? 10;
+    this.pitchThreshold = config.pitchThreshold ?? 7;
     this.sampleFps = config.sampleFps ?? 5;
 
     // Build state machines with optional overrides
@@ -672,7 +672,10 @@ export class ProctoringEngine {
 
     if (faceCount === 0 && faceapi) {
       try {
-        faceapiDetections = await faceapi
+        // Run lightweight landmark detection every frame — required for head pose & gaze.
+        // Only compute the heavy face descriptor (for identity matching) every 25 frames.
+        const needsDescriptor = this.frameCount % 25 === 0 || !this.lastIdentityDetails;
+        let detectionChain = faceapi
           .detectAllFaces(
             this.video,
             new faceapi.TinyFaceDetectorOptions({
@@ -680,8 +683,11 @@ export class ProctoringEngine {
               scoreThreshold: 0.35,
             })
           )
-          .withFaceLandmarks()
-          .withFaceDescriptors();
+          .withFaceLandmarks();
+        if (needsDescriptor) {
+          detectionChain = detectionChain.withFaceDescriptors();
+        }
+        faceapiDetections = await detectionChain;
         faceCount = faceapiDetections.length;
         if (faceCount > 0) {
           mainLandmarks = faceapiDetections[0].landmarks.positions;
@@ -812,8 +818,8 @@ export class ProctoringEngine {
     let identityConfidence = 0;
 
     try {
-      if (faceapiDetections.length > 0) {
-        // Reuse descriptor from the detection we already ran
+      if (faceapiDetections.length > 0 && faceapiDetections[0].descriptor) {
+        // Reuse descriptor from the detection we already ran (only present every 25 frames)
         descriptor = faceapiDetections[0].descriptor;
       } else {
         // Run a fresh single-face detection for the descriptor
@@ -922,6 +928,7 @@ export class ProctoringEngine {
       return;
     }
 
+
     if (mainLandmarks && mainLandmarks.length >= 68) {
       // Geometric fallback using face-api.js 68-point landmarks
       const leftEye = mainLandmarks[36];
@@ -947,12 +954,13 @@ export class ProctoringEngine {
       const dX = leftEye.x - rightEye.x;
       const rollDeg = Math.abs(Math.atan2(dY, dX) * (180 / Math.PI));
 
+      // Tightened thresholds — catch subtle turns/nods
       lookingAwaySignal =
-        rollDeg > 15 ||
-        symmetryRatio < 0.35 ||
-        symmetryRatio > 0.65 ||
-        vertRatio < 0.55 ||
-        vertRatio > 1.50;
+        rollDeg > 10 ||
+        symmetryRatio < 0.40 ||
+        symmetryRatio > 0.60 ||
+        vertRatio < 0.60 ||
+        vertRatio > 1.40;
     }
 
     this.pushState(
@@ -977,61 +985,134 @@ export class ProctoringEngine {
    * normal reading behavior. Only extreme, repeated off-screen gaze triggers a warning.
    */
   private checkIrisGaze(mainLandmarks: any[] | null): void {
-    if (!mainLandmarks || mainLandmarks.length < 478) {
-      // Iris landmarks require MediaPipe FaceLandmarker with 478+ points
-      this.pushState("FrequentEyeMovement", false, "", 0);
+    // ── Branch A: MediaPipe 478-point landmarks (full iris tracking) ────────────
+    if (mainLandmarks && mainLandmarks.length >= 478) {
+      const leftIris = mainLandmarks[468];
+      const leftOuter = mainLandmarks[33];   // outer corner of left eye
+      const leftInner = mainLandmarks[133];  // inner corner of left eye
+
+      const rightIris = mainLandmarks[473];
+      const rightInner = mainLandmarks[362]; // inner corner of right eye
+      const rightOuter = mainLandmarks[263]; // outer corner of right eye
+
+      const leftWidth = Math.abs(leftInner.x - leftOuter.x);
+      const rightWidth = Math.abs(rightOuter.x - rightInner.x);
+
+      if (leftWidth < 0.001 || rightWidth < 0.001) {
+        this.pushState("FrequentEyeMovement", false, "", 0);
+        return;
+      }
+
+      // Gaze ratio: 0 = looking far left, 1 = looking far right, 0.5 = center
+      const leftRatio = (leftIris.x - leftOuter.x) / leftWidth;
+      const rightRatio = (rightIris.x - rightInner.x) / rightWidth;
+      const avgRatio = (leftRatio + rightRatio) / 2;
+
+      const leftEyeUpper = mainLandmarks[159];
+      const leftEyeLower = mainLandmarks[145];
+      const rightEyeUpper = mainLandmarks[386];
+      const rightEyeLower = mainLandmarks[374];
+
+      const leftHeight = Math.abs(leftEyeLower.y - leftEyeUpper.y);
+      const rightHeight = Math.abs(rightEyeLower.y - rightEyeUpper.y);
+
+      const leftEAR = leftHeight / leftWidth;
+      const rightEAR = rightHeight / rightWidth;
+      const avgEAR = (leftEAR + rightEAR) / 2;
+      const eyesClosed = avgEAR < 0.13;
+
+      let verticalAwaySignal = false;
+      let avgVertRatio = 0.5;
+      if (leftHeight > 0.001 && rightHeight > 0.001) {
+        const leftVertRatio = (leftIris.y - leftEyeUpper.y) / leftHeight;
+        const rightVertRatio = (rightIris.y - rightEyeUpper.y) / rightHeight;
+        avgVertRatio = (leftVertRatio + rightVertRatio) / 2;
+        verticalAwaySignal = avgVertRatio < 0.35 || avgVertRatio > 0.55;
+      }
+
+      const eyeAwaySignal = avgRatio < 0.46 || avgRatio > 0.54 || verticalAwaySignal || eyesClosed;
+      this._pushEyeAwaySignal(eyeAwaySignal, eyesClosed, avgRatio, avgVertRatio);
       return;
     }
 
-    const leftIris = mainLandmarks[468];
-    const leftOuter = mainLandmarks[33];   // outer corner of left eye
-    const leftInner = mainLandmarks[133];  // inner corner of left eye
+    // ── Branch B: face-api.js 68-point landmark fallback ─────────────────────
+    // Approximate gaze direction using the eye corners and eyelid points.
+    // face-api.js landmark indices:
+    //   Left eye corners: 36 (outer), 39 (inner)
+    //   Left eye top pts: 37, 38 — bottom pts: 41, 40
+    //   Right eye corners: 42 (inner), 45 (outer)
+    //   Right eye top pts: 43, 44 — bottom pts: 46 (=47), 46 (=47)
+    //   (actual faceapi pts: right top: 43,44 bottom: 47,46)
+    if (mainLandmarks && mainLandmarks.length >= 68) {
+      // Horizontal gaze: compare nose tip x position relative to eye-center x
+      // A simpler proxy: use midpoint of eye corners vs nose tip horizontal offset
+      const leftEyeInner = mainLandmarks[39];  // inner corner left eye
+      const leftEyeOuter = mainLandmarks[36];  // outer corner left eye
+      const rightEyeInner = mainLandmarks[42]; // inner corner right eye
+      const rightEyeOuter = mainLandmarks[45]; // outer corner right eye
 
-    const rightIris = mainLandmarks[473];
-    const rightInner = mainLandmarks[362]; // inner corner of right eye
-    const rightOuter = mainLandmarks[263]; // outer corner of right eye
+      const leftEyeCenterX = (leftEyeInner.x + leftEyeOuter.x) / 2;
+      const rightEyeCenterX = (rightEyeInner.x + rightEyeOuter.x) / 2;
+      const eyeSpan = Math.abs(rightEyeCenterX - leftEyeCenterX);
 
-    const leftWidth = Math.abs(leftInner.x - leftOuter.x);
-    const rightWidth = Math.abs(rightOuter.x - rightInner.x);
+      // Nose tip (pt 30) offset from eye midpoint as horizontal gaze proxy
+      const noseTip = mainLandmarks[30];
+      const eyeMidX = (leftEyeCenterX + rightEyeCenterX) / 2;
+      const horizontalOffset = eyeSpan > 0 ? (noseTip.x - eyeMidX) / eyeSpan : 0;
+      // horizontalOffset > 0 means face turned right, < 0 means turned left
+      const horizontalAwaySignal = Math.abs(horizontalOffset) > 0.08;
 
-    if (leftWidth < 0.001 || rightWidth < 0.001) {
-      this.pushState("FrequentEyeMovement", false, "", 0);
+      // Vertical gaze proxy: use eye top/bottom pts vs iris midpoint approximation
+      // Left eye: upper pts 37,38; lower pts 41,40
+      const leftEyeTop = mainLandmarks[37];    // upper-left pupil area
+      const leftEyeBottom = mainLandmarks[41]; // lower-left pupil area
+      const rightEyeTop = mainLandmarks[44];   // upper-right pupil area
+      const rightEyeBottom = mainLandmarks[46]; // lower-right pupil area
+
+      const leftEyeCenterY = (leftEyeOuter.y + leftEyeInner.y) / 2;
+      const rightEyeCenterY = (rightEyeOuter.y + rightEyeInner.y) / 2;
+      const leftEyeHeight = Math.abs(leftEyeBottom.y - leftEyeTop.y);
+      const rightEyeHeight = Math.abs(rightEyeBottom.y - rightEyeTop.y);
+      const avgEyeHeight = (leftEyeHeight + rightEyeHeight) / 2;
+
+      // EAR proxy for closed eyes (eye aspect ratio)
+      const leftWidth68 = Math.abs(leftEyeOuter.x - leftEyeInner.x);
+      const rightWidth68 = Math.abs(rightEyeOuter.x - rightEyeInner.x);
+      const leftEAR68 = leftWidth68 > 0 ? leftEyeHeight / leftWidth68 : 0.3;
+      const rightEAR68 = rightWidth68 > 0 ? rightEyeHeight / rightWidth68 : 0.3;
+      const avgEAR68 = (leftEAR68 + rightEAR68) / 2;
+      const eyesClosed68 = avgEAR68 < 0.20;
+
+      // Vertical gaze: compare eye center Y vs nose-to-chin midpoint
+      const chin68 = mainLandmarks[8];
+      const avgEyeCenterY = (leftEyeCenterY + rightEyeCenterY) / 2;
+      const faceHeightRef = Math.abs(chin68.y - noseTip.y);
+      const verticalOffset = faceHeightRef > 0 ? (avgEyeCenterY - noseTip.y) / faceHeightRef : 0;
+      // verticalOffset large means head is tilted down (looking at desk/phone)
+      const verticalAwaySignal68 = verticalOffset > 0.15 || avgEyeHeight < 0.005; // looking down or squinting
+
+      const eyeAwaySignal68 = horizontalAwaySignal || verticalAwaySignal68 || eyesClosed68;
+      this._pushEyeAwaySignal(eyeAwaySignal68, eyesClosed68, horizontalOffset + 0.5, 0.5);
       return;
     }
 
-    // Gaze ratio: 0 = looking far left, 1 = looking far right, 0.5 = center
-    const leftRatio = (leftIris.x - leftOuter.x) / leftWidth;
-    const rightRatio = (rightIris.x - rightInner.x) / rightWidth;
-    const avgRatio = (leftRatio + rightRatio) / 2;
+    // No usable landmarks — push clear signal
+    this.pushState("FrequentEyeMovement", false, "", 0);
+  }
 
-    const leftEyeUpper = mainLandmarks[159];
-    const leftEyeLower = mainLandmarks[145];
-    const rightEyeUpper = mainLandmarks[386];
-    const rightEyeLower = mainLandmarks[374];
+  // ── Shared Eye-Away Signal Processor ──────────────────────────────────────
 
-    const leftHeight = Math.abs(leftEyeLower.y - leftEyeUpper.y);
-    const rightHeight = Math.abs(rightEyeLower.y - rightEyeUpper.y);
-
-    const leftEAR = leftHeight / leftWidth;
-    const rightEAR = rightHeight / rightWidth;
-    const avgEAR = (leftEAR + rightEAR) / 2;
-    const eyesClosed = avgEAR < 0.13; // EAR below 0.13 indicates closed eyes
-
-    let verticalAwaySignal = false;
-    let avgVertRatio = 0.5;
-    if (leftHeight > 0.001 && rightHeight > 0.001) {
-      const leftVertRatio = (leftIris.y - leftEyeUpper.y) / leftHeight;
-      const rightVertRatio = (rightIris.y - rightEyeUpper.y) / rightHeight;
-      avgVertRatio = (leftVertRatio + rightVertRatio) / 2;
-
-      // avgVertRatio near 0 means looking up; near 1 means looking down
-      verticalAwaySignal = avgVertRatio < 0.25 || avgVertRatio > 0.75;
-    }
-
-    // Trigger on horizontal gaze shift, vertical shift, or closed eyes (long blink)
-    const eyeAwaySignal = avgRatio < 0.40 || avgRatio > 0.60 || verticalAwaySignal || eyesClosed;
-
-    // Track transitions to detect repeated off-screen lookups (e.g. looking at a phone or notes out of screen)
+  /**
+   * Shared logic for both MediaPipe and 68-point landmark iris gaze paths.
+   * Tracks consecutive frames + event timestamps to decide if FrequentEyeMovement fires.
+   */
+  private _pushEyeAwaySignal(
+    eyeAwaySignal: boolean,
+    eyesClosed: boolean,
+    hRatio: number,
+    vRatio: number
+  ): void {
+    // Track transitions to detect repeated off-screen lookups
     const isTransitionToAway = eyeAwaySignal && !this.wasLookingAway;
     this.wasLookingAway = eyeAwaySignal;
 
@@ -1053,10 +1134,10 @@ export class ProctoringEngine {
     }
 
     // Trigger violation if:
-    // 1. Look away for 3+ consecutive frames (fraction of a second)
+    // 1. Look away for 2+ consecutive frames (~400ms)
     // OR
     // 2. Look away repeatedly (3+ separate times in 15 seconds)
-    const isConsecutiveViolation = this.consecutiveEyeAwayFrames >= 3;
+    const isConsecutiveViolation = this.consecutiveEyeAwayFrames >= 2;
     const isRepeatedViolation = this.eyeAwayEventTimestamps.length >= 3;
 
     const frequentEyeSignal = isConsecutiveViolation || isRepeatedViolation;
@@ -1070,7 +1151,7 @@ export class ProctoringEngine {
       } else if (eyesClosed) {
         detailsMsg = "Sustained closed eyes or blink detected.";
       } else {
-        detailsMsg = `Sustained off-screen eye gaze detected (h-ratio: ${avgRatio.toFixed(2)}, v-ratio: ${avgVertRatio.toFixed(2)}).`;
+        detailsMsg = `Sustained off-screen eye gaze detected (h-ratio: ${hRatio.toFixed(2)}, v-ratio: ${vRatio.toFixed(2)}).`;
       }
     }
 
@@ -1081,6 +1162,7 @@ export class ProctoringEngine {
       1.0
     );
   }
+
 
   // ── Phone / Object Detection ───────────────────────────────────────────────
 

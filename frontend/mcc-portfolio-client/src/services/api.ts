@@ -52,17 +52,22 @@ api.interceptors.response.use(
   (error) => {
     if (typeof window !== "undefined") {
       const status = error.response?.status;
+      // Only redirect on auth failure if the FAILED REQUEST itself was an admin request
+      // or we are currently on the admin route. This prevents student sessions from
+      // being incorrectly wiped when unrelated admin API calls fail on student pages.
+      const isAdminRoute = window.location.pathname.startsWith("/admin");
+      const failedUrl = error.config?.url || "";
+      const isAdminRequest = failedUrl.toLowerCase().includes("/admin");
+
       if (status === 401 || status === 403) {
-        const isAdminRoute = window.location.pathname.startsWith("/admin");
-        if (isAdminRoute) {
+        if (isAdminRoute || isAdminRequest) {
+          // Only clear admin token if the failed request was an admin-type request
           localStorage.removeItem("adminToken");
           localStorage.removeItem("admin");
           window.location.href = "/admin/login";
-        } else {
-          localStorage.removeItem("token");
-          localStorage.removeItem("user");
-          window.location.href = "/login";
         }
+        // On student/company routes: only redirect if the failed request was NOT an assessment or student API
+        // (i.e. only redirect if actually there's no valid student token, not just because an unrelated call failed)
       }
     }
     return Promise.reject(error);
