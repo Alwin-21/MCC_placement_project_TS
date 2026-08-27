@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState, Suspense } from "react";
+import { useResizableSidebar } from "@/hooks/useResizableSidebar";
+import MCCLoader from "@/components/MCCLoader";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import {
   LayoutDashboard,
@@ -48,7 +50,9 @@ import {
   Cake,
   MoreHorizontal,
   X,
-  Eye
+  Eye,
+  Sun,
+  Moon
 } from "lucide-react";
 import api from "@/services/api";
 import { parseImageAdjustments } from "@/utils/image";
@@ -134,6 +138,7 @@ function PortfolioPageContent() {
   // Custom states matching image UI components
   const [currentView, setCurrentView] = useState("dashboard"); // mapping to sidebar
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const { sidebarWidth, startResizing, resetWidth } = useResizableSidebar({ storageKey: "mcc_portfolio_sidebar_width" });
   const [showMobileNav, setShowMobileNav] = useState(false);
   const [isClockedIn, setIsClockedIn] = useState(false);
   const [currentTime, setCurrentTime] = useState<string>("");
@@ -141,18 +146,44 @@ function PortfolioPageContent() {
   const [downloading, setDownloading] = useState(false);
   const [resumeSubTab, setResumeSubTab] = useState<"student" | "portfolio">("student");
 
-  // Force Light Mode on Student Public Portfolio
+  // Theme state — persisted in localStorage under "mcc-theme"
+  const [theme, setTheme] = useState<"light" | "dark">("light");
+
+  // Initialize theme from localStorage on mount
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("mcc-theme");
+      if (saved === "dark") {
+        setTheme("dark");
+      } else {
+        setTheme("light");
+      }
+    }
+  }, []);
+
+  // Sync theme to <html> class and localStorage whenever theme changes
   useEffect(() => {
     if (typeof document !== "undefined") {
-      document.documentElement.classList.remove("dark");
+      if (theme === "dark") {
+        document.documentElement.classList.add("dark");
+      } else {
+        document.documentElement.classList.remove("dark");
+      }
+      localStorage.setItem("mcc-theme", theme);
     }
+    // Cleanup: restore previous global theme when leaving this page
     return () => {
       const savedTheme = localStorage.getItem("mcc-theme");
       if (savedTheme === "dark" && typeof document !== "undefined") {
         document.documentElement.classList.add("dark");
+      } else if (typeof document !== "undefined") {
+        document.documentElement.classList.remove("dark");
       }
     };
-  }, []);
+  }, [theme]);
+
+  const toggleTheme = () => setTheme(prev => prev === "dark" ? "light" : "dark");
+  const isDark = theme === "dark";
 
   useEffect(() => {
     fetchPortfolio();
@@ -273,30 +304,30 @@ function PortfolioPageContent() {
   };
 
   if (loading) {
+    return <MCCLoader isDark={isDark} text="Loading Verified Portfolio..." />;
+  }
+
+  if (!user) {
     return (
-      <div className="min-h-screen bg-[#fcfaf6] text-[#2c2c2c] flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-16 h-16 border-4 border-t-[#781c1c] border-r-[#18233c] border-b-transparent border-l-transparent rounded-full animate-spin mx-auto mb-6" />
-          <p className="text-slate-500 font-bold tracking-widest text-xs uppercase animate-pulse">Loading MCC Resume Portfolio...</p>
+      <div className={`min-h-screen flex flex-col items-center justify-center p-6 text-center transition-colors duration-300 ${isDark ? "bg-[#090d16] text-slate-100" : "bg-[#fcfaf6] text-[#2c2c2c]"}`}>
+        <div className="max-w-md w-full p-8 rounded-3xl bg-white/5 border border-white/10 backdrop-blur-xl shadow-2xl">
+          <div className="w-16 h-16 rounded-2xl bg-[#781c1c]/15 text-[#781c1c] flex items-center justify-center mx-auto mb-4 border border-[#781c1c]/30">
+            <AlertCircle size={32} />
+          </div>
+          <h2 className="text-2xl font-black font-serif tracking-tight text-[#18233c] dark:text-white">Portfolio Record Not Found</h2>
+          <p className="text-sm text-slate-400 mt-2 leading-relaxed">The requested student directory is empty or the URL slug is invalid.</p>
+          <button 
+            onClick={() => router.push("/")} 
+            className="mt-6 w-full bg-[#781c1c] hover:bg-[#5f1515] text-white px-6 py-3 rounded-2xl font-bold transition-all shadow-lg shadow-[#781c1c]/25 hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
+          >
+            Back to Homepage
+          </button>
         </div>
       </div>
     );
   }
 
-  if (!user) {
-    return (
-      <div className="min-h-screen bg-[#fcfaf6] text-[#2c2c2c] flex flex-col items-center justify-center p-6 text-center">
-        <AlertCircle size={48} className="text-[#781c1c] mb-4 animate-bounce" />
-        <h2 className="text-xl font-bold text-[#18233c]">Portfolio Record Not Found</h2>
-        <p className="text-sm text-slate-550 mt-2">The requested student directory is empty or the URL slug is invalid.</p>
-        <button onClick={() => router.push("/")} className="mt-6 bg-[#781c1c] hover:bg-[#5f1515] text-white px-6 py-2.5 rounded-xl font-bold transition-all">
-          Back to Homepage
-        </button>
-      </div>
-    );
-  }
-
-  const initials = user.fullName ? user.fullName.split(" ").map((n: string) => n[0]).join("").slice(0, 2).toUpperCase() : "ST";
+  const initials = user ? (user.fullName ? user.fullName.split(" ").map((n: string) => n[0]).join("").slice(0, 2).toUpperCase() : "ST") : "ST";
 
   // Sidebar list matching the student dashboard sections exactly
   const sidebarItems = [
@@ -345,140 +376,188 @@ function PortfolioPageContent() {
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start animate-fadeIn">
             {/* LEFT COLUMN - STUDENT BIO & CARD */}
             <div className="lg:col-span-4 space-y-6">
-              {/* Profile Card */}
-              <div className="bg-white border border-[#781c1c]/10 rounded-xl p-6 shadow-[0_1px_3px_rgba(0,0,0,0.01)] text-center lg:text-left">
-                <div className="flex flex-col lg:flex-row items-center gap-4">
-                  {(profile?.profileImageUrl || user?.profileImageUrl) && !imgError ? (() => {
-                    const imgDetails = parseImageAdjustments(profile?.profileImageUrl || user?.profileImageUrl);
-                    return (
-                      <div className="w-16 h-16 rounded-full border-2 border-slate-100 shadow-xs overflow-hidden flex items-center justify-center shrink-0">
-                        <img 
-                          src={imgDetails.src} 
-                          onError={() => setImgError(true)}
-                          style={imgDetails.style} 
-                          className="w-full h-full"
-                          alt={user.fullName} 
-                        />
+              {/* Profile Hero Card */}
+              <div className={`relative overflow-hidden rounded-2xl border transition-all duration-300 shadow-md ${
+                isDark ? "bg-[#131d31] border-[#781c1c]/30 text-slate-100" : "bg-white border-[#781c1c]/15 text-[#18233c]"
+              }`}>
+                {/* Solid Brand Maroon Top Accent Strip */}
+                <div className="h-2.5 w-full bg-[#781c1c]" />
+
+                <div className="p-6 text-center lg:text-left space-y-5">
+                  <div className="flex flex-col lg:flex-row items-center gap-5">
+                    {(profile?.profileImageUrl || user?.profileImageUrl) && !imgError ? (() => {
+                      const imgDetails = parseImageAdjustments(profile?.profileImageUrl || user?.profileImageUrl);
+                      return (
+                        <div className="w-20 h-20 rounded-full ring-4 ring-[#d4af37]/40 shadow-lg overflow-hidden flex items-center justify-center shrink-0 transition-transform duration-300 hover:scale-105">
+                          <img 
+                            src={imgDetails.src} 
+                            onError={() => setImgError(true)}
+                            style={imgDetails.style} 
+                            className="w-full h-full object-cover"
+                            alt={user.fullName} 
+                          />
+                        </div>
+                      );
+                    })() : (
+                      <div className="w-20 h-20 rounded-full bg-gradient-to-br from-[#781c1c] to-[#18233c] text-white flex items-center justify-center font-black text-2xl ring-4 ring-[#d4af37]/40 shadow-lg shrink-0">
+                        {initials}
                       </div>
-                    );
-                  })() : (
-                    <div className="w-16 h-16 rounded-full bg-[#f0ece1] text-[#781c1c] flex items-center justify-center font-bold text-lg border border-slate-205 shadow-xs shrink-0">
-                      {initials}
+                    )}
+                    <div className="space-y-1.5 overflow-hidden min-w-0 flex-1">
+                      <div className="flex items-center justify-center lg:justify-start gap-2 flex-wrap">
+                        <h2 className="text-xl sm:text-2xl font-black font-serif tracking-tight leading-tight truncate">
+                          {user.fullName}
+                        </h2>
+                        <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0" title="Verified Portfolio Profile" />
+                      </div>
+                      
+                      {profile?.course && (
+                        <p className={`text-xs font-semibold leading-tight truncate ${isDark ? "text-slate-300" : "text-slate-600"}`}>
+                          {profile.course} {profile?.yearOfStudy ? `· ${profile.yearOfStudy}` : ""}
+                        </p>
+                      )}
+                      
+                      <div className="flex flex-wrap justify-center lg:justify-start gap-1.5 pt-1">
+                        {user.department && (
+                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md uppercase font-mono tracking-wider ${
+                            isDark ? "bg-slate-800 text-slate-300 border border-slate-700" : "bg-slate-100 text-slate-700 border border-slate-200"
+                          }`}>
+                            {user.department}
+                          </span>
+                        )}
+                        {profile?.targetCareer && (
+                          <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-md uppercase tracking-wider bg-[#d4af37]/15 text-[#d4af37] border border-[#d4af37]/30">
+                            {profile.targetCareer}
+                          </span>
+                        )}
+                      </div>
                     </div>
-                  )}
-                  <div className="space-y-1.5 overflow-hidden">
-                    <h2 className="text-base font-bold text-[#18233c] leading-tight truncate">{user.fullName}</h2>
-                    {profile?.course && (
-                      <p className="text-xs text-slate-500 font-medium leading-tight truncate">
-                        {profile.course} {profile?.yearOfStudy ? `(${profile.yearOfStudy})` : ""}
-                      </p>
-                    )}
-                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider font-mono">
-                      Department: {user.department || "N/A"}
-                    </p>
+                  </div>
+
+                  {/* Student Attributes Details */}
+                  <div className={`space-y-2 text-xs pt-4 border-t transition-colors ${
+                    isDark ? "border-slate-800 text-slate-300" : "border-slate-150 text-slate-600"
+                  }`}>
                     {user.registerNumber && (
-                      <p className="text-[9px] text-slate-400 font-bold">
-                        Register ID: {user.registerNumber}
-                      </p>
-                    )}
-                    {profile?.phone && (
-                      <p className="text-[10px] text-slate-500 font-medium leading-tight truncate">
-                        Phone: {profile.phone}
-                      </p>
+                      <div className="flex justify-between items-center">
+                        <span className="text-[11px] font-medium text-slate-400">Register ID</span>
+                        <span className="font-mono font-bold">{user.registerNumber}</span>
+                      </div>
                     )}
                     {user.email && (
-                      <p className="text-[10px] text-slate-500 leading-tight truncate">
-                        Email: {user.email}
-                      </p>
+                      <div className="flex justify-between items-center truncate">
+                        <span className="text-[11px] font-medium text-slate-400">Email</span>
+                        <span className="font-medium truncate max-w-[190px]">{user.email}</span>
+                      </div>
+                    )}
+                    {profile?.phone && (
+                      <div className="flex justify-between items-center">
+                        <span className="text-[11px] font-medium text-slate-400">Phone</span>
+                        <span className="font-medium">{profile.phone}</span>
+                      </div>
                     )}
                     {profile?.cgpa !== undefined && Number(profile.cgpa) > 0 && (
-                      <p className="text-[10px] text-emerald-600 font-bold">
-                        CGPA: {profile.cgpa}
-                      </p>
-                    )}
-                    {profile?.targetCareer && (
-                      <p className="text-[9px] text-indigo-600 font-bold uppercase tracking-wider">
-                        Target: {profile.targetCareer}
-                      </p>
+                      <div className="flex justify-between items-center">
+                        <span className="text-[11px] font-medium text-slate-400">Verified CGPA</span>
+                        <span className="font-extrabold text-emerald-500 bg-emerald-500/10 px-2 py-0.5 rounded-md border border-emerald-500/20">
+                          {profile.cgpa} / 10.0
+                        </span>
+                      </div>
                     )}
                   </div>
-                </div>
 
-                <div className="border-t border-slate-100 mt-5 pt-4 flex justify-between items-center text-xs text-slate-500 font-bold px-1">
-                  <div>
-                    <span className="block text-slate-450 text-[10px] uppercase font-bold tracking-wide">Skills Arsenal</span>
-                    <span className="block text-base font-extrabold text-[#781c1c] mt-0.5">{skills.length}</span>
-                  </div>
-                  <div className="text-right">
-                    <span className="block text-slate-450 text-[10px] uppercase font-bold tracking-wide">Projects Listed</span>
-                    <span className="block text-base font-extrabold text-[#18233c] mt-0.5">{projects.length}</span>
+                  {/* 3-Column Quick Metrics Arsenal */}
+                  <div className={`grid grid-cols-2 gap-3 pt-4 border-t text-center ${
+                    isDark ? "border-slate-800" : "border-slate-150"
+                  }`}>
+                    <div className={`p-3 rounded-xl transition-all ${isDark ? "bg-slate-900/60" : "bg-slate-50"}`}>
+                      <span className="block text-[10px] uppercase font-extrabold tracking-wider text-slate-400">Skills Arsenal</span>
+                      <span className="block text-xl font-black text-[#781c1c] dark:text-red-400 mt-0.5">{skills.length}</span>
+                    </div>
+                    <div className={`p-3 rounded-xl transition-all ${isDark ? "bg-slate-900/60" : "bg-slate-50"}`}>
+                      <span className="block text-[10px] uppercase font-extrabold tracking-wider text-slate-400">Projects Listed</span>
+                      <span className="block text-xl font-black text-[#18233c] dark:text-blue-400 mt-0.5">{projects.length}</span>
+                    </div>
                   </div>
                 </div>
               </div>
 
               {/* Biography summary widget (reflecting student bio) */}
               {profile?.bio && (
-                <div className="bg-white border border-[#781c1c]/10 rounded-xl p-5 shadow-[0_1px_3px_rgba(0,0,0,0.01)]">
-                  <h3 className="text-xs font-bold text-[#18233c] uppercase tracking-wider pb-3 border-b border-slate-100 mb-3 flex items-center gap-1.5">
-                    <FileText size={14} className="text-[#781c1c]" /> Biography
+                <div className={`rounded-2xl border p-5 shadow-sm transition-all duration-300 ${
+                  isDark ? "bg-[#131d31] border-[#781c1c]/25 text-slate-200" : "bg-white border-[#781c1c]/10 text-[#18233c]"
+                }`}>
+                  <h3 className="text-xs font-extrabold uppercase tracking-wider pb-3 border-b border-slate-500/15 mb-3 flex items-center gap-2">
+                    <div className="w-1.5 h-4 bg-[#781c1c] rounded-full" />
+                    <FileText size={15} className="text-[#781c1c]" /> Biography Statement
                   </h3>
-                  <p className="text-xs text-slate-650 leading-relaxed italic">
+                  <p className={`text-sm leading-relaxed italic ${isDark ? "text-slate-300" : "text-slate-700"}`}>
                     "{profile.bio}"
                   </p>
                   {profile.personalStory && (
-                    <p className="text-[11px] text-slate-500 leading-relaxed mt-2.5 pt-2.5 border-t border-dashed border-slate-100">
+                    <p className={`text-xs leading-relaxed mt-3 pt-3 border-t border-dashed ${isDark ? "border-slate-800 text-slate-400" : "border-slate-200 text-slate-500"}`}>
                       {profile.personalStory}
                     </p>
                   )}
                 </div>
               )}
+
               {/* Connected Media Handles / Contacts summary widget */}
               {(user.email || profile?.phone || profile?.currentLocation || profile?.linkedInUrl || profile?.gitHubUrl || profile?.gitHubUsername || profile?.behanceUrl) && (
-                <div className="bg-white border border-[#781c1c]/10 rounded-xl p-5 shadow-[0_1px_3px_rgba(0,0,0,0.01)]">
-                  <h3 className="text-xs font-bold text-[#18233c] uppercase tracking-wider pb-3 border-b border-slate-100 mb-3 flex items-center gap-1.5">
-                    <LinkIcon size={14} className="text-[#781c1c]" /> Contacts & Socials
+                <div className={`rounded-2xl border p-5 shadow-sm transition-all duration-300 ${
+                  isDark ? "bg-[#131d31] border-[#781c1c]/25 text-slate-200" : "bg-white border-[#781c1c]/10 text-[#18233c]"
+                }`}>
+                  <h3 className="text-xs font-extrabold uppercase tracking-wider pb-3 border-b border-slate-500/15 mb-3 flex items-center gap-2">
+                    <div className="w-1.5 h-4 bg-[#781c1c] rounded-full" />
+                    <LinkIcon size={15} className="text-[#781c1c]" /> Contacts & Verified Socials
                   </h3>
-                  <div className="space-y-2 text-xs text-slate-655">
+                  <div className="space-y-2.5 text-xs">
                     {user.email && (
-                      <div className="flex items-center gap-2 truncate">
-                        <Mail size={13} className="text-slate-400 shrink-0" />
+                      <div className="flex items-center gap-2.5 truncate">
+                        <div className="w-7 h-7 rounded-lg bg-red-500/10 text-red-500 flex items-center justify-center shrink-0">
+                          <Mail size={14} />
+                        </div>
                         <span className="truncate">{user.email}</span>
                       </div>
                     )}
                     {profile?.phone && (
-                      <div className="flex items-center gap-2">
-                        <Phone size={13} className="text-slate-400 shrink-0" />
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-7 h-7 rounded-lg bg-emerald-500/10 text-emerald-500 flex items-center justify-center shrink-0">
+                          <Phone size={14} />
+                        </div>
                         <span>{profile.phone}</span>
                       </div>
                     )}
                     {profile?.currentLocation && (
-                      <div className="flex items-center gap-2">
-                        <MapPin size={13} className="text-slate-400 shrink-0" />
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-7 h-7 rounded-lg bg-amber-500/10 text-amber-500 flex items-center justify-center shrink-0">
+                          <MapPin size={14} />
+                        </div>
                         <span>{profile.currentLocation}</span>
                       </div>
                     )}
                     {profile?.linkedInUrl && (
-                      <a href={profile.linkedInUrl} target="_blank" className="flex items-center gap-2 text-blue-650 hover:underline">
-                        <Linkedin size={13} className="shrink-0" />
-                        <span>LinkedIn Profile</span>
+                      <a href={profile.linkedInUrl} target="_blank" className="flex items-center gap-2.5 text-blue-500 hover:underline font-semibold">
+                        <div className="w-7 h-7 rounded-lg bg-blue-500/10 text-blue-500 flex items-center justify-center shrink-0">
+                          <Linkedin size={14} />
+                        </div>
+                        <span>LinkedIn Profile ↗</span>
                       </a>
                     )}
                     {profile?.gitHubUrl && (
-                      <a href={profile.gitHubUrl} target="_blank" className="flex items-center gap-2 text-slate-700 hover:underline">
-                        <Github size={13} className="shrink-0" />
-                        <span>GitHub profile</span>
-                      </a>
-                    )}
-                    {profile?.gitHubUsername && !profile?.gitHubUrl && (
-                      <a href={`https://github.com/${profile.gitHubUsername}`} target="_blank" className="flex items-center gap-2 text-slate-700 hover:underline">
-                        <Github size={13} className="shrink-0" />
-                        <span>GitHub: @{profile.gitHubUsername}</span>
+                      <a href={profile.gitHubUrl} target="_blank" className="flex items-center gap-2.5 text-slate-400 hover:text-white transition font-semibold">
+                        <div className="w-7 h-7 rounded-lg bg-slate-500/10 text-slate-400 flex items-center justify-center shrink-0">
+                          <Github size={14} />
+                        </div>
+                        <span>GitHub Profile ↗</span>
                       </a>
                     )}
                     {profile?.behanceUrl && (
-                      <a href={profile.behanceUrl} target="_blank" className="flex items-center gap-2 text-blue-600 hover:underline">
-                        <span className="text-[11px] font-serif font-black shrink-0">Bē</span>
-                        <span>Behance Portfolio</span>
+                      <a href={profile.behanceUrl} target="_blank" className="flex items-center gap-2.5 text-indigo-400 hover:underline font-semibold">
+                        <div className="w-7 h-7 rounded-lg bg-indigo-500/10 text-indigo-400 flex items-center justify-center shrink-0 font-bold font-serif">
+                          Bē
+                        </div>
+                        <span>Behance Portfolio ↗</span>
                       </a>
                     )}
                   </div>
@@ -489,47 +568,109 @@ function PortfolioPageContent() {
             {/* RIGHT COLUMN - DETAILED METRICS & ARRAYS */}
             <div className="lg:col-span-8 space-y-6">
               {/* Row: Student stats metrics cards */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-                <div className="bg-white border border-[#781c1c]/10 rounded-xl p-5 shadow-[0_1px_3px_rgba(0,0,0,0.01)]">
-                  <span className="text-[10px] font-bold text-slate-450 uppercase tracking-wider block">Academics</span>
-                  <div className="text-2xl font-extrabold text-[#18233c] mt-1.5">{academicRecords.length}</div>
-                  <span className="text-[10px] text-slate-400 font-medium">Verified Records</span>
-                </div>
-                <div className="bg-white border border-[#781c1c]/10 rounded-xl p-5 shadow-[0_1px_3px_rgba(0,0,0,0.01)]">
-                  <span className="text-[10px] font-bold text-slate-450 uppercase tracking-wider block">Experiences</span>
-                  <div className="text-2xl font-extrabold text-[#781c1c] mt-1.5">{experiences.length}</div>
-                  <span className="text-[10px] text-slate-400 font-medium">Jobs & Internships</span>
-                </div>
-                <div className="bg-white border border-[#781c1c]/10 rounded-xl p-5 shadow-[0_1px_3px_rgba(0,0,0,0.01)]">
-                  <span className="text-[10px] font-bold text-slate-450 uppercase tracking-wider block">Certifications</span>
-                  <div className="text-2xl font-extrabold text-[#d4af37] mt-1.5">{certifications.length}</div>
-                  <span className="text-[10px] text-slate-400 font-medium">Courses & Licenses</span>
-                </div>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
+                {/* Academic Metric Card */}
+                <button
+                  type="button"
+                  onClick={() => setCurrentView("academic")}
+                  className={`relative overflow-hidden rounded-2xl border p-5 shadow-md transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:border-[#781c1c] dark:hover:border-blue-400 cursor-pointer text-left w-full focus:outline-none focus:ring-2 focus:ring-[#781c1c]/40 group ${
+                    isDark ? "bg-[#131d31] border-[#781c1c]/30" : "bg-white border-[#781c1c]/15"
+                  }`}
+                >
+                  <div className="w-1.5 h-full bg-[#18233c] absolute left-0 top-0 bottom-0 group-hover:bg-[#781c1c] transition-colors" />
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest group-hover:text-[#781c1c] dark:group-hover:text-blue-400 transition-colors">Academics</span>
+                    <Award size={18} className="text-[#18233c] dark:text-blue-400 group-hover:scale-110 transition-transform" />
+                  </div>
+                  <div className="text-3xl sm:text-4xl font-black text-[#18233c] dark:text-white mt-2 font-serif">{academicRecords.length}</div>
+                  <span className="text-[11px] text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-200 font-semibold mt-1 flex items-center justify-between transition-colors">
+                    <span>Verified Education Records</span>
+                    <span className="text-xs font-bold text-[#781c1c] dark:text-blue-400 opacity-0 group-hover:opacity-100 transition-opacity">View ↗</span>
+                  </span>
+                </button>
+
+                {/* Experience Metric Card */}
+                <button
+                  type="button"
+                  onClick={() => setCurrentView("experience")}
+                  className={`relative overflow-hidden rounded-2xl border p-5 shadow-md transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:border-[#781c1c] dark:hover:border-red-400 cursor-pointer text-left w-full focus:outline-none focus:ring-2 focus:ring-[#781c1c]/40 group ${
+                    isDark ? "bg-[#131d31] border-[#781c1c]/30" : "bg-white border-[#781c1c]/15"
+                  }`}
+                >
+                  <div className="w-1.5 h-full bg-[#781c1c] absolute left-0 top-0 bottom-0 group-hover:bg-red-500 transition-colors" />
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest group-hover:text-[#781c1c] dark:group-hover:text-red-400 transition-colors">Experiences</span>
+                    <Briefcase size={18} className="text-[#781c1c] dark:text-red-400 group-hover:scale-110 transition-transform" />
+                  </div>
+                  <div className="text-3xl sm:text-4xl font-black text-[#781c1c] dark:text-red-400 mt-2 font-serif">{experiences.length}</div>
+                  <span className="text-[11px] text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-200 font-semibold mt-1 flex items-center justify-between transition-colors">
+                    <span>Jobs & Internships</span>
+                    <span className="text-xs font-bold text-[#781c1c] dark:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity">View ↗</span>
+                  </span>
+                </button>
+
+                {/* Certifications Metric Card */}
+                <button
+                  type="button"
+                  onClick={() => setCurrentView("licenses-certifications")}
+                  className={`relative overflow-hidden rounded-2xl border p-5 shadow-md transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:border-[#d4af37] cursor-pointer text-left w-full focus:outline-none focus:ring-2 focus:ring-[#d4af37]/40 group ${
+                    isDark ? "bg-[#131d31] border-[#781c1c]/30" : "bg-white border-[#781c1c]/15"
+                  }`}
+                >
+                  <div className="w-1.5 h-full bg-[#d4af37] absolute left-0 top-0 bottom-0 group-hover:bg-amber-400 transition-colors" />
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest group-hover:text-[#d4af37] transition-colors">Certifications</span>
+                    <Trophy size={18} className="text-[#d4af37] group-hover:scale-110 transition-transform" />
+                  </div>
+                  <div className="text-3xl sm:text-4xl font-black text-[#d4af37] mt-2 font-serif">{certifications.length}</div>
+                  <span className="text-[11px] text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-200 font-semibold mt-1 flex items-center justify-between transition-colors">
+                    <span>Courses & Licenses</span>
+                    <span className="text-xs font-bold text-[#d4af37] opacity-0 group-hover:opacity-100 transition-opacity">View ↗</span>
+                  </span>
+                </button>
               </div>
 
               {/* Projects List Card */}
               {projects.length > 0 && (
-                <div className="bg-white border border-[#781c1c]/10 rounded-xl p-5 shadow-[0_1px_3px_rgba(0,0,0,0.01)]">
-                  <h3 className="text-xs font-bold text-[#18233c] uppercase tracking-wider pb-3 border-b border-slate-100 mb-4 flex items-center justify-between">
-                    <span>Projects & Publications</span>
-                    <span className="px-2 py-0.5 text-[9px] font-extrabold text-white bg-[#781c1c] rounded-full scale-90">
-                      Real-time
+                <div className={`rounded-2xl border p-6 shadow-md transition-all duration-300 ${
+                  isDark ? "bg-[#131d31] border-[#781c1c]/30 text-slate-200" : "bg-white border-[#781c1c]/15 text-[#18233c]"
+                }`}>
+                  <h3 className="text-xs font-extrabold uppercase tracking-wider pb-3 border-b border-slate-500/15 mb-4 flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="w-1.5 h-4 bg-[#781c1c] rounded-full" />
+                      <span>Featured Projects & Works</span>
+                    </div>
+                    <span className="px-2.5 py-0.5 text-[9px] font-extrabold text-white bg-[#781c1c] rounded-full tracking-wider uppercase">
+                      Verified
                     </span>
                   </h3>
                   <div className="space-y-4">
                     {projects.slice(0, 3).map((proj, idx) => (
-                      <div key={proj.id} className="flex items-start justify-between border-b border-slate-50 last:border-0 pb-3 last:pb-0 text-xs">
-                        <div>
-                          <h4 className="font-bold text-slate-800 flex items-center gap-1.5">
-                            {idx + 1}. {proj.title}
+                      <div key={proj.id} className="flex items-start justify-between border-b border-slate-500/10 last:border-0 pb-4 last:pb-0 gap-4">
+                        <div className="space-y-1 min-w-0 flex-1">
+                          <h4 className="font-bold text-sm text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                            <span className="text-xs font-mono font-bold text-[#781c1c] dark:text-amber-400">{idx + 1}.</span> 
+                            <span className="truncate">{proj.title}</span>
                           </h4>
                           {proj.technologies && (
-                            <p className="text-[10px] text-slate-400 font-mono mt-0.5">Tech: {proj.technologies}</p>
+                            <div className="flex flex-wrap gap-1 mt-1">
+                              {proj.technologies.split(",").map((tech: string, i: number) => (
+                                <span key={i} className={`text-[10px] font-mono px-2 py-0.5 rounded-md font-semibold ${
+                                  isDark ? "bg-slate-800 text-slate-300" : "bg-slate-100 text-slate-600"
+                                }`}>
+                                  {tech.trim()}
+                                </span>
+                              ))}
+                            </div>
                           )}
                         </div>
                         {(proj.githubUrl || proj.liveUrl) && (
-                          <a href={proj.githubUrl || proj.liveUrl} target="_blank" className="text-blue-650 hover:underline flex items-center gap-0.5 text-[10px] font-bold shrink-0">
-                            <ExternalLink size={10} /> Link
+                          <a 
+                            href={proj.githubUrl || proj.liveUrl} 
+                            target="_blank" 
+                            className="px-3 py-1.5 rounded-lg bg-blue-500/10 text-blue-500 hover:bg-blue-500/20 text-xs font-bold shrink-0 flex items-center gap-1 transition"
+                          >
+                            <ExternalLink size={12} /> View
                           </a>
                         )}
                       </div>
@@ -540,16 +681,26 @@ function PortfolioPageContent() {
 
               {/* Timeline Card */}
               {timelineMilestones.length > 0 && (
-                <div className="bg-white border border-[#781c1c]/10 rounded-xl p-5 shadow-[0_1px_3px_rgba(0,0,0,0.01)]">
-                  <h3 className="text-xs font-bold text-[#18233c] uppercase tracking-wider pb-3 border-b border-slate-100 mb-4">Milestones & History</h3>
+                <div className={`rounded-2xl border p-6 shadow-md transition-all duration-300 ${
+                  isDark ? "bg-[#131d31] border-[#781c1c]/30 text-slate-200" : "bg-white border-[#781c1c]/15 text-[#18233c]"
+                }`}>
+                  <h3 className="text-xs font-extrabold uppercase tracking-wider pb-3 border-b border-slate-500/15 mb-4 flex items-center gap-2">
+                    <div className="w-1.5 h-4 bg-[#18233c] dark:bg-blue-400 rounded-full" />
+                    <span>Academic & Professional Milestones</span>
+                  </h3>
                   <div className="space-y-4">
                     {timelineMilestones.slice(0, 4).map((m, idx) => (
-                      <div key={idx} className="flex justify-between items-center text-xs border-b border-slate-50 last:border-0 pb-3 last:pb-0">
-                        <div>
-                          <h4 className="font-bold text-slate-800">{m.title}</h4>
-                          <p className="text-[10px] text-slate-400 font-medium">{m.subtitle}</p>
+                      <div key={idx} className="flex justify-between items-center text-xs border-b border-slate-500/10 last:border-0 pb-3 last:pb-0 gap-4">
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className={`w-3 h-3 rounded-full shrink-0 ${m.type === "education" ? "bg-[#18233c] dark:bg-blue-400" : "bg-[#781c1c]"}`} />
+                          <div className="min-w-0">
+                            <h4 className="font-bold text-sm text-slate-900 dark:text-slate-100 truncate">{m.title}</h4>
+                            <p className="text-xs text-slate-400 font-medium truncate">{m.subtitle}</p>
+                          </div>
                         </div>
-                        <span className="text-[10px] font-mono font-bold text-slate-500 shrink-0 bg-slate-50 border border-slate-100 px-2 py-0.5 rounded-lg">
+                        <span className={`text-[10px] font-mono font-bold shrink-0 px-2.5 py-1 rounded-lg border ${
+                          isDark ? "bg-slate-800 border-slate-700 text-slate-300" : "bg-slate-50 border-slate-200 text-slate-600"
+                        }`}>
                           {m.date}
                         </span>
                       </div>
@@ -560,14 +711,19 @@ function PortfolioPageContent() {
 
               {/* Achievements & Awards Summary */}
               {achievements.length > 0 && (
-                <div className="bg-white border border-[#781c1c]/10 rounded-xl p-5 shadow-[0_1px_3px_rgba(0,0,0,0.01)]">
-                  <h3 className="text-xs font-bold text-[#18233c] uppercase tracking-wider pb-3 border-b border-slate-100 mb-4">Merits & Achievements</h3>
-                  <div className="space-y-3.5">
+                <div className={`rounded-2xl border p-6 shadow-md transition-all duration-300 ${
+                  isDark ? "bg-[#131d31] border-[#781c1c]/30 text-slate-200" : "bg-white border-[#781c1c]/15 text-[#18233c]"
+                }`}>
+                  <h3 className="text-xs font-extrabold uppercase tracking-wider pb-3 border-b border-slate-500/15 mb-4 flex items-center gap-2">
+                    <div className="w-1.5 h-4 bg-[#d4af37] rounded-full" />
+                    <span>Key Merits & Recognition</span>
+                  </h3>
+                  <div className="space-y-4">
                     {achievements.slice(0, 3).map((ach) => (
-                      <div key={ach.id} className="relative pl-4 border-l-2 border-[#d4af37]/30 text-xs">
-                        <span className="absolute -left-[5px] top-1 w-2 h-2 rounded-full bg-[#d4af37]" />
-                        <h4 className="font-bold text-slate-800">{ach.title}</h4>
-                        <p className="text-[10px] text-slate-450 leading-relaxed mt-0.5">{ach.description}</p>
+                      <div key={ach.id} className="relative pl-5 border-l-2 border-[#d4af37] text-xs space-y-1">
+                        <span className="absolute -left-[5px] top-1 w-2.5 h-2.5 rounded-full bg-[#d4af37]" />
+                        <h4 className="font-bold text-sm text-slate-900 dark:text-slate-100">{ach.title}</h4>
+                        <p className="text-xs text-slate-400 leading-relaxed">{ach.description}</p>
                       </div>
                     ))}
                   </div>
@@ -579,27 +735,36 @@ function PortfolioPageContent() {
 
       case "about":
         return (
-          <div className="bg-white border border-[#781c1c]/10 rounded-xl p-6 shadow-[0_1px_3px_rgba(0,0,0,0.01)] animate-fadeIn">
-            <h3 className="text-sm font-bold text-[#18233c] pb-3 border-b border-slate-100 mb-6 flex items-center gap-2">
-              <FileText size={16} className="text-[#781c1c]" /> About & Statement of Purpose
+          <div className={`rounded-2xl border p-5 sm:p-8 shadow-md transition-all duration-300 animate-fadeIn ${
+            isDark ? "bg-[#131d31] border-[#781c1c]/30 text-slate-100" : "bg-white border-[#781c1c]/15 text-[#18233c]"
+          }`}>
+            <h3 className="text-sm sm:text-base font-extrabold uppercase tracking-wider pb-4 border-b border-slate-500/15 mb-6 flex items-center gap-2.5 font-serif">
+              <div className="w-1.5 h-5 bg-[#781c1c] rounded-full" />
+              <FileText size={18} className="text-[#781c1c]" /> About & Statement of Purpose
             </h3>
-            <div className="space-y-5">
+            <div className="space-y-6">
               <div>
-                <h4 className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Short Biography</h4>
-                <p className="text-xs text-slate-650 mt-1.5 leading-relaxed">{profile?.bio || "No biography added."}</p>
+                <h4 className="text-xs font-extrabold uppercase tracking-wider text-slate-400 mb-2 font-mono">Short Biography</h4>
+                <p className={`text-sm leading-relaxed font-medium ${isDark ? "text-slate-300" : "text-slate-700"}`}>
+                  {profile?.bio || "No biography added."}
+                </p>
               </div>
 
               {profile?.personalStory && (
-                <div className="border-t border-slate-100 pt-4">
-                  <h4 className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Personal Journey & Background</h4>
-                  <p className="text-xs text-slate-655 mt-1.5 leading-relaxed italic">"{profile.personalStory}"</p>
+                <div className="border-t border-slate-500/15 pt-5">
+                  <h4 className="text-xs font-extrabold uppercase tracking-wider text-slate-400 mb-2 font-mono">Personal Journey & Background</h4>
+                  <p className={`text-sm italic leading-relaxed ${isDark ? "text-slate-300" : "text-slate-700"}`}>
+                    "{profile.personalStory}"
+                  </p>
                 </div>
               )}
 
               {profile?.sop && (
-                <div className="border-t border-slate-100 pt-4">
-                  <h4 className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Statement of Purpose</h4>
-                  <div className="text-xs text-slate-650 leading-relaxed p-4 rounded-lg bg-[#f0ece1]/45 border border-[#781c1c]/10 mt-2 whitespace-pre-line">
+                <div className="border-t border-slate-500/15 pt-5">
+                  <h4 className="text-xs font-extrabold uppercase tracking-wider text-slate-400 mb-2 font-mono">Statement of Purpose</h4>
+                  <div className={`text-sm leading-relaxed p-4 sm:p-5 rounded-xl border whitespace-pre-line ${
+                    isDark ? "bg-slate-900/60 border-slate-800 text-slate-200" : "bg-[#fcfaf6] border-[#781c1c]/15 text-slate-800"
+                  }`}>
                     {profile.sop}
                   </div>
                 </div>
@@ -610,160 +775,183 @@ function PortfolioPageContent() {
 
       case "experience":
         return (
-          <div className="bg-white border border-[#781c1c]/10 rounded-xl p-6 shadow-[0_1px_3px_rgba(0,0,0,0.01)] animate-fadeIn">
-            <h3 className="text-sm font-bold text-[#18233c] pb-3 border-b border-slate-100 mb-6 flex items-center gap-2">
-              <Briefcase size={16} className="text-[#781c1c]" /> Experience History
+          <div className={`rounded-2xl border p-5 sm:p-8 shadow-md transition-all duration-300 animate-fadeIn ${
+            isDark ? "bg-[#131d31] border-[#781c1c]/30 text-slate-100" : "bg-white border-[#781c1c]/15 text-[#18233c]"
+          }`}>
+            <h3 className="text-sm sm:text-base font-extrabold uppercase tracking-wider pb-4 border-b border-slate-500/15 mb-6 flex items-center gap-2.5 font-serif">
+              <div className="w-1.5 h-5 bg-[#781c1c] rounded-full" />
+              <Briefcase size={18} className="text-[#781c1c]" /> Experience History
             </h3>
             {experiences.length > 0 ? (
-              <div className="space-y-6">
+              <div className="space-y-8">
                 {experiences.map((exp) => (
-                  <div key={exp.id} className="relative pl-5 border-l-2 border-[#18233c]/20 last:border-transparent pb-1">
-                    <span className="absolute -left-[6px] top-1.5 w-2.5 h-2.5 rounded-full bg-[#18233c]" />
-                    <div className="flex items-center justify-between gap-2">
-                      <h4 className="text-xs font-bold text-slate-800">{exp.title}</h4>
-                      <span className="px-2 py-0.5 text-[9px] font-bold text-[#781c1c] bg-[#781c1c]/5 rounded border border-[#781c1c]/10">
+                  <div key={exp.id} className="relative pl-5 sm:pl-6 border-l-2 border-[#781c1c] last:border-transparent pb-2 space-y-1.5">
+                    <span className="absolute -left-[7px] top-1.5 w-3 h-3 rounded-full bg-[#781c1c] ring-4 ring-[#781c1c]/20" />
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                      <h4 className="text-sm sm:text-base font-bold text-slate-900 dark:text-white">{exp.title}</h4>
+                      <span className="px-3 py-1 text-xs font-extrabold text-[#781c1c] bg-[#781c1c]/10 rounded-full border border-[#781c1c]/20 w-fit">
                         {exp.category}
                       </span>
                     </div>
-                    <p className="text-[10px] font-bold text-slate-500 mt-0.5">{exp.company} · {exp.location}</p>
-                    <p className="text-[9px] font-mono text-slate-400 mt-0.5">{exp.startDate} - {exp.isCurrent ? "Present" : exp.endDate}</p>
-                    <p className="text-xs text-slate-655 mt-2 whitespace-pre-line leading-relaxed">{exp.description}</p>
+                    <p className="text-xs font-extrabold text-[#d4af37]">{exp.company} · {exp.location}</p>
+                    <p className="text-xs font-mono font-bold text-slate-400">{exp.startDate} - {exp.isCurrent ? "Present" : exp.endDate}</p>
+                    <p className={`text-sm mt-2 whitespace-pre-line leading-relaxed ${isDark ? "text-slate-300" : "text-slate-700"}`}>{exp.description}</p>
                   </div>
                 ))}
               </div>
             ) : (
-              <div className="text-xs text-slate-400 text-center py-6">No work experience listed.</div>
+              <div className="text-sm text-slate-400 text-center py-8">No work experience listed.</div>
             )}
           </div>
         );
 
       case "academic":
         return (
-          <div className="bg-white border border-[#781c1c]/10 rounded-xl p-6 shadow-[0_1px_3px_rgba(0,0,0,0.01)] animate-fadeIn">
-            <h3 className="text-sm font-bold text-[#18233c] pb-3 border-b border-slate-100 mb-6 flex items-center gap-2">
-              <Award size={16} className="text-[#781c1c]" /> Education Records & Degrees
+          <div className={`rounded-2xl border p-5 sm:p-8 shadow-md transition-all duration-300 animate-fadeIn ${
+            isDark ? "bg-[#131d31] border-[#781c1c]/30 text-slate-100" : "bg-white border-[#781c1c]/15 text-[#18233c]"
+          }`}>
+            <h3 className="text-sm sm:text-base font-extrabold uppercase tracking-wider pb-4 border-b border-slate-500/15 mb-6 flex items-center gap-2.5 font-serif">
+              <div className="w-1.5 h-5 bg-[#18233c] dark:bg-blue-400 rounded-full" />
+              <Award size={18} className="text-[#18233c] dark:text-blue-400" /> Education Records & Degrees
             </h3>
             {academicRecords.length > 0 ? (
-              <div className="space-y-6">
+              <div className="space-y-8">
                 {academicRecords.map((rec) => (
-                  <div key={rec.id} className="relative pl-5 border-l-2 border-[#781c1c]/20 last:border-transparent pb-1">
-                    <span className="absolute -left-[6px] top-1.5 w-2.5 h-2.5 rounded-full bg-[#781c1c]" />
-                    <h4 className="text-xs font-bold text-slate-855 leading-snug">
+                  <div key={rec.id} className="relative pl-5 sm:pl-6 border-l-2 border-[#18233c] dark:border-blue-400 last:border-transparent pb-2 space-y-1.5">
+                    <span className="absolute -left-[7px] top-1.5 w-3 h-3 rounded-full bg-[#18233c] dark:bg-blue-400 ring-4 ring-blue-500/20" />
+                    <h4 className="text-sm sm:text-base font-bold text-slate-900 dark:text-white leading-snug">
                       {rec.fieldOfStudy?.trim() ? `${rec.degree} in ${rec.fieldOfStudy}` : rec.degree}
                     </h4>
-                    <p className="text-[10px] text-slate-500 font-bold mt-0.5">{rec.institution}</p>
-                    <p className="text-[9px] text-slate-400 font-semibold mt-0.5">
+                    <p className="text-xs font-extrabold text-[#d4af37]">{rec.institution}</p>
+                    <p className="text-xs text-slate-400 font-mono font-bold">
                       Duration: {rec.startYear} - {rec.endYear} · Grade: {rec.grade || "N/A"}
                     </p>
                     {rec.attachmentUrl && (
-                      <a href={rec.attachmentUrl} target="_blank" className="inline-flex items-center gap-1.5 text-[9px] font-bold text-[#781c1c] hover:underline mt-2">
-                        <FileText size={10} /> View Marksheet Proof
+                      <a href={rec.attachmentUrl} target="_blank" className="inline-flex items-center gap-1.5 text-xs font-bold text-[#781c1c] dark:text-red-400 hover:underline mt-2">
+                        <FileText size={12} /> View Marksheet Proof ↗
                       </a>
                     )}
                   </div>
                 ))}
               </div>
             ) : (
-              <div className="text-xs text-slate-400 text-center py-6">No academic records listed.</div>
+              <div className="text-sm text-slate-400 text-center py-8">No academic records listed.</div>
             )}
           </div>
         );
 
       case "achievements":
         return (
-          <div className="bg-white border border-[#781c1c]/10 rounded-xl p-6 shadow-[0_1px_3px_rgba(0,0,0,0.01)] animate-fadeIn">
-            <h3 className="text-sm font-bold text-[#18233c] pb-3 border-b border-slate-100 mb-6 flex items-center gap-2">
-              <Trophy size={16} className="text-[#d4af37]" /> Achievements & Ranks
+          <div className={`rounded-2xl border p-5 sm:p-8 shadow-md transition-all duration-300 animate-fadeIn ${
+            isDark ? "bg-[#131d31] border-[#781c1c]/30 text-slate-100" : "bg-white border-[#781c1c]/15 text-[#18233c]"
+          }`}>
+            <h3 className="text-sm sm:text-base font-extrabold uppercase tracking-wider pb-4 border-b border-slate-500/15 mb-6 flex items-center gap-2.5 font-serif">
+              <div className="w-1.5 h-5 bg-[#d4af37] rounded-full" />
+              <Trophy size={18} className="text-[#d4af37]" /> Achievements & Ranks
             </h3>
             {achievements.length > 0 ? (
-              <div className="space-y-6">
+              <div className="space-y-8">
                 {achievements.map((ach) => (
-                  <div key={ach.id} className="relative pl-5 border-l-2 border-[#d4af37]/20 last:border-transparent pb-1">
-                    <span className="absolute -left-[6px] top-1.5 w-2.5 h-2.5 rounded-full bg-[#d4af37]" />
-                    <div className="flex items-center justify-between gap-2">
-                      <h4 className="text-xs font-bold text-slate-800">{ach.title}</h4>
-                      <span className="px-2 py-0.5 text-[9px] font-bold text-[#d4af37] bg-[#d4af37]/5 rounded border border-[#d4af37]/15">
+                  <div key={ach.id} className="relative pl-5 sm:pl-6 border-l-2 border-[#d4af37] last:border-transparent pb-2 space-y-1.5">
+                    <span className="absolute -left-[7px] top-1.5 w-3 h-3 rounded-full bg-[#d4af37] ring-4 ring-[#d4af37]/20" />
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                      <h4 className="text-sm sm:text-base font-bold text-slate-900 dark:text-white">{ach.title}</h4>
+                      <span className="px-3 py-1 text-xs font-extrabold text-[#d4af37] bg-[#d4af37]/10 rounded-full border border-[#d4af37]/20 w-fit">
                         {ach.category}
                       </span>
                     </div>
-                    <p className="text-[9px] font-bold text-slate-400 mt-0.5">
+                    <p className="text-xs font-mono font-bold text-slate-400">
                       Year: {ach.achievementDate ? new Date(ach.achievementDate).getFullYear() : ""}
                     </p>
-                    <p className="text-xs text-slate-655 mt-2 leading-relaxed">{ach.description}</p>
+                    <p className={`text-sm mt-2 leading-relaxed ${isDark ? "text-slate-300" : "text-slate-700"}`}>{ach.description}</p>
                     {ach.achievementUrl && (
-                      <a href={ach.achievementUrl} target="_blank" className="inline-flex items-center gap-1.5 text-[10px] font-bold text-[#18233c] hover:underline mt-2">
-                        <ExternalLink size={10} /> View merit document
+                      <a href={ach.achievementUrl} target="_blank" className="inline-flex items-center gap-1.5 text-xs font-bold text-[#d4af37] hover:underline mt-2">
+                        <ExternalLink size={12} /> View Merit Document ↗
                       </a>
                     )}
                   </div>
                 ))}
               </div>
             ) : (
-              <div className="text-xs text-slate-400 text-center py-6">No achievements recorded.</div>
+              <div className="text-sm text-slate-400 text-center py-8">No achievements recorded.</div>
             )}
           </div>
         );
 
       case "projects-research":
         return (
-          <div className="bg-white border border-[#781c1c]/10 rounded-xl p-6 shadow-[0_1px_3px_rgba(0,0,0,0.01)] animate-fadeIn space-y-6">
+          <div className={`rounded-2xl border p-5 sm:p-8 shadow-md transition-all duration-300 animate-fadeIn space-y-8 ${
+            isDark ? "bg-[#131d31] border-[#781c1c]/30 text-slate-100" : "bg-white border-[#781c1c]/15 text-[#18233c]"
+          }`}>
             <div>
-              <h3 className="text-sm font-bold text-[#18233c] pb-3 border-b border-slate-100 mb-6 flex items-center gap-2">
-                <GitBranch size={16} className="text-[#781c1c]" /> Projects
+              <h3 className="text-sm sm:text-base font-extrabold uppercase tracking-wider pb-4 border-b border-slate-500/15 mb-6 flex items-center gap-2.5 font-serif">
+                <div className="w-1.5 h-5 bg-emerald-500 rounded-full" />
+                <GitBranch size={18} className="text-emerald-500" /> Projects
               </h3>
               {projects.length > 0 ? (
-                <div className="space-y-6">
+                <div className="space-y-8">
                   {projects.map((proj) => (
-                    <div key={proj.id} className="relative pl-5 border-l-2 border-emerald-500/20 last:border-transparent pb-1">
-                      <span className="absolute -left-[6px] top-1.5 w-2.5 h-2.5 rounded-full bg-emerald-500" />
-                      <div className="flex items-center justify-between gap-2">
-                        <h4 className="text-xs font-bold text-slate-800">{proj.title}</h4>
-                        <span className="px-2 py-0.5 text-[9px] font-bold text-emerald-600 bg-emerald-50 rounded border border-emerald-100">
-                          Project
+                    <div key={proj.id} className="relative pl-5 sm:pl-6 border-l-2 border-emerald-500 last:border-transparent pb-2 space-y-1.5">
+                      <span className="absolute -left-[7px] top-1.5 w-3 h-3 rounded-full bg-emerald-500 ring-4 ring-emerald-500/20" />
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                        <h4 className="text-sm sm:text-base font-bold text-slate-900 dark:text-white">{proj.title}</h4>
+                        <span className="px-3 py-1 text-xs font-extrabold text-emerald-500 bg-emerald-500/10 rounded-full border border-emerald-500/20 w-fit">
+                          Verified Project
                         </span>
                       </div>
-                      <p className="text-[9px] font-bold text-slate-500 mt-0.5">Tech stack: {proj.technologies}</p>
-                      <p className="text-xs text-slate-655 mt-2 leading-relaxed">{proj.description}</p>
+                      {proj.technologies && (
+                        <div className="flex flex-wrap gap-1.5 pt-1">
+                          {proj.technologies.split(",").map((tech: string, i: number) => (
+                            <span key={i} className={`text-xs font-mono px-2.5 py-0.5 rounded-md font-semibold ${
+                              isDark ? "bg-slate-800 text-slate-300" : "bg-slate-100 text-slate-700"
+                            }`}>
+                              {tech.trim()}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                      <p className={`text-sm mt-2 leading-relaxed ${isDark ? "text-slate-300" : "text-slate-700"}`}>{proj.description}</p>
                       {(proj.githubUrl || proj.liveUrl) && (
-                        <a href={proj.githubUrl || proj.liveUrl} target="_blank" className="inline-flex items-center gap-1 text-[10px] font-bold text-blue-600 hover:underline mt-2">
-                          <ExternalLink size={10} /> View Project Link
+                        <a href={proj.githubUrl || proj.liveUrl} target="_blank" className="inline-flex items-center gap-1.5 text-xs font-bold text-blue-500 hover:underline mt-2">
+                          <ExternalLink size={12} /> View Project Link ↗
                         </a>
                       )}
                     </div>
                   ))}
                 </div>
               ) : (
-                <div className="text-xs text-slate-400 text-center py-6">No projects listed.</div>
+                <div className="text-sm text-slate-400 text-center py-8">No projects listed.</div>
               )}
             </div>
 
-            <div className="border-t border-slate-100 pt-6">
-              <h3 className="text-sm font-bold text-[#18233c] pb-3 border-b border-slate-100 mb-6 flex items-center gap-2">
-                <GitBranch size={16} className="text-[#781c1c]" /> Research Publications
+            <div className="border-t border-slate-500/15 pt-8">
+              <h3 className="text-sm sm:text-base font-extrabold uppercase tracking-wider pb-4 border-b border-slate-500/15 mb-6 flex items-center gap-2.5 font-serif">
+                <div className="w-1.5 h-5 bg-purple-500 rounded-full" />
+                <GitBranch size={18} className="text-purple-500" /> Research Publications
               </h3>
               {researchPapers.length > 0 ? (
-                <div className="space-y-6">
+                <div className="space-y-8">
                   {researchPapers.map((paper) => (
-                    <div key={paper.id} className="relative pl-5 border-l-2 border-purple-500/20 last:border-transparent pb-1">
-                      <span className="absolute -left-[6px] top-1.5 w-2.5 h-2.5 rounded-full bg-purple-500" />
-                      <div className="flex items-center justify-between gap-2">
-                        <h4 className="text-xs font-bold text-slate-800">{paper.title}</h4>
-                        <span className="px-2 py-0.5 text-[9px] font-bold text-purple-600 bg-purple-50 rounded border border-purple-100">
+                    <div key={paper.id} className="relative pl-5 sm:pl-6 border-l-2 border-purple-500 last:border-transparent pb-2 space-y-1.5">
+                      <span className="absolute -left-[7px] top-1.5 w-3 h-3 rounded-full bg-purple-500 ring-4 ring-purple-500/20" />
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                        <h4 className="text-sm sm:text-base font-bold text-slate-900 dark:text-white">{paper.title}</h4>
+                        <span className="px-3 py-1 text-xs font-extrabold text-purple-500 bg-purple-500/10 rounded-full border border-purple-500/20 w-fit">
                           Publication
                         </span>
                       </div>
-                      <p className="text-[9px] font-bold text-slate-500 mt-0.5">{paper.conference} · {paper.publishedDate ? new Date(paper.publishedDate).toLocaleDateString() : ""}</p>
-                      <p className="text-xs text-slate-655 mt-2 leading-relaxed italic">"{paper.abstract}"</p>
+                      <p className="text-xs font-extrabold text-purple-500">{paper.conference} · {paper.publishedDate ? new Date(paper.publishedDate).toLocaleDateString() : ""}</p>
+                      <p className={`text-sm mt-2 leading-relaxed italic ${isDark ? "text-slate-300" : "text-slate-700"}`}>"{paper.abstract}"</p>
                       {paper.paperUrl && (
-                        <a href={paper.paperUrl} target="_blank" className="inline-flex items-center gap-1 text-[10px] font-bold text-purple-650 hover:underline mt-2">
-                          <ExternalLink size={10} /> Read Paper PDF
+                        <a href={paper.paperUrl} target="_blank" className="inline-flex items-center gap-1.5 text-xs font-bold text-purple-500 hover:underline mt-2">
+                          <ExternalLink size={12} /> Read Paper PDF ↗
                         </a>
                       )}
                     </div>
                   ))}
                 </div>
               ) : (
-                <div className="text-xs text-slate-400 text-center py-6">No publications listed.</div>
+                <div className="text-sm text-slate-400 text-center py-8">No publications listed.</div>
               )}
             </div>
           </div>
@@ -771,173 +959,221 @@ function PortfolioPageContent() {
 
       case "skills":
         return (
-          <div className="bg-white border border-[#781c1c]/10 rounded-xl p-6 shadow-[0_1px_3px_rgba(0,0,0,0.01)] animate-fadeIn">
-            <h3 className="text-sm font-bold text-[#18233c] pb-3 border-b border-slate-100 mb-6 flex items-center gap-2">
-              <Code2 size={16} className="text-[#781c1c]" /> Skills Arsenal & Proficiencies
+          <div className={`rounded-2xl border p-6 sm:p-8 shadow-md transition-all duration-300 animate-fadeIn ${
+            isDark ? "bg-[#131d31] border-[#781c1c]/30 text-slate-100" : "bg-white border-[#781c1c]/15 text-[#18233c]"
+          }`}>
+            <h3 className="text-base font-extrabold uppercase tracking-wider pb-4 border-b border-slate-500/15 mb-6 flex items-center gap-2.5 font-serif">
+              <div className="w-1.5 h-5 bg-[#781c1c] rounded-full" />
+              <Code2 size={18} className="text-[#781c1c]" /> Skills Arsenal & Proficiencies
             </h3>
             {skills.length > 0 ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {skills.map((skill) => (
-                  <div key={skill.id} className="border border-slate-100 p-4 rounded-xl bg-slate-50/50 flex justify-between items-center">
+                  <div key={skill.id} className={`p-4 rounded-xl border transition-all duration-300 hover:-translate-y-0.5 flex justify-between items-center ${
+                    isDark ? "bg-slate-900/60 border-slate-800" : "bg-slate-50 border-slate-200"
+                  }`}>
                     <div>
-                      <h4 className="font-bold text-xs text-slate-800">{skill.name}</h4>
-                      <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider mt-0.5 block">{skill.category}</span>
+                      <h4 className="font-bold text-sm text-slate-900 dark:text-white">{skill.name}</h4>
+                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mt-0.5 block">{skill.category}</span>
                     </div>
-                    <span className="text-[9px] font-extrabold px-2 py-0.5 bg-[#781c1c]/5 text-[#781c1c] border border-[#781c1c]/15 rounded-full uppercase">
+                    <span className="text-xs font-extrabold px-3 py-1 bg-[#781c1c]/10 text-[#781c1c] dark:text-red-400 border border-[#781c1c]/20 rounded-full uppercase">
                       {skill.level}
                     </span>
                   </div>
                 ))}
               </div>
             ) : (
-              <div className="text-xs text-slate-400 text-center py-6">No skills listed yet.</div>
+              <div className="text-sm text-slate-400 text-center py-8">No skills listed yet.</div>
             )}
           </div>
         );
 
       case "licenses-certifications":
         return (
-          <div className="bg-white border border-[#781c1c]/10 rounded-xl p-6 shadow-[0_1px_3px_rgba(0,0,0,0.01)] animate-fadeIn">
-            <h3 className="text-sm font-bold text-[#18233c] pb-3 border-b border-slate-100 mb-6 flex items-center gap-2">
-              <Award size={16} className="text-[#781c1c]" /> Licenses & Certifications
+          <div className={`rounded-2xl border p-6 sm:p-8 shadow-md transition-all duration-300 animate-fadeIn ${
+            isDark ? "bg-[#131d31] border-[#781c1c]/30 text-slate-100" : "bg-white border-[#781c1c]/15 text-[#18233c]"
+          }`}>
+            <h3 className="text-base font-extrabold uppercase tracking-wider pb-4 border-b border-slate-500/15 mb-6 flex items-center gap-2.5 font-serif">
+              <div className="w-1.5 h-5 bg-[#781c1c] rounded-full" />
+              <Award size={18} className="text-[#781c1c]" /> Licenses & Certifications
             </h3>
             {certifications.length > 0 ? (
-              <div className="space-y-6">
+              <div className="space-y-8">
                 {certifications.map((cert) => (
-                  <div key={cert.id} className="relative pl-5 border-l-2 border-[#781c1c]/25 last:border-transparent pb-1">
-                    <span className="absolute -left-[6px] top-1.5 w-2.5 h-2.5 rounded-full bg-[#781c1c]" />
-                    <div className="flex items-center justify-between gap-2">
-                      <h4 className="text-xs font-bold text-slate-800">{cert.title}</h4>
-                      <span className="px-2 py-0.5 text-[9px] font-bold text-[#781c1c] bg-[#781c1c]/5 rounded border border-[#781c1c]/10">
+                  <div key={cert.id} className="relative pl-6 border-l-2 border-[#781c1c] last:border-transparent pb-2 space-y-1.5">
+                    <span className="absolute -left-[7px] top-1.5 w-3 h-3 rounded-full bg-[#781c1c] ring-4 ring-[#781c1c]/20" />
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                      <h4 className="text-base font-bold text-slate-900 dark:text-white">{cert.title}</h4>
+                      <span className="px-3 py-1 text-xs font-extrabold text-[#781c1c] bg-[#781c1c]/10 rounded-full border border-[#781c1c]/20 w-fit">
                         {cert.category}
                       </span>
                     </div>
-                    <p className="text-[10px] text-slate-500 font-bold mt-0.5">{cert.issuer}</p>
-                    <p className="text-[9px] font-bold text-slate-400 mt-0.5">
+                    <p className="text-xs font-extrabold text-[#d4af37]">{cert.issuer}</p>
+                    <p className="text-xs font-mono font-bold text-slate-400">
                       Year: {cert.issueDate ? new Date(cert.issueDate).getFullYear() : ""}
                     </p>
                     {cert.certificateUrl && (
-                      <a href={cert.certificateUrl} target="_blank" className="inline-flex items-center gap-1 text-[10px] font-bold text-[#18233c] hover:underline mt-2">
-                        <ExternalLink size={10} /> View certification document
+                      <a href={cert.certificateUrl} target="_blank" className="inline-flex items-center gap-1.5 text-xs font-bold text-[#781c1c] dark:text-red-400 hover:underline mt-2">
+                        <ExternalLink size={12} /> View Certification Document ↗
                       </a>
                     )}
                   </div>
                 ))}
               </div>
             ) : (
-              <div className="text-xs text-slate-400 text-center py-6">No certifications listed.</div>
+              <div className="text-sm text-slate-400 text-center py-8">No certifications listed.</div>
             )}
           </div>
         );
 
       case "languages":
         return (
-          <div className="bg-white border border-[#781c1c]/10 rounded-xl p-6 shadow-[0_1px_3px_rgba(0,0,0,0.01)] animate-fadeIn">
-            <h3 className="text-sm font-bold text-[#18233c] pb-3 border-b border-slate-100 mb-6 flex items-center gap-2">
-              <Globe size={16} className="text-[#18233c]" /> Languages Known
+          <div className={`rounded-2xl border p-6 sm:p-8 shadow-md transition-all duration-300 animate-fadeIn ${
+            isDark ? "bg-[#131d31] border-[#781c1c]/30 text-slate-100" : "bg-white border-[#781c1c]/15 text-[#18233c]"
+          }`}>
+            <h3 className="text-base font-extrabold uppercase tracking-wider pb-4 border-b border-slate-500/15 mb-6 flex items-center gap-2.5 font-serif">
+              <div className="w-1.5 h-5 bg-[#18233c] dark:bg-blue-400 rounded-full" />
+              <Globe size={18} className="text-[#18233c] dark:text-blue-400" /> Languages Known
             </h3>
             {profile?.languages ? (
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-wrap gap-3">
                 {profile.languages.split(",").map((l: string, i: number) => (
-                  <span key={i} className="px-3 py-1.5 bg-[#f0ece1]/50 border border-[#781c1c]/10 text-xs font-semibold rounded-lg text-[#18233c]">
+                  <span key={i} className={`px-4 py-2 text-sm font-bold rounded-xl border shadow-sm ${
+                    isDark ? "bg-slate-900 border-slate-800 text-slate-200" : "bg-slate-50 border-slate-200 text-[#18233c]"
+                  }`}>
                     {l.trim()}
                   </span>
                 ))}
               </div>
             ) : (
-              <div className="text-xs text-slate-400 text-center py-6">No languages listed.</div>
+              <div className="text-sm text-slate-400 text-center py-8">No languages listed.</div>
             )}
           </div>
         );
 
       case "test-scores":
         return (
-          <div className="bg-white border border-[#781c1c]/10 rounded-xl p-6 shadow-[0_1px_3px_rgba(0,0,0,0.01)] animate-fadeIn">
-            <h3 className="text-sm font-bold text-[#18233c] pb-3 border-b border-slate-100 mb-6 flex items-center gap-2">
-              <Award size={16} className="text-[#781c1c]" /> Standardized Test Scores
+          <div className={`rounded-2xl border p-6 sm:p-8 shadow-md transition-all duration-300 animate-fadeIn ${
+            isDark ? "bg-[#131d31] border-[#781c1c]/30 text-slate-100" : "bg-white border-[#781c1c]/15 text-[#18233c]"
+          }`}>
+            <h3 className="text-base font-extrabold uppercase tracking-wider pb-4 border-b border-slate-500/15 mb-6 flex items-center gap-2.5 font-serif">
+              <div className="w-1.5 h-5 bg-[#781c1c] rounded-full" />
+              <Award size={18} className="text-[#781c1c]" /> Standardized Test Scores
             </h3>
             {profile?.testScores ? (
-              <div className="p-4 bg-slate-50 border border-slate-100 rounded-lg text-xs leading-relaxed text-slate-655 whitespace-pre-line">
+              <div className={`p-5 rounded-xl border text-sm leading-relaxed whitespace-pre-line font-mono ${
+                isDark ? "bg-slate-900/60 border-slate-800 text-slate-200" : "bg-slate-50 border-slate-200 text-slate-700"
+              }`}>
                 {profile.testScores}
               </div>
             ) : (
-              <div className="text-xs text-slate-400 text-center py-6">No test scores recorded.</div>
+              <div className="text-sm text-slate-400 text-center py-8">No test scores recorded.</div>
             )}
           </div>
         );
 
       case "patents":
         return (
-          <div className="bg-white border border-[#781c1c]/10 rounded-xl p-6 shadow-[0_1px_3px_rgba(0,0,0,0.01)] animate-fadeIn">
-            <h3 className="text-sm font-bold text-[#18233c] pb-3 border-b border-slate-100 mb-6 flex items-center gap-2">
-              <FileText size={16} className="text-[#781c1c]" /> Patents
+          <div className={`rounded-2xl border p-6 sm:p-8 shadow-md transition-all duration-300 animate-fadeIn ${
+            isDark ? "bg-[#131d31] border-[#781c1c]/30 text-slate-100" : "bg-white border-[#781c1c]/15 text-[#18233c]"
+          }`}>
+            <h3 className="text-base font-extrabold uppercase tracking-wider pb-4 border-b border-slate-500/15 mb-6 flex items-center gap-2.5 font-serif">
+              <div className="w-1.5 h-5 bg-[#781c1c] rounded-full" />
+              <FileText size={18} className="text-[#781c1c]" /> Patents
             </h3>
             {profile?.patents ? (
-              <div className="p-4 bg-slate-50 border border-slate-100 rounded-lg text-xs leading-relaxed text-slate-655 whitespace-pre-line">
+              <div className={`p-5 rounded-xl border text-sm leading-relaxed whitespace-pre-line ${
+                isDark ? "bg-slate-900/60 border-slate-800 text-slate-200" : "bg-slate-50 border-slate-200 text-slate-700"
+              }`}>
                 {profile.patents}
               </div>
             ) : (
-              <div className="text-xs text-slate-400 text-center py-6">No patents listed.</div>
+              <div className="text-sm text-slate-400 text-center py-8">No patents listed.</div>
             )}
           </div>
         );
 
       case "media-handles":
         return (
-          <div className="bg-white border border-[#781c1c]/10 rounded-xl p-6 shadow-[0_1px_3px_rgba(0,0,0,0.01)] animate-fadeIn">
-            <h3 className="text-sm font-bold text-[#18233c] pb-3 border-b border-slate-100 mb-4 flex items-center gap-2">
-              <LinkIcon size={16} className="text-[#781c1c]" /> Connected Social Handles
+          <div className={`rounded-2xl border p-6 sm:p-8 shadow-md transition-all duration-300 animate-fadeIn ${
+            isDark ? "bg-[#131d31] border-[#781c1c]/30 text-slate-100" : "bg-white border-[#781c1c]/15 text-[#18233c]"
+          }`}>
+            <h3 className="text-base font-extrabold uppercase tracking-wider pb-4 border-b border-slate-500/15 mb-6 flex items-center gap-2.5 font-serif">
+              <div className="w-1.5 h-5 bg-[#781c1c] rounded-full" />
+              <LinkIcon size={18} className="text-[#781c1c]" /> Connected Social Handles
             </h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {profile?.linkedInUrl && (
-                <a href={profile.linkedInUrl} target="_blank" className="border border-slate-205 p-4 rounded-xl flex items-center gap-3 bg-slate-50/50 hover:bg-slate-50 transition min-w-0">
-                  <Linkedin size={20} className="text-[#0a66c2] shrink-0" />
+                <a href={profile.linkedInUrl} target="_blank" className={`p-5 rounded-xl border flex items-center gap-4 transition-all duration-300 hover:-translate-y-1 min-w-0 ${
+                  isDark ? "bg-slate-900/60 border-slate-800 hover:border-blue-500" : "bg-slate-50 border-slate-200 hover:border-blue-400"
+                }`}>
+                  <div className="w-10 h-10 rounded-xl bg-blue-500/10 text-blue-500 flex items-center justify-center shrink-0">
+                    <Linkedin size={22} />
+                  </div>
                   <div className="min-w-0">
-                    <span className="font-bold text-xs text-[#18233c] block">LinkedIn Profile</span>
-                    <span className="text-[10px] text-slate-455 block mt-0.5 truncate">{profile.linkedInUrl}</span>
+                    <span className="font-bold text-sm block">LinkedIn Profile ↗</span>
+                    <span className="text-xs text-slate-400 block mt-0.5 truncate">{profile.linkedInUrl}</span>
                   </div>
                 </a>
               )}
               {profile?.gitHubUrl && (
-                <a href={profile.gitHubUrl} target="_blank" className="border border-slate-205 p-4 rounded-xl flex items-center gap-3 bg-slate-50/50 hover:bg-slate-50 transition min-w-0">
-                  <Github size={20} className="text-slate-850 shrink-0" />
+                <a href={profile.gitHubUrl} target="_blank" className={`p-5 rounded-xl border flex items-center gap-4 transition-all duration-300 hover:-translate-y-1 min-w-0 ${
+                  isDark ? "bg-slate-900/60 border-slate-800 hover:border-slate-500" : "bg-slate-50 border-slate-200 hover:border-slate-400"
+                }`}>
+                  <div className="w-10 h-10 rounded-xl bg-slate-500/10 text-slate-400 flex items-center justify-center shrink-0">
+                    <Github size={22} />
+                  </div>
                   <div className="min-w-0">
-                    <span className="font-bold text-xs text-[#18233c] block">GitHub Profile</span>
-                    <span className="text-[10px] text-slate-455 block mt-0.5 truncate">{profile.gitHubUrl}</span>
+                    <span className="font-bold text-sm block">GitHub Profile ↗</span>
+                    <span className="text-xs text-slate-400 block mt-0.5 truncate">{profile.gitHubUrl}</span>
                   </div>
                 </a>
               )}
               {profile?.instagramUrl && (
-                <a href={profile.instagramUrl} target="_blank" className="border border-slate-205 p-4 rounded-xl flex items-center gap-3 bg-slate-50/50 hover:bg-slate-50 transition min-w-0">
-                  <InstagramIcon size={20} className="text-pink-655 shrink-0" />
+                <a href={profile.instagramUrl} target="_blank" className={`p-5 rounded-xl border flex items-center gap-4 transition-all duration-300 hover:-translate-y-1 min-w-0 ${
+                  isDark ? "bg-slate-900/60 border-slate-800 hover:border-pink-500" : "bg-slate-50 border-slate-200 hover:border-pink-400"
+                }`}>
+                  <div className="w-10 h-10 rounded-xl bg-pink-500/10 text-pink-500 flex items-center justify-center shrink-0">
+                    <InstagramIcon size={22} />
+                  </div>
                   <div className="min-w-0">
-                    <span className="font-bold text-xs text-[#18233c] block">Instagram Profile</span>
-                    <span className="text-[10px] text-slate-455 block mt-0.5 truncate">{profile.instagramUrl}</span>
+                    <span className="font-bold text-sm block">Instagram Profile ↗</span>
+                    <span className="text-xs text-slate-400 block mt-0.5 truncate">{profile.instagramUrl}</span>
                   </div>
                 </a>
               )}
               {profile?.blogUrl && (
-                <a href={profile.blogUrl} target="_blank" className="border border-slate-205 p-4 rounded-xl flex items-center gap-3 bg-slate-50/50 hover:bg-slate-50 transition min-w-0">
-                  <Globe size={20} className="text-emerald-600 shrink-0" />
+                <a href={profile.blogUrl} target="_blank" className={`p-5 rounded-xl border flex items-center gap-4 transition-all duration-300 hover:-translate-y-1 min-w-0 ${
+                  isDark ? "bg-slate-900/60 border-slate-800 hover:border-emerald-500" : "bg-slate-50 border-slate-200 hover:border-emerald-400"
+                }`}>
+                  <div className="w-10 h-10 rounded-xl bg-emerald-500/10 text-emerald-500 flex items-center justify-center shrink-0">
+                    <Globe size={22} />
+                  </div>
                   <div className="min-w-0">
-                    <span className="font-bold text-xs text-[#18233c] block">Blog / Website</span>
-                    <span className="text-[10px] text-slate-455 block mt-0.5 truncate">{profile.blogUrl}</span>
+                    <span className="font-bold text-sm block">Blog / Website ↗</span>
+                    <span className="text-xs text-slate-400 block mt-0.5 truncate">{profile.blogUrl}</span>
                   </div>
                 </a>
               )}
               {profile?.behanceUrl && (
-                <a href={profile.behanceUrl} target="_blank" className="border border-slate-205 p-4 rounded-xl flex items-center gap-3 bg-slate-50/50 hover:bg-slate-50 transition min-w-0">
-                  <span className="text-[#1769ff] font-serif font-black text-xl w-5 text-center shrink-0">Bē</span>
+                <a href={profile.behanceUrl} target="_blank" className={`p-5 rounded-xl border flex items-center gap-4 transition-all duration-300 hover:-translate-y-1 min-w-0 ${
+                  isDark ? "bg-slate-900/60 border-slate-800 hover:border-indigo-500" : "bg-slate-50 border-slate-200 hover:border-indigo-400"
+                }`}>
+                  <div className="w-10 h-10 rounded-xl bg-indigo-500/10 text-indigo-400 flex items-center justify-center font-serif font-black text-xl shrink-0">
+                    Bē
+                  </div>
                   <div className="min-w-0">
-                    <span className="font-bold text-xs text-[#18233c] block">Behance Portfolio</span>
-                    <span className="text-[10px] text-slate-455 block mt-0.5 truncate">{profile.behanceUrl}</span>
+                    <span className="font-bold text-sm block">Behance Portfolio ↗</span>
+                    <span className="text-xs text-slate-400 block mt-0.5 truncate">{profile.behanceUrl}</span>
                   </div>
                 </a>
               )}
               {profile?.otherHandles && (
-                <div className="border border-slate-205 p-4 rounded-xl bg-slate-50/50 sm:col-span-2 min-w-0 overflow-hidden">
-                  <span className="font-bold text-xs text-[#18233c] block">Other Information / Handles</span>
-                  <p className="text-xs text-slate-655 mt-1 leading-relaxed break-words">{profile.otherHandles}</p>
+                <div className={`p-5 rounded-xl border sm:col-span-2 min-w-0 overflow-hidden ${
+                  isDark ? "bg-slate-900/60 border-slate-800 text-slate-200" : "bg-slate-50 border-slate-200 text-slate-700"
+                }`}>
+                  <span className="font-bold text-sm block">Other Information / Handles</span>
+                  <p className="text-xs text-slate-400 mt-1.5 leading-relaxed break-words">{profile.otherHandles}</p>
                 </div>
               )}
             </div>
@@ -1254,12 +1490,14 @@ function PortfolioPageContent() {
         return (
           <div className="space-y-6 animate-fadeIn">
             {/* Action Bar Header */}
-            <div className="bg-white border border-[#781c1c]/10 rounded-xl p-5 shadow-[0_1px_3px_rgba(0,0,0,0.01)] flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+            <div className={`rounded-2xl border p-5 shadow-md flex flex-col md:flex-row items-start md:items-center justify-between gap-4 transition-all duration-300 ${
+              isDark ? "bg-[#131d31] border-[#781c1c]/30 text-slate-100" : "bg-white border-[#781c1c]/15 text-[#18233c]"
+            }`}>
               <div>
-                <h3 className="text-sm font-extrabold text-[#18233c] flex items-center gap-2 font-serif">
+                <h3 className="text-sm font-extrabold flex items-center gap-2 font-serif">
                   <FileText size={18} className="text-[#781c1c]" /> Placement Resume Options
                 </h3>
-                <p className="text-xs text-slate-500 mt-1">
+                <p className={`text-xs mt-1 ${isDark ? "text-slate-400" : "text-slate-500"}`}>
                   {resumeSubTab === "student"
                     ? "Preview and download official CV files uploaded directly by the student."
                     : "Preview and download the verified professional placement resume compiled from portfolio data."}
@@ -1268,13 +1506,15 @@ function PortfolioPageContent() {
 
               <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
                 {/* Two Explicit Options Buttons */}
-                <div className="flex items-center bg-slate-100 p-1 rounded-xl text-xs font-bold shrink-0">
+                <div className={`flex items-center p-1 rounded-xl text-xs font-bold shrink-0 border ${
+                  isDark ? "bg-slate-900 border-slate-800" : "bg-slate-100 border-slate-200"
+                }`}>
                   <button
                     onClick={() => setResumeSubTab("student")}
                     className={`px-3 py-1.5 rounded-lg transition cursor-pointer ${
                       resumeSubTab === "student"
-                        ? "bg-white text-[#781c1c] shadow-xs font-black"
-                        : "text-slate-600 hover:text-slate-900"
+                        ? isDark ? "bg-[#781c1c] text-white shadow-xs font-black" : "bg-white text-[#781c1c] shadow-xs font-black"
+                        : isDark ? "text-slate-400 hover:text-white" : "text-slate-600 hover:text-slate-900"
                     }`}
                   >
                     Student's Resume {resumes.length > 0 ? `(${resumes.length})` : ""}
@@ -1283,8 +1523,8 @@ function PortfolioPageContent() {
                     onClick={() => setResumeSubTab("portfolio")}
                     className={`px-3 py-1.5 rounded-lg transition cursor-pointer ${
                       resumeSubTab === "portfolio"
-                        ? "bg-white text-[#781c1c] shadow-xs font-black"
-                        : "text-slate-600 hover:text-slate-900"
+                        ? isDark ? "bg-[#781c1c] text-white shadow-xs font-black" : "bg-white text-[#781c1c] shadow-xs font-black"
+                        : isDark ? "text-slate-400 hover:text-white" : "text-slate-600 hover:text-slate-900"
                     }`}
                   >
                     Portfolio Created Resume
@@ -1306,7 +1546,7 @@ function PortfolioPageContent() {
                     ) : (
                       <>
                         <Download size={14} />
-                        <span>Download Portfolio Created Resume</span>
+                        <span>Download Portfolio Resume</span>
                       </>
                     )}
                   </button>
@@ -1330,28 +1570,34 @@ function PortfolioPageContent() {
 
             {/* Option 1: Student's Resume (Uploaded CV Documents) */}
             {resumeSubTab === "student" && (
-              <div className="bg-white border border-[#781c1c]/10 rounded-xl p-6 shadow-[0_1px_3px_rgba(0,0,0,0.01)] space-y-4">
-                <h4 className="text-xs font-bold text-[#18233c] uppercase tracking-wider pb-3 border-b border-slate-100 flex items-center gap-2">
+              <div className={`rounded-2xl border p-6 shadow-md space-y-4 transition-all duration-300 ${
+                isDark ? "bg-[#131d31] border-[#781c1c]/30 text-slate-100" : "bg-white border-[#781c1c]/15 text-[#18233c]"
+              }`}>
+                <h4 className="text-xs font-bold uppercase tracking-wider pb-3 border-b border-slate-500/15 flex items-center gap-2">
                   <FileText size={15} className="text-[#781c1c]" /> Official Student Uploaded Resume Documents
                 </h4>
                 {resumes.length > 0 ? (
                   <div className="space-y-4">
                     {resumes.map((res) => (
-                      <div key={res.id} className="border border-slate-200 p-5 rounded-xl flex flex-col bg-slate-50/50">
+                      <div key={res.id} className={`border p-5 rounded-xl flex flex-col ${
+                        isDark ? "bg-slate-900/60 border-slate-800" : "bg-slate-50 border-slate-200"
+                      }`}>
                         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                           <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-lg bg-blue-50 border border-blue-100 flex items-center justify-center text-blue-600 shrink-0">
+                            <div className="w-10 h-10 rounded-lg bg-blue-500/10 text-blue-500 border border-blue-500/20 flex items-center justify-center shrink-0">
                               <FileText size={20} />
                             </div>
                             <div>
-                              <h5 className="font-bold text-xs text-slate-800">{res.resumeTitle || "Student Verified CV"}</h5>
-                              <p className="text-[10px] text-slate-450 font-medium mt-0.5">Uploaded Student Document</p>
+                              <h5 className="font-bold text-xs">{res.resumeTitle || "Student Verified CV"}</h5>
+                              <p className="text-[10px] text-slate-400 font-medium mt-0.5">Uploaded Student Document</p>
                             </div>
                           </div>
                           <div className="flex items-center gap-2">
                             <button
                               onClick={() => setPreviewResumeUrl(previewResumeUrl === res.resumeUrl ? null : res.resumeUrl)}
-                              className="flex items-center gap-1.5 px-4 py-2 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-xl text-xs font-bold transition shadow-2xs cursor-pointer"
+                              className={`flex items-center gap-1.5 px-4 py-2 border rounded-xl text-xs font-bold transition shadow-xs cursor-pointer ${
+                                isDark ? "bg-slate-800 border-slate-700 text-slate-200 hover:bg-slate-700" : "bg-white border-slate-200 text-slate-700 hover:bg-slate-50"
+                              }`}
                             >
                               <Eye size={14} />
                               <span>{previewResumeUrl === res.resumeUrl ? "Hide Preview" : "Preview Resume"}</span>
@@ -1359,7 +1605,7 @@ function PortfolioPageContent() {
                           </div>
                         </div>
                         {previewResumeUrl === res.resumeUrl && (
-                          <div className="mt-4 w-full h-[650px] rounded-xl overflow-hidden border border-slate-200 shadow-inner bg-slate-100">
+                          <div className="mt-4 w-full h-[500px] sm:h-[650px] rounded-xl overflow-hidden border border-slate-500/20 shadow-inner bg-slate-100">
                             <iframe src={res.resumeUrl} className="w-full h-full border-none" title="Student Resume Preview" />
                           </div>
                         )}
@@ -1367,10 +1613,12 @@ function PortfolioPageContent() {
                     ))}
                   </div>
                 ) : (
-                  <div className="text-center py-10 px-4 bg-slate-50 rounded-xl border border-dashed border-slate-200">
-                    <FileText size={32} className="mx-auto text-slate-300 mb-2" />
-                    <h5 className="font-bold text-xs text-slate-700">No Student Uploaded Resume Available</h5>
-                    <p className="text-xs text-slate-500 mt-1 max-w-md mx-auto">
+                  <div className={`text-center py-10 px-4 rounded-xl border border-dashed ${
+                    isDark ? "bg-slate-900/40 border-slate-800" : "bg-slate-50 border-slate-200"
+                  }`}>
+                    <FileText size={32} className="mx-auto text-slate-400 mb-2" />
+                    <h5 className="font-bold text-xs">No Student Uploaded Resume Available</h5>
+                    <p className="text-xs text-slate-400 mt-1 max-w-md mx-auto">
                       The student has not uploaded a custom CV document yet. You can click on the <span className="font-bold text-[#781c1c]">"Portfolio Created Resume"</span> option above to preview and download the dynamically generated resume.
                     </p>
                   </div>
@@ -1380,8 +1628,14 @@ function PortfolioPageContent() {
 
             {/* Option 2: Portfolio Created Resume (Digital Live A4 Sheets) */}
             {resumeSubTab === "portfolio" && (
-              <div id="digital-resume-container-wrapper" className="flex flex-col items-center gap-8 overflow-x-auto pb-8">
-                {pagesList.map((pageSections, pageIdx) => (
+              <div className="space-y-3">
+                {/* Mobile scroll tip */}
+                <div className="md:hidden text-center text-[11px] font-mono text-amber-500 bg-amber-500/10 border border-amber-500/20 py-2 px-3 rounded-xl font-bold">
+                  📱 Mobile View: Swipe horizontally to view full A4 PDF sheet, or use the download button above.
+                </div>
+
+                <div id="digital-resume-container-wrapper" className="w-full overflow-x-auto flex flex-col items-center gap-8 pb-8">
+                  {pagesList.map((pageSections, pageIdx) => (
                   <div
                     key={`sheet_page_${pageIdx + 1}`}
                     className="resume-page-sheet relative bg-white border border-slate-200 shadow-xl rounded-lg p-8 sm:p-10 font-sans text-slate-800 text-xs leading-relaxed flex flex-col justify-between select-text"
@@ -1491,8 +1745,9 @@ function PortfolioPageContent() {
                   </div>
                 ))}
               </div>
-            )}
-          </div>
+            </div>
+          )}
+        </div>
         );
       }
 
@@ -1502,23 +1757,32 @@ function PortfolioPageContent() {
   };
 
   return (
-    <div className="h-screen overflow-hidden bg-[#fcfaf6] text-[#2c2c2c] flex font-sans selection:bg-[#781c1c]/20 selection:text-[#781c1c]">
+    <div className={`h-screen overflow-hidden flex font-sans selection:bg-[#781c1c]/20 selection:text-[#781c1c] transition-colors duration-300 ${isDark ? "bg-[#0f1623] text-slate-200" : "bg-[#fcfaf6] text-[#2c2c2c]"}`}>
       
       {/* LEFT SIDEBAR (DESKTOP) */}
-      <aside className={`bg-[#18233c] text-slate-300 flex flex-col transition-all duration-300 shrink-0 select-none hidden md:flex border-r border-[#781c1c]/15 mcc-sidebar ${
-        isSidebarCollapsed ? "w-16" : "w-72"
-      }`}>
-        {/* Sidebar Brand Header - MCC Navy / Gold details with Logo */}
-        <div className="border-b border-slate-205 flex items-center justify-center p-3 shrink-0">
+      <aside 
+        style={{ width: isSidebarCollapsed ? "64px" : `${sidebarWidth}px` }}
+        className={`bg-[#18233c] text-slate-300 flex flex-col relative shrink-0 select-none hidden md:flex border-r border-[#781c1c]/15 mcc-sidebar ${
+          isSidebarCollapsed ? "w-16" : ""
+        }`}
+      >
+        {/* Sidebar Brand Header - MCC Navy / Gold details with Prominent Logo & Institutional Tagline */}
+        <div className={`border-b flex items-center justify-center py-2.5 px-3 shrink-0 transition-colors duration-300 ${
+          isDark 
+            ? "bg-gradient-to-b from-[#18233c] to-[#111927] border-slate-700/30" 
+            : "bg-[#f4efe4] border-slate-300/60 shadow-xs"
+        }`}>
           {!isSidebarCollapsed ? (
-            <img 
-              src="/mcc-logo.jpg" 
-              className="w-full max-w-[230px] h-auto object-contain rounded-lg transition-transform duration-200 hover:scale-[1.02]" 
-              alt="Madras Christian College Logo" 
-            />
+            <div className="flex items-center justify-center gap-3.5 w-full">
+              <img 
+                src={isDark ? "/mcc-logo-dark.png" : "/mcc-logo.png"}
+                className="h-20 md:h-[88px] w-auto max-w-full object-contain rounded-lg transition-transform duration-200 hover:scale-[1.02] shrink-0" 
+                alt="Madras Christian College Logo" 
+              />
+            </div>
           ) : (
-            <div className="w-9 h-9 rounded-full bg-white flex items-center justify-center mx-auto border border-slate-300 shadow-sm overflow-hidden p-0.5" title="Madras Christian College">
-              <img src="/mcc-crest.png" className="w-full h-full object-contain" alt="MCC Crest" />
+            <div className="w-12 h-12 rounded-full bg-white/10 dark:bg-slate-900/50 flex items-center justify-center mx-auto border-2 border-[#d4af37] shadow-md overflow-hidden p-1 transition-transform hover:scale-110" title="Madras Christian College">
+              <img src={isDark ? "/mcc-crest-dark.png" : "/mcc-crest.png"} className="w-full h-full object-contain" alt="MCC Crest" />
             </div>
           )}
         </div>
@@ -1530,33 +1794,36 @@ function PortfolioPageContent() {
           {(profile?.profileImageUrl || user?.profileImageUrl) && !imgError ? (() => {
             const imgDetails = parseImageAdjustments(profile?.profileImageUrl || user?.profileImageUrl);
             return (
-              <div className="w-8 h-8 rounded-full border border-[#d4af37]/40 overflow-hidden flex items-center justify-center shrink-0">
+              <div className="w-9 h-9 rounded-full border-2 border-[#d4af37] shadow-sm overflow-hidden flex items-center justify-center shrink-0">
                 <img 
                   src={imgDetails.src} 
                   onError={() => setImgError(true)}
                   style={imgDetails.style} 
-                  className="w-full h-full" 
+                  className="w-full h-full object-cover" 
                   alt={user.fullName} 
                 />
               </div>
             );
           })() : (
-            <div className="w-8 h-8 rounded-full bg-[#781c1c] text-white flex items-center justify-center text-xs font-bold border border-amber-600/30">
+            <div className="w-9 h-9 rounded-full bg-gradient-to-br from-[#781c1c] to-[#18233c] text-white flex items-center justify-center text-xs font-black border-2 border-[#d4af37]">
               {initials}
             </div>
           )}
           {!isSidebarCollapsed && (
             <div className="overflow-hidden">
-              <h4 className="text-[11px] font-bold text-white truncate max-w-[130px] flex items-center gap-1.5">
+              <h4 className="text-xs font-bold text-white truncate max-w-[135px] flex items-center gap-1.5">
                 {user.fullName}
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block shrink-0 animate-pulse" />
+                <span className="w-2 h-2 rounded-full bg-emerald-400 inline-block shrink-0 animate-pulse" />
               </h4>
+              <span className="text-[10px] text-slate-400 font-mono block truncate">
+                {user.department || "MCC Student"}
+              </span>
             </div>
           )}
         </div>
 
         {/* Navigation Items */}
-        <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
+        <nav className="flex-1 p-3 space-y-1.5 overflow-y-auto">
           {sidebarItems.map((item) => {
             const Icon = item.icon;
             const isActive = currentView === item.id;
@@ -1564,74 +1831,105 @@ function PortfolioPageContent() {
               <button
                 key={item.id}
                 onClick={() => setCurrentView(item.id)}
-                className={`w-full flex items-center transition-all duration-150 px-3 py-2 rounded-lg text-xs font-bold text-left ${
+                className={`w-full flex items-center transition-all duration-200 px-3.5 py-2.5 rounded-xl text-xs font-bold text-left cursor-pointer ${
                   isActive
-                    ? "mcc-active-tab font-bold"
-                    : "hover:bg-slate-800/30 hover:text-white"
-                } ${isSidebarCollapsed ? "justify-center pl-3" : ""}`}
+                    ? "mcc-active-tab font-black shadow-sm"
+                    : "text-slate-300 hover:bg-slate-800/50 hover:text-white hover:translate-x-0.5"
+                } ${isSidebarCollapsed ? "justify-center px-0" : ""}`}
                 title={item.label}
               >
-                <Icon size={14} className={`shrink-0 ${isActive ? "text-[#d4af37]" : ""}`} />
+                <Icon size={16} className={`shrink-0 ${isActive ? "text-[#d4af37]" : "text-slate-400"}`} />
                 {!isSidebarCollapsed && <span className="ml-3 truncate">{item.label}</span>}
               </button>
             );
           })}
         </nav>
 
-        {/* Sidebar Collapse Toggle Chevron */}
-        <div className="p-3 border-t border-slate-700/50 flex justify-center">
+        {/* Sidebar Footer: Collapse Chevron */}
+        <div className={`p-3 border-t border-slate-700/50 flex items-center justify-end ${
+          isSidebarCollapsed ? "justify-center" : "justify-end"
+        }`}>
           <button
             onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-            className="w-8 h-8 rounded-lg hover:bg-slate-800/40 flex items-center justify-center text-slate-500 hover:text-white transition"
+            className="w-9 h-9 rounded-xl hover:bg-slate-800/60 flex items-center justify-center text-slate-400 hover:text-white transition shrink-0 cursor-pointer"
+            title={isSidebarCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
           >
-            {isSidebarCollapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
+            {isSidebarCollapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
           </button>
         </div>
+
+        {/* Interactive Drag Handle for Sidebar Resizing */}
+        {!isSidebarCollapsed && (
+          <div
+            onMouseDown={startResizing}
+            onDoubleClick={resetWidth}
+            title="Click and drag to resize sidebar width. Double-click to reset."
+            className="absolute top-0 -right-1 bottom-0 w-2.5 cursor-col-resize hover:bg-[#781c1c]/50 active:bg-[#781c1c] transition-colors z-40 group flex items-center justify-center"
+          >
+            <div className="w-0.5 h-10 bg-slate-500/30 group-hover:bg-[#d4af37] rounded-full" />
+          </div>
+        )}
       </aside>
 
       {/* MOBILE DRAWER SIDEBAR OVERLAY */}
       {showMobileNav && (
-        <div className="fixed inset-0 z-50 flex md:hidden bg-[#18233c]/60 backdrop-blur-xs">
-          <div className="w-72 flex flex-col p-4 animate-slideIn mcc-sidebar">
-            <div className="flex justify-between items-center pb-4 border-b border-gray-250">
+        <div className="fixed inset-0 z-50 flex md:hidden bg-[#18233c]/80 backdrop-blur-sm animate-fadeIn">
+          <div className={`w-72 flex flex-col p-4 animate-slideIn transition-colors duration-300 border-r ${
+            isDark ? "bg-[#18233c] text-slate-200 border-slate-700/50" : "bg-white text-[#18233c] border-slate-200"
+          }`}>
+            <div className="flex justify-between items-center pb-4 border-b border-slate-500/20">
               <div className="flex items-center justify-start py-1">
                 <img 
-                  src="/mcc-logo.jpg" 
-                  className="w-full max-w-[190px] h-auto object-contain rounded-lg" 
+                  src={isDark ? "/mcc-logo-dark.png" : "/mcc-logo.png"}
+                  className="w-full max-w-[180px] h-auto object-contain rounded-lg" 
                   alt="Madras Christian College Logo" 
                 />
               </div>
-              <button onClick={() => setShowMobileNav(false)} className="text-slate-400 hover:text-white cursor-pointer">
-                <X size={18} />
-              </button>
+              <div className="flex items-center gap-2">
+                {/* Theme toggle in mobile drawer */}
+                <button
+                  onClick={toggleTheme}
+                  title={isDark ? "Switch to Light Mode" : "Switch to Dark Mode"}
+                  className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all duration-200 cursor-pointer ${
+                    isDark
+                      ? "bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/30"
+                      : "bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300"
+                  }`}
+                >
+                  {isDark ? <Sun size={14} /> : <Moon size={14} />}
+                </button>
+                <button onClick={() => setShowMobileNav(false)} className="text-slate-400 hover:text-slate-700 dark:hover:text-white cursor-pointer p-1">
+                  <X size={20} />
+                </button>
+              </div>
             </div>
 
-            <div className="flex items-center gap-3 py-4 border-b border-slate-200">
+            <div className="flex items-center gap-3 py-4 border-b border-slate-500/20">
               {(profile?.profileImageUrl || user?.profileImageUrl) && !imgError ? (() => {
                 const imgDetails = parseImageAdjustments(profile?.profileImageUrl || user?.profileImageUrl);
                 return (
-                  <div className="w-8 h-8 rounded-full border border-slate-300 overflow-hidden flex items-center justify-center shrink-0">
+                  <div className="w-9 h-9 rounded-full border-2 border-[#d4af37] overflow-hidden flex items-center justify-center shrink-0">
                     <img 
                       src={imgDetails.src} 
                       onError={() => setImgError(true)}
                       style={imgDetails.style} 
-                      className="w-full h-full" 
+                      className="w-full h-full object-cover" 
                       alt={user.fullName} 
                     />
                   </div>
                 );
               })() : (
-                <div className="w-8 h-8 rounded-full bg-[#781c1c] text-white flex items-center justify-center text-xs font-bold">
+                <div className="w-9 h-9 rounded-full bg-[#781c1c] text-white flex items-center justify-center text-xs font-bold">
                   {initials}
                 </div>
               )}
-              <h4 className="text-[11px] font-bold text-black truncate max-w-[130px] flex items-center gap-1.5">
+              <h4 className="text-xs font-bold truncate max-w-[140px] flex items-center gap-1.5">
                 {user.fullName}
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block animate-pulse" />
+                <span className="w-2 h-2 rounded-full bg-emerald-400 inline-block animate-pulse" />
               </h4>
             </div>
 
-            <nav className="flex-1 py-3 space-y-1 overflow-y-auto">
+            <nav className="flex-1 py-3 space-y-1.5 overflow-y-auto">
               {sidebarItems.map((item) => {
                 const Icon = item.icon;
                 const isActive = currentView === item.id;
@@ -1642,13 +1940,13 @@ function PortfolioPageContent() {
                       setCurrentView(item.id);
                       setShowMobileNav(false);
                     }}
-                    className={`w-full flex items-center px-3 py-2 rounded-lg text-xs font-bold text-left ${
+                    className={`w-full flex items-center px-3.5 py-2.5 rounded-xl text-xs font-bold text-left cursor-pointer transition-all ${
                       isActive
-                        ? "mcc-active-tab font-bold"
-                        : "text-slate-600 hover:bg-slate-100"
+                        ? "mcc-active-tab font-black shadow-xs"
+                        : isDark ? "text-slate-300 hover:bg-slate-800/50" : "text-slate-700 hover:bg-slate-100"
                     }`}
                   >
-                    <Icon size={14} className={isActive ? "text-[#d4af37]" : ""} />
+                    <Icon size={16} className={isActive ? "text-[#d4af37]" : "text-slate-400"} />
                     <span className="ml-3">{item.label}</span>
                   </button>
                 );
@@ -1663,47 +1961,115 @@ function PortfolioPageContent() {
       <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
         
         {/* TOP BAR */}
-        <header className="min-h-[4rem] py-2 bg-white border-b border-[#781c1c]/10 flex items-center justify-between px-6 z-[49] select-none shadow-xs shrink-0">
-          <div className="flex items-center gap-3">
+        <header className={`min-h-[4rem] sm:min-h-[4.5rem] py-2 border-b flex items-center justify-between px-3 sm:px-6 z-[49] select-none shadow-sm shrink-0 transition-colors duration-300 ${
+          isDark ? "bg-[#121b2e] border-[#781c1c]/25" : "bg-white border-[#781c1c]/15"
+        }`}>
+          <div className="flex items-center gap-2 sm:gap-4 min-w-0">
             {/* Hamburger Button for mobile */}
             <button
               onClick={() => setShowMobileNav(true)}
-              className="md:hidden p-2 rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-800 transition"
+              className={`md:hidden p-2 rounded-xl border transition cursor-pointer shrink-0 ${
+                isDark ? "text-slate-300 bg-slate-800 border-slate-700" : "text-slate-700 bg-slate-100 border-slate-200"
+              }`}
             >
               <Menu size={18} />
             </button>
 
-            <div>
-              <span className="text-[9px] uppercase font-mono font-black tracking-widest text-[#781c1c] block mb-1 whitespace-nowrap">
-                Madras Christian College
-              </span>
-              <h1 
-                style={{ fontSize: "14px", lineHeight: "1.2" }}
-                className="text-sm font-extrabold text-[#18233c] tracking-tight font-serif"
-              >
+            <div className="min-w-0">
+              <div className="flex items-center gap-1.5 mb-0.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#781c1c] shrink-0" />
+                <span className="text-[9px] uppercase font-mono font-black tracking-widest text-[#781c1c] dark:text-red-400 block truncate">
+                  Madras Christian College
+                </span>
+              </div>
+              <h1 className={`text-xs sm:text-base font-black tracking-tight font-serif truncate ${isDark ? "text-white" : "text-[#18233c]"}`}>
                 {getBreadcrumbTitle()}
               </h1>
-              <div className="text-[10px] text-slate-400 font-bold mt-1 uppercase tracking-wider font-mono">
-                Home <span className="mx-1 text-slate-300">&gt;</span> {getBreadcrumbTitle()}
-              </div>
             </div>
           </div>
 
-          <div className="flex items-center gap-4 shrink-0">
-            <span className="text-sm font-extrabold text-[#18233c] tracking-tight font-serif uppercase truncate max-w-[120px] sm:max-w-[200px] md:max-w-none" title={user.fullName}>
-              {user.fullName}
-            </span>
+          <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+            {/* Share link button */}
+            <button
+              onClick={handleShare}
+              className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-bold border transition cursor-pointer ${
+                copiedLink 
+                  ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30" 
+                  : isDark 
+                    ? "bg-slate-800 text-slate-200 border-slate-700 hover:bg-slate-700" 
+                    : "bg-slate-100 text-slate-700 border-slate-200 hover:bg-slate-200"
+              }`}
+              title="Share portfolio URL"
+            >
+              {copiedLink ? <Check size={14} className="shrink-0" /> : <Share2 size={14} className="shrink-0" />}
+              <span className="hidden sm:inline">{copiedLink ? "Link Copied!" : "Share Profile"}</span>
+            </button>
+
+            {/* Theme Toggle Button in Header */}
+            <button
+              onClick={toggleTheme}
+              title={isDark ? "Switch to Light Mode" : "Switch to Dark Mode"}
+              className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
+                isDark
+                  ? "bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border-amber-500/30"
+                  : "bg-[#f0ece1] hover:bg-[#e4ddcc] text-[#781c1c] border-[#781c1c]/25 shadow-2xs"
+              }`}
+            >
+              {isDark ? <Sun size={14} className="text-amber-300 shrink-0" /> : <Moon size={14} className="text-[#781c1c] shrink-0" />}
+              <span className="hidden sm:inline text-[10px] uppercase tracking-wider font-extrabold">
+                {isDark ? "Light" : "Dark"}
+              </span>
+            </button>
+
           </div>
         </header>
 
         {/* DASHBOARD CONTENT BODY */}
-        <main className="flex-1 p-6 overflow-y-auto max-w-7xl w-full mx-auto space-y-6">
+        <main className="flex-1 p-3 sm:p-6 overflow-y-auto max-w-7xl w-full mx-auto space-y-5 sm:space-y-6 transition-colors duration-300">
           
-          {/* Welcome greeting banner */}
-          <div className="flex justify-between items-center pb-2">
-            <h1 className="text-base font-extrabold text-[#18233c] font-serif">
-              Welcome {user.fullName?.split(" ")[0] || "Praveen"}
-            </h1>
+          {/* Welcome Greeting Banner */}
+          <div className={`rounded-2xl p-4 sm:p-6 border shadow-md relative overflow-hidden transition-all duration-300 ${
+            isDark 
+              ? "bg-gradient-to-r from-[#18233c] via-[#121b2e] to-[#0f1623] border-[#781c1c]/30 text-white" 
+              : "bg-gradient-to-r from-[#f0ece1] via-[#f7f3ea] to-[#e8dfcf] border-[#781c1c]/20 text-[#18233c]"
+          }`}>
+            {/* Subtle background glow */}
+            <div className="absolute -right-12 -bottom-12 w-64 h-64 rounded-full bg-[#d4af37]/10 blur-3xl pointer-events-none" />
+            
+            <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
+              <div className="space-y-1 min-w-0">
+                <span className={`text-[9px] sm:text-[10px] uppercase font-mono tracking-[0.2em] block ${
+                  isDark ? "text-[#d4af37] font-extrabold" : "text-[#781c1c] font-black"
+                }`}>
+                  Official Verified Portfolio
+                </span>
+                <h1 className={`text-lg sm:text-2xl font-black font-serif tracking-tight break-words leading-snug ${
+                  isDark ? "text-white" : "text-[#18233c]"
+                }`}>
+                  Welcome to {user.fullName}'s Portfolio
+                </h1>
+                <p className={`text-xs max-w-xl leading-relaxed ${
+                  isDark ? "text-slate-300" : "text-slate-700 font-medium"
+                }`}>
+                  Showcasing institutionally verified academic achievements, projects, research, and career competencies at Madras Christian College.
+                </p>
+              </div>
+
+              {currentTime && (
+                <div className={`px-3 sm:px-4 py-2 rounded-xl border text-left sm:text-right shrink-0 w-fit backdrop-blur-md ${
+                  isDark 
+                    ? "bg-white/10 border-white/15 text-white" 
+                    : "bg-white/90 border-[#781c1c]/20 text-[#18233c] shadow-xs"
+                }`}>
+                  <span className={`text-[9px] uppercase font-mono font-bold tracking-wider block ${
+                    isDark ? "text-[#d4af37]" : "text-[#781c1c]"
+                  }`}>Current Time</span>
+                  <span className={`text-xs font-mono font-bold whitespace-pre-line leading-tight ${
+                    isDark ? "text-white" : "text-[#18233c]"
+                  }`}>{currentTime}</span>
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Core dynamic content render */}
@@ -1717,14 +2083,7 @@ function PortfolioPageContent() {
 
 export default function PortfolioPage() {
   return (
-    <Suspense fallback={
-      <div className="min-h-screen bg-[#fcfaf6] text-[#2c2c2c] flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-16 h-16 border-4 border-t-[#781c1c] border-r-[#18233c] border-b-transparent border-l-transparent rounded-full animate-spin mx-auto mb-6" />
-          <p className="text-slate-500 font-bold tracking-widest text-xs uppercase animate-pulse">Loading MCC Resume Portfolio...</p>
-        </div>
-      </div>
-    }>
+    <Suspense fallback={<MCCLoader text="Loading MCC Resume Portfolio..." />}>
       <PortfolioPageContent />
     </Suspense>
   );

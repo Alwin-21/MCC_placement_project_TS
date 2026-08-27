@@ -13,9 +13,38 @@ body {
   font-size: 16px;
 }
 
+/* ─── Light Theme Design System Tokens (Warm Cream Palette) ──────────────── */
+:root {
+  --mcc-bg-page: #F8F4EC;         /* Soft warm ivory/cream page background */
+  --mcc-bg-sidebar: #F0E8D7;      /* Distinct, slightly deeper cream for sidebar */
+  --mcc-border-sidebar: #E0D4BD;  /* Subtle warm border separating sidebar */
+  --mcc-bg-card: #FFFCF7;         /* Lighter, crisper cream for cards/panels */
+  --mcc-border-card: #E8DEC9;     /* Soft warm border around cards */
+  --mcc-bg-subcard: #F4ECE0;      /* Warm inner sub-cards & container boxes */
+  --mcc-border-subcard: #E4D9C3;  /* Sub-card border */
+  --mcc-text-primary: #2B2620;    /* Soft charcoal/dark brown-gray primary text */
+  --mcc-text-secondary: #635A4D;  /* Warm muted dark brown-gray secondary text */
+  --mcc-text-muted: #918676;      /* Warm muted caption text */
+  --mcc-shadow-card: 0 2px 8px rgba(43, 38, 32, 0.04);
+}
+
+html.dark {
+  --mcc-bg-page: #0d0d12;
+  --mcc-bg-sidebar: #18233c;
+  --mcc-border-sidebar: rgba(255, 255, 255, 0.08);
+  --mcc-bg-card: #0b0b0f;
+  --mcc-border-card: rgba(255, 255, 255, 0.05);
+  --mcc-bg-subcard: #0b0b0f;
+  --mcc-border-subcard: rgba(255, 255, 255, 0.05);
+  --mcc-text-primary: #f3f4f6;
+  --mcc-text-secondary: #9ca3af;
+  --mcc-text-muted: #6b7280;
+  --mcc-shadow-card: none;
+}
+
 body {
-  background: #fcfaf6;
-  color: #1e293b;
+  background: var(--mcc-bg-page);
+  color: var(--mcc-text-primary);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   transition: background 0.2s ease, color 0.2s ease;
@@ -23,8 +52,8 @@ body {
 
 /* ─── Dark mode base ───────────────────────────────────────────────────── */
 html.dark body {
-  background: #0d0d12 !important;
-  color: #f3f4f6 !important;
+  background: var(--mcc-bg-page) !important;
+  color: var(--mcc-text-primary) !important;
 }
 
 /* ─── System dark mode fallback (before JS / useTheme loads) ───────────── */
@@ -104,6 +133,33 @@ html.dark ::-webkit-scrollbar-thumb {
 }
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(120, 28, 28, 0.6);
+}
+
+/* ─── Sidebar Scoped Scrollbar (Dark Theme) ─────────────────────────────── */
+/* Applied only to the sidebar nav scrollable areas, overriding the global thumb */
+.mcc-sidebar nav::-webkit-scrollbar,
+div.mcc-sidebar > nav::-webkit-scrollbar {
+  width: 5px;
+}
+.mcc-sidebar nav::-webkit-scrollbar-track,
+div.mcc-sidebar > nav::-webkit-scrollbar-track {
+  background: transparent;
+  border-radius: 9999px;
+}
+.mcc-sidebar nav::-webkit-scrollbar-thumb,
+div.mcc-sidebar > nav::-webkit-scrollbar-thumb {
+  background: #2e2e38;
+  border-radius: 9999px;
+}
+.mcc-sidebar nav::-webkit-scrollbar-thumb:hover,
+div.mcc-sidebar > nav::-webkit-scrollbar-thumb:hover {
+  background: #3a3a48;
+}
+/* Firefox */
+.mcc-sidebar nav,
+div.mcc-sidebar > nav {
+  scrollbar-width: thin;
+  scrollbar-color: #2e2e38 transparent;
 }
 
 /* Glassmorphism Classes */
@@ -205,7 +261,7 @@ h6 { font-size: 0.875rem; }
   h4 { font-size: 1rem; }
 }
 
-/* ─── Gray-to-black overrides — LIGHT MODE only ────────────────────────── */
+/* ─── Warm Charcoal Text & Border Overrides — LIGHT MODE ──────────────── */
 html:not(.dark) .text-gray-300,
 html:not(.dark) .text-gray-400,
 html:not(.dark) .text-gray-500,
@@ -226,17 +282,34 @@ html:not(.dark) .text-zinc-300,
 html:not(.dark) .text-zinc-400,
 html:not(.dark) .text-neutral-400,
 html:not(.dark) .text-neutral-500,
-html:not(.dark) .text-neutral-600 {
-  color: #1e293b !important;
+html:not(.dark) .text-neutral-600,
+html:not(.dark) .text-\[\#18233c\],
+html:not(.dark) .text-\[\#0f172a\] {
+  color: var(--mcc-text-primary) !important;
 }
 
-/* ─── Placeholders stay gray ───────────────────────────────────────────── */
+/* ─── Light Mode Cards & Panels Theme Overrides ────────────────────────── */
+html:not(.dark) .bg-white {
+  background-color: var(--mcc-bg-card) !important;
+}
+
+html:not(.dark) .bg-slate-50,
+html:not(.dark) .bg-slate-100 {
+  background-color: var(--mcc-bg-subcard) !important;
+}
+
+html:not(.dark) .border-slate-200,
+html:not(.dark) .border-slate-300 {
+  border-color: var(--mcc-border-card) !important;
+}
+
+/* ─── Placeholders stay warm gray ───────────────────────────────────────────── */
 ::placeholder,
 input::placeholder,
 textarea::placeholder {
-  color: #94a3b8 !important;
+  color: var(--mcc-text-muted) !important;
   opacity: 1 !important;
-  -webkit-text-fill-color: #94a3b8 !important;
+  -webkit-text-fill-color: var(--mcc-text-muted) !important;
   font-family: 'Inter', sans-serif !important;
 }
 
@@ -260,23 +333,23 @@ textarea {
   font-size: 0.9375rem;
 }
 
-/* ─── Sidebar — white background in light, dark in dark ───────────────── */
+/* ─── Sidebar — warm cream in light, dark in dark ───────────────── */
 .mcc-sidebar,
 aside.mcc-sidebar,
 div.mcc-sidebar {
-  background-color: #ffffff !important;
-  background: #ffffff !important;
-  color: #111827 !important;
-  border-right: 1px solid #e2e8f0 !important;
+  background-color: var(--mcc-bg-sidebar) !important;
+  background: var(--mcc-bg-sidebar) !important;
+  color: var(--mcc-text-primary) !important;
+  border-right: 1px solid var(--mcc-border-sidebar) !important;
 }
 
 html.dark .mcc-sidebar,
 html.dark aside.mcc-sidebar,
 html.dark div.mcc-sidebar {
-  background-color: #000000 !important;
-  background: #000000 !important;
+  background-color: #18233c !important;
+  background: #18233c !important;
   color: #f3f4f6 !important;
-  border-right: 1px solid rgba(255,255,255,0.05) !important;
+  border-right: 1px solid rgba(255,255,255,0.08) !important;
 }
 
 .mcc-sidebar span,
@@ -287,7 +360,7 @@ html.dark div.mcc-sidebar {
 .mcc-sidebar a,
 .mcc-sidebar select,
 .mcc-sidebar input {
-  color: #111827 !important;
+  color: var(--mcc-text-primary) !important;
   font-family: 'Inter', sans-serif !important;
 }
 
@@ -308,7 +381,7 @@ html.dark .mcc-sidebar input {
 .mcc-sidebar nav button span,
 .mcc-sidebar button.w-full span {
   background-color: transparent !important;
-  color: #374151 !important;
+  color: var(--mcc-text-secondary) !important;
   font-size: 0.9rem !important;
   font-weight: 500 !important;
   transition: all 0.2s ease-in-out !important;
@@ -339,8 +412,8 @@ html.dark .mcc-sidebar button.w-full span {
 /* Hover state */
 .mcc-sidebar nav button:hover:not(.mcc-active-tab),
 .mcc-sidebar button.w-full:hover:not(.mcc-active-tab) {
-  background-color: #f1f5f9 !important;
-  color: #111827 !important;
+  background-color: #E6DCBF !important;
+  color: var(--mcc-text-primary) !important;
 }
 
 html.dark .mcc-sidebar nav button:hover:not(.mcc-active-tab),
@@ -353,8 +426,8 @@ html.dark .mcc-sidebar button.w-full:hover:not(.mcc-active-tab) {
 .mcc-sidebar svg,
 .mcc-sidebar nav button svg,
 .mcc-sidebar button.w-full svg {
-  color: #374151 !important;
-  stroke: #374151 !important;
+  color: var(--mcc-text-secondary) !important;
+  stroke: var(--mcc-text-secondary) !important;
   stroke-width: 2px !important;
   width: 18px !important;
   height: 18px !important;
