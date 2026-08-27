@@ -38,6 +38,7 @@ import {
   Sparkles,
   X,
   Menu,
+  Download,
   BarChart3
 } from "lucide-react";
 import api from "@/services/api";

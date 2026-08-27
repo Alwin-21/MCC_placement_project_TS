@@ -17,6 +17,8 @@ export interface TokenPayload {
   unique_name: string;
   email: string;
   role: string;
+  Role?: string | number;
+  Email?: string;
   "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier": string;
   "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name": string;
   "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress": string;
