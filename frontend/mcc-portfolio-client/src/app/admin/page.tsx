@@ -1,8 +1,6 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
-import { useResizableSidebar } from "@/hooks/useResizableSidebar";
-import MCCLoader from "@/components/MCCLoader";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
@@ -88,7 +86,6 @@ export default function AdminPage() {
   const [activeTab, setActiveTab] = useState<ActiveTab>("overview");
   const [loading, setLoading] = useState(true);
   const [themeMode, toggleThemeMode] = useTheme();
-  const { sidebarWidth, startResizing, resetWidth } = useResizableSidebar({ storageKey: "mcc_admin_sidebar_width" });
   const [showMobileNav, setShowMobileNav] = useState(false);
 
   // Data States
@@ -1381,7 +1378,14 @@ export default function AdminPage() {
   };
 
   if (loading && !metrics) {
-    return <MCCLoader isDark={themeMode === "dark"} text="Loading MCC Admin Console..." subtext="MCC Administration" />;
+    return (
+      <div className="min-h-screen bg-[#0d0d12] text-[#f3f4f6] flex flex-col items-center justify-center">
+        <div className="w-12 h-12 border-2 border-[#781c1c] border-t-transparent rounded-full animate-spin mb-4" />
+        <p className="text-gray-400 text-sm font-semibold tracking-widest uppercase animate-pulse">
+          Loading MCC Admin Console...
+        </p>
+      </div>
+    );
   }
 
   return (
@@ -1399,15 +1403,12 @@ export default function AdminPage() {
       {/* ==========================================
           SIDEBAR NAVIGATION
           ========================================== */}
-      <div 
-        style={{ width: `${sidebarWidth}px` }}
-        className="border-r relative z-20 flex flex-col justify-between shrink-0 h-screen sticky top-0 transition-colors duration-300 hidden md:flex mcc-sidebar"
-      >
+      <div className={`w-72 border-r relative z-20 flex flex-col justify-between shrink-0 h-screen sticky top-0 transition-colors duration-300 hidden md:flex mcc-sidebar`}>
         {/* Logo & Console Title */}
-        <div className="py-2.5 px-3 border-b border-slate-200 flex items-center justify-center shrink-0">
+        <div className="p-6 border-b border-slate-200 flex items-center justify-center shrink-0">
           <img 
-            src={themeMode === "dark" ? "/mcc-logo-dark.png" : "/mcc-logo.png"} 
-            className="h-20 md:h-[88px] w-auto max-w-full object-contain rounded-lg transition-transform duration-200 hover:scale-[1.02] shrink-0" 
+            src={themeMode === "dark" ? "/mcc-logo-dark.png" : "/mcc-logo.jpg"} 
+            className="w-full max-w-[280px] h-auto object-contain rounded-lg transition-transform duration-200 hover:scale-[1.02]" 
             alt="Madras Christian College Logo" 
           />
         </div>
@@ -1457,7 +1458,7 @@ export default function AdminPage() {
                           : "text-slate-305 hover:text-white hover:bg-white/10"
                   }`}
                 >
-                  <Icon size={16} className={`shrink-0 ${isActive ? (themeMode === "dark" ? "text-black" : "text-[#18233c]") : isRbac && !isActive ? "text-violet-400" : "text-slate-400"}`} />
+                  <Icon size={16} className={isActive ? (themeMode === "dark" ? "text-black" : "text-[#18233c]") : isRbac && !isActive ? "text-violet-400" : "text-slate-400"} />
                   {tab.label}
                   {!isSuperAdmin && readOnly && !isActive && (
                     <span className="ml-auto text-[8px] bg-amber-500/20 text-amber-300 px-1.5 py-0.5 rounded font-mono font-bold" title="Read-only access">R</span>
@@ -1505,16 +1506,6 @@ export default function AdminPage() {
             Sign Out Console
           </button>
         </div>
-
-        {/* Interactive Drag Handle for Sidebar Resizing */}
-        <div
-          onMouseDown={startResizing}
-          onDoubleClick={resetWidth}
-          title="Click and drag to resize sidebar width. Double-click to reset."
-          className="absolute top-0 -right-1 bottom-0 w-2.5 cursor-col-resize hover:bg-[#781c1c]/50 active:bg-[#781c1c] transition-colors z-40 group flex items-center justify-center"
-        >
-          <div className="w-0.5 h-10 bg-slate-500/30 group-hover:bg-[#d4af37] rounded-full" />
-        </div>
       </div>
 
       {/* MOBILE DRAWER SIDEBAR OVERLAY */}
@@ -1525,7 +1516,7 @@ export default function AdminPage() {
             <div className="flex justify-between items-center pb-4 border-b border-gray-250 shrink-0">
               <div className="flex items-center justify-start py-1">
                 <img 
-                  src={themeMode === "dark" ? "/mcc-logo-dark.png" : "/mcc-logo.png"} 
+                  src={themeMode === "dark" ? "/mcc-logo-dark.png" : "/mcc-logo.jpg"} 
                   className="w-full max-w-[190px] h-auto object-contain rounded-lg" 
                   alt="Madras Christian College Logo" 
                 />
@@ -1576,7 +1567,7 @@ export default function AdminPage() {
                               : "text-slate-305 hover:text-white hover:bg-white/10"
                       }`}
                     >
-                      <Icon size={16} className={`shrink-0 ${isActive ? (themeMode === "dark" ? "text-black" : "text-[#18233c]") : isRbac && !isActive ? "text-violet-400" : "text-slate-400"}`} />
+                      <Icon size={16} className={isActive ? (themeMode === "dark" ? "text-black" : "text-[#18233c]") : isRbac && !isActive ? "text-violet-400" : "text-slate-400"} />
                       {tab.label}
                       {!isSuperAdmin && readOnly && !isActive && (
                         <span className="ml-auto text-[8px] bg-amber-500/20 text-amber-300 px-1.5 py-0.5 rounded font-mono font-bold" title="Read-only access">R</span>
@@ -1611,32 +1602,6 @@ export default function AdminPage() {
           ========================================== */}
       <div className="flex-1 min-w-0 p-6 md:p-8 relative overflow-y-auto overflow-x-hidden h-screen">
         
-        {/* DESKTOP TOP HEADER BAR WITH THEME CHANGER */}
-        <div className="hidden md:flex items-center justify-between pb-4 mb-6 border-b border-slate-200 dark:border-white/10 select-none">
-          <div className="flex items-center gap-3">
-            <span className="text-xs uppercase font-mono font-bold tracking-wider text-slate-500 dark:text-slate-400">
-              Madras Christian College · Administration Console
-            </span>
-          </div>
-
-          <div className="flex items-center gap-3">
-            <button
-              onClick={toggleThemeMode}
-              title={themeMode === "dark" ? "Switch to Light Mode" : "Switch to Dark Mode"}
-              className={`px-3.5 py-2 rounded-xl flex items-center gap-2 text-xs font-bold transition-all duration-300 cursor-pointer border shadow-xs ${
-                themeMode === "dark"
-                  ? "bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border-amber-500/30"
-                  : "bg-white hover:bg-slate-100 text-slate-800 border-slate-300"
-              }`}
-            >
-              {themeMode === "dark" ? <Sun size={16} className="text-amber-300 shrink-0" /> : <Moon size={16} className="text-[#781c1c] shrink-0" />}
-              <span className="font-mono uppercase text-[11px] tracking-wide">
-                {themeMode === "dark" ? "Light Mode" : "Dark Mode"}
-              </span>
-            </button>
-          </div>
-        </div>
-
         {/* MOBILE TOP HEADER BAR */}
         <div className="md:hidden flex items-center justify-between p-4 bg-white dark:bg-[#09090d] border border-slate-200 dark:border-white/5 rounded-2xl select-none mb-6 shadow-xs">
           <div className="flex items-center gap-2.5">
@@ -1672,7 +1637,7 @@ export default function AdminPage() {
         {activeTab === "overview" && (
           <div className="space-y-10">
             {/* Global Stats Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
               {[
                 { label: "Students", val: metrics?.totalStudents, icon: Users, color: "text-[#781c1c]" },
                 { label: "Projects", val: metrics?.totalProjects, icon: Code, color: "text-pink-400" },
@@ -1682,12 +1647,12 @@ export default function AdminPage() {
               ].map((stat, idx) => {
                 const Icon = stat.icon;
                 return (
-                  <div key={idx} className={`border rounded-2xl p-4 sm:p-5 transition duration-200 ${
+                  <div key={idx} className={`border rounded-2xl p-5 transition duration-200 ${
                     themeMode === "dark"
                       ? "bg-[#0b0b0f] border-white/5 hover:bg-[#0c0c14]"
                       : "bg-white border-slate-200 hover:bg-slate-50 hover:shadow-md"
                   }`}>
-                    <Icon size={18} className={`${stat.color} mb-2.5 shrink-0`} />
+                    <Icon size={18} className={`${stat.color} mb-2.5`} />
                     <span className={`text-xl md:text-2xl font-black block leading-none ${
                       themeMode === "dark" ? "text-white" : "text-slate-900"
                     }`}>

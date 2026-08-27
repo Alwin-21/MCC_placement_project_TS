@@ -12,47 +12,47 @@ import { useTheme } from "@/hooks/useTheme";
 import RichTextEditor from "./RichTextEditor";
 
 const AIDED_DEPARTMENTS = [
-  "Aided - English",
-  "Aided - Tamil",
-  "Aided - Languages",
-  "Aided - History",
-  "Aided - Political Science",
-  "Aided - Public Administration",
-  "Aided - Economics",
-  "Aided - Philosophy",
-  "Aided - Commerce",
-  "Aided - Social Work",
-  "Aided - Mathematics",
-  "Aided - Statistics",
-  "Aided - Physics",
-  "Aided - Chemistry",
-  "Aided - Botany",
-  "Aided - Zoology",
-  "Aided - Physical Education"
+  "English",
+  "Tamil",
+  "Languages",
+  "History",
+  "Political Science",
+  "Public Administration",
+  "Economics",
+  "Philosophy",
+  "Commerce",
+  "Social Work",
+  "Mathematics",
+  "Statistics",
+  "Physics",
+  "Chemistry",
+  "Botany",
+  "Zoology",
+  "Physical Education"
 ];
 
 const SFS_DEPARTMENTS = [
-  "SFS - English",
-  "SFS - Tamil",
-  "SFS - Languages",
-  "SFS - Journalism",
-  "SFS - Social Work",
-  "SFS - Commerce",
-  "SFS - Business Administration",
-  "SFS - Communication",
-  "SFS - Geography",
-  "SFS - Tourism Studies",
-  "SFS - Mathematics",
-  "SFS - Physics",
-  "SFS - Chemistry",
-  "SFS - Microbiology",
-  "SFS - Computer Application (BCA)",
-  "SFS - Computer Science (B.Sc)",
-  "SFS - Computer Science (MCA)",
-  "SFS - Visual Communication",
-  "SFS - Physical Education, Health Education and Sports",
-  "SFS - Psychology",
-  "SFS - Data Science"
+  "English",
+  "Tamil",
+  "Languages",
+  "Journalism",
+  "Social Work",
+  "Commerce",
+  "Business Administration",
+  "Communication",
+  "Geography",
+  "Tourism Studies",
+  "Mathematics",
+  "Physics",
+  "Chemistry",
+  "Microbiology",
+  "Computer Application (BCA)",
+  "Computer Science (B.Sc)",
+  "Computer Science (MCA)",
+  "Visual Communication",
+  "Physical Education, Health Education and Sports",
+  "Psychology",
+  "Data Science"
 ];
 
 const ALL_DEPARTMENTS = Array.from(new Set([...AIDED_DEPARTMENTS, ...SFS_DEPARTMENTS])).sort();
@@ -525,6 +525,17 @@ export default function AssessmentAdminModule({ themeMode: propThemeMode, toggle
         </div>
 
         <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+          <button
+            onClick={toggleThemeMode}
+            title="Toggle Light/Dark Mode"
+            className={`p-2 sm:p-2.5 rounded-xl sm:rounded-2xl transition-all duration-300 cursor-pointer border shadow-sm flex items-center justify-center ${
+              themeMode === "dark"
+                ? "bg-white/10 hover:bg-white/20 text-amber-300 border-white/15"
+                : "bg-white hover:bg-slate-100 text-slate-700 border-slate-200"
+            }`}
+          >
+            {themeMode === "dark" ? <Sun size={16} /> : <Moon size={16} />}
+          </button>
           <button
             onClick={openCreateModal}
             className="flex items-center justify-center gap-1.5 bg-[#781c1c] hover:bg-[#5f1515] text-white font-bold px-3 sm:px-5 py-2.5 sm:py-3 rounded-xl sm:rounded-2xl shadow-md transition duration-200 cursor-pointer active:scale-95 text-xs uppercase font-mono tracking-wider whitespace-nowrap"
@@ -1017,7 +1028,6 @@ export default function AssessmentAdminModule({ themeMode: propThemeMode, toggle
                 <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto p-3 bg-slate-50 dark:bg-slate-950 rounded-xl border border-slate-200 dark:border-slate-800">
                   {(formStreamTab === "Aided" ? AIDED_DEPARTMENTS : SFS_DEPARTMENTS).map((dept) => {
                     const isSelected = formData.selectedDepts.includes(dept);
-                    const displayName = dept.replace(/^(Aided|SFS) - /, "");
                     return (
                       <button
                         type="button"
@@ -1029,7 +1039,7 @@ export default function AssessmentAdminModule({ themeMode: propThemeMode, toggle
                             : "bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-800 hover:text-slate-900 dark:hover:text-white"
                         }`}
                       >
-                        {displayName} {isSelected && "✓"}
+                        {dept} {isSelected && "✓"}
                       </button>
                     );
                   })}
