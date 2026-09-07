@@ -12,7 +12,9 @@ export function parseImageAdjustments(url: string | null | undefined) {
       src: "",
       style: {
         objectFit: "cover" as const,
-        objectPosition: "center"
+        objectPosition: "center",
+        transform: "translate(0%, 0%) rotate(0deg) scale(1)",
+        transformOrigin: "center center"
       }
     };
   }
@@ -24,7 +26,9 @@ export function parseImageAdjustments(url: string | null | undefined) {
         src: url,
         style: {
           objectFit: "cover" as const,
-          objectPosition: "center"
+          objectPosition: "center",
+          transform: "translate(0%, 0%) rotate(0deg) scale(1)",
+          transformOrigin: "center center"
         }
       };
     }
@@ -34,15 +38,20 @@ export function parseImageAdjustments(url: string | null | undefined) {
     
     const scale = searchParams.get("scale") || "1";
     const rotate = searchParams.get("rotate") || "0";
-    const x = searchParams.get("x") || "50";
-    const y = searchParams.get("y") || "50";
+    const x = parseFloat(searchParams.get("x") || "50");
+    const y = parseFloat(searchParams.get("y") || "50");
     const fit = searchParams.get("fit") || "cover";
+
+    // Convert 0..100 slider range to -50%..+50% translation offset
+    const offsetX = x - 50;
+    const offsetY = y - 50;
 
     return {
       src: cleanUrl,
       style: {
-        transform: `scale(${scale}) rotate(${rotate}deg)`,
-        objectPosition: `${x}% ${y}%`,
+        transform: `translate(${offsetX}%, ${offsetY}%) rotate(${rotate}deg) scale(${scale})`,
+        transformOrigin: "center center",
+        objectPosition: "center",
         objectFit: fit as any
       }
     };
@@ -51,7 +60,9 @@ export function parseImageAdjustments(url: string | null | undefined) {
       src: url,
       style: {
         objectFit: "cover" as const,
-        objectPosition: "center"
+        objectPosition: "center",
+        transform: "translate(0%, 0%) rotate(0deg) scale(1)",
+        transformOrigin: "center center"
       }
     };
   }

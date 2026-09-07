@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useResizableSidebar } from "@/hooks/useResizableSidebar";
+import MCCLoader from "@/components/MCCLoader";
 import { useRouter } from "next/navigation";
 import {
   User,
@@ -32,6 +34,7 @@ import {
 } from "lucide-react";
 import api from "@/services/api";
 import { useTheme } from "@/hooks/useTheme";
+import { useResizableSidebar } from "@/hooks/useResizableSidebar";
 
 export default function ResumesDashboardPage() {
   const router = useRouter();
@@ -41,6 +44,7 @@ export default function ResumesDashboardPage() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [newResumeTitle, setNewResumeTitle] = useState("");
   const [themeMode, toggleThemeMode] = useTheme();
+  const { sidebarWidth, startResizing, resetWidth } = useResizableSidebar({ storageKey: "mcc_dashboard_sidebar_width" });
   const [showMobileNav, setShowMobileNav] = useState(false);
   const [creating, setCreating] = useState(false);
 
@@ -149,12 +153,15 @@ export default function ResumesDashboardPage() {
     <div className={`flex h-screen h-[100dvh] overflow-hidden ${themeMode === "dark" ? "bg-[#0d0d12] text-white" : "bg-[#fcfaf6] text-[#0f172a]"}`}>
       
       {/* DESKTOP SIDEBAR */}
-      <div className={`hidden md:flex flex-col w-72 shrink-0 border-r select-none mcc-sidebar`}>
+      <div 
+        style={{ width: `${sidebarWidth}px` }}
+        className="border-r relative z-20 flex flex-col justify-between shrink-0 h-screen sticky top-0 transition-colors duration-300 hidden md:flex select-none mcc-sidebar"
+      >
         {/* Logo & Console Title */}
-        <div className="p-6 border-b border-slate-200 flex items-center justify-center shrink-0">
+        <div className="py-2.5 px-3 border-b border-slate-200 flex items-center justify-center shrink-0">
           <img 
-            src={themeMode === "dark" ? "/mcc-logo-dark.png" : "/mcc-logo.jpg"} 
-            className="w-full max-w-[280px] h-auto object-contain rounded-lg transition-transform duration-200 hover:scale-[1.02]" 
+            src={themeMode === "dark" ? "/mcc-logo-dark.png" : "/mcc-logo.png"} 
+            className="h-20 md:h-[88px] w-auto max-w-full object-contain rounded-lg transition-transform duration-200 hover:scale-[1.02] shrink-0" 
             alt="Madras Christian College Logo" 
           />
         </div>
@@ -219,6 +226,16 @@ export default function ResumesDashboardPage() {
             <LogOut size={15} /> Log Out
           </button>
         </div>
+
+        {/* Interactive Drag Handle for Sidebar Resizing */}
+        <div
+          onMouseDown={startResizing}
+          onDoubleClick={resetWidth}
+          title="Click and drag to resize sidebar width. Double-click to reset."
+          className="absolute top-0 -right-1 bottom-0 w-2.5 cursor-col-resize hover:bg-[#781c1c]/50 active:bg-[#781c1c] transition-colors z-40 group flex items-center justify-center"
+        >
+          <div className="w-0.5 h-10 bg-slate-500/30 group-hover:bg-[#d4af37] rounded-full" />
+        </div>
       </div>
 
       {/* MOBILE DRAWER SIDEBAR OVERLAY */}
@@ -226,10 +243,10 @@ export default function ResumesDashboardPage() {
         <div className="fixed inset-0 z-50 flex md:hidden bg-black/60 backdrop-blur-xs select-none">
           <div className="w-72 flex flex-col p-5 animate-slideIn h-screen border-r mcc-sidebar">
             <div className="flex justify-between items-center pb-4 border-b border-slate-200 dark:border-white/5 shrink-0">
-              <div className="flex items-center justify-start py-1">
+              <div className="flex items-center justify-start py-0.5">
                 <img 
-                  src={themeMode === "dark" ? "/mcc-logo-dark.png" : "/mcc-logo.jpg"} 
-                  className="w-full max-w-[190px] h-auto object-contain rounded-lg" 
+                  src={themeMode === "dark" ? "/mcc-logo-dark.png" : "/mcc-logo.png"} 
+                  className="h-16 sm:h-20 w-auto max-w-[220px] object-contain rounded-lg shrink-0"
                   alt="Madras Christian College Logo" 
                 />
               </div>
@@ -406,10 +423,7 @@ export default function ResumesDashboardPage() {
           </div>
 
           {loading ? (
-            <div className="flex flex-col items-center justify-center py-20 gap-4">
-              <div className="w-10 h-10 border-4 border-[#781c1c] border-t-transparent rounded-full animate-spin"></div>
-              <p className="text-sm opacity-60">Fetching your resumes...</p>
-            </div>
+            <MCCLoader fullScreen={false} text="Fetching your resumes..." subtext="MCC Resume Portal" />
           ) : resumes.length === 0 ? (
             <div className={`border-2 border-dashed rounded-3xl p-12 text-center max-w-xl mx-auto mt-8 transition ${
               themeMode === "dark" ? "border-white/5 bg-[#0b0b0f]" : "border-slate-200 bg-white shadow-sm"
