@@ -134,7 +134,7 @@ function PortfolioPageContent() {
   const [loading, setLoading] = useState(true);
   const [copiedLink, setCopiedLink] = useState(false);
   const [imgError, setImgError] = useState(false);
-  
+
   // Custom states matching image UI components
   const [currentView, setCurrentView] = useState("dashboard"); // mapping to sidebar
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
@@ -316,8 +316,8 @@ function PortfolioPageContent() {
           </div>
           <h2 className="text-2xl font-black font-serif tracking-tight text-[#18233c] dark:text-white">Portfolio Record Not Found</h2>
           <p className="text-sm text-slate-400 mt-2 leading-relaxed">The requested student directory is empty or the URL slug is invalid.</p>
-          <button 
-            onClick={() => router.push("/")} 
+          <button
+            onClick={() => router.push("/")}
             className="mt-6 w-full bg-[#781c1c] hover:bg-[#5f1515] text-white px-6 py-3 rounded-2xl font-bold transition-all shadow-lg shadow-[#781c1c]/25 hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
           >
             Back to Homepage
@@ -377,9 +377,8 @@ function PortfolioPageContent() {
             {/* LEFT COLUMN - STUDENT BIO & CARD */}
             <div className="lg:col-span-4 space-y-6">
               {/* Profile Hero Card */}
-              <div className={`relative overflow-hidden rounded-2xl border transition-all duration-300 shadow-md ${
-                isDark ? "bg-[#131d31] border-[#781c1c]/30 text-slate-100" : "bg-white border-[#781c1c]/15 text-[#18233c]"
-              }`}>
+              <div className={`relative overflow-hidden rounded-2xl border transition-all duration-300 shadow-md ${isDark ? "bg-[#131d31] border-[#781c1c]/30 text-slate-100" : "bg-white border-[#781c1c]/15 text-[#18233c]"
+                }`}>
                 {/* Solid Brand Maroon Top Accent Strip */}
                 <div className="h-2.5 w-full bg-[#781c1c]" />
 
@@ -389,12 +388,12 @@ function PortfolioPageContent() {
                       const imgDetails = parseImageAdjustments(profile?.profileImageUrl || user?.profileImageUrl);
                       return (
                         <div className="w-20 h-20 rounded-full ring-4 ring-[#d4af37]/40 shadow-lg overflow-hidden flex items-center justify-center shrink-0 transition-transform duration-300 hover:scale-105">
-                          <img 
-                            src={imgDetails.src} 
+                          <img
+                            src={imgDetails.src}
                             onError={() => setImgError(true)}
-                            style={imgDetails.style} 
+                            style={imgDetails.style}
                             className="w-full h-full object-cover"
-                            alt={user.fullName} 
+                            alt={user.fullName}
                           />
                         </div>
                       );
@@ -410,18 +409,17 @@ function PortfolioPageContent() {
                         </h2>
                         <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0" title="Verified Portfolio Profile" />
                       </div>
-                      
+
                       {profile?.course && (
                         <p className={`text-xs font-semibold leading-tight truncate ${isDark ? "text-slate-300" : "text-slate-600"}`}>
                           {profile.course} {profile?.yearOfStudy ? `· ${profile.yearOfStudy}` : ""}
                         </p>
                       )}
-                      
+
                       <div className="flex flex-wrap justify-center lg:justify-start gap-1.5 pt-1">
                         {user.department && (
-                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md uppercase font-mono tracking-wider ${
-                            isDark ? "bg-slate-800 text-slate-300 border border-slate-700" : "bg-slate-100 text-slate-700 border border-slate-200"
-                          }`}>
+                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md uppercase font-mono tracking-wider ${isDark ? "bg-slate-800 text-slate-300 border border-slate-700" : "bg-slate-100 text-slate-700 border border-slate-200"
+                            }`}>
                             {user.department}
                           </span>
                         )}
@@ -435,9 +433,8 @@ function PortfolioPageContent() {
                   </div>
 
                   {/* Student Attributes Details */}
-                  <div className={`space-y-2 text-xs pt-4 border-t transition-colors ${
-                    isDark ? "border-slate-800 text-slate-300" : "border-slate-150 text-slate-600"
-                  }`}>
+                  <div className={`space-y-2 text-xs pt-4 border-t transition-colors ${isDark ? "border-slate-800 text-slate-300" : "border-slate-150 text-slate-600"
+                    }`}>
                     {user.registerNumber && (
                       <div className="flex justify-between items-center">
                         <span className="text-[11px] font-medium text-slate-400">Register ID</span>
@@ -467,9 +464,8 @@ function PortfolioPageContent() {
                   </div>
 
                   {/* 3-Column Quick Metrics Arsenal */}
-                  <div className={`grid grid-cols-2 gap-3 pt-4 border-t text-center ${
-                    isDark ? "border-slate-800" : "border-slate-150"
-                  }`}>
+                  <div className={`grid grid-cols-2 gap-3 pt-4 border-t text-center ${isDark ? "border-slate-800" : "border-slate-150"
+                    }`}>
                     <div className={`p-3 rounded-xl transition-all ${isDark ? "bg-slate-900/60" : "bg-slate-50"}`}>
                       <span className="block text-[10px] uppercase font-extrabold tracking-wider text-slate-400">Skills Arsenal</span>
                       <span className="block text-xl font-black text-[#781c1c] dark:text-red-400 mt-0.5">{skills.length}</span>
@@ -484,9 +480,8 @@ function PortfolioPageContent() {
 
               {/* Biography summary widget (reflecting student bio) */}
               {profile?.bio && (
-                <div className={`rounded-2xl border p-5 shadow-sm transition-all duration-300 ${
-                  isDark ? "bg-[#131d31] border-[#781c1c]/25 text-slate-200" : "bg-white border-[#781c1c]/10 text-[#18233c]"
-                }`}>
+                <div className={`rounded-2xl border p-5 shadow-sm transition-all duration-300 ${isDark ? "bg-[#131d31] border-[#781c1c]/25 text-slate-200" : "bg-white border-[#781c1c]/10 text-[#18233c]"
+                  }`}>
                   <h3 className="text-xs font-extrabold uppercase tracking-wider pb-3 border-b border-slate-500/15 mb-3 flex items-center gap-2">
                     <div className="w-1.5 h-4 bg-[#781c1c] rounded-full" />
                     <FileText size={15} className="text-[#781c1c]" /> Biography Statement
@@ -504,9 +499,8 @@ function PortfolioPageContent() {
 
               {/* Connected Media Handles / Contacts summary widget */}
               {(user.email || profile?.phone || profile?.currentLocation || profile?.linkedInUrl || profile?.gitHubUrl || profile?.gitHubUsername || profile?.behanceUrl) && (
-                <div className={`rounded-2xl border p-5 shadow-sm transition-all duration-300 ${
-                  isDark ? "bg-[#131d31] border-[#781c1c]/25 text-slate-200" : "bg-white border-[#781c1c]/10 text-[#18233c]"
-                }`}>
+                <div className={`rounded-2xl border p-5 shadow-sm transition-all duration-300 ${isDark ? "bg-[#131d31] border-[#781c1c]/25 text-slate-200" : "bg-white border-[#781c1c]/10 text-[#18233c]"
+                  }`}>
                   <h3 className="text-xs font-extrabold uppercase tracking-wider pb-3 border-b border-slate-500/15 mb-3 flex items-center gap-2">
                     <div className="w-1.5 h-4 bg-[#781c1c] rounded-full" />
                     <LinkIcon size={15} className="text-[#781c1c]" /> Contacts & Verified Socials
@@ -573,9 +567,8 @@ function PortfolioPageContent() {
                 <button
                   type="button"
                   onClick={() => setCurrentView("academic")}
-                  className={`relative overflow-hidden rounded-2xl border p-5 shadow-md transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:border-[#781c1c] dark:hover:border-blue-400 cursor-pointer text-left w-full focus:outline-none focus:ring-2 focus:ring-[#781c1c]/40 group ${
-                    isDark ? "bg-[#131d31] border-[#781c1c]/30" : "bg-white border-[#781c1c]/15"
-                  }`}
+                  className={`relative overflow-hidden rounded-2xl border p-5 shadow-md transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:border-[#781c1c] dark:hover:border-blue-400 cursor-pointer text-left w-full focus:outline-none focus:ring-2 focus:ring-[#781c1c]/40 group ${isDark ? "bg-[#131d31] border-[#781c1c]/30" : "bg-white border-[#781c1c]/15"
+                    }`}
                 >
                   <div className="w-1.5 h-full bg-[#18233c] absolute left-0 top-0 bottom-0 group-hover:bg-[#781c1c] transition-colors" />
                   <div className="flex items-center justify-between">
@@ -593,9 +586,8 @@ function PortfolioPageContent() {
                 <button
                   type="button"
                   onClick={() => setCurrentView("experience")}
-                  className={`relative overflow-hidden rounded-2xl border p-5 shadow-md transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:border-[#781c1c] dark:hover:border-red-400 cursor-pointer text-left w-full focus:outline-none focus:ring-2 focus:ring-[#781c1c]/40 group ${
-                    isDark ? "bg-[#131d31] border-[#781c1c]/30" : "bg-white border-[#781c1c]/15"
-                  }`}
+                  className={`relative overflow-hidden rounded-2xl border p-5 shadow-md transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:border-[#781c1c] dark:hover:border-red-400 cursor-pointer text-left w-full focus:outline-none focus:ring-2 focus:ring-[#781c1c]/40 group ${isDark ? "bg-[#131d31] border-[#781c1c]/30" : "bg-white border-[#781c1c]/15"
+                    }`}
                 >
                   <div className="w-1.5 h-full bg-[#781c1c] absolute left-0 top-0 bottom-0 group-hover:bg-red-500 transition-colors" />
                   <div className="flex items-center justify-between">
@@ -613,9 +605,8 @@ function PortfolioPageContent() {
                 <button
                   type="button"
                   onClick={() => setCurrentView("licenses-certifications")}
-                  className={`relative overflow-hidden rounded-2xl border p-5 shadow-md transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:border-[#d4af37] cursor-pointer text-left w-full focus:outline-none focus:ring-2 focus:ring-[#d4af37]/40 group ${
-                    isDark ? "bg-[#131d31] border-[#781c1c]/30" : "bg-white border-[#781c1c]/15"
-                  }`}
+                  className={`relative overflow-hidden rounded-2xl border p-5 shadow-md transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:border-[#d4af37] cursor-pointer text-left w-full focus:outline-none focus:ring-2 focus:ring-[#d4af37]/40 group ${isDark ? "bg-[#131d31] border-[#781c1c]/30" : "bg-white border-[#781c1c]/15"
+                    }`}
                 >
                   <div className="w-1.5 h-full bg-[#d4af37] absolute left-0 top-0 bottom-0 group-hover:bg-amber-400 transition-colors" />
                   <div className="flex items-center justify-between">
@@ -632,9 +623,8 @@ function PortfolioPageContent() {
 
               {/* Projects List Card */}
               {projects.length > 0 && (
-                <div className={`rounded-2xl border p-6 shadow-md transition-all duration-300 ${
-                  isDark ? "bg-[#131d31] border-[#781c1c]/30 text-slate-200" : "bg-white border-[#781c1c]/15 text-[#18233c]"
-                }`}>
+                <div className={`rounded-2xl border p-6 shadow-md transition-all duration-300 ${isDark ? "bg-[#131d31] border-[#781c1c]/30 text-slate-200" : "bg-white border-[#781c1c]/15 text-[#18233c]"
+                  }`}>
                   <h3 className="text-xs font-extrabold uppercase tracking-wider pb-3 border-b border-slate-500/15 mb-4 flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <div className="w-1.5 h-4 bg-[#781c1c] rounded-full" />
@@ -649,15 +639,14 @@ function PortfolioPageContent() {
                       <div key={proj.id} className="flex items-start justify-between border-b border-slate-500/10 last:border-0 pb-4 last:pb-0 gap-4">
                         <div className="space-y-1 min-w-0 flex-1">
                           <h4 className="font-bold text-sm text-slate-900 dark:text-slate-100 flex items-center gap-2">
-                            <span className="text-xs font-mono font-bold text-[#781c1c] dark:text-amber-400">{idx + 1}.</span> 
+                            <span className="text-xs font-mono font-bold text-[#781c1c] dark:text-amber-400">{idx + 1}.</span>
                             <span className="truncate">{proj.title}</span>
                           </h4>
                           {proj.technologies && (
                             <div className="flex flex-wrap gap-1 mt-1">
                               {proj.technologies.split(",").map((tech: string, i: number) => (
-                                <span key={i} className={`text-[10px] font-mono px-2 py-0.5 rounded-md font-semibold ${
-                                  isDark ? "bg-slate-800 text-slate-300" : "bg-slate-100 text-slate-600"
-                                }`}>
+                                <span key={i} className={`text-[10px] font-mono px-2 py-0.5 rounded-md font-semibold ${isDark ? "bg-slate-800 text-slate-300" : "bg-slate-100 text-slate-600"
+                                  }`}>
                                   {tech.trim()}
                                 </span>
                               ))}
@@ -665,9 +654,9 @@ function PortfolioPageContent() {
                           )}
                         </div>
                         {(proj.githubUrl || proj.liveUrl) && (
-                          <a 
-                            href={proj.githubUrl || proj.liveUrl} 
-                            target="_blank" 
+                          <a
+                            href={proj.githubUrl || proj.liveUrl}
+                            target="_blank"
                             className="px-3 py-1.5 rounded-lg bg-blue-500/10 text-blue-500 hover:bg-blue-500/20 text-xs font-bold shrink-0 flex items-center gap-1 transition"
                           >
                             <ExternalLink size={12} /> View
@@ -681,9 +670,8 @@ function PortfolioPageContent() {
 
               {/* Timeline Card */}
               {timelineMilestones.length > 0 && (
-                <div className={`rounded-2xl border p-6 shadow-md transition-all duration-300 ${
-                  isDark ? "bg-[#131d31] border-[#781c1c]/30 text-slate-200" : "bg-white border-[#781c1c]/15 text-[#18233c]"
-                }`}>
+                <div className={`rounded-2xl border p-6 shadow-md transition-all duration-300 ${isDark ? "bg-[#131d31] border-[#781c1c]/30 text-slate-200" : "bg-white border-[#781c1c]/15 text-[#18233c]"
+                  }`}>
                   <h3 className="text-xs font-extrabold uppercase tracking-wider pb-3 border-b border-slate-500/15 mb-4 flex items-center gap-2">
                     <div className="w-1.5 h-4 bg-[#18233c] dark:bg-blue-400 rounded-full" />
                     <span>Academic & Professional Milestones</span>
@@ -698,9 +686,8 @@ function PortfolioPageContent() {
                             <p className="text-xs text-slate-400 font-medium truncate">{m.subtitle}</p>
                           </div>
                         </div>
-                        <span className={`text-[10px] font-mono font-bold shrink-0 px-2.5 py-1 rounded-lg border ${
-                          isDark ? "bg-slate-800 border-slate-700 text-slate-300" : "bg-slate-50 border-slate-200 text-slate-600"
-                        }`}>
+                        <span className={`text-[10px] font-mono font-bold shrink-0 px-2.5 py-1 rounded-lg border ${isDark ? "bg-slate-800 border-slate-700 text-slate-300" : "bg-slate-50 border-slate-200 text-slate-600"
+                          }`}>
                           {m.date}
                         </span>
                       </div>
@@ -711,9 +698,8 @@ function PortfolioPageContent() {
 
               {/* Achievements & Awards Summary */}
               {achievements.length > 0 && (
-                <div className={`rounded-2xl border p-6 shadow-md transition-all duration-300 ${
-                  isDark ? "bg-[#131d31] border-[#781c1c]/30 text-slate-200" : "bg-white border-[#781c1c]/15 text-[#18233c]"
-                }`}>
+                <div className={`rounded-2xl border p-6 shadow-md transition-all duration-300 ${isDark ? "bg-[#131d31] border-[#781c1c]/30 text-slate-200" : "bg-white border-[#781c1c]/15 text-[#18233c]"
+                  }`}>
                   <h3 className="text-xs font-extrabold uppercase tracking-wider pb-3 border-b border-slate-500/15 mb-4 flex items-center gap-2">
                     <div className="w-1.5 h-4 bg-[#d4af37] rounded-full" />
                     <span>Key Merits & Recognition</span>
@@ -735,9 +721,8 @@ function PortfolioPageContent() {
 
       case "about":
         return (
-          <div className={`rounded-2xl border p-5 sm:p-8 shadow-md transition-all duration-300 animate-fadeIn ${
-            isDark ? "bg-[#131d31] border-[#781c1c]/30 text-slate-100" : "bg-white border-[#781c1c]/15 text-[#18233c]"
-          }`}>
+          <div className={`rounded-2xl border p-5 sm:p-8 shadow-md transition-all duration-300 animate-fadeIn ${isDark ? "bg-[#131d31] border-[#781c1c]/30 text-slate-100" : "bg-white border-[#781c1c]/15 text-[#18233c]"
+            }`}>
             <h3 className="text-sm sm:text-base font-extrabold uppercase tracking-wider pb-4 border-b border-slate-500/15 mb-6 flex items-center gap-2.5 font-serif">
               <div className="w-1.5 h-5 bg-[#781c1c] rounded-full" />
               <FileText size={18} className="text-[#781c1c]" /> About & Statement of Purpose
@@ -762,9 +747,8 @@ function PortfolioPageContent() {
               {profile?.sop && (
                 <div className="border-t border-slate-500/15 pt-5">
                   <h4 className="text-xs font-extrabold uppercase tracking-wider text-slate-400 mb-2 font-mono">Statement of Purpose</h4>
-                  <div className={`text-sm leading-relaxed p-4 sm:p-5 rounded-xl border whitespace-pre-line ${
-                    isDark ? "bg-slate-900/60 border-slate-800 text-slate-200" : "bg-[#fcfaf6] border-[#781c1c]/15 text-slate-800"
-                  }`}>
+                  <div className={`text-sm leading-relaxed p-4 sm:p-5 rounded-xl border whitespace-pre-line ${isDark ? "bg-slate-900/60 border-slate-800 text-slate-200" : "bg-[#fcfaf6] border-[#781c1c]/15 text-slate-800"
+                    }`}>
                     {profile.sop}
                   </div>
                 </div>
@@ -775,9 +759,8 @@ function PortfolioPageContent() {
 
       case "experience":
         return (
-          <div className={`rounded-2xl border p-5 sm:p-8 shadow-md transition-all duration-300 animate-fadeIn ${
-            isDark ? "bg-[#131d31] border-[#781c1c]/30 text-slate-100" : "bg-white border-[#781c1c]/15 text-[#18233c]"
-          }`}>
+          <div className={`rounded-2xl border p-5 sm:p-8 shadow-md transition-all duration-300 animate-fadeIn ${isDark ? "bg-[#131d31] border-[#781c1c]/30 text-slate-100" : "bg-white border-[#781c1c]/15 text-[#18233c]"
+            }`}>
             <h3 className="text-sm sm:text-base font-extrabold uppercase tracking-wider pb-4 border-b border-slate-500/15 mb-6 flex items-center gap-2.5 font-serif">
               <div className="w-1.5 h-5 bg-[#781c1c] rounded-full" />
               <Briefcase size={18} className="text-[#781c1c]" /> Experience History
@@ -807,9 +790,8 @@ function PortfolioPageContent() {
 
       case "academic":
         return (
-          <div className={`rounded-2xl border p-5 sm:p-8 shadow-md transition-all duration-300 animate-fadeIn ${
-            isDark ? "bg-[#131d31] border-[#781c1c]/30 text-slate-100" : "bg-white border-[#781c1c]/15 text-[#18233c]"
-          }`}>
+          <div className={`rounded-2xl border p-5 sm:p-8 shadow-md transition-all duration-300 animate-fadeIn ${isDark ? "bg-[#131d31] border-[#781c1c]/30 text-slate-100" : "bg-white border-[#781c1c]/15 text-[#18233c]"
+            }`}>
             <h3 className="text-sm sm:text-base font-extrabold uppercase tracking-wider pb-4 border-b border-slate-500/15 mb-6 flex items-center gap-2.5 font-serif">
               <div className="w-1.5 h-5 bg-[#18233c] dark:bg-blue-400 rounded-full" />
               <Award size={18} className="text-[#18233c] dark:text-blue-400" /> Education Records & Degrees
@@ -842,9 +824,8 @@ function PortfolioPageContent() {
 
       case "achievements":
         return (
-          <div className={`rounded-2xl border p-5 sm:p-8 shadow-md transition-all duration-300 animate-fadeIn ${
-            isDark ? "bg-[#131d31] border-[#781c1c]/30 text-slate-100" : "bg-white border-[#781c1c]/15 text-[#18233c]"
-          }`}>
+          <div className={`rounded-2xl border p-5 sm:p-8 shadow-md transition-all duration-300 animate-fadeIn ${isDark ? "bg-[#131d31] border-[#781c1c]/30 text-slate-100" : "bg-white border-[#781c1c]/15 text-[#18233c]"
+            }`}>
             <h3 className="text-sm sm:text-base font-extrabold uppercase tracking-wider pb-4 border-b border-slate-500/15 mb-6 flex items-center gap-2.5 font-serif">
               <div className="w-1.5 h-5 bg-[#d4af37] rounded-full" />
               <Trophy size={18} className="text-[#d4af37]" /> Achievements & Ranks
@@ -880,9 +861,8 @@ function PortfolioPageContent() {
 
       case "projects-research":
         return (
-          <div className={`rounded-2xl border p-5 sm:p-8 shadow-md transition-all duration-300 animate-fadeIn space-y-8 ${
-            isDark ? "bg-[#131d31] border-[#781c1c]/30 text-slate-100" : "bg-white border-[#781c1c]/15 text-[#18233c]"
-          }`}>
+          <div className={`rounded-2xl border p-5 sm:p-8 shadow-md transition-all duration-300 animate-fadeIn space-y-8 ${isDark ? "bg-[#131d31] border-[#781c1c]/30 text-slate-100" : "bg-white border-[#781c1c]/15 text-[#18233c]"
+            }`}>
             <div>
               <h3 className="text-sm sm:text-base font-extrabold uppercase tracking-wider pb-4 border-b border-slate-500/15 mb-6 flex items-center gap-2.5 font-serif">
                 <div className="w-1.5 h-5 bg-emerald-500 rounded-full" />
@@ -902,9 +882,8 @@ function PortfolioPageContent() {
                       {proj.technologies && (
                         <div className="flex flex-wrap gap-1.5 pt-1">
                           {proj.technologies.split(",").map((tech: string, i: number) => (
-                            <span key={i} className={`text-xs font-mono px-2.5 py-0.5 rounded-md font-semibold ${
-                              isDark ? "bg-slate-800 text-slate-300" : "bg-slate-100 text-slate-700"
-                            }`}>
+                            <span key={i} className={`text-xs font-mono px-2.5 py-0.5 rounded-md font-semibold ${isDark ? "bg-slate-800 text-slate-300" : "bg-slate-100 text-slate-700"
+                              }`}>
                               {tech.trim()}
                             </span>
                           ))}
@@ -959,9 +938,8 @@ function PortfolioPageContent() {
 
       case "skills":
         return (
-          <div className={`rounded-2xl border p-6 sm:p-8 shadow-md transition-all duration-300 animate-fadeIn ${
-            isDark ? "bg-[#131d31] border-[#781c1c]/30 text-slate-100" : "bg-white border-[#781c1c]/15 text-[#18233c]"
-          }`}>
+          <div className={`rounded-2xl border p-6 sm:p-8 shadow-md transition-all duration-300 animate-fadeIn ${isDark ? "bg-[#131d31] border-[#781c1c]/30 text-slate-100" : "bg-white border-[#781c1c]/15 text-[#18233c]"
+            }`}>
             <h3 className="text-base font-extrabold uppercase tracking-wider pb-4 border-b border-slate-500/15 mb-6 flex items-center gap-2.5 font-serif">
               <div className="w-1.5 h-5 bg-[#781c1c] rounded-full" />
               <Code2 size={18} className="text-[#781c1c]" /> Skills Arsenal & Proficiencies
@@ -969,9 +947,8 @@ function PortfolioPageContent() {
             {skills.length > 0 ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {skills.map((skill) => (
-                  <div key={skill.id} className={`p-4 rounded-xl border transition-all duration-300 hover:-translate-y-0.5 flex justify-between items-center ${
-                    isDark ? "bg-slate-900/60 border-slate-800" : "bg-slate-50 border-slate-200"
-                  }`}>
+                  <div key={skill.id} className={`p-4 rounded-xl border transition-all duration-300 hover:-translate-y-0.5 flex justify-between items-center ${isDark ? "bg-slate-900/60 border-slate-800" : "bg-slate-50 border-slate-200"
+                    }`}>
                     <div>
                       <h4 className="font-bold text-sm text-slate-900 dark:text-white">{skill.name}</h4>
                       <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mt-0.5 block">{skill.category}</span>
@@ -990,9 +967,8 @@ function PortfolioPageContent() {
 
       case "licenses-certifications":
         return (
-          <div className={`rounded-2xl border p-6 sm:p-8 shadow-md transition-all duration-300 animate-fadeIn ${
-            isDark ? "bg-[#131d31] border-[#781c1c]/30 text-slate-100" : "bg-white border-[#781c1c]/15 text-[#18233c]"
-          }`}>
+          <div className={`rounded-2xl border p-6 sm:p-8 shadow-md transition-all duration-300 animate-fadeIn ${isDark ? "bg-[#131d31] border-[#781c1c]/30 text-slate-100" : "bg-white border-[#781c1c]/15 text-[#18233c]"
+            }`}>
             <h3 className="text-base font-extrabold uppercase tracking-wider pb-4 border-b border-slate-500/15 mb-6 flex items-center gap-2.5 font-serif">
               <div className="w-1.5 h-5 bg-[#781c1c] rounded-full" />
               <Award size={18} className="text-[#781c1c]" /> Licenses & Certifications
@@ -1028,9 +1004,8 @@ function PortfolioPageContent() {
 
       case "languages":
         return (
-          <div className={`rounded-2xl border p-6 sm:p-8 shadow-md transition-all duration-300 animate-fadeIn ${
-            isDark ? "bg-[#131d31] border-[#781c1c]/30 text-slate-100" : "bg-white border-[#781c1c]/15 text-[#18233c]"
-          }`}>
+          <div className={`rounded-2xl border p-6 sm:p-8 shadow-md transition-all duration-300 animate-fadeIn ${isDark ? "bg-[#131d31] border-[#781c1c]/30 text-slate-100" : "bg-white border-[#781c1c]/15 text-[#18233c]"
+            }`}>
             <h3 className="text-base font-extrabold uppercase tracking-wider pb-4 border-b border-slate-500/15 mb-6 flex items-center gap-2.5 font-serif">
               <div className="w-1.5 h-5 bg-[#18233c] dark:bg-blue-400 rounded-full" />
               <Globe size={18} className="text-[#18233c] dark:text-blue-400" /> Languages Known
@@ -1038,9 +1013,8 @@ function PortfolioPageContent() {
             {profile?.languages ? (
               <div className="flex flex-wrap gap-3">
                 {profile.languages.split(",").map((l: string, i: number) => (
-                  <span key={i} className={`px-4 py-2 text-sm font-bold rounded-xl border shadow-sm ${
-                    isDark ? "bg-slate-900 border-slate-800 text-slate-200" : "bg-slate-50 border-slate-200 text-[#18233c]"
-                  }`}>
+                  <span key={i} className={`px-4 py-2 text-sm font-bold rounded-xl border shadow-sm ${isDark ? "bg-slate-900 border-slate-800 text-slate-200" : "bg-slate-50 border-slate-200 text-[#18233c]"
+                    }`}>
                     {l.trim()}
                   </span>
                 ))}
@@ -1053,17 +1027,15 @@ function PortfolioPageContent() {
 
       case "test-scores":
         return (
-          <div className={`rounded-2xl border p-6 sm:p-8 shadow-md transition-all duration-300 animate-fadeIn ${
-            isDark ? "bg-[#131d31] border-[#781c1c]/30 text-slate-100" : "bg-white border-[#781c1c]/15 text-[#18233c]"
-          }`}>
+          <div className={`rounded-2xl border p-6 sm:p-8 shadow-md transition-all duration-300 animate-fadeIn ${isDark ? "bg-[#131d31] border-[#781c1c]/30 text-slate-100" : "bg-white border-[#781c1c]/15 text-[#18233c]"
+            }`}>
             <h3 className="text-base font-extrabold uppercase tracking-wider pb-4 border-b border-slate-500/15 mb-6 flex items-center gap-2.5 font-serif">
               <div className="w-1.5 h-5 bg-[#781c1c] rounded-full" />
               <Award size={18} className="text-[#781c1c]" /> Standardized Test Scores
             </h3>
             {profile?.testScores ? (
-              <div className={`p-5 rounded-xl border text-sm leading-relaxed whitespace-pre-line font-mono ${
-                isDark ? "bg-slate-900/60 border-slate-800 text-slate-200" : "bg-slate-50 border-slate-200 text-slate-700"
-              }`}>
+              <div className={`p-5 rounded-xl border text-sm leading-relaxed whitespace-pre-line font-mono ${isDark ? "bg-slate-900/60 border-slate-800 text-slate-200" : "bg-slate-50 border-slate-200 text-slate-700"
+                }`}>
                 {profile.testScores}
               </div>
             ) : (
@@ -1074,17 +1046,15 @@ function PortfolioPageContent() {
 
       case "patents":
         return (
-          <div className={`rounded-2xl border p-6 sm:p-8 shadow-md transition-all duration-300 animate-fadeIn ${
-            isDark ? "bg-[#131d31] border-[#781c1c]/30 text-slate-100" : "bg-white border-[#781c1c]/15 text-[#18233c]"
-          }`}>
+          <div className={`rounded-2xl border p-6 sm:p-8 shadow-md transition-all duration-300 animate-fadeIn ${isDark ? "bg-[#131d31] border-[#781c1c]/30 text-slate-100" : "bg-white border-[#781c1c]/15 text-[#18233c]"
+            }`}>
             <h3 className="text-base font-extrabold uppercase tracking-wider pb-4 border-b border-slate-500/15 mb-6 flex items-center gap-2.5 font-serif">
               <div className="w-1.5 h-5 bg-[#781c1c] rounded-full" />
               <FileText size={18} className="text-[#781c1c]" /> Patents
             </h3>
             {profile?.patents ? (
-              <div className={`p-5 rounded-xl border text-sm leading-relaxed whitespace-pre-line ${
-                isDark ? "bg-slate-900/60 border-slate-800 text-slate-200" : "bg-slate-50 border-slate-200 text-slate-700"
-              }`}>
+              <div className={`p-5 rounded-xl border text-sm leading-relaxed whitespace-pre-line ${isDark ? "bg-slate-900/60 border-slate-800 text-slate-200" : "bg-slate-50 border-slate-200 text-slate-700"
+                }`}>
                 {profile.patents}
               </div>
             ) : (
@@ -1095,18 +1065,16 @@ function PortfolioPageContent() {
 
       case "media-handles":
         return (
-          <div className={`rounded-2xl border p-6 sm:p-8 shadow-md transition-all duration-300 animate-fadeIn ${
-            isDark ? "bg-[#131d31] border-[#781c1c]/30 text-slate-100" : "bg-white border-[#781c1c]/15 text-[#18233c]"
-          }`}>
+          <div className={`rounded-2xl border p-6 sm:p-8 shadow-md transition-all duration-300 animate-fadeIn ${isDark ? "bg-[#131d31] border-[#781c1c]/30 text-slate-100" : "bg-white border-[#781c1c]/15 text-[#18233c]"
+            }`}>
             <h3 className="text-base font-extrabold uppercase tracking-wider pb-4 border-b border-slate-500/15 mb-6 flex items-center gap-2.5 font-serif">
               <div className="w-1.5 h-5 bg-[#781c1c] rounded-full" />
               <LinkIcon size={18} className="text-[#781c1c]" /> Connected Social Handles
             </h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {profile?.linkedInUrl && (
-                <a href={profile.linkedInUrl} target="_blank" className={`p-5 rounded-xl border flex items-center gap-4 transition-all duration-300 hover:-translate-y-1 min-w-0 ${
-                  isDark ? "bg-slate-900/60 border-slate-800 hover:border-blue-500" : "bg-slate-50 border-slate-200 hover:border-blue-400"
-                }`}>
+                <a href={profile.linkedInUrl} target="_blank" className={`p-5 rounded-xl border flex items-center gap-4 transition-all duration-300 hover:-translate-y-1 min-w-0 ${isDark ? "bg-slate-900/60 border-slate-800 hover:border-blue-500" : "bg-slate-50 border-slate-200 hover:border-blue-400"
+                  }`}>
                   <div className="w-10 h-10 rounded-xl bg-blue-500/10 text-blue-500 flex items-center justify-center shrink-0">
                     <Linkedin size={22} />
                   </div>
@@ -1117,9 +1085,8 @@ function PortfolioPageContent() {
                 </a>
               )}
               {profile?.gitHubUrl && (
-                <a href={profile.gitHubUrl} target="_blank" className={`p-5 rounded-xl border flex items-center gap-4 transition-all duration-300 hover:-translate-y-1 min-w-0 ${
-                  isDark ? "bg-slate-900/60 border-slate-800 hover:border-slate-500" : "bg-slate-50 border-slate-200 hover:border-slate-400"
-                }`}>
+                <a href={profile.gitHubUrl} target="_blank" className={`p-5 rounded-xl border flex items-center gap-4 transition-all duration-300 hover:-translate-y-1 min-w-0 ${isDark ? "bg-slate-900/60 border-slate-800 hover:border-slate-500" : "bg-slate-50 border-slate-200 hover:border-slate-400"
+                  }`}>
                   <div className="w-10 h-10 rounded-xl bg-slate-500/10 text-slate-400 flex items-center justify-center shrink-0">
                     <Github size={22} />
                   </div>
@@ -1130,9 +1097,8 @@ function PortfolioPageContent() {
                 </a>
               )}
               {profile?.instagramUrl && (
-                <a href={profile.instagramUrl} target="_blank" className={`p-5 rounded-xl border flex items-center gap-4 transition-all duration-300 hover:-translate-y-1 min-w-0 ${
-                  isDark ? "bg-slate-900/60 border-slate-800 hover:border-pink-500" : "bg-slate-50 border-slate-200 hover:border-pink-400"
-                }`}>
+                <a href={profile.instagramUrl} target="_blank" className={`p-5 rounded-xl border flex items-center gap-4 transition-all duration-300 hover:-translate-y-1 min-w-0 ${isDark ? "bg-slate-900/60 border-slate-800 hover:border-pink-500" : "bg-slate-50 border-slate-200 hover:border-pink-400"
+                  }`}>
                   <div className="w-10 h-10 rounded-xl bg-pink-500/10 text-pink-500 flex items-center justify-center shrink-0">
                     <InstagramIcon size={22} />
                   </div>
@@ -1143,9 +1109,8 @@ function PortfolioPageContent() {
                 </a>
               )}
               {profile?.blogUrl && (
-                <a href={profile.blogUrl} target="_blank" className={`p-5 rounded-xl border flex items-center gap-4 transition-all duration-300 hover:-translate-y-1 min-w-0 ${
-                  isDark ? "bg-slate-900/60 border-slate-800 hover:border-emerald-500" : "bg-slate-50 border-slate-200 hover:border-emerald-400"
-                }`}>
+                <a href={profile.blogUrl} target="_blank" className={`p-5 rounded-xl border flex items-center gap-4 transition-all duration-300 hover:-translate-y-1 min-w-0 ${isDark ? "bg-slate-900/60 border-slate-800 hover:border-emerald-500" : "bg-slate-50 border-slate-200 hover:border-emerald-400"
+                  }`}>
                   <div className="w-10 h-10 rounded-xl bg-emerald-500/10 text-emerald-500 flex items-center justify-center shrink-0">
                     <Globe size={22} />
                   </div>
@@ -1156,9 +1121,8 @@ function PortfolioPageContent() {
                 </a>
               )}
               {profile?.behanceUrl && (
-                <a href={profile.behanceUrl} target="_blank" className={`p-5 rounded-xl border flex items-center gap-4 transition-all duration-300 hover:-translate-y-1 min-w-0 ${
-                  isDark ? "bg-slate-900/60 border-slate-800 hover:border-indigo-500" : "bg-slate-50 border-slate-200 hover:border-indigo-400"
-                }`}>
+                <a href={profile.behanceUrl} target="_blank" className={`p-5 rounded-xl border flex items-center gap-4 transition-all duration-300 hover:-translate-y-1 min-w-0 ${isDark ? "bg-slate-900/60 border-slate-800 hover:border-indigo-500" : "bg-slate-50 border-slate-200 hover:border-indigo-400"
+                  }`}>
                   <div className="w-10 h-10 rounded-xl bg-indigo-500/10 text-indigo-400 flex items-center justify-center font-serif font-black text-xl shrink-0">
                     Bē
                   </div>
@@ -1169,9 +1133,8 @@ function PortfolioPageContent() {
                 </a>
               )}
               {profile?.otherHandles && (
-                <div className={`p-5 rounded-xl border sm:col-span-2 min-w-0 overflow-hidden ${
-                  isDark ? "bg-slate-900/60 border-slate-800 text-slate-200" : "bg-slate-50 border-slate-200 text-slate-700"
-                }`}>
+                <div className={`p-5 rounded-xl border sm:col-span-2 min-w-0 overflow-hidden ${isDark ? "bg-slate-900/60 border-slate-800 text-slate-200" : "bg-slate-50 border-slate-200 text-slate-700"
+                  }`}>
                   <span className="font-bold text-sm block">Other Information / Handles</span>
                   <p className="text-xs text-slate-400 mt-1.5 leading-relaxed break-words">{profile.otherHandles}</p>
                 </div>
@@ -1490,9 +1453,8 @@ function PortfolioPageContent() {
         return (
           <div className="space-y-6 animate-fadeIn">
             {/* Action Bar Header */}
-            <div className={`rounded-2xl border p-5 shadow-md flex flex-col md:flex-row items-start md:items-center justify-between gap-4 transition-all duration-300 ${
-              isDark ? "bg-[#131d31] border-[#781c1c]/30 text-slate-100" : "bg-white border-[#781c1c]/15 text-[#18233c]"
-            }`}>
+            <div className={`rounded-2xl border p-5 shadow-md flex flex-col md:flex-row items-start md:items-center justify-between gap-4 transition-all duration-300 ${isDark ? "bg-[#131d31] border-[#781c1c]/30 text-slate-100" : "bg-white border-[#781c1c]/15 text-[#18233c]"
+              }`}>
               <div>
                 <h3 className="text-sm font-extrabold flex items-center gap-2 font-serif">
                   <FileText size={18} className="text-[#781c1c]" /> Placement Resume Options
@@ -1506,26 +1468,23 @@ function PortfolioPageContent() {
 
               <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
                 {/* Two Explicit Options Buttons */}
-                <div className={`flex items-center p-1 rounded-xl text-xs font-bold shrink-0 border ${
-                  isDark ? "bg-slate-900 border-slate-800" : "bg-slate-100 border-slate-200"
-                }`}>
+                <div className={`flex items-center p-1 rounded-xl text-xs font-bold shrink-0 border ${isDark ? "bg-slate-900 border-slate-800" : "bg-slate-100 border-slate-200"
+                  }`}>
                   <button
                     onClick={() => setResumeSubTab("student")}
-                    className={`px-3 py-1.5 rounded-lg transition cursor-pointer ${
-                      resumeSubTab === "student"
-                        ? isDark ? "bg-[#781c1c] text-white shadow-xs font-black" : "bg-white text-[#781c1c] shadow-xs font-black"
-                        : isDark ? "text-slate-400 hover:text-white" : "text-slate-600 hover:text-slate-900"
-                    }`}
+                    className={`px-3 py-1.5 rounded-lg transition cursor-pointer ${resumeSubTab === "student"
+                      ? isDark ? "bg-[#781c1c] text-white shadow-xs font-black" : "bg-white text-[#781c1c] shadow-xs font-black"
+                      : isDark ? "text-slate-400 hover:text-white" : "text-slate-600 hover:text-slate-900"
+                      }`}
                   >
                     Student's Resume {resumes.length > 0 ? `(${resumes.length})` : ""}
                   </button>
                   <button
                     onClick={() => setResumeSubTab("portfolio")}
-                    className={`px-3 py-1.5 rounded-lg transition cursor-pointer ${
-                      resumeSubTab === "portfolio"
-                        ? isDark ? "bg-[#781c1c] text-white shadow-xs font-black" : "bg-white text-[#781c1c] shadow-xs font-black"
-                        : isDark ? "text-slate-400 hover:text-white" : "text-slate-600 hover:text-slate-900"
-                    }`}
+                    className={`px-3 py-1.5 rounded-lg transition cursor-pointer ${resumeSubTab === "portfolio"
+                      ? isDark ? "bg-[#781c1c] text-white shadow-xs font-black" : "bg-white text-[#781c1c] shadow-xs font-black"
+                      : isDark ? "text-slate-400 hover:text-white" : "text-slate-600 hover:text-slate-900"
+                      }`}
                   >
                     Portfolio Created Resume
                   </button>
@@ -1570,18 +1529,16 @@ function PortfolioPageContent() {
 
             {/* Option 1: Student's Resume (Uploaded CV Documents) */}
             {resumeSubTab === "student" && (
-              <div className={`rounded-2xl border p-6 shadow-md space-y-4 transition-all duration-300 ${
-                isDark ? "bg-[#131d31] border-[#781c1c]/30 text-slate-100" : "bg-white border-[#781c1c]/15 text-[#18233c]"
-              }`}>
+              <div className={`rounded-2xl border p-6 shadow-md space-y-4 transition-all duration-300 ${isDark ? "bg-[#131d31] border-[#781c1c]/30 text-slate-100" : "bg-white border-[#781c1c]/15 text-[#18233c]"
+                }`}>
                 <h4 className="text-xs font-bold uppercase tracking-wider pb-3 border-b border-slate-500/15 flex items-center gap-2">
                   <FileText size={15} className="text-[#781c1c]" /> Official Student Uploaded Resume Documents
                 </h4>
                 {resumes.length > 0 ? (
                   <div className="space-y-4">
                     {resumes.map((res) => (
-                      <div key={res.id} className={`border p-5 rounded-xl flex flex-col ${
-                        isDark ? "bg-slate-900/60 border-slate-800" : "bg-slate-50 border-slate-200"
-                      }`}>
+                      <div key={res.id} className={`border p-5 rounded-xl flex flex-col ${isDark ? "bg-slate-900/60 border-slate-800" : "bg-slate-50 border-slate-200"
+                        }`}>
                         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                           <div className="flex items-center gap-3">
                             <div className="w-10 h-10 rounded-lg bg-blue-500/10 text-blue-500 border border-blue-500/20 flex items-center justify-center shrink-0">
@@ -1595,9 +1552,8 @@ function PortfolioPageContent() {
                           <div className="flex items-center gap-2">
                             <button
                               onClick={() => setPreviewResumeUrl(previewResumeUrl === res.resumeUrl ? null : res.resumeUrl)}
-                              className={`flex items-center gap-1.5 px-4 py-2 border rounded-xl text-xs font-bold transition shadow-xs cursor-pointer ${
-                                isDark ? "bg-slate-800 border-slate-700 text-slate-200 hover:bg-slate-700" : "bg-white border-slate-200 text-slate-700 hover:bg-slate-50"
-                              }`}
+                              className={`flex items-center gap-1.5 px-4 py-2 border rounded-xl text-xs font-bold transition shadow-xs cursor-pointer ${isDark ? "bg-slate-800 border-slate-700 text-slate-200 hover:bg-slate-700" : "bg-white border-slate-200 text-slate-700 hover:bg-slate-50"
+                                }`}
                             >
                               <Eye size={14} />
                               <span>{previewResumeUrl === res.resumeUrl ? "Hide Preview" : "Preview Resume"}</span>
@@ -1613,9 +1569,8 @@ function PortfolioPageContent() {
                     ))}
                   </div>
                 ) : (
-                  <div className={`text-center py-10 px-4 rounded-xl border border-dashed ${
-                    isDark ? "bg-slate-900/40 border-slate-800" : "bg-slate-50 border-slate-200"
-                  }`}>
+                  <div className={`text-center py-10 px-4 rounded-xl border border-dashed ${isDark ? "bg-slate-900/40 border-slate-800" : "bg-slate-50 border-slate-200"
+                    }`}>
                     <FileText size={32} className="mx-auto text-slate-400 mb-2" />
                     <h5 className="font-bold text-xs">No Student Uploaded Resume Available</h5>
                     <p className="text-xs text-slate-400 mt-1 max-w-md mx-auto">
@@ -1636,118 +1591,118 @@ function PortfolioPageContent() {
 
                 <div id="digital-resume-container-wrapper" className="w-full overflow-x-auto flex flex-col items-center gap-8 pb-8">
                   {pagesList.map((pageSections, pageIdx) => (
-                  <div
-                    key={`sheet_page_${pageIdx + 1}`}
-                    className="resume-page-sheet relative bg-white border border-slate-200 shadow-xl rounded-lg p-8 sm:p-10 font-sans text-slate-800 text-xs leading-relaxed flex flex-col justify-between select-text"
-                    style={{
-                      width: "794px",
-                      height: "1123px",
-                      boxSizing: "border-box"
-                    }}
-                  >
-                    {/* Sheet Body Content */}
-                    <div className="space-y-4 flex-1 overflow-hidden">
-                      {/* HEADER ON PAGE 1 ONLY */}
-                      {pageIdx === 0 && (
-                        <div className="border-b-2 border-[#781c1c] pb-4 flex justify-between items-start">
-                          <div className="space-y-1">
-                            <h1 className="text-2xl font-black font-serif text-[#18233c] tracking-tight">{user.fullName}</h1>
-                            <p className="text-xs font-bold text-[#781c1c] uppercase tracking-wider">
-                              {profile?.targetCareer || profile?.course || "Madras Christian College Graduate"}
-                            </p>
-                            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-slate-500 font-medium pt-1">
-                              {user.email && (
-                                <span className="flex items-center gap-1">
-                                  <Mail size={11} className="text-slate-400" /> {user.email}
-                                </span>
-                              )}
-                              {profile?.phone && (
-                                <span className="flex items-center gap-1">
-                                  <Phone size={11} className="text-slate-400" /> {profile.phone}
-                                </span>
-                              )}
-                              {profile?.currentLocation && (
-                                <span className="flex items-center gap-1">
-                                  <MapPin size={11} className="text-slate-400" /> {profile.currentLocation}
-                                </span>
-                              )}
-                              {user.department && (
-                                <span className="text-slate-400 font-mono text-[10px]">
-                                  Dept: {user.department}
-                                </span>
-                              )}
-                            </div>
-                            <div className="flex flex-wrap items-center gap-3 text-[11px] text-[#18233c] font-semibold pt-1">
-                              {profile?.linkedInUrl && (
-                                <a href={profile.linkedInUrl} target="_blank" className="hover:underline flex items-center gap-1">
-                                  <Linkedin size={11} className="text-[#0a66c2]" /> LinkedIn
-                                </a>
-                              )}
-                              {profile?.gitHubUrl && (
-                                <a href={profile.gitHubUrl} target="_blank" className="hover:underline flex items-center gap-1">
-                                  <Github size={11} className="text-slate-700" /> GitHub
-                                </a>
-                              )}
-                              {profile?.blogUrl && (
-                                <a href={profile.blogUrl} target="_blank" className="hover:underline flex items-center gap-1">
-                                  <Globe size={11} className="text-emerald-600" /> Portfolio
-                                </a>
-                              )}
-                              {profile?.behanceUrl && (
-                                <a href={profile.behanceUrl} target="_blank" className="hover:underline flex items-center gap-1">
-                                  <span className="font-bold text-[10px] text-blue-600 font-serif">Bē</span> Behance
-                                </a>
-                              )}
-                            </div>
-                          </div>
-
-                          {(profile?.profileImageUrl || user?.profileImageUrl) && !imgError && (() => {
-                            const imgDetails = parseImageAdjustments(profile?.profileImageUrl || user?.profileImageUrl);
-                            return (
-                              <div className="w-16 h-16 rounded-xl border-2 border-[#781c1c]/20 overflow-hidden shrink-0 shadow-xs">
-                                <img
-                                  src={imgDetails.src}
-                                  onError={() => setImgError(true)}
-                                  style={imgDetails.style}
-                                  className="w-full h-full object-cover"
-                                  alt={user.fullName}
-                                />
+                    <div
+                      key={`sheet_page_${pageIdx + 1}`}
+                      className="resume-page-sheet relative bg-white border border-slate-200 shadow-xl rounded-lg p-8 sm:p-10 font-sans text-slate-800 text-xs leading-relaxed flex flex-col justify-between select-text"
+                      style={{
+                        width: "794px",
+                        height: "1123px",
+                        boxSizing: "border-box"
+                      }}
+                    >
+                      {/* Sheet Body Content */}
+                      <div className="space-y-4 flex-1 overflow-hidden">
+                        {/* HEADER ON PAGE 1 ONLY */}
+                        {pageIdx === 0 && (
+                          <div className="border-b-2 border-[#781c1c] pb-4 flex justify-between items-start">
+                            <div className="space-y-1">
+                              <h1 className="text-2xl font-black font-serif text-[#18233c] tracking-tight">{user.fullName}</h1>
+                              <p className="text-xs font-bold text-[#781c1c] uppercase tracking-wider">
+                                {profile?.targetCareer || profile?.course || "Madras Christian College Graduate"}
+                              </p>
+                              <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-slate-500 font-medium pt-1">
+                                {user.email && (
+                                  <span className="flex items-center gap-1">
+                                    <Mail size={11} className="text-slate-400" /> {user.email}
+                                  </span>
+                                )}
+                                {profile?.phone && (
+                                  <span className="flex items-center gap-1">
+                                    <Phone size={11} className="text-slate-400" /> {profile.phone}
+                                  </span>
+                                )}
+                                {profile?.currentLocation && (
+                                  <span className="flex items-center gap-1">
+                                    <MapPin size={11} className="text-slate-400" /> {profile.currentLocation}
+                                  </span>
+                                )}
+                                {user.department && (
+                                  <span className="text-slate-400 font-mono text-[10px]">
+                                    Dept: {user.department}
+                                  </span>
+                                )}
                               </div>
-                            );
-                          })()}
-                        </div>
-                      )}
+                              <div className="flex flex-wrap items-center gap-3 text-[11px] text-[#18233c] font-semibold pt-1">
+                                {profile?.linkedInUrl && (
+                                  <a href={profile.linkedInUrl} target="_blank" className="hover:underline flex items-center gap-1">
+                                    <Linkedin size={11} className="text-[#0a66c2]" /> LinkedIn
+                                  </a>
+                                )}
+                                {profile?.gitHubUrl && (
+                                  <a href={profile.gitHubUrl} target="_blank" className="hover:underline flex items-center gap-1">
+                                    <Github size={11} className="text-slate-700" /> GitHub
+                                  </a>
+                                )}
+                                {profile?.blogUrl && (
+                                  <a href={profile.blogUrl} target="_blank" className="hover:underline flex items-center gap-1">
+                                    <Globe size={11} className="text-emerald-600" /> Portfolio
+                                  </a>
+                                )}
+                                {profile?.behanceUrl && (
+                                  <a href={profile.behanceUrl} target="_blank" className="hover:underline flex items-center gap-1">
+                                    <span className="font-bold text-[10px] text-blue-600 font-serif">Bē</span> Behance
+                                  </a>
+                                )}
+                              </div>
+                            </div>
 
-                      {/* Header Continuation Mini Banner for Page 2+ */}
-                      {pageIdx > 0 && (
-                        <div className="border-b border-slate-200 pb-2 flex justify-between items-center text-xs">
-                          <div>
-                            <span className="font-serif font-extrabold text-[#18233c]">{user.fullName}</span>
-                            <span className="text-slate-400 mx-2">|</span>
-                            <span className="text-[#781c1c] font-semibold">{profile?.targetCareer || "Placement Resume"}</span>
+                            {(profile?.profileImageUrl || user?.profileImageUrl) && !imgError && (() => {
+                              const imgDetails = parseImageAdjustments(profile?.profileImageUrl || user?.profileImageUrl);
+                              return (
+                                <div className="w-16 h-16 rounded-xl border-2 border-[#781c1c]/20 overflow-hidden shrink-0 shadow-xs">
+                                  <img
+                                    src={imgDetails.src}
+                                    onError={() => setImgError(true)}
+                                    style={imgDetails.style}
+                                    className="w-full h-full object-cover"
+                                    alt={user.fullName}
+                                  />
+                                </div>
+                              );
+                            })()}
                           </div>
-                          <span className="font-mono text-[10px] text-slate-400 font-bold">Page {pageIdx + 1} of {totalPages}</span>
-                        </div>
-                      )}
+                        )}
 
-                      {/* Page Sections */}
-                      <div className="space-y-3.5">
-                        {pageSections.map((sec) => renderSectionItem(sec))}
+                        {/* Header Continuation Mini Banner for Page 2+ */}
+                        {pageIdx > 0 && (
+                          <div className="border-b border-slate-200 pb-2 flex justify-between items-center text-xs">
+                            <div>
+                              <span className="font-serif font-extrabold text-[#18233c]">{user.fullName}</span>
+                              <span className="text-slate-400 mx-2">|</span>
+                              <span className="text-[#781c1c] font-semibold">{profile?.targetCareer || "Placement Resume"}</span>
+                            </div>
+                            <span className="font-mono text-[10px] text-slate-400 font-bold">Page {pageIdx + 1} of {totalPages}</span>
+                          </div>
+                        )}
+
+                        {/* Page Sections */}
+                        <div className="space-y-3.5">
+                          {pageSections.map((sec) => renderSectionItem(sec))}
+                        </div>
+                      </div>
+
+                      {/* FOOTER STAMP AT THE BOTTOM OF EACH SHEET */}
+                      <div className="pt-4 border-t border-slate-150 flex justify-between items-center text-[10px] text-slate-400 font-mono shrink-0">
+                        <span>Madras Christian College Portfolio Verified CV</span>
+                        <span>Page {pageIdx + 1} of {totalPages}</span>
+                        <span>Ref: MCC-{user.id}-{new Date().getFullYear()}</span>
                       </div>
                     </div>
-
-                    {/* FOOTER STAMP AT THE BOTTOM OF EACH SHEET */}
-                    <div className="pt-4 border-t border-slate-150 flex justify-between items-center text-[10px] text-slate-400 font-mono shrink-0">
-                      <span>Madras Christian College Portfolio Verified CV</span>
-                      <span>Page {pageIdx + 1} of {totalPages}</span>
-                      <span>Ref: MCC-{user.id}-{new Date().getFullYear()}</span>
-                    </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
-            </div>
-          )}
-        </div>
+            )}
+          </div>
         );
       }
 
@@ -1758,26 +1713,24 @@ function PortfolioPageContent() {
 
   return (
     <div className={`h-screen overflow-hidden flex font-sans selection:bg-[#781c1c]/20 selection:text-[#781c1c] transition-colors duration-300 ${isDark ? "bg-[#0f1623] text-slate-200" : "bg-[#fcfaf6] text-[#2c2c2c]"}`}>
-      
+
       {/* LEFT SIDEBAR (DESKTOP) */}
-      <aside 
+      <aside
         style={{ width: isSidebarCollapsed ? "64px" : `${sidebarWidth}px` }}
-        className={`bg-[#18233c] text-slate-300 flex flex-col relative shrink-0 select-none hidden md:flex border-r border-[#781c1c]/15 mcc-sidebar ${
-          isSidebarCollapsed ? "w-16" : ""
-        }`}
+        className={`bg-[#18233c] text-slate-300 flex flex-col relative shrink-0 select-none hidden md:flex border-r border-[#781c1c]/15 mcc-sidebar ${isSidebarCollapsed ? "w-16" : ""
+          }`}
       >
         {/* Sidebar Brand Header - MCC Navy / Gold details with Prominent Logo & Institutional Tagline */}
-        <div className={`border-b flex items-center justify-center py-2.5 px-3 shrink-0 transition-colors duration-300 ${
-          isDark 
-            ? "bg-gradient-to-b from-[#18233c] to-[#111927] border-slate-700/30" 
-            : "bg-[#f4efe4] border-slate-300/60 shadow-xs"
-        }`}>
+        <div className={`border-b flex items-center justify-center py-2.5 px-3 shrink-0 transition-colors duration-300 ${isDark
+          ? "bg-gradient-to-b from-[#18233c] to-[#111927] border-slate-700/30"
+          : "bg-[#f4efe4] border-slate-300/60 shadow-xs"
+          }`}>
           {!isSidebarCollapsed ? (
             <div className="flex items-center justify-center gap-3.5 w-full">
-              <img 
+              <img
                 src={isDark ? "/mcc-logo-dark.png" : "/mcc-logo.png"}
-                className="h-20 md:h-[88px] w-auto max-w-full object-contain rounded-lg transition-transform duration-200 hover:scale-[1.02] shrink-0" 
-                alt="Madras Christian College Logo" 
+                className="h-20 md:h-[88px] w-auto max-w-full object-contain rounded-lg transition-transform duration-200 hover:scale-[1.02] shrink-0"
+                alt="Madras Christian College Logo"
               />
             </div>
           ) : (
@@ -1788,19 +1741,18 @@ function PortfolioPageContent() {
         </div>
 
         {/* Student Mini Avatar Card */}
-        <div className={`p-4 border-b border-slate-700/30 flex items-center gap-3 ${
-          isSidebarCollapsed ? "justify-center" : ""
-        }`}>
+        <div className={`p-4 border-b border-slate-700/30 flex items-center gap-3 ${isSidebarCollapsed ? "justify-center" : ""
+          }`}>
           {(profile?.profileImageUrl || user?.profileImageUrl) && !imgError ? (() => {
             const imgDetails = parseImageAdjustments(profile?.profileImageUrl || user?.profileImageUrl);
             return (
               <div className="w-9 h-9 rounded-full border-2 border-[#d4af37] shadow-sm overflow-hidden flex items-center justify-center shrink-0">
-                <img 
-                  src={imgDetails.src} 
+                <img
+                  src={imgDetails.src}
                   onError={() => setImgError(true)}
-                  style={imgDetails.style} 
-                  className="w-full h-full object-cover" 
-                  alt={user.fullName} 
+                  style={imgDetails.style}
+                  className="w-full h-full object-cover"
+                  alt={user.fullName}
                 />
               </div>
             );
@@ -1831,11 +1783,10 @@ function PortfolioPageContent() {
               <button
                 key={item.id}
                 onClick={() => setCurrentView(item.id)}
-                className={`w-full flex items-center transition-all duration-200 px-3.5 py-2.5 rounded-xl text-xs font-bold text-left cursor-pointer ${
-                  isActive
-                    ? "mcc-active-tab font-black shadow-sm"
-                    : "text-slate-300 hover:bg-slate-800/50 hover:text-white hover:translate-x-0.5"
-                } ${isSidebarCollapsed ? "justify-center px-0" : ""}`}
+                className={`w-full flex items-center transition-all duration-200 px-3.5 py-2.5 rounded-xl text-xs font-bold text-left cursor-pointer ${isActive
+                  ? "mcc-active-tab font-black shadow-sm"
+                  : "text-slate-300 hover:bg-slate-800/50 hover:text-white hover:translate-x-0.5"
+                  } ${isSidebarCollapsed ? "justify-center px-0" : ""}`}
                 title={item.label}
               >
                 <Icon size={16} className={`shrink-0 ${isActive ? "text-[#d4af37]" : "text-slate-400"}`} />
@@ -1846,9 +1797,8 @@ function PortfolioPageContent() {
         </nav>
 
         {/* Sidebar Footer: Collapse Chevron */}
-        <div className={`p-3 border-t border-slate-700/50 flex items-center justify-end ${
-          isSidebarCollapsed ? "justify-center" : "justify-end"
-        }`}>
+        <div className={`p-3 border-t border-slate-700/50 flex items-center justify-end ${isSidebarCollapsed ? "justify-center" : "justify-end"
+          }`}>
           <button
             onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
             className="w-9 h-9 rounded-xl hover:bg-slate-800/60 flex items-center justify-center text-slate-400 hover:text-white transition shrink-0 cursor-pointer"
@@ -1874,15 +1824,14 @@ function PortfolioPageContent() {
       {/* MOBILE DRAWER SIDEBAR OVERLAY */}
       {showMobileNav && (
         <div className="fixed inset-0 z-50 flex md:hidden bg-[#18233c]/80 backdrop-blur-sm animate-fadeIn">
-          <div className={`w-72 flex flex-col p-4 animate-slideIn transition-colors duration-300 border-r ${
-            isDark ? "bg-[#18233c] text-slate-200 border-slate-700/50" : "bg-white text-[#18233c] border-slate-200"
-          }`}>
+          <div className={`w-72 flex flex-col p-4 animate-slideIn transition-colors duration-300 border-r ${isDark ? "bg-[#18233c] text-slate-200 border-slate-700/50" : "bg-white text-[#18233c] border-slate-200"
+            }`}>
             <div className="flex justify-between items-center pb-4 border-b border-slate-500/20">
               <div className="flex items-center justify-start py-1">
-                <img 
+                <img
                   src={isDark ? "/mcc-logo-dark.png" : "/mcc-logo.png"}
-                  className="w-full max-w-[180px] h-auto object-contain rounded-lg" 
-                  alt="Madras Christian College Logo" 
+                  className="w-full max-w-[180px] h-auto object-contain rounded-lg"
+                  alt="Madras Christian College Logo"
                 />
               </div>
               <div className="flex items-center gap-2">
@@ -1890,11 +1839,10 @@ function PortfolioPageContent() {
                 <button
                   onClick={toggleTheme}
                   title={isDark ? "Switch to Light Mode" : "Switch to Dark Mode"}
-                  className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all duration-200 cursor-pointer ${
-                    isDark
-                      ? "bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/30"
-                      : "bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300"
-                  }`}
+                  className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all duration-200 cursor-pointer ${isDark
+                    ? "bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/30"
+                    : "bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300"
+                    }`}
                 >
                   {isDark ? <Sun size={14} /> : <Moon size={14} />}
                 </button>
@@ -1909,12 +1857,12 @@ function PortfolioPageContent() {
                 const imgDetails = parseImageAdjustments(profile?.profileImageUrl || user?.profileImageUrl);
                 return (
                   <div className="w-9 h-9 rounded-full border-2 border-[#d4af37] overflow-hidden flex items-center justify-center shrink-0">
-                    <img 
-                      src={imgDetails.src} 
+                    <img
+                      src={imgDetails.src}
                       onError={() => setImgError(true)}
-                      style={imgDetails.style} 
-                      className="w-full h-full object-cover" 
-                      alt={user.fullName} 
+                      style={imgDetails.style}
+                      className="w-full h-full object-cover"
+                      alt={user.fullName}
                     />
                   </div>
                 );
@@ -1940,11 +1888,10 @@ function PortfolioPageContent() {
                       setCurrentView(item.id);
                       setShowMobileNav(false);
                     }}
-                    className={`w-full flex items-center px-3.5 py-2.5 rounded-xl text-xs font-bold text-left cursor-pointer transition-all ${
-                      isActive
-                        ? "mcc-active-tab font-black shadow-xs"
-                        : isDark ? "text-slate-300 hover:bg-slate-800/50" : "text-slate-700 hover:bg-slate-100"
-                    }`}
+                    className={`w-full flex items-center px-3.5 py-2.5 rounded-xl text-xs font-bold text-left cursor-pointer transition-all ${isActive
+                      ? "mcc-active-tab font-black shadow-xs"
+                      : isDark ? "text-slate-300 hover:bg-slate-800/50" : "text-slate-700 hover:bg-slate-100"
+                      }`}
                   >
                     <Icon size={16} className={isActive ? "text-[#d4af37]" : "text-slate-400"} />
                     <span className="ml-3">{item.label}</span>
@@ -1959,18 +1906,16 @@ function PortfolioPageContent() {
 
       {/* MAIN RIGHT PANEL CONTAINER */}
       <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
-        
+
         {/* TOP BAR */}
-        <header className={`min-h-[4rem] sm:min-h-[4.5rem] py-2 border-b flex items-center justify-between px-3 sm:px-6 z-[49] select-none shadow-sm shrink-0 transition-colors duration-300 ${
-          isDark ? "bg-[#121b2e] border-[#781c1c]/25" : "bg-white border-[#781c1c]/15"
-        }`}>
+        <header className={`min-h-[4rem] sm:min-h-[4.5rem] py-2 border-b flex items-center justify-between px-3 sm:px-6 z-[49] select-none shadow-sm shrink-0 transition-colors duration-300 ${isDark ? "bg-[#121b2e] border-[#781c1c]/25" : "bg-white border-[#781c1c]/15"
+          }`}>
           <div className="flex items-center gap-2 sm:gap-4 min-w-0">
             {/* Hamburger Button for mobile */}
             <button
               onClick={() => setShowMobileNav(true)}
-              className={`md:hidden p-2 rounded-xl border transition cursor-pointer shrink-0 ${
-                isDark ? "text-slate-300 bg-slate-800 border-slate-700" : "text-slate-700 bg-slate-100 border-slate-200"
-              }`}
+              className={`md:hidden p-2 rounded-xl border transition cursor-pointer shrink-0 ${isDark ? "text-slate-300 bg-slate-800 border-slate-700" : "text-slate-700 bg-slate-100 border-slate-200"
+                }`}
             >
               <Menu size={18} />
             </button>
@@ -1992,13 +1937,12 @@ function PortfolioPageContent() {
             {/* Share link button */}
             <button
               onClick={handleShare}
-              className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-bold border transition cursor-pointer ${
-                copiedLink 
-                  ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30" 
-                  : isDark 
-                    ? "bg-slate-800 text-slate-200 border-slate-700 hover:bg-slate-700" 
-                    : "bg-slate-100 text-slate-700 border-slate-200 hover:bg-slate-200"
-              }`}
+              className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-bold border transition cursor-pointer ${copiedLink
+                ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30"
+                : isDark
+                  ? "bg-slate-800 text-slate-200 border-slate-700 hover:bg-slate-700"
+                  : "bg-slate-100 text-slate-700 border-slate-200 hover:bg-slate-200"
+                }`}
               title="Share portfolio URL"
             >
               {copiedLink ? <Check size={14} className="shrink-0" /> : <Share2 size={14} className="shrink-0" />}
@@ -2009,11 +1953,10 @@ function PortfolioPageContent() {
             <button
               onClick={toggleTheme}
               title={isDark ? "Switch to Light Mode" : "Switch to Dark Mode"}
-              className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
-                isDark
-                  ? "bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border-amber-500/30"
-                  : "bg-[#f0ece1] hover:bg-[#e4ddcc] text-[#781c1c] border-[#781c1c]/25 shadow-2xs"
-              }`}
+              className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-bold border transition-all cursor-pointer ${isDark
+                ? "bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border-amber-500/30"
+                : "bg-[#f0ece1] hover:bg-[#e4ddcc] text-[#781c1c] border-[#781c1c]/25 shadow-2xs"
+                }`}
             >
               {isDark ? <Sun size={14} className="text-amber-300 shrink-0" /> : <Moon size={14} className="text-[#781c1c] shrink-0" />}
               <span className="hidden sm:inline text-[10px] uppercase tracking-wider font-extrabold">
@@ -2026,47 +1969,39 @@ function PortfolioPageContent() {
 
         {/* DASHBOARD CONTENT BODY */}
         <main className="flex-1 p-3 sm:p-6 overflow-y-auto max-w-7xl w-full mx-auto space-y-5 sm:space-y-6 transition-colors duration-300">
-          
+
           {/* Welcome Greeting Banner */}
-          <div className={`rounded-2xl p-4 sm:p-6 border shadow-md relative overflow-hidden transition-all duration-300 ${
-            isDark 
-              ? "bg-gradient-to-r from-[#18233c] via-[#121b2e] to-[#0f1623] border-[#781c1c]/30 text-white" 
-              : "bg-gradient-to-r from-[#f0ece1] via-[#f7f3ea] to-[#e8dfcf] border-[#781c1c]/20 text-[#18233c]"
-          }`}>
+          <div className={`rounded-2xl p-4 sm:p-6 border shadow-md relative overflow-hidden transition-all duration-300 ${isDark
+            ? "bg-gradient-to-r from-[#18233c] via-[#121b2e] to-[#0f1623] border-[#781c1c]/30 text-white"
+            : "bg-gradient-to-r from-[#f0ece1] via-[#f7f3ea] to-[#e8dfcf] border-[#781c1c]/20 text-[#18233c]"
+            }`}>
             {/* Subtle background glow */}
             <div className="absolute -right-12 -bottom-12 w-64 h-64 rounded-full bg-[#d4af37]/10 blur-3xl pointer-events-none" />
-            
+
             <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
               <div className="space-y-1 min-w-0">
-                <span className={`text-[9px] sm:text-[10px] uppercase font-mono tracking-[0.2em] block ${
-                  isDark ? "text-[#d4af37] font-extrabold" : "text-[#781c1c] font-black"
-                }`}>
+                <span className={`text-[9px] sm:text-[10px] uppercase font-mono tracking-[0.2em] block ${isDark ? "text-[#d4af37] font-extrabold" : "text-[#781c1c] font-black"
+                  }`}>
                   Official Verified Portfolio
                 </span>
-                <h1 className={`text-lg sm:text-2xl font-black font-serif tracking-tight break-words leading-snug ${
-                  isDark ? "text-white" : "text-[#18233c]"
-                }`}>
-                  Welcome to {user.fullName}'s Portfolio
+                <h1 className={`text-lg sm:text-2xl font-black font-serif tracking-tight break-words leading-snug ${isDark ? "text-white" : "text-[#18233c]"
+                  }`}>
+                  {user.fullName}'s Portfolio
                 </h1>
-                <p className={`text-xs max-w-xl leading-relaxed ${
-                  isDark ? "text-slate-300" : "text-slate-700 font-medium"
-                }`}>
-                  Showcasing institutionally verified academic achievements, projects, research, and career competencies at Madras Christian College.
+                <p className={`text-xs max-w-xl leading-relaxed ${isDark ? "text-slate-300" : "text-slate-700 font-medium"
+                  }`}>
                 </p>
               </div>
 
               {currentTime && (
-                <div className={`px-3 sm:px-4 py-2 rounded-xl border text-left sm:text-right shrink-0 w-fit backdrop-blur-md ${
-                  isDark 
-                    ? "bg-white/10 border-white/15 text-white" 
-                    : "bg-white/90 border-[#781c1c]/20 text-[#18233c] shadow-xs"
-                }`}>
-                  <span className={`text-[9px] uppercase font-mono font-bold tracking-wider block ${
-                    isDark ? "text-[#d4af37]" : "text-[#781c1c]"
-                  }`}>Current Time</span>
-                  <span className={`text-xs font-mono font-bold whitespace-pre-line leading-tight ${
-                    isDark ? "text-white" : "text-[#18233c]"
-                  }`}>{currentTime}</span>
+                <div className={`px-3 sm:px-4 py-2 rounded-xl border text-left sm:text-right shrink-0 w-fit backdrop-blur-md ${isDark
+                  ? "bg-white/10 border-white/15 text-white"
+                  : "bg-white/90 border-[#781c1c]/20 text-[#18233c] shadow-xs"
+                  }`}>
+                  <span className={`text-[9px] uppercase font-mono font-bold tracking-wider block ${isDark ? "text-[#d4af37]" : "text-[#781c1c]"
+                    }`}>Current Time</span>
+                  <span className={`text-xs font-mono font-bold whitespace-pre-line leading-tight ${isDark ? "text-white" : "text-[#18233c]"
+                    }`}>{currentTime}</span>
                 </div>
               )}
             </div>
