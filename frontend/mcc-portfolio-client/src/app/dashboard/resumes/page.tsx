@@ -34,7 +34,6 @@ import {
 } from "lucide-react";
 import api from "@/services/api";
 import { useTheme } from "@/hooks/useTheme";
-import { useResizableSidebar } from "@/hooks/useResizableSidebar";
 
 export default function ResumesDashboardPage() {
   const router = useRouter();
@@ -423,7 +422,7 @@ export default function ResumesDashboardPage() {
           </div>
 
           {loading ? (
-            <MCCLoader fullScreen={false} text="Fetching your resumes..." subtext="MCC Resume Portal" />
+            <MCCLoader fullScreen={false} isDark={themeMode === "dark"} text="Fetching your resumes..." subtext="MCC Resume Portal" />
           ) : resumes.length === 0 ? (
             <div className={`border-2 border-dashed rounded-3xl p-12 text-center max-w-xl mx-auto mt-8 transition ${
               themeMode === "dark" ? "border-white/5 bg-[#0b0b0f]" : "border-slate-200 bg-white shadow-sm"

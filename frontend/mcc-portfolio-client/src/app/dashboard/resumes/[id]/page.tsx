@@ -36,6 +36,7 @@ import {
 import api from "@/services/api";
 import { useTheme } from "@/hooks/useTheme";
 import { parseImageAdjustments } from "@/utils/image";
+import MCCLoader from "@/components/MCCLoader";
 
 export default function ResumeEditorPage() {
   const { id } = useParams();
@@ -1481,7 +1482,13 @@ export default function ResumeEditorPage() {
   };
 
   if (loading || !resumeData) {
-    return <MCCLoader isDark={themeMode === "dark"} text="Loading Resume Builder Workspace..." />;
+    return (
+      <MCCLoader
+        isDark={themeMode === "dark"}
+        text="Loading Resume Builder Workspace..."
+        subtext="Preparing your resume editor and formatting tools..."
+      />
+    );
   }
 
   const pInfo = resumeData.personalInfo;
