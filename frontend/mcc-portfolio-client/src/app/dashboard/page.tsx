@@ -3839,22 +3839,38 @@ Report Generated: ${new Date().toLocaleDateString()}
                 <h4 className="font-serif text-xl font-bold flex items-center gap-2">
                   <Sliders size={20} className="text-[#781c1c]" /> Adjust Profile Photo
                 </h4>
-                <button 
-                  onClick={() => setShowPhotoAdjustModal(false)}
-                  className="p-1.5 rounded-lg hover:bg-slate-200/20 text-slate-455 transition cursor-pointer"
-                >
-                  <X size={18} />
-                </button>
+                <div className="flex items-center gap-2.5">
+                  <button 
+                    type="button"
+                    onClick={() => {
+                      setAdjustScale(1);
+                      setAdjustRotate(0);
+                      setAdjustPosX(50);
+                      setAdjustPosY(50);
+                      setAdjustFit("cover");
+                    }}
+                    className="text-xs font-semibold text-slate-400 hover:text-[#781c1c] dark:hover:text-red-400 transition cursor-pointer"
+                  >
+                    Reset All
+                  </button>
+                  <button 
+                    onClick={() => setShowPhotoAdjustModal(false)}
+                    className="p-1.5 rounded-lg hover:bg-slate-200/20 text-slate-455 transition cursor-pointer"
+                  >
+                    <X size={18} />
+                  </button>
+                </div>
               </div>
 
               {/* Preview Circle */}
               <div className="flex justify-center mb-6">
-                <div className="w-32 h-32 rounded-full border-2 border-[#781c1c] overflow-hidden flex items-center justify-center bg-slate-800">
+                <div className="w-32 h-32 rounded-full border-2 border-[#781c1c] overflow-hidden flex items-center justify-center bg-slate-900 shadow-inner relative">
                   <img
                     src={profileImageUrl.split("?")[0]}
                     style={{
-                      transform: `scale(${adjustScale}) rotate(${adjustRotate}deg)`,
-                      objectPosition: `${adjustPosX}% ${adjustPosY}%`,
+                      transform: `translate(${adjustPosX - 50}%, ${adjustPosY - 50}%) rotate(${adjustRotate}deg) scale(${adjustScale})`,
+                      transformOrigin: "center center",
+                      objectPosition: "center",
                       objectFit: adjustFit as any
                     }}
                     className="w-full h-full"
@@ -3868,7 +3884,7 @@ Report Generated: ${new Date().toLocaleDateString()}
                 <div className="flex flex-col gap-1.5">
                   <div className="flex justify-between text-xs font-semibold">
                     <span className="text-slate-455">Zoom / Scale</span>
-                    <span>{adjustScale.toFixed(1)}x</span>
+                    <span className="font-mono">{adjustScale.toFixed(1)}x</span>
                   </div>
                   <input
                     type="range"
@@ -3885,7 +3901,7 @@ Report Generated: ${new Date().toLocaleDateString()}
                 <div className="flex flex-col gap-1.5">
                   <div className="flex justify-between text-xs font-semibold">
                     <span className="text-slate-455">Rotate</span>
-                    <span>{adjustRotate}°</span>
+                    <span className="font-mono">{adjustRotate}°</span>
                   </div>
                   <div className="flex gap-2">
                     {[0, 90, 180, 270].map((deg) => (
@@ -3905,11 +3921,44 @@ Report Generated: ${new Date().toLocaleDateString()}
                   </div>
                 </div>
 
+                {/* Fit Option */}
+                <div className="flex flex-col gap-1.5">
+                  <div className="flex justify-between items-center text-xs font-semibold">
+                    <span className="text-slate-455">Fit Type</span>
+                    {adjustFit === "contain" && (
+                      <span className="text-[11px] text-emerald-500 font-medium">Centered</span>
+                    )}
+                  </div>
+                  <div className="flex gap-2">
+                    {["cover", "contain"].map((f) => (
+                      <button
+                        key={f}
+                        type="button"
+                        onClick={() => {
+                          setAdjustFit(f);
+                          if (f === "contain") {
+                            // Align in center when contain is chosen
+                            setAdjustPosX(50);
+                            setAdjustPosY(50);
+                          }
+                        }}
+                        className={`flex-1 py-2 text-xs font-bold rounded-xl border transition cursor-pointer capitalize ${
+                          adjustFit === f
+                            ? "bg-[#781c1c] text-white border-[#781c1c] shadow-xs"
+                            : "bg-transparent border-slate-200/20 text-slate-455 hover:bg-slate-200/10"
+                        }`}
+                      >
+                        {f === "contain" ? "Contain (Center)" : "Cover (Fill)"}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
                 {/* X Position */}
                 <div className="flex flex-col gap-1.5">
                   <div className="flex justify-between text-xs font-semibold">
                     <span className="text-slate-455">Horizontal Align</span>
-                    <span>{adjustPosX}%</span>
+                    <span className="font-mono">{adjustPosX}% {adjustPosX === 50 ? "(Center)" : ""}</span>
                   </div>
                   <input
                     type="range"
@@ -3926,7 +3975,7 @@ Report Generated: ${new Date().toLocaleDateString()}
                 <div className="flex flex-col gap-1.5">
                   <div className="flex justify-between text-xs font-semibold">
                     <span className="text-slate-455">Vertical Align</span>
-                    <span>{adjustPosY}%</span>
+                    <span className="font-mono">{adjustPosY}% {adjustPosY === 50 ? "(Center)" : ""}</span>
                   </div>
                   <input
                     type="range"
@@ -3939,25 +3988,18 @@ Report Generated: ${new Date().toLocaleDateString()}
                   />
                 </div>
 
-                {/* Fit Option */}
-                <div className="flex flex-col gap-1.5">
-                  <span className="text-xs font-semibold text-slate-455">Fit Type</span>
-                  <div className="flex gap-2">
-                    {["cover", "contain"].map((f) => (
-                      <button
-                        key={f}
-                        type="button"
-                        onClick={() => setAdjustFit(f)}
-                        className={`flex-1 py-1.5 text-xs font-bold rounded-lg border transition cursor-pointer capitalize ${
-                          adjustFit === f
-                            ? "bg-[#781c1c] text-white border-[#781c1c]"
-                            : "bg-transparent border-slate-200/20 text-slate-455 hover:bg-slate-200/10"
-                        }`}
-                      >
-                        {f}
-                      </button>
-                    ))}
-                  </div>
+                {/* Quick Reset to Center Position */}
+                <div className="flex justify-end pt-1">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAdjustPosX(50);
+                      setAdjustPosY(50);
+                    }}
+                    className="text-[11px] font-semibold text-[#781c1c] dark:text-red-400 hover:underline cursor-pointer flex items-center gap-1"
+                  >
+                    Reset Alignment to Center (50%)
+                  </button>
                 </div>
               </div>
 

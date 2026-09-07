@@ -392,7 +392,7 @@ function PortfolioPageContent() {
                             src={imgDetails.src}
                             onError={() => setImgError(true)}
                             style={imgDetails.style}
-                            className="w-full h-full object-cover"
+                            className="w-full h-full"
                             alt={user.fullName}
                           />
                         </div>
@@ -1664,7 +1664,7 @@ function PortfolioPageContent() {
                                     src={imgDetails.src}
                                     onError={() => setImgError(true)}
                                     style={imgDetails.style}
-                                    className="w-full h-full object-cover"
+                                    className="w-full h-full"
                                     alt={user.fullName}
                                   />
                                 </div>
@@ -1751,7 +1751,7 @@ function PortfolioPageContent() {
                   src={imgDetails.src}
                   onError={() => setImgError(true)}
                   style={imgDetails.style}
-                  className="w-full h-full object-cover"
+                  className="w-full h-full"
                   alt={user.fullName}
                 />
               </div>
@@ -1861,7 +1861,7 @@ function PortfolioPageContent() {
                       src={imgDetails.src}
                       onError={() => setImgError(true)}
                       style={imgDetails.style}
-                      className="w-full h-full object-cover"
+                      className="w-full h-full"
                       alt={user.fullName}
                     />
                   </div>

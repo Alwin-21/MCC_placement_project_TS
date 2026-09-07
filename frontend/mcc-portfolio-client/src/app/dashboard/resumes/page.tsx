@@ -34,6 +34,7 @@ import {
 } from "lucide-react";
 import api from "@/services/api";
 import { useTheme } from "@/hooks/useTheme";
+import { useResizableSidebar } from "@/hooks/useResizableSidebar";
 
 export default function ResumesDashboardPage() {
   const router = useRouter();
@@ -43,7 +44,7 @@ export default function ResumesDashboardPage() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [newResumeTitle, setNewResumeTitle] = useState("");
   const [themeMode, toggleThemeMode] = useTheme();
-  const { sidebarWidth, startResizing, resetWidth } = useResizableSidebar({ storageKey: "mcc_resumes_sidebar_width" });
+  const { sidebarWidth, startResizing, resetWidth } = useResizableSidebar({ storageKey: "mcc_dashboard_sidebar_width" });
   const [showMobileNav, setShowMobileNav] = useState(false);
   const [creating, setCreating] = useState(false);
 
@@ -154,7 +155,7 @@ export default function ResumesDashboardPage() {
       {/* DESKTOP SIDEBAR */}
       <div 
         style={{ width: `${sidebarWidth}px` }}
-        className="hidden md:flex flex-col shrink-0 border-r relative z-20 select-none mcc-sidebar"
+        className="border-r relative z-20 flex flex-col justify-between shrink-0 h-screen sticky top-0 transition-colors duration-300 hidden md:flex select-none mcc-sidebar"
       >
         {/* Logo & Console Title */}
         <div className="py-2.5 px-3 border-b border-slate-200 flex items-center justify-center shrink-0">
@@ -242,10 +243,10 @@ export default function ResumesDashboardPage() {
         <div className="fixed inset-0 z-50 flex md:hidden bg-black/60 backdrop-blur-xs select-none">
           <div className="w-72 flex flex-col p-5 animate-slideIn h-screen border-r mcc-sidebar">
             <div className="flex justify-between items-center pb-4 border-b border-slate-200 dark:border-white/5 shrink-0">
-              <div className="flex items-center justify-start py-1">
+              <div className="flex items-center justify-start py-0.5">
                 <img 
                   src={themeMode === "dark" ? "/mcc-logo-dark.png" : "/mcc-logo.png"} 
-                  className="w-full max-w-[190px] h-auto object-contain rounded-lg" 
+                  className="h-16 sm:h-20 w-auto max-w-[220px] object-contain rounded-lg shrink-0"
                   alt="Madras Christian College Logo" 
                 />
               </div>
