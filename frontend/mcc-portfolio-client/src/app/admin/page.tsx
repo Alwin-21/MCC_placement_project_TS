@@ -63,7 +63,6 @@ import {
 } from "lucide-react";
 import api from "@/services/api";
 import { useTheme } from "@/hooks/useTheme";
-import { useResizableSidebar } from "@/hooks/useResizableSidebar";
 import AssessmentAdminModule from "@/components/admin/AssessmentAdminModule";
 import HRAccessManager from "@/app/admin/components/HRAccessManager";
 
