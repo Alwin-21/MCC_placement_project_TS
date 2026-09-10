@@ -219,7 +219,7 @@ export default function LeaderboardPage() {
               </div>
 
               <Link
-                href={`/portfolio/${top3[1].id || top3[1].registerNumber}`}
+                href={`/student/${top3[1].registerNumber || top3[1].username || (top3[1].fullName ? top3[1].fullName.replace(/\s+/g, "").toLowerCase() : top3[1].id)}`}
                 className="block w-full py-2.5 rounded-xl bg-slate-800 dark:bg-white text-white dark:text-slate-900 text-xs font-bold hover:opacity-90 transition shadow-md"
               >
                 View Portfolio
@@ -268,7 +268,7 @@ export default function LeaderboardPage() {
               </div>
 
               <Link
-                href={`/portfolio/${top3[0].id || top3[0].registerNumber}`}
+                href={`/student/${top3[0].registerNumber || top3[0].username || (top3[0].fullName ? top3[0].fullName.replace(/\s+/g, "").toLowerCase() : top3[0].id)}`}
                 className="block w-full py-3 rounded-xl bg-[#781c1c] hover:bg-[#5f1515] text-white text-xs font-extrabold transition shadow-lg shadow-red-900/30"
               >
                 View Top Portfolio
@@ -312,7 +312,7 @@ export default function LeaderboardPage() {
               </div>
 
               <Link
-                href={`/portfolio/${top3[2].id || top3[2].registerNumber}`}
+                href={`/student/${top3[2].registerNumber || top3[2].username || (top3[2].fullName ? top3[2].fullName.replace(/\s+/g, "").toLowerCase() : top3[2].id)}`}
                 className="block w-full py-2.5 rounded-xl bg-slate-800 dark:bg-white text-white dark:text-slate-900 text-xs font-bold hover:opacity-90 transition shadow-md"
               >
                 View Portfolio
@@ -408,7 +408,7 @@ export default function LeaderboardPage() {
                   </span>
 
                   <Link
-                    href={`/portfolio/${student.id || student.registerNumber}`}
+                    href={`/student/${student.registerNumber || student.username || (student.fullName ? student.fullName.replace(/\s+/g, "").toLowerCase() : student.id)}`}
                     className="inline-flex items-center gap-1.5 text-xs font-extrabold text-[#781c1c] dark:text-red-400 hover:underline"
                   >
                     <span>View Profile</span>

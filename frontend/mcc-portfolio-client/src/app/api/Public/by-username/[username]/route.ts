@@ -96,6 +96,13 @@ export async function GET(
       });
     }
 
+    // 4. Try match by numeric user ID fallback
+    if (!user && /^\d+$/.test(username)) {
+      user = await prisma.users.findUnique({
+        where: { Id: parseInt(username, 10) }
+      });
+    }
+
     if (!user) {
       return NextResponse.json("User not found", { status: 404 });
     }

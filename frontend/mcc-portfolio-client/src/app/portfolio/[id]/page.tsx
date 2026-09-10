@@ -218,7 +218,12 @@ function PortfolioPageContent() {
   const fetchPortfolio = async () => {
     try {
       setLoading(true);
-      const url = id ? `/Public/${id}` : `/Public/by-username/${username}`;
+      const isNumericId = id && /^\d+$/.test(String(id));
+      const url = isNumericId
+        ? `/Public/${id}`
+        : id
+        ? `/Public/by-username/${encodeURIComponent(String(id))}`
+        : `/Public/by-username/${encodeURIComponent(String(username))}`;
       const response = await api.get(url);
       setUser(response.data.user);
       setProfile(response.data.profile);
@@ -230,6 +235,16 @@ function PortfolioPageContent() {
       setResumes(response.data.resumes || []);
       setAcademicRecords(response.data.academicRecords || []);
       setExperiences(response.data.experiences || []);
+
+      // If accessed via /portfolio/:id, automatically redirect to canonical /student/:slug URL
+      if (typeof window !== "undefined" && window.location.pathname.startsWith("/portfolio/") && response.data?.user) {
+        const u = response.data.user;
+        const slug = u.registerNumber || u.username || (u.fullName ? u.fullName.replace(/\s+/g, "").toLowerCase() : u.id);
+        if (slug) {
+          const search = window.location.search || "";
+          router.replace(`/student/${encodeURIComponent(slug)}${search}`);
+        }
+      }
     } catch (error) {
       console.error("Failed to load portfolio details", error);
     } finally {

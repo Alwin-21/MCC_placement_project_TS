@@ -63,6 +63,7 @@ import {
 } from "lucide-react";
 import api from "@/services/api";
 import { useTheme } from "@/hooks/useTheme";
+import { useResizableSidebar } from "@/hooks/useResizableSidebar";
 import AssessmentAdminModule from "@/components/admin/AssessmentAdminModule";
 import HRAccessManager from "@/app/admin/components/HRAccessManager";
 
@@ -1413,7 +1414,7 @@ export default function AdminPage() {
         </div>
 
         {/* Navigation Items */}
-        <nav className="p-4 space-y-1.5 overflow-y-auto flex-1">
+        <nav className="p-4 space-y-1.5 overflow-y-auto flex-1 scrollbar-thin">
             {([
               { id: "overview",       label: "Dashboard Overview",  icon: Activity,       superOnly: false },
               { id: "students",       label: "Student Directory",    icon: Users,          superOnly: false },
@@ -1523,10 +1524,10 @@ export default function AdminPage() {
           <div className="w-72 flex flex-col justify-between p-5 animate-slideIn h-screen border-r mcc-sidebar">
             {/* Header */}
             <div className="flex justify-between items-center pb-4 border-b border-gray-250 shrink-0">
-              <div className="flex items-center justify-start py-1">
+              <div className="flex items-center justify-start py-0.5">
                 <img 
                   src={themeMode === "dark" ? "/mcc-logo-dark.png" : "/mcc-logo.png"} 
-                  className="w-full max-w-[190px] h-auto object-contain rounded-lg" 
+                  className="h-16 sm:h-20 w-auto max-w-[220px] object-contain rounded-lg shrink-0"
                   alt="Madras Christian College Logo" 
                 />
               </div>
@@ -1769,7 +1770,7 @@ export default function AdminPage() {
                           themeMode === "dark" ? "border-white/5" : "border-slate-200"
                         }`}>
                           <Link
-                            href={`/portfolio/${student.id}`}
+                            href={`/student/${student.registerNumber || student.username || (student.fullName ? student.fullName.replace(/\s+/g, "").toLowerCase() : student.id)}`}
                             target="_blank"
                             className={`flex-1 border py-2 rounded-lg text-xs font-bold text-center transition ${
                               themeMode === "dark" ? "bg-white/5 hover:bg-white/10 text-white border-white/10" : "bg-white hover:bg-slate-100 text-slate-800 border-slate-200"
@@ -2003,7 +2004,7 @@ export default function AdminPage() {
                         Manage
                       </button>
                       <Link
-                        href={`/portfolio/${student.id}`}
+                        href={`/student/${student.registerNumber || student.username || (student.fullName ? student.fullName.replace(/\s+/g, "").toLowerCase() : student.id)}`}
                         target="_blank"
                         className={`flex-1 py-2 rounded-lg text-xs font-bold text-center border transition ${
                           themeMode === "dark" ? "bg-white/5 hover:bg-white/10 text-white border-white/10" : "bg-white hover:bg-slate-100 text-slate-800 border-slate-200"
@@ -4817,7 +4818,7 @@ export default function AdminPage() {
               {/* ── QUICK LINKS ── */}
               <div className="flex gap-3 pt-1">
                 <Link
-                  href={`/portfolio/${selectedStudent.id}`}
+                  href={`/student/${selectedStudent.registerNumber || selectedStudent.username || (selectedStudent.fullName ? selectedStudent.fullName.replace(/\s+/g, "").toLowerCase() : selectedStudent.id)}`}
                   target="_blank"
                   className={`flex-1 py-2.5 rounded-xl text-xs font-bold text-center border transition ${
                     themeMode === "dark" ? "border-white/10 text-white hover:bg-white/5" : "border-slate-200 text-slate-700 hover:bg-slate-100"
