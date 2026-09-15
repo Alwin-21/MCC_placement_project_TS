@@ -16,13 +16,23 @@ import {
   Building2,
   MapPin,
   HelpCircle,
+  Sun,
+  Moon,
+  ChevronDown,
+  AlertCircle,
 } from "lucide-react";
 import api from "@/services/api";
 import { useTheme } from "@/hooks/useTheme";
+import RichTextEditor from "@/components/admin/RichTextEditor";
+
+const stripHtml = (html: string) => {
+  if (!html) return "";
+  return html.replace(/<[^>]*>/g, "").replace(/&nbsp;/g, " ").trim();
+};
 
 export default function CompanyRegisterPage() {
   const router = useRouter();
-  const [themeMode] = useTheme();
+  const [themeMode, toggleThemeMode] = useTheme();
   const isDark = themeMode === "dark";
 
   const [step, setStep] = useState(1);
@@ -75,6 +85,35 @@ export default function CompanyRegisterPage() {
   const [num1] = useState(Math.floor(Math.random() * 9) + 1);
   const [num2] = useState(Math.floor(Math.random() * 9) + 1);
 
+  const stepLabels = [
+    "Account Details",
+    "Company Profile",
+    "Office Location",
+    "Verification Docs",
+    "Consent & Captcha",
+  ];
+
+  // Calculate missing required fields and documents across the entire application
+  const missingRequirements: { label: string; step: number }[] = [];
+  if (!form.companyName.trim()) missingRequirements.push({ label: "Company Name", step: 1 });
+  if (!form.companyEmail.trim()) missingRequirements.push({ label: "Company Email", step: 1 });
+  if (!form.officialHrEmail.trim()) missingRequirements.push({ label: "Official HR Login Email", step: 1 });
+  if (!form.hrName.trim()) missingRequirements.push({ label: "Primary HR Contact Name", step: 1 });
+  if (!form.hrPassword || form.hrPassword.length < 6) missingRequirements.push({ label: "HR Password (min 6 chars)", step: 1 });
+  if (!form.confirmPassword || form.hrPassword !== form.confirmPassword) missingRequirements.push({ label: "Matching Password Confirmation", step: 1 });
+  if (!stripHtml(form.description)) missingRequirements.push({ label: "Company Description", step: 2 });
+  if (!form.headOffice.trim()) missingRequirements.push({ label: "Head Office Location", step: 3 });
+  if (!form.gstDocUrl.trim()) missingRequirements.push({ label: "GST Registration Document", step: 4 });
+  if (!form.regDocUrl.trim()) missingRequirements.push({ label: "Incorporation Certificate", step: 4 });
+  if (!form.authDocUrl.trim()) missingRequirements.push({ label: "Hiring Authorization Letter", step: 4 });
+  if (!form.termsAccepted) missingRequirements.push({ label: "Placement Guidelines Acceptance", step: 5 });
+  if (!form.privacyAccepted) missingRequirements.push({ label: "Privacy Policy Acceptance", step: 5 });
+  if (!captchaAnswer.trim() || parseInt(captchaAnswer, 10) !== num1 + num2) {
+    missingRequirements.push({ label: "Anti-Bot Math Captcha", step: 5 });
+  }
+
+  const isFormComplete = missingRequirements.length === 0;
+
   // Upload Handler
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, fieldName: string, uploadType: string) => {
     const file = e.target.files?.[0];
@@ -117,7 +156,7 @@ export default function CompanyRegisterPage() {
         return false;
       }
     } else if (currentStep === 2) {
-      if (!form.description) {
+      if (!stripHtml(form.description)) {
         setError("Please provide a description of your company.");
         return false;
       }
@@ -150,6 +189,11 @@ export default function CompanyRegisterPage() {
     e.preventDefault();
     setError("");
 
+    if (!isFormComplete) {
+      setError("Please complete all required fields and upload all required documents before registering.");
+      return;
+    }
+
     if (!form.termsAccepted || !form.privacyAccepted) {
       setError("Please accept the Placement Terms and Privacy Policy.");
       return;
@@ -179,6 +223,20 @@ export default function CompanyRegisterPage() {
           isDark ? "bg-[#090d16] text-slate-100" : "bg-[#faf9f6] text-slate-900"
         }`}
       >
+        {/* Floating Theme Changer */}
+        <button
+          type="button"
+          onClick={toggleThemeMode}
+          aria-label="Toggle theme"
+          className={`fixed top-5 right-5 z-50 p-2.5 rounded-full transition-all duration-300 cursor-pointer shadow-lg backdrop-blur-md border flex items-center justify-center ${
+            isDark
+              ? "bg-white/10 hover:bg-white/20 text-amber-300 border-white/15"
+              : "bg-white hover:bg-slate-100 text-slate-700 border-slate-300 shadow-slate-200"
+          }`}
+        >
+          {isDark ? <Sun size={18} /> : <Moon size={18} />}
+        </button>
+
         <div className="w-full max-w-lg glass-card rounded-3xl p-10 border border-slate-200/80 dark:border-white/10 text-center space-y-6 shadow-2xl bg-white/40 dark:bg-white/[0.02] backdrop-blur-xl">
           <div className="w-16 h-16 bg-emerald-500/20 text-emerald-400 rounded-full flex items-center justify-center mx-auto shadow-md">
             <CheckCircle2 size={32} />
@@ -211,27 +269,55 @@ export default function CompanyRegisterPage() {
         isDark ? "bg-[#090d16] text-slate-100" : "bg-[#faf9f6] text-slate-900"
       }`}
     >
-      <div className="w-full max-w-2xl space-y-6">
-        <Link
-          href="/company/login"
-          className="inline-flex items-center gap-2 text-xs font-extrabold text-slate-500 hover:text-[#781c1c] dark:hover:text-red-400 transition duration-200"
-        >
-          <ArrowLeft size={16} /> Cancel and Back to Login
-        </Link>
+      {/* Floating Theme Changer */}
+      <button
+        type="button"
+        onClick={toggleThemeMode}
+        aria-label="Toggle theme"
+        className={`fixed top-5 right-5 z-50 p-2.5 rounded-full transition-all duration-300 cursor-pointer shadow-lg backdrop-blur-md border flex items-center justify-center ${
+          isDark
+            ? "bg-white/10 hover:bg-white/20 text-amber-300 border-white/15"
+            : "bg-white hover:bg-slate-100 text-slate-700 border-slate-300 shadow-slate-200"
+        }`}
+      >
+        {isDark ? <Sun size={18} /> : <Moon size={18} />}
+      </button>
 
-        {/* Multi-step progress bar */}
+      <div className="w-full max-w-4xl lg:max-w-5xl space-y-6">
+        <div className="flex justify-between items-center">
+          <Link
+            href="/company/login"
+            className="inline-flex items-center gap-2 text-xs font-extrabold text-slate-500 hover:text-[#781c1c] dark:hover:text-red-400 transition duration-200"
+          >
+            <ArrowLeft size={16} /> Cancel and Back to Login
+          </Link>
+          <span className="text-xs font-semibold text-slate-400">
+            Step {step} of 5
+          </span>
+        </div>
+
+        {/* Multi-step progress bar with clickable numbers */}
         <div className="flex justify-between items-center px-4">
           {[1, 2, 3, 4, 5].map((s) => (
             <div key={s} className="flex items-center flex-1 last:flex-initial">
-              <div
-                className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-black transition-all ${
-                  step >= s
-                    ? "bg-[#781c1c] text-white shadow-md shadow-red-900/35"
-                    : "bg-slate-200 dark:bg-white/5 text-slate-400"
+              <button
+                type="button"
+                onClick={() => {
+                  setError("");
+                  setStep(s);
+                }}
+                title={`Go to Step ${s}: ${stepLabels[s - 1]}`}
+                aria-label={`Go to Step ${s}: ${stepLabels[s - 1]}`}
+                className={`w-9 h-9 rounded-full flex items-center justify-center text-xs font-black transition-all cursor-pointer hover:scale-110 active:scale-95 ${
+                  step === s
+                    ? "bg-[#781c1c] text-white shadow-lg shadow-red-900/40 ring-4 ring-red-500/20"
+                    : step > s
+                    ? "bg-[#781c1c]/90 hover:bg-[#781c1c] text-white"
+                    : "bg-slate-200 hover:bg-slate-300 dark:bg-white/10 dark:hover:bg-white/20 text-slate-600 dark:text-slate-400"
                 }`}
               >
                 {s}
-              </div>
+              </button>
               {s < 5 && (
                 <div
                   className={`h-[3px] flex-1 mx-2 rounded-full transition-all ${
@@ -419,35 +505,41 @@ export default function CompanyRegisterPage() {
                     <label className="text-[11px] uppercase tracking-wider font-extrabold block mb-1.5 text-slate-700 dark:text-slate-300">
                       Industry
                     </label>
-                    <select
-                      value={form.industry}
-                      onChange={(e) => setForm({ ...form, industry: e.target.value })}
-                      className="w-full border text-xs px-4 py-3.5 rounded-xl outline-none transition bg-slate-50 dark:bg-white/5 border-slate-200 dark:border-white/10 text-slate-900 dark:text-white focus:border-[#781c1c] dark:focus:border-red-500"
-                    >
-                      <option value="Information Technology">Information Technology</option>
-                      <option value="Finance & Banking">Finance & Banking</option>
-                      <option value="Consulting">Consulting</option>
-                      <option value="Healthcare">Healthcare</option>
-                      <option value="Education">Education</option>
-                      <option value="Marketing & Ad">Marketing & Ad</option>
-                      <option value="Other">Other</option>
-                    </select>
+                    <div className="relative">
+                      <select
+                        value={form.industry}
+                        onChange={(e) => setForm({ ...form, industry: e.target.value })}
+                        className="w-full appearance-none border text-xs px-4 py-3.5 pr-10 rounded-xl outline-none transition cursor-pointer bg-slate-50 dark:bg-[#111827] border-slate-200 dark:border-white/10 text-slate-900 dark:text-white focus:border-[#781c1c] dark:focus:border-red-500"
+                      >
+                        <option value="Information Technology" className="bg-white dark:bg-[#111827] text-slate-900 dark:text-slate-100">Information Technology</option>
+                        <option value="Finance & Banking" className="bg-white dark:bg-[#111827] text-slate-900 dark:text-slate-100">Finance & Banking</option>
+                        <option value="Consulting" className="bg-white dark:bg-[#111827] text-slate-900 dark:text-slate-100">Consulting</option>
+                        <option value="Healthcare" className="bg-white dark:bg-[#111827] text-slate-900 dark:text-slate-100">Healthcare</option>
+                        <option value="Education" className="bg-white dark:bg-[#111827] text-slate-900 dark:text-slate-100">Education</option>
+                        <option value="Marketing & Ad" className="bg-white dark:bg-[#111827] text-slate-900 dark:text-slate-100">Marketing & Ad</option>
+                        <option value="Other" className="bg-white dark:bg-[#111827] text-slate-900 dark:text-slate-100">Other</option>
+                      </select>
+                      <ChevronDown size={16} className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500" />
+                    </div>
                   </div>
                   <div>
                     <label className="text-[11px] uppercase tracking-wider font-extrabold block mb-1.5 text-slate-700 dark:text-slate-300">
                       Company Type
                     </label>
-                    <select
-                      value={form.companyType}
-                      onChange={(e) => setForm({ ...form, companyType: e.target.value })}
-                      className="w-full border text-xs px-4 py-3.5 rounded-xl outline-none transition bg-slate-50 dark:bg-white/5 border-slate-200 dark:border-white/10 text-slate-900 dark:text-white focus:border-[#781c1c] dark:focus:border-red-500"
-                    >
-                      <option value="MNC">MNC</option>
-                      <option value="Private Limited">Private Limited</option>
-                      <option value="Public Sector">Public Sector</option>
-                      <option value="Startup">Startup</option>
-                      <option value="NGO">NGO</option>
-                    </select>
+                    <div className="relative">
+                      <select
+                        value={form.companyType}
+                        onChange={(e) => setForm({ ...form, companyType: e.target.value })}
+                        className="w-full appearance-none border text-xs px-4 py-3.5 pr-10 rounded-xl outline-none transition cursor-pointer bg-slate-50 dark:bg-[#111827] border-slate-200 dark:border-white/10 text-slate-900 dark:text-white focus:border-[#781c1c] dark:focus:border-red-500"
+                      >
+                        <option value="MNC" className="bg-white dark:bg-[#111827] text-slate-900 dark:text-slate-100">MNC</option>
+                        <option value="Private Limited" className="bg-white dark:bg-[#111827] text-slate-900 dark:text-slate-100">Private Limited</option>
+                        <option value="Public Sector" className="bg-white dark:bg-[#111827] text-slate-900 dark:text-slate-100">Public Sector</option>
+                        <option value="Startup" className="bg-white dark:bg-[#111827] text-slate-900 dark:text-slate-100">Startup</option>
+                        <option value="NGO" className="bg-white dark:bg-[#111827] text-slate-900 dark:text-slate-100">NGO</option>
+                      </select>
+                      <ChevronDown size={16} className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500" />
+                    </div>
                   </div>
                   <div>
                     <label className="text-[11px] uppercase tracking-wider font-extrabold block mb-1.5 text-slate-700 dark:text-slate-300">
@@ -472,30 +564,31 @@ export default function CompanyRegisterPage() {
                   <label className="text-[11px] uppercase tracking-wider font-extrabold block mb-1.5 text-slate-700 dark:text-slate-300">
                     Company Size
                   </label>
-                  <select
-                    value={form.companySize}
-                    onChange={(e) => setForm({ ...form, companySize: e.target.value })}
-                    className="w-full border text-xs px-4 py-3.5 rounded-xl outline-none transition bg-slate-50 dark:bg-white/5 border-slate-200 dark:border-white/10 text-slate-900 dark:text-white focus:border-[#781c1c] dark:focus:border-red-500"
-                  >
-                    <option value="1-10">1-10 employees</option>
-                    <option value="11-50">11-50 employees</option>
-                    <option value="51-200">51-200 employees</option>
-                    <option value="201-500">201-500 employees</option>
-                    <option value="500+">500+ employees</option>
-                  </select>
+                  <div className="relative">
+                    <select
+                      value={form.companySize}
+                      onChange={(e) => setForm({ ...form, companySize: e.target.value })}
+                      className="w-full appearance-none border text-xs px-4 py-3.5 pr-10 rounded-xl outline-none transition cursor-pointer bg-slate-50 dark:bg-[#111827] border-slate-200 dark:border-white/10 text-slate-900 dark:text-white focus:border-[#781c1c] dark:focus:border-red-500"
+                    >
+                      <option value="1-10" className="bg-white dark:bg-[#111827] text-slate-900 dark:text-slate-100">1-10 employees</option>
+                      <option value="11-50" className="bg-white dark:bg-[#111827] text-slate-900 dark:text-slate-100">11-50 employees</option>
+                      <option value="51-200" className="bg-white dark:bg-[#111827] text-slate-900 dark:text-slate-100">51-200 employees</option>
+                      <option value="201-500" className="bg-white dark:bg-[#111827] text-slate-900 dark:text-slate-100">201-500 employees</option>
+                      <option value="500+" className="bg-white dark:bg-[#111827] text-slate-900 dark:text-slate-100">500+ employees</option>
+                    </select>
+                    <ChevronDown size={16} className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500" />
+                  </div>
                 </div>
 
                 <div>
                   <label className="text-[11px] uppercase tracking-wider font-extrabold block mb-1.5 text-slate-700 dark:text-slate-300">
                     Company Description *
                   </label>
-                  <textarea
-                    rows={4}
-                    required
-                    placeholder="Briefly tell us about your organization..."
+                  <RichTextEditor
                     value={form.description}
-                    onChange={(e) => setForm({ ...form, description: e.target.value })}
-                    className="w-full border text-xs px-4 py-3 rounded-xl outline-none transition bg-slate-50 dark:bg-white/5 border-slate-200 dark:border-white/10 text-slate-900 dark:text-white focus:border-[#781c1c] dark:focus:border-red-500 resize-none"
+                    onChange={(val) => setForm((prev) => ({ ...prev, description: val }))}
+                    placeholder="Briefly tell us about your organization..."
+                    minHeight="140px"
                   />
                 </div>
 
@@ -504,24 +597,22 @@ export default function CompanyRegisterPage() {
                     <label className="text-[11px] uppercase tracking-wider font-extrabold block mb-1.5 text-slate-700 dark:text-slate-300">
                       Company Mission
                     </label>
-                    <textarea
-                      rows={2}
-                      placeholder="What is your organization's mission statement?"
+                    <RichTextEditor
                       value={form.mission}
-                      onChange={(e) => setForm({ ...form, mission: e.target.value })}
-                      className="w-full border text-xs px-4 py-3 rounded-xl outline-none transition bg-slate-50 dark:bg-white/5 border-slate-200 dark:border-white/10 text-slate-900 dark:text-white focus:border-[#781c1c] dark:focus:border-red-500 resize-none"
+                      onChange={(val) => setForm((prev) => ({ ...prev, mission: val }))}
+                      placeholder="What is your organization's mission statement?"
+                      minHeight="110px"
                     />
                   </div>
                   <div>
                     <label className="text-[11px] uppercase tracking-wider font-extrabold block mb-1.5 text-slate-700 dark:text-slate-300">
                       Company Vision
                     </label>
-                    <textarea
-                      rows={2}
-                      placeholder="What is your organization's vision statement?"
+                    <RichTextEditor
                       value={form.vision}
-                      onChange={(e) => setForm({ ...form, vision: e.target.value })}
-                      className="w-full border text-xs px-4 py-3 rounded-xl outline-none transition bg-slate-50 dark:bg-white/5 border-slate-200 dark:border-white/10 text-slate-900 dark:text-white focus:border-[#781c1c] dark:focus:border-red-500 resize-none"
+                      onChange={(val) => setForm((prev) => ({ ...prev, vision: val }))}
+                      placeholder="What is your organization's vision statement?"
+                      minHeight="110px"
                     />
                   </div>
                 </div>
@@ -530,12 +621,11 @@ export default function CompanyRegisterPage() {
                   <label className="text-[11px] uppercase tracking-wider font-extrabold block mb-1.5 text-slate-700 dark:text-slate-300">
                     Recruitment Process
                   </label>
-                  <textarea
-                    rows={3}
-                    placeholder="Describe your assessment steps (e.g. Aptitude Test -> Technical Interview -> HR Round)..."
+                  <RichTextEditor
                     value={form.recruitmentProcess}
-                    onChange={(e) => setForm({ ...form, recruitmentProcess: e.target.value })}
-                    className="w-full border text-xs px-4 py-3 rounded-xl outline-none transition bg-slate-50 dark:bg-white/5 border-slate-200 dark:border-white/10 text-slate-900 dark:text-white focus:border-[#781c1c] dark:focus:border-red-500 resize-none"
+                    onChange={(val) => setForm((prev) => ({ ...prev, recruitmentProcess: val }))}
+                    placeholder="Describe your assessment steps (e.g. Aptitude Test -> Technical Interview -> HR Round)..."
+                    minHeight="120px"
                   />
                 </div>
 
@@ -544,24 +634,22 @@ export default function CompanyRegisterPage() {
                     <label className="text-[11px] uppercase tracking-wider font-extrabold block mb-1.5 text-slate-700 dark:text-slate-300">
                       Work Culture & Benefits
                     </label>
-                    <textarea
-                      rows={3}
-                      placeholder="e.g. Work-life balance, health insurance, learning resources..."
+                    <RichTextEditor
                       value={form.workCulture}
-                      onChange={(e) => setForm({ ...form, workCulture: e.target.value })}
-                      className="w-full border text-xs px-4 py-3 rounded-xl outline-none transition bg-slate-50 dark:bg-white/5 border-slate-200 dark:border-white/10 text-slate-900 dark:text-white focus:border-[#781c1c] dark:focus:border-red-500 resize-none"
+                      onChange={(val) => setForm((prev) => ({ ...prev, workCulture: val }))}
+                      placeholder="e.g. Work-life balance, health insurance, learning resources..."
+                      minHeight="110px"
                     />
                   </div>
                   <div>
                     <label className="text-[11px] uppercase tracking-wider font-extrabold block mb-1.5 text-slate-700 dark:text-slate-300">
                       Awards & Achievements
                     </label>
-                    <textarea
-                      rows={3}
-                      placeholder="e.g. Great Place to Work 2025, Top Tech Innovator..."
+                    <RichTextEditor
                       value={form.awards}
-                      onChange={(e) => setForm({ ...form, awards: e.target.value })}
-                      className="w-full border text-xs px-4 py-3 rounded-xl outline-none transition bg-slate-50 dark:bg-white/5 border-slate-200 dark:border-white/10 text-slate-900 dark:text-white focus:border-[#781c1c] dark:focus:border-red-500 resize-none"
+                      onChange={(val) => setForm((prev) => ({ ...prev, awards: val }))}
+                      placeholder="e.g. Great Place to Work 2025, Top Tech Innovator..."
+                      minHeight="110px"
                     />
                   </div>
                 </div>
@@ -635,15 +723,18 @@ export default function CompanyRegisterPage() {
                   <label className="text-[11px] uppercase tracking-wider font-extrabold block mb-1.5 text-slate-700 dark:text-slate-300">
                     Work Mode
                   </label>
-                  <select
-                    value={form.workMode}
-                    onChange={(e) => setForm({ ...form, workMode: e.target.value })}
-                    className="w-full border text-xs px-4 py-3.5 rounded-xl outline-none transition bg-slate-50 dark:bg-white/5 border-slate-200 dark:border-white/10 text-slate-900 dark:text-white focus:border-[#781c1c] dark:focus:border-red-500"
-                  >
-                    <option value="OnSite">On Site</option>
-                    <option value="Hybrid">Hybrid</option>
-                    <option value="Remote">Remote</option>
-                  </select>
+                  <div className="relative">
+                    <select
+                      value={form.workMode}
+                      onChange={(e) => setForm({ ...form, workMode: e.target.value })}
+                      className="w-full appearance-none border text-xs px-4 py-3.5 pr-10 rounded-xl outline-none transition cursor-pointer bg-slate-50 dark:bg-[#111827] border-slate-200 dark:border-white/10 text-slate-900 dark:text-white focus:border-[#781c1c] dark:focus:border-red-500"
+                    >
+                      <option value="OnSite" className="bg-white dark:bg-[#111827] text-slate-900 dark:text-slate-100">On Site</option>
+                      <option value="Hybrid" className="bg-white dark:bg-[#111827] text-slate-900 dark:text-slate-100">Hybrid</option>
+                      <option value="Remote" className="bg-white dark:bg-[#111827] text-slate-900 dark:text-slate-100">Remote</option>
+                    </select>
+                    <ChevronDown size={16} className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500" />
+                  </div>
                 </div>
               </div>
             )}
@@ -858,6 +949,36 @@ export default function CompanyRegisterPage() {
                     />
                   </div>
                 </div>
+
+                {/* Missing Requirements Guidance */}
+                {!isFormComplete && (
+                  <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-left space-y-2">
+                    <div className="flex items-center gap-2 text-amber-600 dark:text-amber-400 font-bold text-xs">
+                      <AlertCircle size={15} />
+                      <span>Required items needed before registration is enabled ({missingRequirements.length} remaining):</span>
+                    </div>
+                    <div className="flex flex-wrap gap-1.5 pt-1">
+                      {missingRequirements.map((item, idx) => (
+                        <button
+                          key={idx}
+                          type="button"
+                          onClick={() => {
+                            setError("");
+                            setStep(item.step);
+                          }}
+                          className="px-2.5 py-1 text-[11px] font-semibold bg-amber-500/15 hover:bg-amber-500/25 text-amber-900 dark:text-amber-200 rounded-lg transition cursor-pointer border border-amber-500/20 flex items-center gap-1.5"
+                          title={`Click to jump to Step ${item.step}`}
+                        >
+                          <span>{item.label}</span>
+                          <span className="opacity-60 text-[9px] font-bold">(Step {item.step})</span>
+                        </button>
+                      ))}
+                    </div>
+                    <p className="text-[10px] text-amber-700/80 dark:text-amber-400/80 italic">
+                      Click any missing item tag above to jump directly to that step.
+                    </p>
+                  </div>
+                )}
               </div>
             )}
 
@@ -894,10 +1015,11 @@ export default function CompanyRegisterPage() {
               ) : (
                 <button
                   type="submit"
-                  disabled={loading}
-                  className="px-8 py-3.5 bg-[#781c1c] hover:bg-[#5f1515] text-white font-extrabold text-xs uppercase rounded-xl transition cursor-pointer flex items-center gap-2 shadow-lg disabled:opacity-50"
+                  disabled={!isFormComplete || loading}
+                  title={!isFormComplete ? "Please complete all required fields and documents to register" : "Register Company"}
+                  className="px-8 py-3.5 bg-[#781c1c] hover:bg-[#5f1515] text-white font-extrabold text-xs uppercase rounded-xl transition flex items-center gap-2 shadow-lg disabled:opacity-40 disabled:cursor-not-allowed disabled:pointer-events-none disabled:shadow-none cursor-pointer"
                 >
-                  {loading ? "Submitting Application..." : "Submit Application"}
+                  {loading ? "Submitting Registration..." : "Register"}
                 </button>
               )}
             </div>
