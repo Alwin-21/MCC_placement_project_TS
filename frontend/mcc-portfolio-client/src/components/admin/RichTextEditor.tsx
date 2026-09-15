@@ -10,6 +10,8 @@ interface RichTextEditorProps {
   value: string;
   onChange: (value: string) => void;
   placeholder?: string;
+  minHeight?: string;
+  className?: string;
 }
 
 const FONT_FAMILIES = [
@@ -52,7 +54,14 @@ const HIGHLIGHT_COLORS = [
 
 const EMOJIS = ["😊", "👍", "👎", "❤️", "👏", "🎉", "💡", "⚠️", "🔒", "🕒", "📝", "🎯"];
 
-export default function RichTextEditor({ value, onChange, placeholder }: RichTextEditorProps) {
+export default function RichTextEditor({
+  value,
+  onChange,
+  placeholder,
+  minHeight = "120px",
+  className = "",
+}: RichTextEditorProps) {
+  const containerRef = useRef<HTMLDivElement>(null);
   const editorRef = useRef<HTMLDivElement>(null);
   const lastHtmlRef = useRef<string>(value);
   const [showColorDropdown, setShowColorDropdown] = useState(false);
@@ -68,14 +77,32 @@ export default function RichTextEditor({ value, onChange, placeholder }: RichTex
     }
   }, []);
 
-  // Sync value from parent if it differs from editor innerHTML (avoids cursor jump)
+  // Sync value from parent if it differs from editor innerHTML (avoids cursor jump when typing)
   useEffect(() => {
-    if (editorRef.current && value !== editorRef.current.innerHTML) {
-      // Set to placeholder if value is empty and editor not focused
-      editorRef.current.innerHTML = value || "";
-      lastHtmlRef.current = value || "";
+    if (editorRef.current) {
+      const isFocused = document.activeElement === editorRef.current;
+      if (!isFocused && value !== editorRef.current.innerHTML) {
+        editorRef.current.innerHTML = value || "";
+        lastHtmlRef.current = value || "";
+      } else if ((!value || value === "") && editorRef.current.innerHTML !== "") {
+        editorRef.current.innerHTML = "";
+        lastHtmlRef.current = "";
+      }
     }
   }, [value]);
+
+  // Click outside to close floating dropdowns
+  useEffect(() => {
+    const handleOutsideClick = (e: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setShowColorDropdown(false);
+        setShowHighlightDropdown(false);
+        setShowEmojiDropdown(false);
+      }
+    };
+    document.addEventListener("mousedown", handleOutsideClick);
+    return () => document.removeEventListener("mousedown", handleOutsideClick);
+  }, []);
 
   const handleInput = () => {
     if (editorRef.current) {
@@ -125,9 +152,12 @@ export default function RichTextEditor({ value, onChange, placeholder }: RichTex
   };
 
   return (
-    <div className="border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden bg-white dark:bg-[#0b0c10] shadow-sm flex flex-col w-full text-xs">
+    <div
+      ref={containerRef}
+      className={`border border-slate-200 dark:border-white/10 rounded-2xl overflow-hidden bg-white dark:bg-[#111827] shadow-sm flex flex-col w-full text-xs transition-colors ${className}`}
+    >
       {/* Editor Toolbar */}
-      <div className="flex flex-wrap items-center gap-1 p-2 bg-slate-50 dark:bg-[#12131a] border-b border-slate-200 dark:border-slate-850 select-none">
+      <div className="flex flex-wrap items-center gap-1 p-2 bg-slate-50 dark:bg-[#161f30] border-b border-slate-200 dark:border-white/10 select-none">
         
         {/* Undo / Redo */}
         <button
@@ -396,19 +426,24 @@ export default function RichTextEditor({ value, onChange, placeholder }: RichTex
       </div>
 
       {/* Editor Body */}
-      <div className="relative flex-1 min-h-[140px] text-xs">
+      <div className="relative flex-1 text-xs" style={{ minHeight }}>
         <div
           ref={editorRef}
           contentEditable
           onInput={handleInput}
           onBlur={handleInput}
-          className="w-full h-full min-h-[140px] max-h-[300px] overflow-y-auto px-4 py-3 bg-white dark:bg-[#0b0c10] text-slate-900 dark:text-slate-100 focus:outline-none leading-relaxed prose prose-slate dark:prose-invert prose-xs select-text font-serif"
+          onFocus={() => {
+            setShowColorDropdown(false);
+            setShowHighlightDropdown(false);
+            setShowEmojiDropdown(false);
+          }}
+          className="w-full h-full max-h-[320px] overflow-y-auto px-4 py-3 bg-white dark:bg-[#0e1422] text-slate-900 dark:text-slate-100 focus:outline-none leading-relaxed prose prose-slate dark:prose-invert prose-xs select-text font-sans"
           style={{
-            minHeight: "140px",
+            minHeight,
           }}
         />
-        {!value && placeholder && (
-          <div className="absolute top-3 left-4 text-slate-400 dark:text-slate-500 pointer-events-none select-none">
+        {(!value || value === "<br>" || value.trim() === "" || value === "<p><br></p>" || value === "<div><br></div>") && placeholder && (
+          <div className="absolute top-3 left-4 text-slate-400 dark:text-slate-500 pointer-events-none select-none text-xs">
             {placeholder}
           </div>
         )}

@@ -88,8 +88,13 @@ type TabType = "overview" | "profile" | "jobs" | "applications" | "talent-pools"
 export default function CompanyDashboardPage() {
   const router = useRouter();
   const [themeMode, toggleThemeMode] = useTheme();
-  const { sidebarWidth, startResizing, resetWidth } = useResizableSidebar({ storageKey: "mcc_company_sidebar_width" });
   const isDark = themeMode === "dark";
+  const { sidebarWidth, startResizing, resetWidth } = useResizableSidebar({
+    defaultWidth: 288,
+    minWidth: 220,
+    maxWidth: 480,
+    storageKey: "mcc_company_sidebar_width",
+  });
 
   const [activeTab, setActiveTab] = useState<TabType>("overview");
   const [loading, setLoading] = useState(true);
@@ -734,7 +739,7 @@ export default function CompanyDashboardPage() {
         }`}
     >
       {/* DESKTOP SIDEBAR NAVIGATION */}
-      <div 
+      <div
         style={{ width: `${sidebarWidth}px` }}
         className="border-r border-slate-200/50 dark:border-white/5 relative z-20 flex flex-col justify-between shrink-0 h-screen sticky top-0 transition-colors duration-300 hidden md:flex mcc-sidebar bg-white dark:bg-[#090d16]"
       >
@@ -825,13 +830,13 @@ export default function CompanyDashboardPage() {
 
           <div className="w-72 flex flex-col p-5 animate-slideIn h-screen border-r border-slate-200 dark:border-white/5 mcc-sidebar bg-white dark:bg-[#090d16] justify-between">
             <div className="flex flex-col flex-1 min-h-0">
-              <div className="pb-6 border-b border-slate-200 dark:border-white/5 flex items-center justify-between shrink-0">
+              <div className="pb-4 border-b border-slate-200 dark:border-white/5 flex items-center justify-between shrink-0">
                 <img
                   src={themeMode === "dark" ? "/mcc-logo-dark.png" : "/mcc-logo.png"}
-                  className="h-10 w-auto object-contain rounded-lg"
-                  alt="MCC Logo"
+                  className="h-14 sm:h-16 w-auto max-w-[200px] object-contain rounded-lg shrink-0"
+                  alt="Madras Christian College Logo"
                 />
-                <button onClick={() => setShowMobileNav(false)} className="p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-white/5">
+                <button onClick={() => setShowMobileNav(false)} className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-white/5 text-slate-400 hover:text-slate-600 dark:hover:text-white cursor-pointer">
                   <X size={20} />
                 </button>
               </div>
