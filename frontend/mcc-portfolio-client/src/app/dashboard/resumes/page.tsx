@@ -583,6 +583,15 @@ export default function ResumesDashboardPage() {
           </div>
         </div>
       )}
+
+      {creating && (
+        <MCCLoader
+          fullScreen={true}
+          isDark={themeMode === "dark"}
+          text="Creating Resume Workspace..."
+          subtext="MCC Resume Portal"
+        />
+      )}
     </div>
   );
 }

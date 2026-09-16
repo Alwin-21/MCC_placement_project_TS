@@ -36,6 +36,7 @@ import {
 import api from "@/services/api";
 import { useTheme } from "@/hooks/useTheme";
 import { parseImageAdjustments } from "@/utils/image";
+import MCCLoader from "@/components/MCCLoader";
 
 export default function ResumeEditorPage() {
   const { id } = useParams();
@@ -557,23 +558,24 @@ export default function ResumeEditorPage() {
   // ─── Pixel-perfect PDF download using html2canvas + jsPDF ───────────────
   // Captures exact .resume-page-sheet A4 elements into PDF — preview === download, always.
   const handleDownloadPDF = async () => {
-    let el = document.getElementById("resume-preview-container");
+    // Prefer dedicated off-screen export container to ensure zero distortion or clipping across mobile & desktop
+    let el = document.getElementById("resume-export-container");
+    if (!el) {
+      el = document.getElementById("resume-preview-container");
+    }
     if (!el) {
       el = document.getElementById("resume-preview-container-modal");
     }
     if (!el) return;
     
-    const originalZoom = zoomLevel;
     try {
       setDownloading(true);
-
-      // Temporarily set zoom level to 1 to avoid layout scaling artifacts
-      setZoomLevel(1);
-      await new Promise((resolve) => setTimeout(resolve, 300));
 
       if (typeof document !== "undefined" && document.fonts) {
         await document.fonts.ready;
       }
+      // Small pause to guarantee render & styles stabilization
+      await new Promise((resolve) => setTimeout(resolve, 250));
 
       const html2canvas = (await import("html2canvas-pro")).default;
       const { jsPDF } = await import("jspdf");
@@ -597,6 +599,14 @@ export default function ResumeEditorPage() {
           allowTaint: false,
           backgroundColor: "#ffffff",
           logging: false,
+          width: 794,
+          height: 1123,
+          windowWidth: 1200,  // Prevents mobile screen responsive media queries from shrinking elements
+          windowHeight: 1600,
+          scrollX: 0,
+          scrollY: 0,
+          x: 0,
+          y: 0,
           onclone: (clonedDoc) => {
             const style = clonedDoc.createElement("style");
             style.innerHTML = `
@@ -621,12 +631,11 @@ export default function ResumeEditorPage() {
       console.error("PDF generation failed:", err);
       alert("Could not generate PDF. Please try again.");
     } finally {
-      setZoomLevel(originalZoom);
       setDownloading(false);
     }
   };
 
-  const renderResumeDocument = (isModal = false) => {
+  const renderResumeDocument = (isModal = false, containerId?: string) => {
     const pInfo = resumeData.personalInfo;
 
     // Font Scaling configuration based on user selected fontSizeLevel
@@ -1028,7 +1037,7 @@ export default function ResumeEditorPage() {
       );
 
       return (
-        <div id={isModal ? "resume-preview-container-modal" : "resume-preview-container"} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "32px", width: "794px" }}>
+        <div id={containerId || (isModal ? "resume-preview-container-modal" : "resume-preview-container")} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "32px", width: "794px" }}>
           {/* Page 1 */}
           <div className="resume-page-sheet resume-document-light" style={{ width: "794px", height: "1123px", backgroundColor: "#fff", boxShadow: "0 14px 40px rgba(0,0,0,0.35)", borderRadius: "4px", overflow: "hidden", display: "flex", flexDirection: "column", fontFamily: "'Inter',sans-serif" }}>
             <div style={{ backgroundColor: accentColor, padding: "24px 32px 20px 32px", display: "flex", justifyContent: "space-between", alignItems: "flex-end", flexShrink: 0 }}>
@@ -1215,7 +1224,7 @@ export default function ResumeEditorPage() {
       };
 
       return (
-        <div id={isModal ? "resume-preview-container-modal" : "resume-preview-container"} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "32px", width: "794px" }}>
+        <div id={containerId || (isModal ? "resume-preview-container-modal" : "resume-preview-container")} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "32px", width: "794px" }}>
           {/* Page 1 */}
           <div className="resume-page-sheet resume-document-light" style={{ width: "794px", height: "1123px", backgroundColor: "#fff", boxShadow: "0 14px 40px rgba(0,0,0,0.35)", borderRadius: "4px", padding: "40px 52px", display: "flex", flexDirection: "column", gap: fontCfg.sectionGap, boxSizing: "border-box", fontFamily: "Georgia, serif", textAlign: "left" }}>
             <div style={{ textAlign: "center", display: "flex", flexDirection: "column", gap: "5px" }}>
@@ -1415,7 +1424,7 @@ export default function ResumeEditorPage() {
     };
 
     return (
-      <div id={isModal ? "resume-preview-container-modal" : "resume-preview-container"} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "32px", width: "794px" }}>
+      <div id={containerId || (isModal ? "resume-preview-container-modal" : "resume-preview-container")} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "32px", width: "794px" }}>
         {/* Page 1 */}
         <div className="resume-page-sheet resume-document-light" style={{ width: "794px", height: "1123px", backgroundColor: "#fff", boxShadow: "0 14px 40px rgba(0,0,0,0.35)", borderRadius: "4px", padding: "30px", display: "flex", flexDirection: "column", gap: fontCfg.sectionGap, boxSizing: "border-box", fontFamily: "'Inter',sans-serif", textAlign: "left" }}>
           {/* Header Banner */}
@@ -1483,9 +1492,10 @@ export default function ResumeEditorPage() {
   if (loading || !resumeData) {
     return (
       <MCCLoader
-        isDark={themeMode === "dark"}
+        fullScreen={true}
+        isDark={isDark}
         text="Loading Resume Builder Workspace..."
-        subtext="Preparing your resume editor and formatting tools..."
+        subtext="MCC Placement Platform"
       />
     );
   }
@@ -2777,6 +2787,16 @@ export default function ResumeEditorPage() {
           </div>
 
           <div className="flex items-center justify-between w-full sm:w-auto gap-2">
+            {/* Quick Download button for mobile preview */}
+            <button
+              onClick={handleDownloadPDF}
+              disabled={downloading}
+              className="sm:hidden flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#781c1c] hover:bg-[#5f1515] text-white text-xs font-bold shadow-md cursor-pointer disabled:opacity-50 shrink-0"
+              title={downloading ? "Generating PDF..." : "Download PDF"}
+            >
+              <Download size={13} />
+              <span>{downloading ? "Generating..." : "Download PDF"}</span>
+            </button>
             {/* Quick Zoom Preset Buttons */}
             <div className={`hidden sm:flex items-center gap-1 p-1 rounded-xl border text-[10px] font-black ${
               isDark ? "bg-slate-900 border-slate-700" : "bg-slate-100 border-slate-300"
@@ -2885,6 +2905,38 @@ export default function ResumeEditorPage() {
           </div>
         </div>
       </div>
+
+      {/* Dedicated off-screen export container for 100% pixel-perfect PDF capture on all devices (mobile & desktop) */}
+      <div
+        id="resume-export-mount"
+        aria-hidden="true"
+        style={{
+          position: "fixed",
+          top: 0,
+          left: "-10000px",
+          width: "794px",
+          minWidth: "794px",
+          maxWidth: "794px",
+          height: "auto",
+          zIndex: -9999,
+          pointerEvents: "none",
+          visibility: "visible",
+          opacity: 1,
+          overflow: "visible",
+        }}
+      >
+        {renderResumeDocument(false, "resume-export-container")}
+      </div>
+
+      {/* Branded Loading Overlay during PDF generation */}
+      {downloading && (
+        <MCCLoader
+          fullScreen={true}
+          isDark={isDark}
+          text="Generating Pixel-Perfect PDF..."
+          subtext="MCC Placement Platform"
+        />
+      )}
     </div>
   );
 }
