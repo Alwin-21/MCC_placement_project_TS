@@ -36,7 +36,6 @@ import {
 import api from "@/services/api";
 import { useTheme } from "@/hooks/useTheme";
 import { parseImageAdjustments } from "@/utils/image";
-import MCCLoader from "@/components/MCCLoader";
 
 export default function ResumeEditorPage() {
   const { id } = useParams();
