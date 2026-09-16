@@ -3691,18 +3691,27 @@ export default function AdminPage() {
                 </div>
 
                 <div className="text-left">
-                  <span className="text-xs font-bold text-slate-400 block mb-1">Description</span>
-                  <p className="text-sm font-medium leading-relaxed">{selectedCompany.profile?.description}</p>
+                  <span className="text-xs font-bold text-slate-400 block mb-2">Description</span>
+                  <div
+                    className="text-sm font-medium rich-text-preview"
+                    dangerouslySetInnerHTML={{ __html: selectedCompany.profile?.description || "<p>N/A</p>" }}
+                  />
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-left">
                   <div>
-                    <span className="text-xs font-bold text-slate-400 block mb-1">Mission</span>
-                    <p className="text-sm font-medium leading-relaxed">{selectedCompany.profile?.mission || "N/A"}</p>
+                    <span className="text-xs font-bold text-slate-400 block mb-2">Mission</span>
+                    <div
+                      className="text-sm font-medium rich-text-preview"
+                      dangerouslySetInnerHTML={{ __html: selectedCompany.profile?.mission || "<p>N/A</p>" }}
+                    />
                   </div>
                   <div>
-                    <span className="text-xs font-bold text-slate-400 block mb-1">Vision</span>
-                    <p className="text-sm font-medium leading-relaxed">{selectedCompany.profile?.vision || "N/A"}</p>
+                    <span className="text-xs font-bold text-slate-400 block mb-2">Vision</span>
+                    <div
+                      className="text-sm font-medium rich-text-preview"
+                      dangerouslySetInnerHTML={{ __html: selectedCompany.profile?.vision || "<p>N/A</p>" }}
+                    />
                   </div>
                 </div>
 

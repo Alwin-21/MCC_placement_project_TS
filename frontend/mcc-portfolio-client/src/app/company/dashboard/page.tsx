@@ -1122,24 +1122,27 @@ export default function CompanyDashboardPage() {
                       </div>
 
                       {/* Contact Card */}
-                      <div className="border border-slate-200 dark:border-white/5 rounded-3xl p-6 bg-slate-50/50 dark:bg-white/[0.01] text-xs font-semibold space-y-3.5">
+                      <div className="border border-slate-200 dark:border-white/5 rounded-3xl p-5 bg-slate-50/50 dark:bg-white/[0.01] text-xs font-semibold space-y-3">
                         <span className="text-[9px] uppercase font-extrabold text-slate-400 tracking-wider block">HR Representative</span>
-                        <div className="space-y-2">
-                          <div className="flex justify-between">
-                            <span className="text-slate-400">Name:</span>
-                            <span>{profile?.fullName}</span>
+                        <div className="space-y-2.5">
+                          <div className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-0 items-start">
+                            <span className="text-slate-400 shrink-0 pt-0.5">Name</span>
+                            <span className="text-right break-words">{profile?.fullName || "—"}</span>
                           </div>
-                          <div className="flex justify-between">
-                            <span className="text-slate-400">Email:</span>
-                            <span>{profile?.email}</span>
+                          <div className="border-t border-slate-200/60 dark:border-white/5" />
+                          <div className="grid grid-cols-[auto_1fr] gap-x-3 items-start">
+                            <span className="text-slate-400 shrink-0 pt-0.5">Email</span>
+                            <span className="text-right break-all">{profile?.email || "—"}</span>
                           </div>
-                          <div className="flex justify-between">
-                            <span className="text-slate-400">Designation:</span>
-                            <span>{profile?.designation}</span>
+                          <div className="border-t border-slate-200/60 dark:border-white/5" />
+                          <div className="grid grid-cols-[auto_1fr] gap-x-3 items-start">
+                            <span className="text-slate-400 shrink-0 pt-0.5">Designation</span>
+                            <span className="text-right break-words">{profile?.designation || "—"}</span>
                           </div>
-                          <div className="flex justify-between">
-                            <span className="text-slate-400">Phone:</span>
-                            <span>{profile?.phone || "N/A"}</span>
+                          <div className="border-t border-slate-200/60 dark:border-white/5" />
+                          <div className="grid grid-cols-[auto_1fr] gap-x-3 items-start">
+                            <span className="text-slate-400 shrink-0 pt-0.5">Phone</span>
+                            <span className="text-right">{profile?.phone || "N/A"}</span>
                           </div>
                         </div>
                       </div>
@@ -1149,23 +1152,23 @@ export default function CompanyDashboardPage() {
                     <div className="md:col-span-2 space-y-6">
                       <div>
                         <span className="text-xs font-bold text-slate-400 block mb-1">About Company</span>
-                        <p className="text-sm font-medium leading-relaxed">{company?.profile?.description || "No description provided."}</p>
+                        <div className="text-sm font-medium rich-text-preview" dangerouslySetInnerHTML={{ __html: company?.profile?.description || "<p>No description provided.</p>" }} />
                       </div>
 
                       <div className="grid grid-cols-2 gap-4">
                         <div>
                           <span className="text-xs font-bold text-slate-400 block mb-1">Our Mission</span>
-                          <p className="text-sm font-medium leading-relaxed">{company?.profile?.mission || "Not specified."}</p>
+                          <div className="text-sm font-medium rich-text-preview" dangerouslySetInnerHTML={{ __html: company?.profile?.mission || "<p>Not specified.</p>" }} />
                         </div>
                         <div>
                           <span className="text-xs font-bold text-slate-400 block mb-1">Our Vision</span>
-                          <p className="text-sm font-medium leading-relaxed">{company?.profile?.vision || "Not specified."}</p>
+                          <div className="text-sm font-medium rich-text-preview" dangerouslySetInnerHTML={{ __html: company?.profile?.vision || "<p>Not specified.</p>" }} />
                         </div>
                       </div>
 
                       <div>
-                        <span className="text-xs font-bold text-slate-400 block mb-1">Work Culture & Benefits</span>
-                        <p className="text-sm font-medium leading-relaxed">{company?.profile?.workCulture || "Not specified."}</p>
+                        <span className="text-xs font-bold text-slate-400 block mb-1">Work Culture &amp; Benefits</span>
+                        <div className="text-sm font-medium rich-text-preview" dangerouslySetInnerHTML={{ __html: company?.profile?.workCulture || "<p>Not specified.</p>" }} />
                       </div>
 
                       <div>
@@ -1182,11 +1185,11 @@ export default function CompanyDashboardPage() {
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                           <div>
                             <span className="text-xs font-bold text-slate-500 block mb-1">Placement History</span>
-                            <p className="text-xs font-medium leading-relaxed text-slate-400">{company?.profile?.placementHistory || "No placement history logged."}</p>
+                            <div className="text-xs font-medium text-slate-400 rich-text-preview" dangerouslySetInnerHTML={{ __html: company?.profile?.placementHistory || "<p>No placement history logged.</p>" }} />
                           </div>
                           <div>
                             <span className="text-xs font-bold text-slate-500 block mb-1">Internship Programs</span>
-                            <p className="text-xs font-medium leading-relaxed text-slate-400">{company?.profile?.internshipPrograms || "No internship programs logged."}</p>
+                            <div className="text-xs font-medium text-slate-400 rich-text-preview" dangerouslySetInnerHTML={{ __html: company?.profile?.internshipPrograms || "<p>No internship programs logged.</p>" }} />
                           </div>
                         </div>
                       </div>
@@ -1196,12 +1199,11 @@ export default function CompanyDashboardPage() {
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                           <div>
                             <span className="text-xs font-bold text-slate-500 block mb-1">Faq Notes</span>
-                            <p className="text-xs font-medium leading-relaxed text-slate-400">{company?.profile?.faqs || "No FAQs added."}</p>
+                            <div className="text-xs font-medium text-slate-400 rich-text-preview" dangerouslySetInnerHTML={{ __html: company?.profile?.faqs || "<p>No FAQs added.</p>" }} />
                           </div>
                           <div>
-                            <span className="text-xs font-bold text-slate-500 block mb-1">Contact & Social handles</span>
-                            <p className="text-xs font-medium leading-relaxed text-slate-400">Social handles: {company?.profile?.socialLinks || "N/A"}</p>
-                            <p className="text-xs font-medium leading-relaxed text-slate-400">Extra contacts: {company?.profile?.contactDetails || "N/A"}</p>
+                            <span className="text-xs font-bold text-slate-500 block mb-1">Contact &amp; Social handles</span>
+                            <div className="text-xs font-medium text-slate-400 rich-text-preview" dangerouslySetInnerHTML={{ __html: (company?.profile?.socialLinks ? `<p>Social: ${company.profile.socialLinks}</p>` : "") + (company?.profile?.contactDetails ? `<p>Contacts: ${company.profile.contactDetails}</p>` : "") || "<p>N/A</p>" }} />
                           </div>
                         </div>
                       </div>
