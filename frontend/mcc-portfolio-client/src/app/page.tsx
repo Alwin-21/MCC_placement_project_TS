@@ -202,24 +202,11 @@ export default function HomePage() {
           {/* Right Navigation Links */}
           <div className="flex flex-wrap items-center justify-center gap-2.5 sm:gap-6 shrink-0">
             <Link
-              href="/login"
-              className="text-[10px] sm:text-xs font-extrabold transition-colors hover:underline"
-              style={{ color: isDark ? "#f1f5f9" : "#0f172a" }}
-            >
-              Student Sign In
-            </Link>
-            <Link
               href="/register"
               className="text-[10px] sm:text-xs font-extrabold transition-colors hover:underline"
               style={{ color: isDark ? "#f1f5f9" : "#0f172a" }}
             >
               Register Account
-            </Link>
-            <Link
-              href="/company/login"
-              className="text-[10px] sm:text-xs font-extrabold transition-colors hover:underline text-blue-400 hover:text-blue-300"
-            >
-              Company Portal
             </Link>
             <Link
               href="/admin/login"

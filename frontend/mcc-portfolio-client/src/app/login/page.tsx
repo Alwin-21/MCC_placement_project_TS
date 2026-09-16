@@ -343,15 +343,6 @@ export default function LoginPage() {
                 Register here
               </Link>
             </div>
-            <div>
-              Are you an Admin?{" "}
-              <Link
-                href="/admin/login"
-                className="text-slate-800 dark:text-blue-400 font-extrabold hover:underline"
-              >
-                Admin Login
-              </Link>
-            </div>
           </div>
         </div>
       </div>

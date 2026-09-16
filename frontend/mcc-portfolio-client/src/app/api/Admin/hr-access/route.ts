@@ -6,7 +6,8 @@ export async function GET(request: Request) {
   try {
     const userPayload = getUserFromRequest(request);
     const role = userPayload?.role || userPayload?.Role;
-    if (!userPayload || (role !== "Admin" && role !== 1 && role !== "1")) {
+    const isAdmin = role === "Admin" || role === 2 || role === "2" || role === 1 || role === "1";
+    if (!userPayload || !isAdmin) {
       return NextResponse.json({ message: "Unauthorized Admin access required" }, { status: 401 });
     }
 
@@ -72,7 +73,8 @@ export async function PUT(request: Request) {
   try {
     const userPayload = getUserFromRequest(request);
     const role = userPayload?.role || userPayload?.Role;
-    if (!userPayload || (role !== "Admin" && role !== 1 && role !== "1")) {
+    const isAdmin = role === "Admin" || role === 2 || role === "2" || role === 1 || role === "1";
+    if (!userPayload || !isAdmin) {
       return NextResponse.json({ message: "Unauthorized Admin access required" }, { status: 401 });
     }
 
