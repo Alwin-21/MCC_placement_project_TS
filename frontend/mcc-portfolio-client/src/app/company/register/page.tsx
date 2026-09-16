@@ -274,7 +274,7 @@ export default function CompanyRegisterPage() {
         type="button"
         onClick={toggleThemeMode}
         aria-label="Toggle theme"
-        className={`fixed top-5 right-5 z-50 p-2.5 rounded-full transition-all duration-300 cursor-pointer shadow-lg backdrop-blur-md border flex items-center justify-center ${
+        className={`fixed top-4 right-4 sm:top-5 sm:right-5 z-50 p-2 sm:p-2.5 rounded-full transition-all duration-300 cursor-pointer shadow-lg backdrop-blur-md border flex items-center justify-center ${
           isDark
             ? "bg-white/10 hover:bg-white/20 text-amber-300 border-white/15"
             : "bg-white hover:bg-slate-100 text-slate-700 border-slate-300 shadow-slate-200"
@@ -284,14 +284,16 @@ export default function CompanyRegisterPage() {
       </button>
 
       <div className="w-full max-w-4xl lg:max-w-5xl space-y-6">
-        <div className="flex justify-between items-center">
+        <div className="flex justify-between items-center gap-2 pr-14 sm:pr-0">
           <Link
             href="/company/login"
-            className="inline-flex items-center gap-2 text-xs font-extrabold text-slate-500 hover:text-[#781c1c] dark:hover:text-red-400 transition duration-200"
+            className="inline-flex items-center gap-1.5 sm:gap-2 text-xs font-extrabold text-slate-500 hover:text-[#781c1c] dark:hover:text-red-400 transition duration-200 shrink-0"
           >
-            <ArrowLeft size={16} /> Cancel and Back to Login
+            <ArrowLeft size={16} className="shrink-0" />
+            <span className="hidden sm:inline">Cancel and Back to Login</span>
+            <span className="sm:hidden">Back to Login</span>
           </Link>
-          <span className="text-xs font-semibold text-slate-400">
+          <span className="text-xs font-bold text-slate-500 dark:text-slate-400 shrink-0 bg-slate-100 dark:bg-white/5 px-2.5 py-1 rounded-full border border-slate-200/60 dark:border-white/10 shadow-xs">
             Step {step} of 5
           </span>
         </div>

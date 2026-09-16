@@ -33,7 +33,7 @@ export default function CompanyLoginPage() {
           if (parsed?.role === "Company") {
             router.replace("/company/dashboard");
           }
-        } catch {}
+        } catch { }
       }
     }
   }, [router]);
@@ -98,19 +98,17 @@ export default function CompanyLoginPage() {
   return (
     <div
       style={{ fontFamily: "'Plus Jakarta Sans', 'Inter', system-ui, sans-serif" }}
-      className={`min-h-screen flex transition-colors duration-300 ${
-        isDark ? "bg-[#090d16] text-slate-100" : "bg-[#faf9f6] text-slate-900"
-      }`}
+      className={`min-h-screen flex transition-colors duration-300 ${isDark ? "bg-[#090d16] text-slate-100" : "bg-[#faf9f6] text-slate-900"
+        }`}
     >
       {/* FLOATING DARK/LIGHT MODE TOGGLE */}
       <button
         onClick={toggleThemeMode}
         aria-label="Toggle dark mode"
-        className={`fixed top-5 right-5 z-50 p-2.5 rounded-full transition-all duration-300 cursor-pointer shadow-lg backdrop-blur-md border flex items-center justify-center ${
-          isDark
+        className={`fixed top-5 right-5 z-50 p-2.5 rounded-full transition-all duration-300 cursor-pointer shadow-lg backdrop-blur-md border flex items-center justify-center ${isDark
             ? "bg-white/10 hover:bg-white/20 text-amber-300 border-white/15"
             : "bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-300"
-        }`}
+          }`}
       >
         {isDark ? <Sun size={18} /> : <Moon size={18} />}
       </button>
@@ -168,7 +166,7 @@ export default function CompanyLoginPage() {
                 className="text-lg font-black uppercase tracking-wider block"
                 style={{ color: isDark ? "#ffffff" : "#781c1c" }}
               >
-                Placement Cell
+                Companies
               </span>
             </div>
           </div>
@@ -207,17 +205,9 @@ export default function CompanyLoginPage() {
               </div>
 
               <div>
-                <div className="flex justify-between items-center mb-2">
-                  <label className="text-[11px] uppercase tracking-wider font-extrabold text-slate-700 dark:text-slate-300">
-                    Password
-                  </label>
-                  <Link
-                    href="/company/forgot-password"
-                    className="text-xs font-semibold text-[#781c1c] dark:text-red-400 hover:underline"
-                  >
-                    Forgot Password?
-                  </Link>
-                </div>
+                <label className="text-[11px] uppercase tracking-wider font-extrabold block mb-2 text-slate-700 dark:text-slate-300">
+                  Password
+                </label>
                 <div className="relative">
                   <Lock
                     className="absolute left-4 top-3.5 text-slate-400"

@@ -70,14 +70,6 @@ Register a new company + HR account (requires admin approval).
 
 ---
 
-### POST `/api/Company/Auth/forgot-password`
-Request a password reset link. Rate limit: 3 per 10 min per IP.
-
-### POST `/api/Company/Auth/reset-password`
-Reset password with email + token + newPassword.
-
----
-
 ## Company Profile
 
 ### GET `/api/Company/profile`
