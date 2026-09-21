@@ -211,12 +211,14 @@ html.dark .glass-card-glow::before {
 .text-crimson-gradient {
   background: linear-gradient(135deg, #781c1c 0%, #b91c1c 50%, #dc2626 100%);
   -webkit-background-clip: text;
+  background-clip: text;
   -webkit-text-fill-color: transparent;
 }
 
 html.dark .text-crimson-gradient {
   background: linear-gradient(135deg, #f87171 0%, #ef4444 50%, #f59e0b 100%);
   -webkit-background-clip: text;
+  background-clip: text;
   -webkit-text-fill-color: transparent;
 }
 

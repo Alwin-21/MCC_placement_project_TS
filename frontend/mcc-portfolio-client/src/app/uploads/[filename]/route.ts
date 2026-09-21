@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import fs from "fs/promises";
 import path from "path";
 
 export const dynamic = "force-dynamic";
@@ -17,9 +16,16 @@ export async function GET(
       return NextResponse.json("Forbidden", { status: 403 });
     }
 
-    const filePath = path.join(process.cwd(), "public", "uploads", cleanFilename);
+    // Dynamic path resolution to prevent Turbopack from crawling and bundling all upload files at build time
+    const uploadsDir = [process.cwd(), "public", "uploads"].join(path.sep);
+    const filePath = path.resolve(uploadsDir, cleanFilename);
+
+    if (!filePath.startsWith(uploadsDir)) {
+      return NextResponse.json("Forbidden", { status: 403 });
+    }
 
     try {
+      const fs = await import(/* webpackIgnore: true */ "fs/promises");
       const fileBuffer = await fs.readFile(filePath);
 
       const ext = path.extname(cleanFilename).toLowerCase();
