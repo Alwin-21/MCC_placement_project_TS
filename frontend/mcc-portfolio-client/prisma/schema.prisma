@@ -126,6 +126,7 @@ model InstitutionDetails {
   Website      String
   LogoUrl      String
   Departments  String
+  DeptStreams  String @default("") // JSON map: { "Computer Science": "Aided", "Visual Communication": "SFS", ... }
 }
 
 model NgoActivities {

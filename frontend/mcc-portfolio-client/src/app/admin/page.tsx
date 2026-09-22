@@ -65,6 +65,7 @@ import api from "@/services/api";
 import { useTheme } from "@/hooks/useTheme";
 import AssessmentAdminModule from "@/components/admin/AssessmentAdminModule";
 import HRAccessManager from "@/app/admin/components/HRAccessManager";
+import DepartmentAnalytics from "@/app/admin/components/DepartmentAnalytics";
 
 type ActiveTab = 
   | "overview" 
@@ -96,6 +97,7 @@ export default function AdminPage() {
   const [students, setStudents] = useState<any[]>([]);
   const [institution, setInstitution] = useState<any>(null);
   const [deptAnalytics, setDeptAnalytics] = useState<any[]>([]);
+  const [deptAnalyticsLoading, setDeptAnalyticsLoading] = useState(false);
   const [themes, setThemes] = useState<any[]>([]);
   const [reportsSummary, setReportsSummary] = useState<any>(null);
   const [notifications, setNotifications] = useState<any[]>([]);
@@ -501,6 +503,7 @@ export default function AdminPage() {
     } else if (activeTab === "taxonomy") {
       fetchTaxonomyAndConfig();
     } else if (activeTab === "analytics") {
+      fetchDepartmentAnalytics();
       fetchAdminAnalytics();
     } else if (activeTab === "exam-security") {
       fetchProctoringConfig();
@@ -581,10 +584,13 @@ export default function AdminPage() {
 
   const fetchDepartmentAnalytics = async () => {
     try {
+      setDeptAnalyticsLoading(true);
       const res = await api.get("/Admin/department-analytics");
       setDeptAnalytics(res.data);
     } catch (err) {
       console.error("Department analytics fetch failed", err);
+    } finally {
+      setDeptAnalyticsLoading(false);
     }
   };
 
@@ -2247,65 +2253,13 @@ export default function AdminPage() {
             ========================================== */}
         {activeTab === "analytics" && (
           <div className="space-y-8">
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {deptAnalytics.map((dept, idx) => (
-                <div key={idx} className={`border rounded-3xl p-6 transition-all duration-300 hover:border-[#a78bfa]/20 ${
-                  themeMode === "dark" ? "bg-[#0b0b0f] border-white/5" : "bg-white border-slate-200"
-                }`}>
-                  <div className="flex justify-between items-start mb-4">
-                    <h4 className={`text-base font-extrabold truncate max-w-[160px] ${
-                      themeMode === "dark" ? "text-white" : "text-slate-800"
-                    }`} title={dept.department}>
-                      {dept.department}
-                    </h4>
-                    <span className="text-[10px] font-mono font-bold text-[#781c1c] bg-[#781c1c]/10 px-2 py-0.5 rounded shrink-0">
-                      {dept.studentCount} Students
-                    </span>
-                  </div>
-
-                  {/* Horizontal progress/metrics */}
-                  <div className={`space-y-3.5 border-t pt-4 ${
-                    themeMode === "dark" ? "border-white/5" : "border-slate-200"
-                  }`}>
-                    <div>
-                      <div className="flex justify-between text-[10px] font-semibold text-gray-400 mb-1">
-                        <span>Portfolio Verification Rate</span>
-                        <span className={`font-mono ${themeMode === "dark" ? "text-white" : "text-slate-900"}`}>{dept.approvalRate}%</span>
-                      </div>
-                      <div className={`w-full h-1.5 rounded-full overflow-hidden ${
-                        themeMode === "dark" ? "bg-white/5" : "bg-slate-100"
-                      }`}>
-                        <div
-                          className="bg-gradient-to-r from-emerald-500 to-green-600 h-full rounded-full"
-                          style={{ width: `${dept.approvalRate}%` }}
-                        />
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-3 gap-2 text-center pt-2">
-                      <div className={`border rounded-lg py-2 ${
-                        themeMode === "dark" ? "bg-white/[0.02] border-white/5" : "bg-slate-50 border-slate-100"
-                      }`}>
-                        <span className={`text-xs font-black block ${themeMode === "dark" ? "text-white" : "text-slate-900"}`}>{dept.projectCount}</span>
-                        <span className="text-[8px] uppercase tracking-wider text-gray-500 font-bold block">Projects</span>
-                      </div>
-                      <div className={`border rounded-lg py-2 ${
-                        themeMode === "dark" ? "bg-white/[0.02] border-white/5" : "bg-slate-50 border-slate-100"
-                      }`}>
-                        <span className={`text-xs font-black block ${themeMode === "dark" ? "text-white" : "text-slate-900"}`}>{dept.paperCount}</span>
-                        <span className="text-[8px] uppercase tracking-wider text-gray-500 font-bold block">Papers</span>
-                      </div>
-                      <div className={`border rounded-lg py-2 ${
-                        themeMode === "dark" ? "bg-white/[0.02] border-white/5" : "bg-slate-50 border-slate-100"
-                      }`}>
-                        <span className={`text-xs font-black block ${themeMode === "dark" ? "text-white" : "text-slate-900"}`}>{dept.skillCount}</span>
-                        <span className="text-[8px] uppercase tracking-wider text-gray-500 font-bold block">Skills</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
+            <DepartmentAnalytics
+              deptAnalytics={deptAnalytics}
+              loading={deptAnalyticsLoading}
+              themeMode={themeMode}
+              onRefresh={fetchDepartmentAnalytics}
+              canWrite={canWrite("institution")}
+            />
 
             {/* ALUMNI PLACEMENT & PROGRESSION DASHBOARD */}
             <div className={`border rounded-3xl p-6 shadow-xl transition-colors duration-300 ${

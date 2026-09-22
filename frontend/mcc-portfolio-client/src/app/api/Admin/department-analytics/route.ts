@@ -2,6 +2,29 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/utils/db";
 import { getUserFromRequest, hasModulePermission } from "@/utils/auth";
 
+// MCC default Aided departments (well-known classification)
+const DEFAULT_AIDED_DEPARTMENTS = new Set([
+  "english",
+  "tamil",
+  "languages",
+  "history",
+  "political science",
+  "public administration",
+  "economics",
+  "philosophy",
+  "social work",
+  "mathematics",
+  "statistics",
+  "physics",
+  "chemistry",
+  "botany",
+  "zoology",
+  "computer science",
+  "computer science (b.sc)",
+  "commerce",
+  "physical education",
+]);
+
 export async function GET(request: Request) {
   try {
     const userPayload = getUserFromRequest(request);
@@ -19,6 +42,16 @@ export async function GET(request: Request) {
     const declaredDepts = inst
       ? inst.Departments.split(";").map(d => d.trim()).filter(d => d.length > 0)
       : [];
+
+    // Parse the DeptStreams JSON config
+    let deptStreamsMap: Record<string, string> = {};
+    if (inst && inst.DeptStreams) {
+      try {
+        deptStreamsMap = JSON.parse(inst.DeptStreams);
+      } catch {
+        deptStreamsMap = {};
+      }
+    }
 
     const userDepts = Array.from(new Set(users.map(u => u.Department).filter(d => !!d)));
     
@@ -38,8 +71,26 @@ export async function GET(request: Request) {
       const approvedCount = deptProfiles.filter(p => p.IsApproved).length;
       const approvalRate = studentCount > 0 ? (approvedCount / studentCount) * 100 : 0;
 
+      // Determine stream: prefer explicit config, fall back to default classification
+      let stream: "Aided" | "SFS" = "SFS";
+      const deptLower = dept.toLowerCase();
+      if (deptStreamsMap[dept]) {
+        stream = deptStreamsMap[dept] === "Aided" ? "Aided" : "SFS";
+      } else {
+        // Try case-insensitive key lookup
+        const configKey = Object.keys(deptStreamsMap).find(
+          k => k.toLowerCase() === deptLower
+        );
+        if (configKey) {
+          stream = deptStreamsMap[configKey] === "Aided" ? "Aided" : "SFS";
+        } else if (DEFAULT_AIDED_DEPARTMENTS.has(deptLower)) {
+          stream = "Aided";
+        }
+      }
+
       return {
         department: dept,
+        stream,
         studentCount: studentCount,
         projectCount: projectCount,
         paperCount: paperCount,
