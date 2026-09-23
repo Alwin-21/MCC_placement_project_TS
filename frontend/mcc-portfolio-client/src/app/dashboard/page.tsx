@@ -42,6 +42,7 @@ import {
 import api from "@/services/api";
 import { useTheme } from "@/hooks/useTheme";
 import { parseImageAdjustments } from "@/utils/image";
+import PortfolioCompletionIndicator from "./components/PortfolioCompletionIndicator";
 
 const sidebarLinks = [
   { id: "header-section", label: "Header Section", icon: User },
@@ -656,6 +657,7 @@ export default function DashboardPage() {
   const saveMediaHandlesSettings = async () => {
     try {
       await api.post("/Profiles", {
+        linkedInUrl,
         instagramUrl,
         blogUrl,
         otherHandles
@@ -1785,49 +1787,95 @@ Report Generated: ${new Date().toLocaleDateString()}
         <div className="flex-1 overflow-y-auto px-4 md:px-10 py-6 md:py-8 space-y-10">
 
         {/* BANNER SHOWCASE */}
-        <div className="relative rounded-2xl sm:rounded-3xl overflow-hidden min-h-[140px] sm:min-h-[160px] md:h-44 bg-[#18233c] text-white flex items-end p-4 sm:p-6 md:p-8 border border-amber-600/20 shadow-md mb-4 mcc-welcome-banner">
-          <div className="absolute inset-0 z-0">
+        <div className="relative z-20 rounded-2xl sm:rounded-3xl min-h-[150px] sm:min-h-[160px] md:min-h-[175px] bg-[#050811] text-white flex items-end p-4 sm:p-6 md:p-8 border border-white/10 shadow-xl mb-4 mcc-welcome-banner">
+          <div className="absolute inset-0 z-0 overflow-hidden rounded-2xl sm:rounded-3xl pointer-events-none">
             <img 
               src="/mcc-facade.jpg" 
               alt="MCC Quadrangle" 
-              className="w-full h-full object-cover opacity-35 filter brightness-90 contrast-110"
+              className="w-full h-full object-cover opacity-45 filter brightness-95 contrast-105"
             />
-            <div className="absolute inset-0 bg-gradient-to-t from-[#18233c] via-[#18233c]/40 to-transparent" />
+            {/* Subtle bottom-to-top scrim for mobile readability */}
+            <div className="absolute inset-0 bg-gradient-to-t from-[#040710]/85 via-[#040710]/25 to-transparent" />
+            
+            {/* Atmospheric Horizontal Gradient Overlay:
+                Left ~55-60%: light dark overlay preserving the campus building image & keeping text crisp
+                Transition zone: atmospheric fade gradually swallowing the quadrangle image into darkness
+                Right ~25-30%: solid deep near-black zone (#040710) hosting the completion card & theme toggle */}
+            <div 
+              className="absolute inset-0 pointer-events-none"
+              style={{
+                background: "linear-gradient(90deg, rgba(8, 14, 28, 0.35) 0%, rgba(8, 14, 28, 0.42) 48%, rgba(6, 11, 22, 0.72) 60%, rgba(4, 7, 16, 0.94) 73%, #040710 84%, #040710 100%)"
+              }}
+            />
           </div>
 
-          {/* Desktop Only: Theme Switcher Inside Top-Right Corner of Banner Card */}
+          {/* Desktop Only: Theme Switcher Inside Top-Right Corner of Banner Card (Inside Dark Zone) */}
           <div className="hidden md:flex absolute top-4 right-5 z-20 items-center">
             <button
               onClick={toggleThemeMode}
               title="Toggle Light/Dark Mode"
-              className={`p-2.5 rounded-full transition-all duration-300 cursor-pointer border shadow-sm flex items-center justify-center ${
-                themeMode === "dark"
-                  ? "bg-white/10 hover:bg-white/20 text-amber-300 border-white/15"
-                  : "bg-white/90 hover:bg-slate-100 text-slate-700 border-slate-200"
-              }`}
+              className="p-2.5 rounded-full transition-all duration-300 cursor-pointer border border-white/20 bg-white/10 hover:bg-white/20 text-white shadow-md flex items-center justify-center backdrop-blur-md active:scale-95"
             >
-              {themeMode === "dark" ? <Sun size={18} /> : <Moon size={18} />}
+              {themeMode === "dark" ? <Sun size={17} className="text-amber-300" /> : <Moon size={17} className="text-sky-200" />}
             </button>
           </div>
-          <div className="relative z-10 space-y-1 w-full text-left">
-            <span 
-              style={{ color: '#ffffff' }}
-              className="text-[9px] sm:text-[9.5px] uppercase font-mono font-black tracking-wider sm:tracking-widest bg-[#781c1c] px-2.5 sm:px-3.5 py-1 sm:py-1.5 rounded-full border border-amber-500/20 inline-block max-w-full truncate"
-            >
-              {user?.stream || "General"} Stream · {user?.department || "Unassigned"}
-            </span>
-            <h1 
-              style={{ color: '#ffffff' }}
-              className="font-serif text-lg sm:text-2xl md:text-3xl font-black mt-1.5 sm:mt-2 leading-tight break-words"
-            >
-              Welcome back, {fullName || user?.fullName || "Student Scholar"}
-            </h1>
-            <p 
-              style={{ color: 'rgba(255, 255, 255, 0.85)' }}
-              className="text-[11px] sm:text-xs leading-normal"
-            >
-              Manage your academic records, certifications, and portfolio pages.
-            </p>
+          <div className="relative z-10 w-full flex flex-col md:flex-row md:items-end justify-between gap-4">
+            <div className="space-y-1 text-left max-w-xl">
+              <span 
+                style={{ color: '#ffffff' }}
+                className="text-[9px] sm:text-[9.5px] uppercase font-mono font-black tracking-wider sm:tracking-widest bg-[#781c1c] px-2.5 sm:px-3.5 py-1 sm:py-1.5 rounded-full border border-amber-500/20 inline-block max-w-full truncate shadow-sm"
+              >
+                {user?.stream || "General"} Stream · {user?.department || "Unassigned"}
+              </span>
+              <h1 
+                style={{ color: '#ffffff' }}
+                className="font-serif text-lg sm:text-2xl md:text-3xl font-black mt-1.5 sm:mt-2 leading-tight break-words drop-shadow-sm"
+              >
+                Welcome back, {fullName || user?.fullName || "Student Scholar"}
+              </h1>
+              <p 
+                style={{ color: 'rgba(255, 255, 255, 0.90)' }}
+                className="text-[11px] sm:text-xs leading-normal"
+              >
+                Manage your academic records, certifications, and portfolio pages.
+              </p>
+            </div>
+
+            {/* Right: Portfolio Completion Indicator inside Dark Zone */}
+            <div className="shrink-0 flex items-center md:items-end justify-start md:justify-end">
+              <PortfolioCompletionIndicator
+                fullName={fullName}
+                profileImageUrl={profileImageUrl}
+                course={course || user?.course || user?.department || ""}
+                yearOfStudy={yearOfStudy}
+                phone={phone}
+                bio={bio}
+                experiencesCount={experiences.length}
+                academicRecordsCount={academicRecords.length}
+                achievementsCount={achievements.length}
+                projectsCount={projects.length}
+                researchPapersCount={researchPapers.length}
+                skillsCount={skills.length}
+                certificationsCount={certifications.length}
+                languagesCount={languageList.length}
+                hasLanguagesText={Boolean(languages && languages.trim())}
+                resumesCount={resumes.length}
+                testScoresText={testScores}
+                patentsText={patents}
+                linkedInUrl={linkedInUrl}
+                instagramUrl={instagramUrl}
+                blogUrl={blogUrl}
+                otherHandles={otherHandles}
+                hasMediaHandles={Boolean(linkedInUrl || instagramUrl || blogUrl || otherHandles)}
+                onNavigate={(sectionId: string) => {
+                  const el = document.getElementById(sectionId);
+                  if (el) {
+                    el.scrollIntoView({ behavior: "smooth", block: "start" });
+                  }
+                }}
+                themeMode={themeMode}
+              />
+            </div>
           </div>
         </div>
         
@@ -2100,8 +2148,8 @@ Report Generated: ${new Date().toLocaleDateString()}
 
             <div className="flex flex-col gap-2 md:col-span-2">
               <label className="text-[10px] uppercase font-mono tracking-wider font-bold text-slate-500 mb-1.5 flex flex-col">
-                LinkedIn Profile URL
-                <span className="block text-[9px] text-slate-400 font-normal normal-case mt-0.5">Optional professional profile link</span>
+                LinkedIn Profile URL *
+                <span className="block text-[9px] text-[#781c1c] dark:text-[#f87171] font-bold normal-case mt-0.5">Compulsory for placement recruiter matching & verification</span>
               </label>
               <input
                 type="text"
@@ -3443,9 +3491,18 @@ Report Generated: ${new Date().toLocaleDateString()}
         <div id="media-handles-section" className={`border rounded-3xl p-8 transition duration-300 ${
           themeMode === "dark" ? "bg-[#0b0b0f] border-white/5" : "bg-white border-slate-200 shadow-sm"
         }`}>
-          <h3 className="font-serif text-2xl font-black mb-4 flex items-center gap-2 text-[#18233c] dark:text-white border-b border-[#781c1c]/10 dark:border-white/10 pb-3">
-            <Link size={22} /> Section 12: Other Media handles
-          </h3>
+          <div className="flex items-start justify-between flex-wrap gap-2 border-b border-[#781c1c]/10 dark:border-white/10 pb-3 mb-4">
+            <h3 className="font-serif text-2xl font-black flex items-center gap-2 text-[#18233c] dark:text-white">
+              <Link size={22} /> Section 12: Media Handles & LinkedIn *
+            </h3>
+            <span className="text-[10px] uppercase font-mono font-bold px-2.5 py-1 rounded-full bg-[#781c1c]/10 text-[#781c1c] dark:bg-[#781c1c]/20 dark:text-[#f87171] border border-[#781c1c]/20">
+              Compulsory (LinkedIn ID)
+            </span>
+          </div>
+
+          <p className="text-xs text-slate-500 dark:text-slate-400 mb-6">
+            Providing at least your official LinkedIn profile link is compulsory for MCC placement registration and corporate recruiter reviews.
+          </p>
 
           {successBanner?.section === "mediaHandles" && (
             <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs p-3.5 rounded-xl mb-4 font-bold flex items-center gap-2">
@@ -3455,6 +3512,25 @@ Report Generated: ${new Date().toLocaleDateString()}
           )}
 
           <div className="grid md:grid-cols-2 gap-4">
+            {/* Primary Compulsory Field: LinkedIn URL */}
+            <div className="flex flex-col gap-2 md:col-span-2 p-4 rounded-2xl border border-amber-500/20 bg-amber-500/5 dark:bg-amber-500/10 mb-1">
+              <label className="text-[10px] uppercase font-mono tracking-wider font-bold text-slate-700 dark:text-slate-200 flex items-center justify-between">
+                <span>LinkedIn Profile URL * (Compulsory)</span>
+                <span className="text-[9px] font-bold text-[#781c1c] dark:text-[#f87171]">Required for Placement</span>
+              </label>
+              <input
+                type="text"
+                placeholder="https://linkedin.com/in/adithyakumar"
+                value={linkedInUrl}
+                onChange={(e) => setLinkedInUrl(e.target.value)}
+                className={`border rounded-xl px-4 py-3 text-sm outline-none transition ${
+                  themeMode === "dark" ? "bg-[#121217] border-white/10 text-white placeholder-gray-500" : "bg-white border-slate-300 text-slate-900"
+                }`}
+              />
+              <span className="text-[10px] text-slate-400">
+                Synced with your Header profile details.
+              </span>
+            </div>
             <div className="flex flex-col gap-2">
               <label className="text-[10px] uppercase font-mono tracking-wider font-bold text-slate-500 mb-1.5">Instagram Handle / URL</label>
               <input
