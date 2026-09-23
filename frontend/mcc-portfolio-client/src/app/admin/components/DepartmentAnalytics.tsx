@@ -36,6 +36,14 @@ import {
   X,
 } from "lucide-react";
 import api from "@/services/api";
+import { MCC_CREST_WHITE_DATA_URL } from "@/utils/mccCrestBase64";
+
+export interface DepartmentStudentCompletion {
+  id: string;
+  fullName: string;
+  registerNumber: string;
+  completionPercentage: number;
+}
 
 export interface DepartmentMetric {
   department: string;
@@ -44,7 +52,9 @@ export interface DepartmentMetric {
   projectCount: number;
   paperCount: number;
   skillCount: number;
-  approvalRate: number; // 0 to 100
+  approvalRate: number; // 0 to 100 (kept for backward compatibility)
+  completionRate?: number | null; // 0 to 100 (or null if 0 students)
+  students?: DepartmentStudentCompletion[];
   lastUpdated?: string;
 }
 
@@ -57,12 +67,40 @@ interface DepartmentAnalyticsProps {
 }
 
 // ────────────────────────────────────────────────────────────
-// Custom Y-Axis tick: truncates long labels, full name on title
+// Custom Axis Ticks: fit median labels tightly, tooltip on hover
 // ────────────────────────────────────────────────────────────
 function TruncatedYAxisTick({
-  x, y, payload, isDark, maxChars = 22,
+  x, y, payload, isDark, maxChars = 14,
 }: {
-  x?: number; y?: number; payload?: { value: string };
+  x?: number | string; y?: number | string; payload?: { value: string };
+  isDark: boolean; maxChars?: number;
+}) {
+  if (!payload) return null;
+  const full = payload.value || "";
+  const label = full.length > maxChars ? full.slice(0, maxChars - 1) + "…" : full;
+  return (
+    <g transform={`translate(${x},${y})`}>
+      <title>{full}</title>
+      <text
+        x={-8}
+        y={0}
+        dy={3.5}
+        textAnchor="end"
+        fill={isDark ? "#cbd5e1" : "#334155"}
+        fontSize={10}
+        fontWeight={600}
+        style={{ cursor: "default", userSelect: "none" }}
+      >
+        {label}
+      </text>
+    </g>
+  );
+}
+
+function TruncatedXAxisTick({
+  x, y, payload, isDark, maxChars = 11,
+}: {
+  x?: number | string; y?: number | string; payload?: { value: string };
   isDark: boolean; maxChars?: number;
 }) {
   if (!payload) return null;
@@ -73,10 +111,9 @@ function TruncatedYAxisTick({
       <title>{full}</title>
       <text
         x={0}
-        y={0}
-        dy={4}
-        textAnchor="end"
-        fill={isDark ? "#cbd5e1" : "#334155"}
+        y={10}
+        textAnchor="middle"
+        fill={isDark ? "#94a3b8" : "#64748b"}
         fontSize={10}
         fontWeight={600}
         style={{ cursor: "default", userSelect: "none" }}
@@ -164,12 +201,17 @@ export default function DepartmentAnalytics({
   // ──────────────────────────────────────────────────────────
   const [isOverviewExpanded, setIsOverviewExpanded] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
-  const [sortBy, setSortBy] = useState<"students" | "verification" | "projects" | "name">("verification");
+  const [sortBy, setSortBy] = useState<"students" | "completion" | "verification" | "projects" | "name">("completion");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
   const [exportDropdownOpen, setExportDropdownOpen] = useState(false);
   const [exportingDept, setExportingDept] = useState<string | null>(null);
   const [exportingAll, setExportingAll] = useState<"pdf" | "csv" | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [expandedStudents, setExpandedStudents] = useState<Record<string, boolean>>({});
+
+  const toggleStudents = (deptName: string) => {
+    setExpandedStudents((prev) => ({ ...prev, [deptName]: !prev[deptName] }));
+  };
 
   const cardRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
@@ -191,42 +233,55 @@ export default function DepartmentAnalytics({
   const kpiData = useMemo(() => {
     const data = streamData;
     if (!data || data.length === 0) {
-      return { totalStudents: 0, avgVerificationRate: 0, totalProjects: 0, zeroVerificationCount: 0 };
+      return { totalStudents: 0, avgCompletionRate: 0, totalProjects: 0, attentionNeededCount: 0 };
     }
     const totalStudents  = data.reduce((acc, d) => acc + (d.studentCount || 0), 0);
     const totalProjects  = data.reduce((acc, d) => acc + (d.projectCount || 0), 0);
 
-    let avgVerificationRate = 0;
+    const deptsWithStudents = data.filter((d) => d.studentCount > 0);
+    let avgCompletionRate = 0;
     if (totalStudents > 0) {
-      const weightedSum = data.filter((d) => d.studentCount > 0)
-        .reduce((acc, d) => acc + d.approvalRate * d.studentCount, 0);
-      avgVerificationRate = Math.round((weightedSum / totalStudents) * 10) / 10;
+      const weightedSum = deptsWithStudents.reduce((acc, d) => {
+        const rate = (d.completionRate !== undefined && d.completionRate !== null) ? d.completionRate : (d.approvalRate || 0);
+        return acc + rate * d.studentCount;
+      }, 0);
+      avgCompletionRate = Math.round((weightedSum / totalStudents) * 10) / 10;
     } else if (data.length > 0) {
-      const simpleSum = data.reduce((acc, d) => acc + d.approvalRate, 0);
-      avgVerificationRate = Math.round((simpleSum / data.length) * 10) / 10;
+      const simpleSum = data.reduce((acc, d) => {
+        const rate = (d.completionRate !== undefined && d.completionRate !== null) ? d.completionRate : (d.approvalRate || 0);
+        return acc + rate;
+      }, 0);
+      avgCompletionRate = Math.round((simpleSum / data.length) * 10) / 10;
     }
 
-    const zeroVerificationCount = data.filter(
-      (d) => d.studentCount > 0 && (d.approvalRate === 0 || !d.approvalRate)
-    ).length;
+    // Departments with enrolled students whose completion rate is < 40% (0-student departments excluded)
+    const attentionNeededCount = deptsWithStudents.filter((d) => {
+      const rate = (d.completionRate !== undefined && d.completionRate !== null) ? d.completionRate : (d.approvalRate || 0);
+      return rate < 40;
+    }).length;
 
-    return { totalStudents, avgVerificationRate, totalProjects, zeroVerificationCount };
+    return { totalStudents, avgCompletionRate, totalProjects, attentionNeededCount };
   }, [streamData]);
 
   // ──────────────────────────────────────────────────────────
   // CHART DATA (always based on filtered stream)
   // ──────────────────────────────────────────────────────────
-  const verificationComparisonData = useMemo(() => {
+  const completionComparisonData = useMemo(() => {
     return [...streamData]
-      .sort((a, b) => (b.approvalRate || 0) - (a.approvalRate || 0))
+      .sort((a, b) => {
+        const rateA = (a.completionRate !== undefined && a.completionRate !== null) ? a.completionRate : (a.approvalRate || 0);
+        const rateB = (b.completionRate !== undefined && b.completionRate !== null) ? b.completionRate : (b.approvalRate || 0);
+        return rateB - rateA;
+      })
       .map((d) => {
+        const rate = (d.completionRate !== undefined && d.completionRate !== null) ? d.completionRate : (d.approvalRate || 0);
         let color = "#ef4444";
-        if (d.approvalRate >= 70) color = "#10b981";
-        else if (d.approvalRate >= 40) color = "#f59e0b";
+        if (rate >= 70) color = "#10b981";
+        else if (rate >= 40) color = "#f59e0b";
         if (d.studentCount === 0) color = isDark ? "#475569" : "#cbd5e1";
         return {
           department: d.department,
-          approvalRate: d.approvalRate || 0,
+          completionRate: rate,
           studentCount: d.studentCount || 0,
           fillColor: color,
         };
@@ -253,11 +308,14 @@ export default function DepartmentAnalytics({
       d.department.toLowerCase().includes(searchQuery.toLowerCase().trim())
     );
     list.sort((a, b) => {
+      const rateA = (a.completionRate !== undefined && a.completionRate !== null) ? a.completionRate : (a.approvalRate || 0);
+      const rateB = (b.completionRate !== undefined && b.completionRate !== null) ? b.completionRate : (b.approvalRate || 0);
       switch (sortBy) {
         case "students":
           return sortOrder === "asc" ? (a.studentCount || 0) - (b.studentCount || 0) : (b.studentCount || 0) - (a.studentCount || 0);
+        case "completion":
         case "verification":
-          return sortOrder === "asc" ? (a.approvalRate || 0) - (b.approvalRate || 0) : (b.approvalRate || 0) - (a.approvalRate || 0);
+          return sortOrder === "asc" ? rateA - rateB : rateB - rateA;
         case "projects":
           return sortOrder === "asc" ? (a.projectCount || 0) - (b.projectCount || 0) : (b.projectCount || 0) - (a.projectCount || 0);
         case "name":
@@ -281,8 +339,8 @@ export default function DepartmentAnalytics({
     return "#10b981";
   };
 
-  const getVerificationTier = (rate: number, count: number) => {
-    if (count === 0) return { label: "No Students Yet", badge: isDark ? "text-slate-400 bg-white/5" : "text-slate-500 bg-slate-100" };
+  const getCompletionTier = (rate: number, count: number) => {
+    if (count === 0) return { label: "No Data", badge: isDark ? "text-slate-400 bg-white/5" : "text-slate-500 bg-slate-100" };
     if (rate < 40) return { label: "Action Required", badge: "text-rose-500 bg-rose-500/10 border border-rose-500/20" };
     if (rate <= 70) return { label: "Moderate Progress", badge: "text-amber-500 bg-amber-500/10 border border-amber-500/20" };
     return { label: "Optimal Health", badge: "text-emerald-500 bg-emerald-500/10 border border-emerald-500/20" };
@@ -310,97 +368,582 @@ export default function DepartmentAnalytics({
   };
 
   // ──────────────────────────────────────────────────────────
-  // DYNAMIC CHART HEIGHT — proper per-row height, scrollable if big
+  // CHART SIZING & SCROLL CONFIGURATION
   // ──────────────────────────────────────────────────────────
-  // Each row gets 36px min, with a 10-item cap before scroll kicks in
-  const CHART_ROW_PX = 36;
-  const CHART_MAX_VISIBLE = 12; // show up to 12 rows before scrolling
-  const verificationChartH = Math.max(240, Math.min(verificationComparisonData.length * CHART_ROW_PX, CHART_MAX_VISIBLE * CHART_ROW_PX));
-  const verificationScrollable = verificationComparisonData.length > CHART_MAX_VISIBLE;
-  const verificationScrollH = verificationComparisonData.length * CHART_ROW_PX;
+  // Chart 1 (Left): Portfolio Completion Rate (Ranked)
+  const CHART_ROW_PX = 32;
+  const CHART_MAX_VISIBLE = 9; // 9 rows visible comfortably before scrolling
+  const completionScrollable = completionComparisonData.length > CHART_MAX_VISIBLE;
+  const completionChartH = completionScrollable
+    ? CHART_MAX_VISIBLE * CHART_ROW_PX
+    : Math.max(160, completionComparisonData.length * CHART_ROW_PX);
+  const completionScrollH = completionComparisonData.length * CHART_ROW_PX;
+  const Y_AXIS_WIDTH = 96; // Fitted for median length (~10-12 chars), avoiding large empty gutter
 
-  // Y-Axis left margin for long department names
-  const Y_AXIS_WIDTH = 145;
+  // Chart 2 (Right): Academic & Technical Production (Horizontal scroll)
+  const PROD_COL_WIDTH = 70; // Width per department group
+  const PROD_VISIBLE_DEPT_COUNT = 7; // Show 6-8 departments comfortably without diagonal rotation
+  const prodScrollable = productionComparisonData.length > PROD_VISIBLE_DEPT_COUNT;
+  const prodChartWidth = prodScrollable ? productionComparisonData.length * PROD_COL_WIDTH : "100%";
+  const prodChartHeight = 288; // Matches left card viewport height for a clean balanced layout
+
+  // ──────────────────────────────────────────────────────────
+  // HELPERS: Asset Loaders & Native Chart Generators
+  // ──────────────────────────────────────────────────────────
+  const generateGaugeChartDataUrl = (completionRate: number, studentCount: number, size = 380): string => {
+    if (typeof document === "undefined") return "";
+    const canvas = document.createElement("canvas");
+    canvas.width = size;
+    canvas.height = size;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return "";
+
+    const center = size / 2;
+    const radius = size * 0.38;
+    const lineWidth = size * 0.11;
+
+    // Outer background circle
+    ctx.beginPath();
+    ctx.arc(center, center, radius, 0, Math.PI * 2);
+    ctx.strokeStyle = "#e2e8f0";
+    ctx.lineWidth = lineWidth;
+    ctx.stroke();
+
+    // Value Arc
+    if (studentCount > 0 && completionRate > 0) {
+      const startAngle = -Math.PI / 2;
+      const endAngle = startAngle + (Math.min(100, Math.max(0, completionRate)) / 100) * (Math.PI * 2);
+      ctx.beginPath();
+      ctx.arc(center, center, radius, startAngle, endAngle);
+      ctx.strokeStyle = completionRate >= 70 ? "#10b981" : completionRate >= 40 ? "#f59e0b" : "#ef4444";
+      ctx.lineWidth = lineWidth;
+      ctx.lineCap = "round";
+      ctx.stroke();
+    }
+
+    // Centered percentage & label
+    ctx.fillStyle = studentCount === 0 ? "#64748b" : "#0f172a";
+    ctx.font = `bold ${Math.round(size * 0.19)}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(studentCount === 0 ? "0%" : `${Math.round(completionRate)}%`, center, center - size * 0.05);
+
+    ctx.fillStyle = "#64748b";
+    ctx.font = `bold ${Math.round(size * 0.065)}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
+    ctx.fillText(studentCount === 0 ? "NO DATA" : "COMPLETE", center, center + size * 0.13);
+
+    return canvas.toDataURL("image/png");
+  };
+
+  const generateBarChartDataUrl = (dept: DepartmentMetric, maxMetricVal: number, width = 820, height = 360): string => {
+    if (typeof document === "undefined") return "";
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return "";
+
+    const items = [
+      { label: "Projects", count: dept.projectCount || 0, color: "#781c1c" },
+      { label: "Research Papers", count: dept.paperCount || 0, color: "#d97706" },
+      { label: "Skills Logged", count: dept.skillCount || 0, color: "#0f766e" },
+    ];
+
+    const maxVal = Math.max(maxMetricVal, 5);
+    const rowH = height / items.length;
+    const labelW = 210;
+    const rightPad = 130;
+    const trackW = width - labelW - rightPad;
+    const barThickness = 24;
+
+    items.forEach((item, idx) => {
+      const yCenter = idx * rowH + rowH / 2;
+
+      // Label on left
+      ctx.fillStyle = "#1e293b";
+      ctx.font = 'bold 24px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+      ctx.textAlign = "left";
+      ctx.textBaseline = "middle";
+      ctx.fillText(item.label, 10, yCenter - 10);
+
+      // Subtitle (per student average)
+      const perStud = dept.studentCount > 0 ? (item.count / dept.studentCount).toFixed(1) : "0";
+      ctx.fillStyle = "#64748b";
+      ctx.font = '500 18px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+      ctx.fillText(`${perStud} per student`, 10, yCenter + 15);
+
+      // Background track
+      const trackX = labelW;
+      const trackY = yCenter - barThickness / 2;
+
+      ctx.fillStyle = "#f1f5f9";
+      ctx.beginPath();
+      if ((ctx as any).roundRect) {
+        (ctx as any).roundRect(trackX, trackY, trackW, barThickness, 12);
+      } else {
+        ctx.rect(trackX, trackY, trackW, barThickness);
+      }
+      ctx.fill();
+
+      if (item.count > 0) {
+        const fillW = Math.max(14, (item.count / maxVal) * trackW);
+        ctx.fillStyle = item.color;
+        ctx.beginPath();
+        if ((ctx as any).roundRect) {
+          (ctx as any).roundRect(trackX, trackY, fillW, barThickness, 12);
+        } else {
+          ctx.rect(trackX, trackY, fillW, barThickness);
+        }
+        ctx.fill();
+
+        // Bold numeric value at end of bar
+        ctx.fillStyle = "#0f172a";
+        ctx.font = 'bold 24px monospace';
+        ctx.textAlign = "left";
+        ctx.textBaseline = "middle";
+        ctx.fillText(item.count.toString(), trackX + fillW + 14, yCenter);
+      } else {
+        // Explicit intentional zero state with dashed track
+        ctx.save();
+        ctx.setLineDash([5, 5]);
+        ctx.strokeStyle = "#cbd5e1";
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        if ((ctx as any).roundRect) {
+          (ctx as any).roundRect(trackX, trackY, trackW, barThickness, 12);
+        } else {
+          ctx.rect(trackX, trackY, trackW, barThickness);
+        }
+        ctx.stroke();
+        ctx.restore();
+
+        // Distinct "0" label next to track
+        ctx.fillStyle = "#64748b";
+        ctx.font = 'bold 22px monospace';
+        ctx.textAlign = "left";
+        ctx.textBaseline = "middle";
+        ctx.fillText("0", trackX + 14, yCenter);
+
+        ctx.fillStyle = "#94a3b8";
+        ctx.font = 'italic 18px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+        ctx.fillText("(None recorded)", trackX + trackW + 14, yCenter);
+      }
+    });
+
+    return canvas.toDataURL("image/png");
+  };
+
+  // ──────────────────────────────────────────────────────────
+  // RENDERER: Single Department Report Page (Native jsPDF)
+  // ──────────────────────────────────────────────────────────
+  const renderDepartmentReportPage = (
+    pdf: any,
+    dept: DepartmentMetric,
+    allDepts: DepartmentMetric[],
+    pageNum = 1,
+    totalPages = 1
+  ) => {
+    const pageWidth = pdf.internal.pageSize.getWidth();
+    const pageHeight = pdf.internal.pageSize.getHeight();
+    const dateStr = new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
+
+    // 1. Institutional Benchmarks Calculation
+    const deptRate = (dept.completionRate !== undefined && dept.completionRate !== null) ? dept.completionRate : (dept.approvalRate || 0);
+    const totalStudents = allDepts.reduce((acc, d) => acc + (d.studentCount || 0), 0);
+    const weightedSum = allDepts.reduce((acc, d) => {
+      const r = (d.completionRate !== undefined && d.completionRate !== null) ? d.completionRate : (d.approvalRate || 0);
+      return acc + r * (d.studentCount || 0);
+    }, 0);
+    const collegeAvgCompletion = totalStudents > 0 ? Math.round((weightedSum / totalStudents) * 10) / 10 : 0;
+    const totalProjects = allDepts.reduce((acc, d) => acc + (d.projectCount || 0), 0);
+    const totalPapers = allDepts.reduce((acc, d) => acc + (d.paperCount || 0), 0);
+    const totalSkills = allDepts.reduce((acc, d) => acc + (d.skillCount || 0), 0);
+    const collegeAvgProjectsPerStudent = totalStudents > 0 ? (totalProjects / totalStudents).toFixed(2) : "0.00";
+    const collegeAvgPapersPerStudent = totalStudents > 0 ? (totalPapers / totalStudents).toFixed(2) : "0.00";
+    const collegeAvgSkillsPerStudent = totalStudents > 0 ? (totalSkills / totalStudents).toFixed(2) : "0.00";
+
+    // 2. Header Banner
+    pdf.setFillColor(120, 28, 28);
+    pdf.rect(0, 0, pageWidth, 28, "F");
+    pdf.setFillColor(194, 65, 12);
+    pdf.rect(0, 28, pageWidth, 1.2, "F");
+
+    // College Crest / Logo: Crisp white silhouette on maroon banner (228 x 294 ratio: 15.5mm x 20mm)
+    let textStartX = 14;
+    try {
+      if (MCC_CREST_WHITE_DATA_URL) {
+        pdf.addImage(MCC_CREST_WHITE_DATA_URL, "PNG", 14, 4, 15.5, 20);
+        textStartX = 34;
+      }
+    } catch {
+      textStartX = 14;
+    }
+
+    // Header Text Block
+    pdf.setTextColor(255, 255, 255);
+    pdf.setFont("times", "bold");
+    pdf.setFontSize(14.5);
+    pdf.text("MADRAS CHRISTIAN COLLEGE (AUTONOMOUS)", textStartX, 12.5);
+
+    pdf.setFont("helvetica", "normal");
+    pdf.setFontSize(8.5);
+    pdf.setTextColor(254, 226, 226);
+    pdf.text(`Department Analytics Report • ${dept.stream} Stream`, textStartX, 19.5);
+    pdf.text(`Generated: ${dateStr}`, pageWidth - 14, 19.5, { align: "right" });
+
+    // 3. Department Title Block (Full, untruncated name)
+    let titleSize = 17;
+    if (dept.department.length > 36) titleSize = 12;
+    else if (dept.department.length > 25) titleSize = 14;
+    else if (dept.department.length > 18) titleSize = 15.5;
+
+    pdf.setFont("times", "bold");
+    pdf.setFontSize(titleSize);
+    pdf.setTextColor(15, 23, 42);
+    pdf.text(dept.department, 14, 38.5);
+
+    // Colored Status Pill
+    let pillText = "Optimal Health";
+    let pillBg = [236, 253, 245];
+    let pillBorder = [167, 243, 208];
+    let pillColor = [5, 150, 105];
+
+    if (dept.studentCount === 0) {
+      pillText = "No Data";
+      pillBg = [241, 245, 249];
+      pillBorder = [203, 213, 225];
+      pillColor = [100, 116, 139];
+    } else if (deptRate < 40) {
+      pillText = "Critical";
+      pillBg = [254, 242, 242];
+      pillBorder = [254, 202, 202];
+      pillColor = [225, 29, 72];
+    } else if (deptRate <= 70) {
+      pillText = "Needs Attention";
+      pillBg = [254, 243, 199];
+      pillBorder = [253, 230, 138];
+      pillColor = [217, 119, 6];
+    }
+
+    pdf.setFont("helvetica", "bold");
+    pdf.setFontSize(8);
+    const pillW = pdf.getTextWidth(pillText) + 8;
+    pdf.setFillColor(pillBg[0], pillBg[1], pillBg[2]);
+    pdf.setDrawColor(pillBorder[0], pillBorder[1], pillBorder[2]);
+    pdf.roundedRect(pageWidth - 14 - pillW, 33.5, pillW, 6, 1.5, 1.5, "FD");
+    pdf.setTextColor(pillColor[0], pillColor[1], pillColor[2]);
+    pdf.text(pillText, pageWidth - 14 - pillW / 2, 37.6, { align: "center" });
+
+    // Subheading line
+    pdf.setFont("helvetica", "normal");
+    pdf.setFontSize(9);
+    pdf.setTextColor(100, 116, 139);
+    pdf.text(`Stream: ${dept.stream}   |   Students: ${dept.studentCount}   |   Completion Rate: ${dept.studentCount === 0 ? "No Data" : `${deptRate}%`}`, 14, 45);
+
+    pdf.setDrawColor(226, 232, 240);
+    pdf.line(14, 48.5, pageWidth - 14, 48.5);
+
+    // 4. Visual Summary Row (Two Columns Side-by-Side)
+    const cardY = 51.5;
+    const cardH = 52;
+    const cardW = 88;
+
+    // LEFT COLUMN: Completion Donut Gauge
+    pdf.setFillColor(255, 255, 255);
+    pdf.setDrawColor(226, 232, 240);
+    pdf.roundedRect(14, cardY, cardW, cardH, 2.5, 2.5, "FD");
+
+    pdf.setFont("helvetica", "bold");
+    pdf.setFontSize(7.5);
+    pdf.setTextColor(71, 85, 105);
+    pdf.text("PORTFOLIO COMPLETION HEALTH", 18, cardY + 6.5);
+    pdf.setFont("helvetica", "normal");
+    pdf.setFontSize(6.5);
+    pdf.setTextColor(148, 163, 184);
+    pdf.text("Required portfolio fields completion", 18, cardY + 10.5);
+
+    const gaugeDataUrl = generateGaugeChartDataUrl(deptRate, dept.studentCount);
+    if (gaugeDataUrl) {
+      pdf.addImage(gaugeDataUrl, "PNG", 17, cardY + 12, 36, 36);
+    }
+
+    const optimalCount = dept.students ? dept.students.filter(s => s.completionPercentage >= 70).length : Math.round((dept.studentCount * deptRate) / 100);
+    const pendingCount = dept.studentCount - optimalCount;
+    pdf.setFont("helvetica", "bold");
+    pdf.setFontSize(7);
+    pdf.setTextColor(100, 116, 139);
+    pdf.text("OPTIMAL PORTFOLIOS", 58, cardY + 18);
+    pdf.setFont("helvetica", "bold");
+    pdf.setFontSize(11);
+    pdf.setTextColor(16, 185, 129);
+    pdf.text(`${optimalCount} students`, 58, cardY + 23);
+
+    pdf.setFont("helvetica", "bold");
+    pdf.setFontSize(7);
+    pdf.setTextColor(100, 116, 139);
+    pdf.text("ATTENTION / INCOMPLETE", 58, cardY + 29);
+    pdf.setFont("helvetica", "bold");
+    pdf.setFontSize(11);
+    pdf.setTextColor(pendingCount > 0 ? 225 : 100, pendingCount > 0 ? 29 : 116, pendingCount > 0 ? 72 : 139);
+    pdf.text(`${pendingCount} students`, 58, cardY + 34);
+
+    pdf.setFont("helvetica", "normal");
+    pdf.setFontSize(6.5);
+    pdf.setTextColor(148, 163, 184);
+    pdf.text(`College Benchmark: ${collegeAvgCompletion}%`, 58, cardY + 41);
+
+    // RIGHT COLUMN: Horizontal Bar Chart
+    pdf.setFillColor(255, 255, 255);
+    pdf.setDrawColor(226, 232, 240);
+    pdf.roundedRect(108, cardY, cardW, cardH, 2.5, 2.5, "FD");
+
+    pdf.setFont("helvetica", "bold");
+    pdf.setFontSize(7.5);
+    pdf.setTextColor(71, 85, 105);
+    pdf.text("ACADEMIC & TECHNICAL PRODUCTION", 112, cardY + 6.5);
+    pdf.setFont("helvetica", "normal");
+    pdf.setFontSize(6.5);
+    pdf.setTextColor(148, 163, 184);
+    pdf.text("Logged projects, papers, and skills", 112, cardY + 10.5);
+
+    let maxMetric = 5;
+    allDepts.forEach((d) => {
+      if (d.projectCount > maxMetric) maxMetric = d.projectCount;
+      if (d.paperCount > maxMetric) maxMetric = d.paperCount;
+      if (d.skillCount > maxMetric) maxMetric = d.skillCount;
+    });
+
+    const barDataUrl = generateBarChartDataUrl(dept, maxMetric);
+    if (barDataUrl) {
+      pdf.addImage(barDataUrl, "PNG", 111, cardY + 12, 82, 36);
+    }
+
+    // 5. Metrics Table (With College Benchmark Comparison)
+    const tableStartY = 107.5;
+    pdf.setFillColor(241, 245, 249);
+    pdf.rect(14, tableStartY, 182, 7, "F");
+    pdf.setFont("helvetica", "bold");
+    pdf.setFontSize(8);
+    pdf.setTextColor(51, 65, 85);
+    pdf.text("Metric", 18, tableStartY + 4.8);
+    pdf.text("Count", 76, tableStartY + 4.8);
+    pdf.text("Performance", 102, tableStartY + 4.8);
+    pdf.text("Department vs. College Benchmark", 140, tableStartY + 4.8);
+
+    const completionDelta = deptRate - collegeAvgCompletion;
+    let completionComp = `On par with avg (${collegeAvgCompletion}%)`;
+    let completionCompColor: [number, number, number] = [100, 116, 139];
+    if (dept.studentCount === 0) {
+      completionComp = "No students enrolled";
+      completionCompColor = [100, 116, 139];
+    } else if (completionDelta > 0) {
+      completionComp = `+${completionDelta.toFixed(1)}% above avg (${collegeAvgCompletion}%)`;
+      completionCompColor = [16, 185, 129];
+    } else if (completionDelta < 0) {
+      completionComp = `${Math.abs(completionDelta).toFixed(1)}% below avg (${collegeAvgCompletion}%)`;
+      completionCompColor = [225, 29, 72];
+    }
+
+    const deptShare = totalStudents > 0 ? ((dept.studentCount / totalStudents) * 100).toFixed(1) : "0";
+
+    const rows = [
+      {
+        label: "Total Students Enrolled",
+        val: dept.studentCount.toString(),
+        perf: dept.studentCount > 0 ? "Active Roster" : "No Records",
+        comp: `${deptShare}% of ${totalStudents} college students`,
+        color: [15, 23, 42] as [number, number, number],
+      },
+      {
+        label: "Portfolio Completion Rate",
+        val: dept.studentCount === 0 ? "No Data" : `${deptRate}%`,
+        perf: dept.studentCount === 0 ? "No Records" : deptRate >= 70 ? "Optimal (>70%)" : deptRate >= 40 ? "Moderate (40-70%)" : "Attention (<40%)",
+        comp: completionComp,
+        color: completionCompColor,
+      },
+      {
+        label: "Student Projects Logged",
+        val: dept.projectCount.toString(),
+        perf: `${dept.studentCount > 0 ? (dept.projectCount / dept.studentCount).toFixed(2) : "0"}/student`,
+        comp: `College avg: ${collegeAvgProjectsPerStudent}/student`,
+        color: [15, 23, 42] as [number, number, number],
+      },
+      {
+        label: "Research Papers & Publications",
+        val: dept.paperCount.toString(),
+        perf: `${dept.studentCount > 0 ? (dept.paperCount / dept.studentCount).toFixed(2) : "0"}/student`,
+        comp: `College avg: ${collegeAvgPapersPerStudent}/student`,
+        color: [15, 23, 42] as [number, number, number],
+      },
+      {
+        label: "Technical & Domain Skills Logged",
+        val: dept.skillCount.toString(),
+        perf: `${dept.studentCount > 0 ? (dept.skillCount / dept.studentCount).toFixed(2) : "0"}/student`,
+        comp: `College avg: ${collegeAvgSkillsPerStudent}/student`,
+        color: [15, 23, 42] as [number, number, number],
+      },
+    ];
+
+    let rowY = tableStartY + 7;
+    const rowHeight = 6.8;
+    pdf.setFont("helvetica", "normal");
+    rows.forEach((row, i) => {
+      if (i % 2 === 1) {
+        pdf.setFillColor(248, 250, 252);
+        pdf.rect(14, rowY, 182, rowHeight, "F");
+      }
+      pdf.setDrawColor(241, 245, 249);
+      pdf.line(14, rowY + rowHeight, 196, rowY + rowHeight);
+
+      pdf.setFont("helvetica", "normal");
+      pdf.setFontSize(7.8);
+      pdf.setTextColor(71, 85, 105);
+      pdf.text(row.label, 18, rowY + 4.6);
+
+      pdf.setFont("helvetica", "bold");
+      pdf.setTextColor(15, 23, 42);
+      pdf.text(row.val, 76, rowY + 4.6);
+
+      pdf.setFont("helvetica", "normal");
+      pdf.setTextColor(100, 116, 139);
+      pdf.text(row.perf, 102, rowY + 4.6);
+
+      pdf.setFont("helvetica", "bold");
+      pdf.setTextColor(row.color[0], row.color[1], row.color[2]);
+      pdf.text(row.comp, 140, rowY + 4.6);
+
+      rowY += rowHeight;
+    });
+
+    // 6. Fill The Remaining Space (Executive Insights, Action Plan, Official Sign-off)
+    // Section A: Executive Observation Block
+    const insightY = rowY + 4.5;
+    const insightH = 28;
+    pdf.setFillColor(250, 250, 249);
+    pdf.setDrawColor(231, 229, 228);
+    pdf.roundedRect(14, insightY, 182, insightH, 2, 2, "FD");
+
+    pdf.setFillColor(120, 28, 28);
+    pdf.rect(14, insightY, 3, insightH, "F");
+    pdf.setFont("helvetica", "bold");
+    pdf.setFontSize(7.5);
+    pdf.setTextColor(120, 28, 28);
+    pdf.text("EXECUTIVE OBSERVATIONS & ANALYTICS SUMMARY", 21, insightY + 6.5);
+
+    let insightText = "";
+    if (dept.studentCount === 0) {
+      insightText = `This department currently records zero enrolled students in the placement platform database. Immediate coordination with the Academic Registrar is recommended to sync student rosters for the ${dept.stream} stream.`;
+    } else {
+      const completedPart = `This department has ${dept.studentCount} student${dept.studentCount > 1 ? "s" : ""} with a ${deptRate}% average portfolio completion rate (${completionDelta >= 0 ? `${completionDelta.toFixed(1)}% above` : `${Math.abs(completionDelta).toFixed(1)}% below`} the institutional benchmark of ${collegeAvgCompletion}%).`;
+      let gapPart = "";
+      if (dept.projectCount > 0 && dept.paperCount === 0) {
+        gapPart = ` Skills logging (${dept.skillCount}) and projects (${dept.projectCount}) outpace research paper output (0), suggesting practical implementation strength with a prime opportunity to mentor students in documenting term work into conference publications.`;
+      } else if (dept.paperCount > 0) {
+        gapPart = ` Academic output is well-rounded across technical projects (${dept.projectCount}) and documented research publications (${dept.paperCount}), enhancing student competitive standing for higher education and R&D recruitments.`;
+      } else {
+        gapPart = ` Technical logging is currently nascent across projects (${dept.projectCount}) and skills (${dept.skillCount}); focused workshops on portfolio building are recommended.`;
+      }
+      const readyPart = deptRate >= 70
+        ? " Portfolios demonstrate strong MCC placement readiness standards and are eligible for premier campus drives."
+        : " Focused portfolio completion push is recommended prior to upcoming employer campus recruitments.";
+      insightText = completedPart + gapPart + readyPart;
+    }
+
+    pdf.setFont("helvetica", "normal");
+    pdf.setFontSize(7.5);
+    pdf.setTextColor(51, 65, 85);
+    const splitInsight = pdf.splitTextToSize(insightText, 172);
+    pdf.text(splitInsight, 21, insightY + 12.5);
+
+    // Section B: Strategic Recommendations
+    const actionY = insightY + insightH + 3.5;
+    const actionH = 32;
+    pdf.setFillColor(255, 255, 255);
+    pdf.setDrawColor(226, 232, 240);
+    pdf.roundedRect(14, actionY, 182, actionH, 2, 2, "FD");
+
+    pdf.setFont("helvetica", "bold");
+    pdf.setFontSize(7.5);
+    pdf.setTextColor(71, 85, 105);
+    pdf.text("STRATEGIC RECOMMENDATIONS FOR DEPARTMENT LEADERSHIP", 18, actionY + 6.5);
+
+    const actions = [
+      { title: "Completion Push:", desc: `Follow up with ${pendingCount > 0 ? pendingCount : "all"} student(s) to complete required portfolio sections (media handles, bio, projects, and certifications).` },
+      { title: "Scholarly Mentorship:", desc: "Facilitate faculty guidance for final-year project groups to submit papers to Scopus/UGC CARE journals." },
+      { title: "Corporate Alignment:", desc: `Audit logged skills against top hiring partner criteria for ${dept.stream} stream placement drives.` },
+    ];
+
+    let actionRowY = actionY + 12;
+    actions.forEach((act) => {
+      pdf.setFillColor(120, 28, 28);
+      pdf.circle(19.5, actionRowY - 0.7, 1.2, "F");
+
+      pdf.setFont("helvetica", "bold");
+      pdf.setFontSize(7.2);
+      pdf.setTextColor(15, 23, 42);
+      pdf.text(act.title, 23, actionRowY);
+
+      const titleW = pdf.getTextWidth(act.title);
+      pdf.setFont("helvetica", "normal");
+      pdf.setTextColor(71, 85, 105);
+      pdf.text(act.desc, 24 + titleW, actionRowY);
+
+      actionRowY += 6.5;
+    });
+
+    // Section C: Institutional Sign-off Block
+    const signY = actionY + actionH + 3.5;
+    const signH = 30;
+    pdf.setFillColor(250, 250, 250);
+    pdf.setDrawColor(226, 232, 240);
+    pdf.roundedRect(14, signY, 182, signH, 2, 2, "FD");
+
+    pdf.setFont("helvetica", "bold");
+    pdf.setFontSize(7.2);
+    pdf.setTextColor(100, 116, 139);
+    pdf.text("OFFICIAL INSTITUTIONAL SIGN-OFF & VERIFICATION AUDIT", 18, signY + 6);
+
+    const signCols = [
+      { title: "Department Placement Coordinator", x1: 20, x2: 66 },
+      { title: "Head of Department (HOD)", x1: 76, x2: 122 },
+      { title: "Dean / Placement Officer", x1: 132, x2: 178 },
+    ];
+
+    signCols.forEach((col) => {
+      pdf.setDrawColor(203, 213, 225);
+      pdf.line(col.x1, signY + 20, col.x2, signY + 20);
+
+      pdf.setFont("helvetica", "bold");
+      pdf.setFontSize(6.8);
+      pdf.setTextColor(51, 65, 85);
+      pdf.text(col.title, (col.x1 + col.x2) / 2, signY + 24, { align: "center" });
+
+      pdf.setFont("helvetica", "normal");
+      pdf.setFontSize(6);
+      pdf.setTextColor(148, 163, 184);
+      pdf.text("Signature & Date", (col.x1 + col.x2) / 2, signY + 27.5, { align: "center" });
+    });
+
+    // 7. Page Footer
+    pdf.setDrawColor(226, 232, 240);
+    pdf.line(14, pageHeight - 14, pageWidth - 14, pageHeight - 14);
+    pdf.setFont("helvetica", "italic");
+    pdf.setFontSize(7.5);
+    pdf.setTextColor(148, 163, 184);
+    pdf.text("Madras Christian College (Autonomous) • Official Placement & Career Guidance Cell", 14, pageHeight - 8.5);
+    pdf.text(`Page ${pageNum} of ${totalPages}`, pageWidth - 14, pageHeight - 8.5, { align: "right" });
+  };
 
   // ──────────────────────────────────────────────────────────
   // EXPORT: Single Department PDF
   // ──────────────────────────────────────────────────────────
   const handleDownloadDepartmentReport = async (dept: DepartmentMetric) => {
-    const cardEl = cardRefs.current[dept.department];
-    if (!cardEl) return;
     try {
       setExportingDept(dept.department);
-      const html2canvas = (await import("html2canvas-pro")).default;
       const { jsPDF } = await import("jspdf");
-      const canvas = await html2canvas(cardEl, {
-        scale: 2, useCORS: true,
-        backgroundColor: isDark ? "#0b0b0f" : "#ffffff", logging: false,
-      });
-      const imgData = canvas.toDataURL("image/png");
       const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
-      const pageWidth = pdf.internal.pageSize.getWidth();
-      const pageHeight = pdf.internal.pageSize.getHeight();
-      const dateStr = new Date().toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" });
 
-      pdf.setFillColor(120, 28, 28);
-      pdf.rect(0, 0, pageWidth, 28, "F");
-      pdf.setTextColor(255, 255, 255);
-      pdf.setFont("helvetica", "bold");
-      pdf.setFontSize(16);
-      pdf.text("MADRAS CHRISTIAN COLLEGE (AUTONOMOUS)", 14, 12);
-      pdf.setFont("helvetica", "normal");
-      pdf.setFontSize(9);
-      pdf.text(`Department Analytics Report • ${dept.stream} Stream`, 14, 18);
-      pdf.text(`Generated: ${dateStr}`, pageWidth - 14, 18, { align: "right" });
-
-      pdf.setTextColor(30, 41, 59);
-      pdf.setFont("helvetica", "bold");
-      pdf.setFontSize(18);
-      pdf.text(dept.department, 14, 40);
-      pdf.setFont("helvetica", "normal");
-      pdf.setFontSize(10);
-      pdf.setTextColor(100, 116, 139);
-      pdf.text(`Stream: ${dept.stream} | Students: ${dept.studentCount} | Verification: ${dept.approvalRate}%`, 14, 47);
-
-      const imgWidth = 182;
-      const imgHeight = (canvas.height * imgWidth) / canvas.width;
-      pdf.addImage(imgData, "PNG", 14, 53, imgWidth, Math.min(imgHeight, 110));
-
-      const tableStartY = 53 + Math.min(imgHeight, 110) + 12;
-      pdf.setFillColor(248, 250, 252);
-      pdf.rect(14, tableStartY, 182, 9, "F");
-      pdf.setFont("helvetica", "bold");
-      pdf.setFontSize(9);
-      pdf.setTextColor(51, 65, 85);
-      pdf.text("Metric", 18, tableStartY + 6);
-      pdf.text("Count", 120, tableStartY + 6);
-      pdf.text("Performance", 155, tableStartY + 6);
-
-      const rows = [
-        { label: "Total Students", value: dept.studentCount.toString(), status: dept.studentCount > 0 ? "Active" : "No Records" },
-        { label: "Verification Rate", value: `${dept.approvalRate}%`, status: dept.approvalRate >= 70 ? "High (>70%)" : dept.approvalRate >= 40 ? "Moderate (40-70%)" : "Attention (<40%)" },
-        { label: "Projects", value: dept.projectCount.toString(), status: `${dept.studentCount > 0 ? (dept.projectCount / dept.studentCount).toFixed(2) : "0"}/student` },
-        { label: "Research Papers", value: dept.paperCount.toString(), status: `${dept.studentCount > 0 ? (dept.paperCount / dept.studentCount).toFixed(2) : "0"}/student` },
-        { label: "Skills Logged", value: dept.skillCount.toString(), status: `${dept.studentCount > 0 ? (dept.skillCount / dept.studentCount).toFixed(2) : "0"}/student` },
-      ];
-
-      let rowY = tableStartY + 9;
-      pdf.setFont("helvetica", "normal");
-      rows.forEach((row, i) => {
-        if (i % 2 === 1) { pdf.setFillColor(248, 250, 252); pdf.rect(14, rowY, 182, 9, "F"); }
-        pdf.setDrawColor(241, 245, 249);
-        pdf.line(14, rowY + 9, 196, rowY + 9);
-        pdf.setTextColor(71, 85, 105); pdf.text(row.label, 18, rowY + 6);
-        pdf.setFont("helvetica", "bold"); pdf.setTextColor(15, 23, 42); pdf.text(row.value, 120, rowY + 6);
-        pdf.setFont("helvetica", "normal"); pdf.setTextColor(100, 116, 139); pdf.text(row.status, 155, rowY + 6);
-        rowY += 9;
-      });
-
-      pdf.setDrawColor(226, 232, 240);
-      pdf.line(14, pageHeight - 16, pageWidth - 14, pageHeight - 16);
-      pdf.setFont("helvetica", "italic"); pdf.setFontSize(8); pdf.setTextColor(148, 163, 184);
-      pdf.text("Madras Christian College Placement & Career Cell • Official Admin Analytics", 14, pageHeight - 10);
-      pdf.text("Page 1 of 1", pageWidth - 14, pageHeight - 10, { align: "right" });
+      renderDepartmentReportPage(pdf, dept, deptAnalytics, 1, 1);
 
       const cleanDept = dept.department.replace(/[^a-zA-Z0-9_-]/g, "_");
       const filenameDate = new Date().toISOString().split("T")[0];
@@ -420,10 +963,12 @@ export default function DepartmentAnalytics({
     try {
       setExportingAll("csv");
       setExportDropdownOpen(false);
-      const headers = ["Department", "Stream", "Students", "Verification Rate (%)", "Projects", "Papers", "Skills", "Health Status"];
+      const headers = ["Department", "Stream", "Students", "Completion Rate (%)", "Projects", "Papers", "Skills", "Health Status"];
       const csvRows = deptAnalytics.map((d) => {
-        let status = d.studentCount === 0 ? "No Data" : d.approvalRate >= 70 ? "Optimal" : d.approvalRate >= 40 ? "Moderate" : "Attention Needed";
-        return [`"${d.department}"`, d.stream, d.studentCount, `${d.approvalRate}%`, d.projectCount, d.paperCount, d.skillCount, `"${status}"`].join(",");
+        const rate = (d.completionRate !== undefined && d.completionRate !== null) ? d.completionRate : (d.approvalRate || 0);
+        let status = d.studentCount === 0 ? "No Data" : rate >= 70 ? "Optimal" : rate >= 40 ? "Moderate" : "Attention Needed";
+        const rateDisplay = d.studentCount === 0 ? "No Data" : `${rate}%`;
+        return [`"${d.department}"`, d.stream, d.studentCount, rateDisplay, d.projectCount, d.paperCount, d.skillCount, `"${status}"`].join(",");
       });
       const csvContent = [headers.join(","), ...csvRows].join("\r\n");
       const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
@@ -445,7 +990,7 @@ export default function DepartmentAnalytics({
   };
 
   // ──────────────────────────────────────────────────────────
-  // EXPORT: All Departments PDF (multi-page)
+  // EXPORT: All Departments PDF (Multi-Page Executive Report)
   // ──────────────────────────────────────────────────────────
   const handleExportAllPDF = async () => {
     try {
@@ -458,14 +1003,38 @@ export default function DepartmentAnalytics({
       const filenameDate = new Date().toISOString().split("T")[0];
       const dateStr = new Date().toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" });
 
+      const sortedDepts = [...deptAnalytics].sort((a, b) => {
+        const rA = (a.completionRate !== undefined && a.completionRate !== null) ? a.completionRate : (a.approvalRate || 0);
+        const rB = (b.completionRate !== undefined && b.completionRate !== null) ? b.completionRate : (b.approvalRate || 0);
+        return rB - rA;
+      });
+      const totalPages = sortedDepts.length + 1; // Page 1: Executive Overview, Pages 2..N: Dept Reports
+
+      // ─── PAGE 1: MASTER EXECUTIVE OVERVIEW ───
       pdf.setFillColor(120, 28, 28);
       pdf.rect(0, 0, pageWidth, 28, "F");
+      pdf.setFillColor(194, 65, 12);
+      pdf.rect(0, 28, pageWidth, 1.2, "F");
+
+      let textStartX = 14;
+      try {
+        if (MCC_CREST_WHITE_DATA_URL) {
+          pdf.addImage(MCC_CREST_WHITE_DATA_URL, "PNG", 14, 4, 15.5, 20);
+          textStartX = 34;
+        }
+      } catch {
+        textStartX = 14;
+      }
+
       pdf.setTextColor(255, 255, 255);
-      pdf.setFont("helvetica", "bold"); pdf.setFontSize(16);
-      pdf.text("MADRAS CHRISTIAN COLLEGE (AUTONOMOUS)", 14, 12);
-      pdf.setFont("helvetica", "normal"); pdf.setFontSize(9);
-      pdf.text("All-Departments Analytics & Verification Master Report", 14, 18);
-      pdf.text(`Date: ${dateStr}`, pageWidth - 14, 18, { align: "right" });
+      pdf.setFont("times", "bold");
+      pdf.setFontSize(14.5);
+      pdf.text("MADRAS CHRISTIAN COLLEGE (AUTONOMOUS)", textStartX, 12.5);
+      pdf.setFont("helvetica", "normal");
+      pdf.setFontSize(8.5);
+      pdf.setTextColor(254, 226, 226);
+      pdf.text("All-Departments Analytics & Completion Master Report", textStartX, 19.5);
+      pdf.text(`Date: ${dateStr}`, pageWidth - 14, 19.5, { align: "right" });
 
       // KPI box
       pdf.setFillColor(248, 250, 252);
@@ -474,58 +1043,68 @@ export default function DepartmentAnalytics({
       pdf.roundedRect(14, 34, 182, 28, 3, 3, "S");
       const kpiItems = [
         { label: "TOTAL STUDENTS", val: kpiData.totalStudents.toString() },
-        { label: "AVG VERIFICATION", val: `${kpiData.avgVerificationRate}%` },
+        { label: "AVG COMPLETION", val: `${kpiData.avgCompletionRate}%` },
         { label: "TOTAL PROJECTS", val: kpiData.totalProjects.toString() },
-        { label: "0% VERIFICATION", val: `${kpiData.zeroVerificationCount} Depts` },
+        { label: "ATTENTION NEEDED", val: `${kpiData.attentionNeededCount} Depts` },
       ];
       kpiItems.forEach((kpi, idx) => {
         const xPos = 18 + idx * 45;
-        pdf.setFont("helvetica", "normal"); pdf.setFontSize(7.5); pdf.setTextColor(100, 116, 139); pdf.text(kpi.label, xPos, 43);
-        pdf.setFont("helvetica", "bold"); pdf.setFontSize(13);
-        if (idx === 3 && kpiData.zeroVerificationCount > 0) pdf.setTextColor(225, 29, 72);
+        pdf.setFont("helvetica", "normal");
+        pdf.setFontSize(7.5);
+        pdf.setTextColor(100, 116, 139);
+        pdf.text(kpi.label, xPos, 43);
+        pdf.setFont("helvetica", "bold");
+        pdf.setFontSize(13);
+        if (idx === 3 && kpiData.attentionNeededCount > 0) pdf.setTextColor(225, 29, 72);
         else pdf.setTextColor(15, 23, 42);
         pdf.text(kpi.val, xPos, 53);
       });
 
-      pdf.setFont("helvetica", "bold"); pdf.setFontSize(12); pdf.setTextColor(30, 41, 59);
+      pdf.setFont("times", "bold");
+      pdf.setFontSize(13);
+      pdf.setTextColor(30, 41, 59);
       pdf.text("Department Comparative Rankings (All Streams)", 14, 70);
 
       let tableY = 75;
-      pdf.setFillColor(241, 245, 249); pdf.rect(14, tableY, 182, 8, "F");
-      pdf.setFont("helvetica", "bold"); pdf.setFontSize(8); pdf.setTextColor(71, 85, 105);
+      pdf.setFillColor(241, 245, 249);
+      pdf.rect(14, tableY, 182, 8, "F");
+      pdf.setFont("helvetica", "bold");
+      pdf.setFontSize(8);
+      pdf.setTextColor(71, 85, 105);
       pdf.text("Department", 18, tableY + 5.5);
       pdf.text("Stream", 75, tableY + 5.5);
       pdf.text("Students", 98, tableY + 5.5);
-      pdf.text("Verification", 118, tableY + 5.5);
+      pdf.text("Completion", 118, tableY + 5.5);
       pdf.text("Projects", 145, tableY + 5.5);
       pdf.text("Papers", 163, tableY + 5.5);
       pdf.text("Skills", 180, tableY + 5.5);
       tableY += 8;
-      pdf.setFont("helvetica", "normal");
 
-      const sortedDepts = [...deptAnalytics].sort((a, b) => (b.approvalRate || 0) - (a.approvalRate || 0));
+      pdf.setFont("helvetica", "normal");
       sortedDepts.forEach((d, index) => {
-        if (tableY > pageHeight - 25) {
-          pdf.addPage(); tableY = 20;
-          pdf.setFillColor(241, 245, 249); pdf.rect(14, tableY, 182, 8, "F");
-          pdf.setFont("helvetica", "bold"); pdf.setFontSize(8); pdf.setTextColor(71, 85, 105);
-          pdf.text("Department", 18, tableY + 5.5); pdf.text("Stream", 75, tableY + 5.5);
-          pdf.text("Students", 98, tableY + 5.5); pdf.text("Verification", 118, tableY + 5.5);
-          pdf.text("Projects", 145, tableY + 5.5); pdf.text("Papers", 163, tableY + 5.5); pdf.text("Skills", 180, tableY + 5.5);
-          tableY += 8; pdf.setFont("helvetica", "normal");
+        if (tableY > pageHeight - 25) return; // Keep Page 1 as executive summary
+        if (index % 2 === 1) {
+          pdf.setFillColor(248, 250, 252);
+          pdf.rect(14, tableY, 182, 7.5, "F");
         }
-        if (index % 2 === 1) { pdf.setFillColor(248, 250, 252); pdf.rect(14, tableY, 182, 7.5, "F"); }
-        pdf.setDrawColor(241, 245, 249); pdf.line(14, tableY + 7.5, 196, tableY + 7.5);
+        pdf.setDrawColor(241, 245, 249);
+        pdf.line(14, tableY + 7.5, 196, tableY + 7.5);
         pdf.setTextColor(15, 23, 42);
         pdf.text(d.department.length > 28 ? d.department.slice(0, 26) + "…" : d.department, 18, tableY + 5);
         pdf.setTextColor(d.stream === "Aided" ? 30 : 99, d.stream === "Aided" ? 90 : 71, d.stream === "Aided" ? 160 : 85);
         pdf.text(d.stream, 75, tableY + 5);
         pdf.setTextColor(15, 23, 42);
         pdf.text((d.studentCount || 0).toString(), 98, tableY + 5);
-        if (d.approvalRate >= 70) pdf.setTextColor(16, 185, 129);
-        else if (d.approvalRate >= 40) pdf.setTextColor(245, 158, 11);
-        else pdf.setTextColor(239, 68, 68);
-        pdf.text(`${d.approvalRate || 0}%`, 118, tableY + 5);
+        const deptRate = (d.completionRate !== undefined && d.completionRate !== null) ? d.completionRate : (d.approvalRate || 0);
+        if (d.studentCount === 0) {
+          pdf.setTextColor(148, 163, 184);
+          pdf.text("No Data", 118, tableY + 5);
+        } else {
+          if (deptRate >= 70) pdf.setTextColor(16, 185, 129);
+          else if (deptRate >= 40) pdf.setTextColor(245, 158, 11);
+          else pdf.setTextColor(239, 68, 68);
+          pdf.text(`${deptRate}%`, 118, tableY + 5);
+        }
         pdf.setTextColor(71, 85, 105);
         pdf.text((d.projectCount || 0).toString(), 145, tableY + 5);
         pdf.text((d.paperCount || 0).toString(), 163, tableY + 5);
@@ -533,15 +1112,20 @@ export default function DepartmentAnalytics({
         tableY += 7.5;
       });
 
-      const totalPages = pdf.internal.pages.length - 1;
-      for (let i = 1; i <= totalPages; i++) {
-        pdf.setPage(i);
-        pdf.setDrawColor(226, 232, 240);
-        pdf.line(14, pageHeight - 15, pageWidth - 14, pageHeight - 15);
-        pdf.setFont("helvetica", "italic"); pdf.setFontSize(8); pdf.setTextColor(148, 163, 184);
-        pdf.text("Madras Christian College Placement & Career Cell • Official Admin Analytics", 14, pageHeight - 9);
-        pdf.text(`Page ${i} of ${totalPages}`, pageWidth - 14, pageHeight - 9, { align: "right" });
-      }
+      pdf.setDrawColor(226, 232, 240);
+      pdf.line(14, pageHeight - 14, pageWidth - 14, pageHeight - 14);
+      pdf.setFont("helvetica", "italic");
+      pdf.setFontSize(7.5);
+      pdf.setTextColor(148, 163, 184);
+      pdf.text("Madras Christian College (Autonomous) • Official Placement & Career Guidance Cell", 14, pageHeight - 8.5);
+      pdf.text(`Page 1 of ${totalPages}`, pageWidth - 14, pageHeight - 8.5, { align: "right" });
+
+      // ─── PAGES 2..N: DEDICATED FULL REPORT PER DEPARTMENT ───
+      sortedDepts.forEach((dept, idx) => {
+        pdf.addPage();
+        renderDepartmentReportPage(pdf, dept, deptAnalytics, idx + 2, totalPages);
+      });
+
       pdf.save(`MCC_All_Departments_Analytics_${filenameDate}.pdf`);
     } catch (err) {
       console.error("Multi-Page PDF export failed:", err);
@@ -762,21 +1346,16 @@ export default function DepartmentAnalytics({
       <div className={`border rounded-3xl shadow-xl transition-all duration-300 overflow-hidden ${isDark ? "bg-[#0b0b0f] border-white/5" : "bg-gradient-to-b from-white to-[#faf8f5] border-stone-200"}`}>
         {/* Panel Header */}
         <div className="p-5 pb-4 border-b border-gray-100 dark:border-white/5 flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-2xl bg-[#781c1c]/10 text-[#781c1c] dark:bg-[#781c1c]/20 dark:text-[#f87171] flex items-center justify-center shrink-0">
-              <Building2 size={18} />
+          <div>
+            <div className="flex items-center gap-2">
+              <h3 className="text-base md:text-lg font-serif font-black tracking-tight text-slate-900 dark:text-white">
+                {activeStream} Stream — Institutional Benchmarks
+              </h3>
+              <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-[#781c1c]/10 text-[#781c1c] dark:bg-white/10 dark:text-gray-300">
+                {streamData.length} Depts
+              </span>
             </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h3 className="text-base md:text-lg font-serif font-black tracking-tight text-slate-900 dark:text-white">
-                  {activeStream} Stream — Institutional Benchmarks
-                </h3>
-                <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-[#781c1c]/10 text-[#781c1c] dark:bg-white/10 dark:text-gray-300">
-                  {streamData.length} Depts
-                </span>
-              </div>
-              <p className="text-[11px] text-gray-400 mt-0.5">Cross-department comparative intelligence, verification rates, and portfolio output.</p>
-            </div>
+            <p className="text-[11px] text-gray-400 mt-0.5">Cross-department comparative intelligence, completion rates, and portfolio output.</p>
           </div>
           <button
             onClick={() => setIsOverviewExpanded(!isOverviewExpanded)}
@@ -793,27 +1372,27 @@ export default function DepartmentAnalytics({
               {[
                 { label: "Total Enrolled", val: kpiData.totalStudents, sub: `in ${activeStream} departments`, icon: <Users size={15} />, color: "text-[#781c1c] bg-[#781c1c]/10 dark:bg-[#781c1c]/20 dark:text-[#f87171]" },
                 {
-                  label: "Avg Verification",
-                  val: `${kpiData.avgVerificationRate}%`,
-                  sub: kpiData.avgVerificationRate >= 70 ? "Healthy ✓" : kpiData.avgVerificationRate >= 40 ? "Moderate" : "Critical!",
+                  label: "Avg Completion",
+                  val: `${kpiData.avgCompletionRate}%`,
+                  sub: kpiData.avgCompletionRate >= 70 ? "Healthy ✓" : kpiData.avgCompletionRate >= 40 ? "Moderate" : "Critical!",
                   icon: <CheckCircle2 size={15} />,
-                  color: kpiData.avgVerificationRate >= 70 ? "text-emerald-600 bg-emerald-500/10" : kpiData.avgVerificationRate >= 40 ? "text-amber-500 bg-amber-500/10" : "text-rose-500 bg-rose-500/10",
+                  color: kpiData.avgCompletionRate >= 70 ? "text-emerald-600 bg-emerald-500/10" : kpiData.avgCompletionRate >= 40 ? "text-amber-500 bg-amber-500/10" : "text-rose-500 bg-rose-500/10",
                 },
                 { label: "Total Projects", val: kpiData.totalProjects, sub: "Registered portfolios", icon: <Code size={15} />, color: "text-[#781c1c] bg-[#781c1c]/10 dark:bg-[#781c1c]/20 dark:text-[#f87171]" },
                 {
                   label: "Attention Needed",
-                  val: kpiData.zeroVerificationCount,
-                  sub: kpiData.zeroVerificationCount > 0 ? "Active depts at 0%" : "All verified ✓",
+                  val: kpiData.attentionNeededCount,
+                  sub: kpiData.attentionNeededCount > 0 ? "Active depts <40%" : "All on track ✓",
                   icon: <AlertTriangle size={15} />,
-                  color: kpiData.zeroVerificationCount > 0 ? "text-rose-600 bg-rose-500/20 animate-pulse" : "text-emerald-500 bg-emerald-500/10",
+                  color: kpiData.attentionNeededCount > 0 ? "text-rose-600 bg-rose-500/20 animate-pulse" : "text-emerald-500 bg-emerald-500/10",
                 },
               ].map((kpi, idx) => (
-                <div key={idx} className={`border rounded-2xl p-4 transition-all duration-200 ${kpiData.zeroVerificationCount > 0 && idx === 3 ? isDark ? "bg-rose-950/20 border-rose-500/30" : "bg-rose-50/70 border-rose-200" : isDark ? "bg-white/[0.02] border-white/5" : "bg-white border-slate-200 hover:shadow-md"}`}>
+                <div key={idx} className={`border rounded-2xl p-4 transition-all duration-200 ${kpiData.attentionNeededCount > 0 && idx === 3 ? isDark ? "bg-rose-950/20 border-rose-500/30" : "bg-rose-50/70 border-rose-200" : isDark ? "bg-white/[0.02] border-white/5" : "bg-white border-slate-200 hover:shadow-md"}`}>
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-[10px] uppercase font-mono tracking-wider font-bold text-gray-400">{kpi.label}</span>
                     <div className={`p-1.5 rounded-lg ${kpi.color}`}>{kpi.icon}</div>
                   </div>
-                  <div className={`text-2xl sm:text-3xl font-serif font-black ${kpiData.zeroVerificationCount > 0 && idx === 3 ? "text-rose-600 dark:text-rose-400" : "text-slate-900 dark:text-white"}`}>{kpi.val}</div>
+                  <div className={`text-2xl sm:text-3xl font-serif font-black ${kpiData.attentionNeededCount > 0 && idx === 3 ? "text-rose-600 dark:text-rose-400" : "text-slate-900 dark:text-white"}`}>{kpi.val}</div>
                   <span className="text-[11px] text-gray-500 dark:text-gray-400 mt-1 block">{kpi.sub}</span>
                 </div>
               ))}
@@ -822,15 +1401,15 @@ export default function DepartmentAnalytics({
             {/* Comparison Charts */}
             {isMounted && streamData.length > 0 && (
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {/* Chart 1: Verification Rate Ranked — FIXED horizontal bar, scrollable if > 12 depts */}
+                {/* Chart 1: Completion Rate Ranked — FIXED horizontal bar, scrollable if > 9 depts */}
                 <div className={`border rounded-2xl p-5 ${isDark ? "bg-white/[0.02] border-white/5" : "bg-white border-slate-200 shadow-xs"}`}>
                   <div className="flex items-center justify-between mb-3">
                     <div>
                       <h4 className="text-sm font-serif font-bold text-slate-900 dark:text-white flex items-center gap-2">
                         <TrendingUp size={15} className="text-[#781c1c] dark:text-[#f87171]" />
-                        Portfolio Verification Rate (Ranked)
+                        Portfolio Completion Rate (Ranked)
                       </h4>
-                      <p className="text-[11px] text-gray-400 mt-0.5">{activeStream} departments — sorted by verification %</p>
+                      <p className="text-[11px] text-gray-400 mt-0.5">{activeStream} departments — sorted by completion %</p>
                     </div>
                     <div className="hidden sm:flex items-center gap-2 text-[10px] font-medium text-gray-500">
                       <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />&gt;70%</span>
@@ -841,15 +1420,15 @@ export default function DepartmentAnalytics({
 
                   {/* Scrollable wrapper when too many departments */}
                   <div
-                    style={{ height: `${verificationChartH}px` }}
-                    className={verificationScrollable ? "overflow-y-auto overscroll-contain" : ""}
+                    style={{ height: `${completionChartH}px` }}
+                    className={completionScrollable ? "overflow-y-auto overscroll-contain pr-1" : ""}
                   >
-                    <div style={{ height: verificationScrollable ? `${verificationScrollH}px` : "100%", width: "100%" }}>
+                    <div style={{ height: completionScrollable ? `${completionScrollH}px` : "100%", width: "100%" }}>
                       <ResponsiveContainer width="100%" height="100%">
                         <BarChart
                           layout="vertical"
-                          data={verificationComparisonData}
-                          margin={{ top: 4, right: 48, left: 0, bottom: 4 }}
+                          data={completionComparisonData}
+                          margin={{ top: 4, right: 32, left: 0, bottom: 4 }}
                           barCategoryGap="28%"
                         >
                           <CartesianGrid
@@ -869,12 +1448,13 @@ export default function DepartmentAnalytics({
                             dataKey="department"
                             width={Y_AXIS_WIDTH}
                             tick={(props) => (
-                              <TruncatedYAxisTick {...props} isDark={isDark} maxChars={20} />
+                              <TruncatedYAxisTick {...props} isDark={isDark} maxChars={14} />
                             )}
                             axisLine={false}
                             tickLine={false}
                           />
                           <Tooltip
+                            cursor={{ fill: isDark ? "rgba(255, 255, 255, 0.05)" : "rgba(100, 116, 139, 0.08)", radius: 4 }}
                             content={({ active, payload }) => {
                               if (active && payload && payload.length) {
                                 const item = payload[0].payload;
@@ -882,8 +1462,10 @@ export default function DepartmentAnalytics({
                                   <div className={`p-3 rounded-xl border shadow-xl text-xs ${isDark ? "bg-[#14141c] border-white/10 text-white" : "bg-white border-slate-200 text-slate-800"}`}>
                                     <div className="font-bold font-serif mb-1">{item.department}</div>
                                     <div className="flex justify-between gap-4 text-[11px] text-gray-400">
-                                      <span>Verification Rate:</span>
-                                      <span className="font-mono font-bold text-slate-900 dark:text-white">{item.approvalRate}%</span>
+                                      <span>Completion Rate:</span>
+                                      <span className="font-mono font-bold text-slate-900 dark:text-white">
+                                        {item.studentCount === 0 ? "No Data" : `${item.completionRate}%`}
+                                      </span>
                                     </div>
                                     <div className="flex justify-between gap-4 text-[11px] text-gray-400 mt-0.5">
                                       <span>Enrolled Students:</span>
@@ -895,12 +1477,12 @@ export default function DepartmentAnalytics({
                               return null;
                             }}
                           />
-                          <Bar dataKey="approvalRate" radius={[0, 5, 5, 0]} barSize={16}>
-                            {verificationComparisonData.map((entry, index) => (
+                          <Bar dataKey="completionRate" radius={[0, 5, 5, 0]} barSize={16}>
+                            {completionComparisonData.map((entry, index) => (
                               <Cell key={`cell-${index}`} fill={entry.fillColor} />
                             ))}
                             <LabelList
-                              dataKey="approvalRate"
+                              dataKey="completionRate"
                               position="right"
                               formatter={(v: any) => `${v}%`}
                               style={{ fontSize: "10px", fontWeight: 700, fontFamily: "monospace", fill: isDark ? "#e2e8f0" : "#1e293b" }}
@@ -910,12 +1492,12 @@ export default function DepartmentAnalytics({
                       </ResponsiveContainer>
                     </div>
                   </div>
-                  {verificationScrollable && (
-                    <p className="text-[10px] text-gray-400 text-center mt-1.5">↕ Scroll inside chart to see all {verificationComparisonData.length} departments</p>
+                  {completionScrollable && (
+                    <p className="text-[10px] text-gray-400 text-center mt-2">↕ Scroll inside chart to see all {completionComparisonData.length} departments</p>
                   )}
                 </div>
 
-                {/* Chart 2: Academic Production (Grouped bars) */}
+                {/* Chart 2: Academic Production (Grouped bars with horizontal scroll) */}
                 <div className={`border rounded-2xl p-5 ${isDark ? "bg-white/[0.02] border-white/5" : "bg-white border-slate-200 shadow-xs"}`}>
                   <div className="mb-3">
                     <h4 className="text-sm font-serif font-bold text-slate-900 dark:text-white flex items-center gap-2">
@@ -924,51 +1506,59 @@ export default function DepartmentAnalytics({
                     </h4>
                     <p className="text-[11px] text-gray-400 mt-0.5">Projects, Research Papers, and Skills — {activeStream} stream</p>
                   </div>
-                  <div style={{ height: Math.max(240, Math.min(380, productionComparisonData.length * 30)) }}>
-                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart
-                        data={productionComparisonData}
-                        margin={{ top: 10, right: 10, left: 0, bottom: 40 }}
-                        barCategoryGap="35%"
-                      >
-                        <CartesianGrid strokeDasharray="3 3" stroke={isDark ? "rgba(255,255,255,0.05)" : "#f1f5f9"} />
-                        <XAxis
-                          dataKey="shortDept"
-                          tick={{ fontSize: 9, fill: isDark ? "#94a3b8" : "#64748b" }}
-                          interval={0}
-                          angle={-30}
-                          textAnchor="end"
-                          height={50}
-                        />
-                        <YAxis tick={{ fontSize: 10, fill: isDark ? "#94a3b8" : "#64748b" }} allowDecimals={false} />
-                        <Tooltip
-                          content={({ active, payload, label }) => {
-                            if (active && payload && payload.length) {
-                              const dept = productionComparisonData.find((d) => d.shortDept === label);
-                              return (
-                                <div className={`p-3 rounded-xl border shadow-xl text-xs ${isDark ? "bg-[#14141c] border-white/10 text-white" : "bg-white border-slate-200 text-slate-800"}`}>
-                                  <div className="font-bold font-serif mb-1">{dept ? dept.department : label}</div>
-                                  {payload.map((item, idx) => (
-                                    <div key={idx} className="flex justify-between gap-4 text-[11px] mt-0.5">
-                                      <span className="flex items-center gap-1.5" style={{ color: item.color }}>
-                                        <span className="w-2 h-2 rounded-full" style={{ backgroundColor: item.color }} />{item.name}:
-                                      </span>
-                                      <span className="font-mono font-bold text-slate-900 dark:text-white">{item.value}</span>
-                                    </div>
-                                  ))}
-                                </div>
-                              );
-                            }
-                            return null;
-                          }}
-                        />
-                        <Legend wrapperStyle={{ fontSize: "11px", paddingTop: "6px" }} iconType="circle" />
-                        <Bar dataKey="Projects" fill="#781c1c" radius={[4, 4, 0, 0]} barSize={7} />
-                        <Bar dataKey="Papers" fill="#d97706" radius={[4, 4, 0, 0]} barSize={7} />
-                        <Bar dataKey="Skills" fill="#0f766e" radius={[4, 4, 0, 0]} barSize={7} />
-                      </BarChart>
-                    </ResponsiveContainer>
+                  <div className={`w-full ${prodScrollable ? "overflow-x-auto overscroll-contain pb-1" : ""}`}>
+                    <div style={{ width: typeof prodChartWidth === "number" ? `${prodChartWidth}px` : prodChartWidth, height: `${prodChartHeight}px`, minWidth: "100%" }}>
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart
+                          data={productionComparisonData}
+                          margin={{ top: 10, right: 16, left: -16, bottom: 10 }}
+                          barCategoryGap="25%"
+                        >
+                          <CartesianGrid strokeDasharray="3 3" stroke={isDark ? "rgba(255,255,255,0.05)" : "#f1f5f9"} />
+                          <XAxis
+                            dataKey="department"
+                            tick={(props) => (
+                              <TruncatedXAxisTick {...props} isDark={isDark} maxChars={11} />
+                            )}
+                            interval={0}
+                            height={32}
+                            axisLine={false}
+                            tickLine={false}
+                          />
+                          <YAxis tick={{ fontSize: 10, fill: isDark ? "#94a3b8" : "#64748b" }} allowDecimals={false} />
+                          <Tooltip
+                            cursor={{ fill: isDark ? "rgba(255, 255, 255, 0.05)" : "rgba(100, 116, 139, 0.08)", radius: 6 }}
+                            content={({ active, payload, label }) => {
+                              if (active && payload && payload.length) {
+                                const dept = productionComparisonData.find((d) => d.department === label);
+                                return (
+                                  <div className={`p-3 rounded-xl border shadow-xl text-xs ${isDark ? "bg-[#14141c] border-white/10 text-white" : "bg-white border-slate-200 text-slate-800"}`}>
+                                    <div className="font-bold font-serif mb-1">{dept ? dept.department : label}</div>
+                                    {payload.map((item, idx) => (
+                                      <div key={idx} className="flex justify-between gap-4 text-[11px] mt-0.5">
+                                        <span className="flex items-center gap-1.5" style={{ color: item.color }}>
+                                          <span className="w-2 h-2 rounded-full" style={{ backgroundColor: item.color }} />{item.name}:
+                                        </span>
+                                        <span className="font-mono font-bold text-slate-900 dark:text-white">{item.value}</span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                );
+                              }
+                              return null;
+                            }}
+                          />
+                          <Legend wrapperStyle={{ fontSize: "11px", paddingTop: "4px" }} iconType="circle" />
+                          <Bar dataKey="Projects" fill="#781c1c" radius={[4, 4, 0, 0]} barSize={8} />
+                          <Bar dataKey="Papers" fill="#d97706" radius={[4, 4, 0, 0]} barSize={8} />
+                          <Bar dataKey="Skills" fill="#0f766e" radius={[4, 4, 0, 0]} barSize={8} />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
                   </div>
+                  {prodScrollable && (
+                    <p className="text-[10px] text-gray-400 text-center mt-2">↔ Scroll horizontally to see all {productionComparisonData.length} departments</p>
+                  )}
                 </div>
               </div>
             )}
@@ -1015,7 +1605,7 @@ export default function DepartmentAnalytics({
                 onChange={(e) => setSortBy(e.target.value as any)}
                 className={`py-1.5 px-2 text-xs bg-transparent focus:outline-none cursor-pointer ${isDark ? "text-gray-200 bg-[#0b0b0f]" : "text-slate-700 bg-white"}`}
               >
-                <option value="verification">Verification</option>
+                <option value="completion">Completion Rate</option>
                 <option value="students">Students</option>
                 <option value="projects">Projects</option>
                 <option value="name">Name</option>
@@ -1047,18 +1637,21 @@ export default function DepartmentAnalytics({
         {/* Cards Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {processedDepartments.map((dept) => {
-            const gaugeColor = getGaugeColor(dept.approvalRate, dept.studentCount);
-            const tier = getVerificationTier(dept.approvalRate, dept.studentCount);
+            const deptRate = (dept.completionRate !== undefined && dept.completionRate !== null) ? dept.completionRate : (dept.approvalRate || 0);
+            const gaugeColor = getGaugeColor(deptRate, dept.studentCount);
+            const tier = getCompletionTier(deptRate, dept.studentCount);
             const isZeroData = dept.studentCount === 0;
+            const isLowSample = dept.studentCount > 0 && dept.studentCount < 3;
             const donutData = isZeroData
               ? [{ name: "No Data", value: 100 }, { name: "Remaining", value: 0 }]
-              : [{ name: "Approved", value: dept.approvalRate }, { name: "Remaining", value: Math.max(0, 100 - dept.approvalRate) }];
+              : [{ name: "Complete", value: deptRate }, { name: "Remaining", value: Math.max(0, 100 - deptRate) }];
             const barData = [
               { name: "Projects", count: dept.projectCount || 0, fill: "#781c1c" },
               { name: "Papers", count: dept.paperCount || 0, fill: "#d97706" },
               { name: "Skills", count: dept.skillCount || 0, fill: "#0f766e" },
             ];
             const isDownloadingThis = exportingDept === dept.department;
+            const isStudentsExpanded = Boolean(expandedStudents[dept.department]);
 
             return (
               <div
@@ -1073,8 +1666,16 @@ export default function DepartmentAnalytics({
                       <h4 className={`text-base font-serif font-black truncate leading-tight transition-colors ${isDark ? "text-white" : "text-slate-900 group-hover:text-[#781c1c]"}`} title={dept.department}>
                         {dept.department}
                       </h4>
-                      <div className="flex items-center gap-1.5 mt-1">
+                      <div className="flex items-center gap-1.5 mt-1 flex-wrap">
                         <span className={`text-[9px] font-mono font-bold uppercase tracking-wider px-2 py-0.5 rounded ${tier.badge}`}>{tier.label}</span>
+                        {isLowSample && (
+                          <span
+                            className="text-[9px] font-mono text-amber-600 dark:text-amber-400 bg-amber-500/10 border border-amber-500/20 px-1.5 py-0.5 rounded"
+                            title="Small sample size; department average reflects under 3 students"
+                          >
+                            (low sample size)
+                          </span>
+                        )}
                       </div>
                     </div>
 
@@ -1100,7 +1701,7 @@ export default function DepartmentAnalytics({
                         {isMounted ? (
                           <ResponsiveContainer width="100%" height="100%">
                             <PieChart>
-                              <Pie data={donutData} cx="50%" cy="50%" innerRadius={32} outerRadius={44} startAngle={90} endAngle={-270} paddingAngle={!isZeroData && dept.approvalRate > 0 && dept.approvalRate < 100 ? 3 : 0} dataKey="value" stroke="none">
+                              <Pie data={donutData} cx="50%" cy="50%" innerRadius={32} outerRadius={44} startAngle={90} endAngle={-270} paddingAngle={!isZeroData && deptRate > 0 && deptRate < 100 ? 3 : 0} dataKey="value" stroke="none">
                                 <Cell fill={gaugeColor} />
                                 <Cell fill={isDark ? "rgba(255,255,255,0.06)" : "#f1f5f9"} />
                               </Pie>
@@ -1110,11 +1711,11 @@ export default function DepartmentAnalytics({
                           <div className="w-20 h-20 rounded-full border-4 border-gray-200 dark:border-gray-800 animate-pulse" />
                         )}
                         <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                          <span className={`text-sm font-mono font-black leading-none ${isDark ? "text-white" : "text-slate-900"}`}>{isZeroData ? "0%" : `${dept.approvalRate}%`}</span>
-                          <span className="text-[8px] font-bold uppercase tracking-wider text-gray-400 mt-0.5">{isZeroData ? "No Data" : "Verified"}</span>
+                          <span className={`text-sm font-mono font-black leading-none ${isDark ? "text-white" : "text-slate-900"}`}>{isZeroData ? "No Data" : `${deptRate}%`}</span>
+                          <span className="text-[8px] font-bold uppercase tracking-wider text-gray-400 mt-0.5">{isZeroData ? "No Data" : "Complete"}</span>
                         </div>
                       </div>
-                      <span className="text-[9px] font-semibold text-gray-400 mt-1">Portfolio Verification</span>
+                      <span className="text-[9px] font-semibold text-gray-400 mt-1">Portfolio Completion</span>
                     </div>
 
                     {/* Mini Horizontal Bar Chart */}
@@ -1159,6 +1760,70 @@ export default function DepartmentAnalytics({
                       </div>
                     </div>
                   </div>
+
+                  {/* Student Completion Breakdown Drilldown */}
+                  {dept.studentCount > 0 && (
+                    <div className={`mt-3 pt-3 border-t ${isDark ? "border-white/5" : "border-slate-100"}`}>
+                      <button
+                        onClick={() => toggleStudents(dept.department)}
+                        className={`w-full flex items-center justify-between text-xs font-semibold transition cursor-pointer py-1 ${
+                          isDark ? "text-gray-300 hover:text-white" : "text-slate-700 hover:text-[#781c1c]"
+                        }`}
+                      >
+                        <span className="flex items-center gap-1.5">
+                          <Users size={12} className="text-[#781c1c] dark:text-[#f87171]" />
+                          <span>Student Breakdown</span>
+                          <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-gray-100 dark:bg-white/10 text-gray-500 dark:text-gray-400">
+                            {dept.students?.length || dept.studentCount}
+                          </span>
+                        </span>
+                        {isStudentsExpanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+                      </button>
+
+                      {isStudentsExpanded && (
+                        <div className="mt-2 max-h-48 overflow-y-auto space-y-1.5 pr-1 text-xs">
+                          {dept.students && dept.students.length > 0 ? (
+                            dept.students.map((student) => {
+                              const pct = student.completionPercentage;
+                              const barColor = pct >= 70 ? "bg-emerald-500" : pct >= 40 ? "bg-amber-500" : "bg-rose-500";
+                              const textColor = pct >= 70 ? "text-emerald-600 dark:text-emerald-400" : pct >= 40 ? "text-amber-600 dark:text-amber-400" : "text-rose-600 dark:text-rose-400";
+                              return (
+                                <div
+                                  key={student.id}
+                                  className={`p-2 rounded-xl border flex items-center justify-between gap-3 ${
+                                    isDark ? "bg-white/[0.02] border-white/5" : "bg-slate-50/70 border-slate-100"
+                                  }`}
+                                >
+                                  <div className="min-w-0 flex-1">
+                                    <div className="font-semibold text-slate-800 dark:text-gray-200 truncate leading-tight">
+                                      {student.fullName}
+                                    </div>
+                                    {student.registerNumber && (
+                                      <div className="text-[10px] font-mono text-gray-400">
+                                        {student.registerNumber}
+                                      </div>
+                                    )}
+                                  </div>
+                                  <div className="flex items-center gap-2 shrink-0">
+                                    <div className="w-16 h-1.5 rounded-full bg-slate-200 dark:bg-white/10 overflow-hidden">
+                                      <div className={`h-full rounded-full ${barColor}`} style={{ width: `${pct}%` }} />
+                                    </div>
+                                    <span className={`text-[11px] font-mono font-bold w-9 text-right ${textColor}`}>
+                                      {pct}%
+                                    </span>
+                                  </div>
+                                </div>
+                              );
+                            })
+                          ) : (
+                            <div className="text-[11px] text-gray-400 text-center py-2">
+                              No student breakdown available.
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 {/* Card Footer */}

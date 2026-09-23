@@ -576,10 +576,55 @@ html.dark .mcc-access-control input {
 }
 
 /* ─── Dashboard & Admin Welcome Banner Override ────────────────────────── */
-.mcc-welcome-banner span,
-.mcc-welcome-banner h1,
-.mcc-welcome-banner p {
+.mcc-welcome-banner span:not(.mcc-completion-popover, .mcc-completion-popover *),
+.mcc-welcome-banner h1:not(.mcc-completion-popover, .mcc-completion-popover *),
+.mcc-welcome-banner p:not(.mcc-completion-popover, .mcc-completion-popover *) {
   color: #ffffff !important;
+}
+
+/* ─── Scoped Completion Popover Scrollbar & Text Reset ──────────────────── */
+html:not(.dark) .mcc-completion-popover {
+  background-color: var(--mcc-bg-sidebar, #F0E8D7) !important;
+  border-color: var(--mcc-border-sidebar, #E0D4BD) !important;
+  color: #2B2620 !important;
+}
+html:not(.dark) .mcc-completion-popover span.text-\[\#2B2620\],
+html:not(.dark) .mcc-completion-popover h4.text-\[\#2B2620\] {
+  color: #2B2620 !important;
+}
+html:not(.dark) .mcc-completion-popover p.text-\[\#635A4D\],
+html:not(.dark) .mcc-completion-popover span.text-\[\#635A4D\] {
+  color: #635A4D !important;
+}
+html:not(.dark) .mcc-completion-popover span.text-\[\#918676\] {
+  color: #918676 !important;
+}
+html:not(.dark) .mcc-completion-popover span.text-emerald-800,
+html:not(.dark) .mcc-completion-popover span.text-emerald-900 {
+  color: #065f46 !important;
+}
+html:not(.dark) .mcc-completion-popover span.text-amber-900 {
+  color: #78350f !important;
+}
+html:not(.dark) .mcc-completion-popover span.text-rose-900 {
+  color: #881337 !important;
+}
+
+.mcc-completion-popover .popover-scrollbar::-webkit-scrollbar {
+  width: 5px;
+}
+.mcc-completion-popover .popover-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.mcc-completion-popover .popover-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(120, 28, 28, 0.25);
+  border-radius: 9999px;
+}
+.mcc-completion-popover .popover-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(120, 28, 28, 0.5);
+}
+html.dark .mcc-completion-popover .popover-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
 }
 
 @media (max-width: 640px) {
