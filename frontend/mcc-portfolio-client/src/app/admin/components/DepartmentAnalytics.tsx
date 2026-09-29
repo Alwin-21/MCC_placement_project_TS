@@ -34,9 +34,12 @@ import {
   Edit2,
   Save,
   X,
+  BarChart2,
 } from "lucide-react";
 import api from "@/services/api";
 import { MCC_CREST_WHITE_DATA_URL } from "@/utils/mccCrestBase64";
+import GrowthEngagementAnalytics from "./GrowthEngagementAnalytics";
+import PlatformAnalytics from "./PlatformAnalytics";
 
 export interface DepartmentStudentCompletion {
   id: string;
@@ -200,6 +203,8 @@ export default function DepartmentAnalytics({
   // UI States
   // ──────────────────────────────────────────────────────────
   const [isOverviewExpanded, setIsOverviewExpanded] = useState(true);
+  const [isGrowthExpanded, setIsGrowthExpanded] = useState(false);
+  const [isPlatformExpanded, setIsPlatformExpanded] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [sortBy, setSortBy] = useState<"students" | "completion" | "verification" | "projects" | "name">("completion");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
@@ -1341,6 +1346,14 @@ export default function DepartmentAnalytics({
       </div>
 
       {/* ===================================================
+          SECTION: PLATFORM ANALYTICS
+          =================================================== */}
+      <PlatformAnalytics
+        activeStream={activeStream}
+        themeMode={themeMode}
+      />
+
+      {/* ===================================================
           SECTION: INSTITUTIONAL BENCHMARKS (COLLAPSIBLE)
           =================================================== */}
       <div className={`border rounded-3xl shadow-xl transition-all duration-300 overflow-hidden ${isDark ? "bg-[#0b0b0f] border-white/5" : "bg-gradient-to-b from-white to-[#faf8f5] border-stone-200"}`}>
@@ -1568,6 +1581,37 @@ export default function DepartmentAnalytics({
                 No {activeStream} departments configured. Use the <strong>Edit Classification</strong> button above to assign departments.
               </div>
             )}
+          </div>
+        )}
+      </div>
+
+      {/* ===================================================
+          SECTION: GROWTH & ENGAGEMENT ANALYTICS
+          =================================================== */}
+      <div className={`border rounded-3xl shadow-xl transition-all duration-300 overflow-hidden ${isDark ? "bg-[#0b0b0f] border-white/5" : "bg-gradient-to-b from-white to-[#faf8f5] border-stone-200"}`}>
+        {/* Panel Header */}
+        <div className="p-5 pb-4 border-b border-gray-100 dark:border-white/5 flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <div className="flex items-center gap-2">
+              <h3 className="text-base md:text-lg font-serif font-black tracking-tight text-slate-900 dark:text-white">
+                {activeStream} Stream — Growth & Engagement
+              </h3>
+              <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-[#781c1c]/10 text-[#781c1c] dark:bg-white/10 dark:text-gray-300">
+                Platform Insights
+              </span>
+            </div>
+            <p className="text-[11px] text-gray-400 mt-0.5">Signup growth, engagement activity, portfolio funnel, and completion rate trend.</p>
+          </div>
+          <button
+            onClick={() => setIsGrowthExpanded(!isGrowthExpanded)}
+            className={`p-2 rounded-xl border transition cursor-pointer flex items-center gap-1 text-xs font-semibold ${isDark ? "bg-white/5 hover:bg-white/10 text-gray-300 border-white/10" : "bg-white hover:bg-stone-50 text-slate-700 border-slate-200"}`}
+          >
+            {isGrowthExpanded ? <><ChevronUp size={14} /><span className="hidden sm:inline">Collapse</span></> : <><ChevronDown size={14} /><span className="hidden sm:inline">Expand</span></>}
+          </button>
+        </div>
+        {isGrowthExpanded && (
+          <div className="p-5">
+            <GrowthEngagementAnalytics activeStream={activeStream} themeMode={themeMode} />
           </div>
         )}
       </div>

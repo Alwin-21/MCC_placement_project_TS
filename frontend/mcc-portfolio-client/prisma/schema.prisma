@@ -702,3 +702,20 @@ model AutomationLog {
 }
 
 
+
+// Daily analytics snapshot for Growth & Engagement trend charts.
+// One row per (date, departmentId). Upserted nightly by the snapshot cron job.
+model DepartmentAnalyticsSnapshot {
+  Id                      Int      @id @default(autoincrement())
+  Date                    DateTime @db.Date
+  DepartmentId            String
+  Stream                  String
+  TotalStudents           Int      @default(0)
+  NewSignupsToday         Int      @default(0)
+  ActiveStudentsToday     Int      @default(0)
+  AvgCompletionRate       Float    @default(0.0)
+  SectionCompletionCounts String   @default("{}") @db.Text
+  CreatedAt               DateTime @default(now()) @db.Timestamptz(6)
+
+  @@unique([Date, DepartmentId], name: "UQ_DeptSnapshot_Date_Dept")
+}
