@@ -79,6 +79,10 @@ export async function PUT(
     const {
       title,
       department,
+      location,
+      registrationLink,
+      notes,
+      eligibilitySummary,
       description,
       responsibilities,
       requirements,
@@ -105,6 +109,10 @@ export async function PUT(
       data: {
         Title: title !== undefined ? title : job.Title,
         Department: department !== undefined ? department : job.Department,
+        Location: location !== undefined ? (location || null) : job.Location,
+        RegistrationLink: registrationLink !== undefined ? (registrationLink || null) : job.RegistrationLink,
+        Notes: notes !== undefined ? (notes || null) : job.Notes,
+        EligibilitySummary: eligibilitySummary !== undefined ? (eligibilitySummary || null) : job.EligibilitySummary,
         Description: description !== undefined ? description : job.Description,
         Responsibilities: responsibilities !== undefined ? responsibilities : job.Responsibilities,
         Requirements: requirements !== undefined ? requirements : job.Requirements,

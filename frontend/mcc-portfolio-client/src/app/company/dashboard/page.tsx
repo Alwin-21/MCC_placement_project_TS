@@ -32,6 +32,7 @@ import {
   MessageSquare,
   HelpCircle,
   ChevronRight,
+  ChevronDown,
   TrendingUp,
   Sliders,
   FolderPlus,
@@ -85,6 +86,53 @@ const LinkedinIcon = ({ size = 16, className = "" }: { size?: number; className?
 
 type TabType = "overview" | "profile" | "jobs" | "applications" | "talent-pools" | "talent-search" | "analytics";
 
+const VerificationBadge = ({ status }: { status?: string }) => {
+  const normStatus = status || "Pending";
+  if (normStatus === "Verified") {
+    return (
+      <div className="px-3 py-1.5 rounded-xl text-[10px] font-mono font-bold flex items-center gap-2 bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/20">
+        <CheckCircle size={11} className="text-emerald-500 dark:text-emerald-400 shrink-0" />
+        <span>Verified</span>
+      </div>
+    );
+  }
+  if (normStatus === "Rejected") {
+    return (
+      <div className="px-3 py-1.5 rounded-xl text-[10px] font-mono font-bold flex items-center gap-2 bg-red-50 text-red-700 border border-red-200 dark:bg-red-500/10 dark:text-red-400 dark:border-red-500/20">
+        <AlertTriangle size={11} className="text-red-500 dark:text-red-400 shrink-0" />
+        <span>Rejected</span>
+      </div>
+    );
+  }
+  if (normStatus === "Suspended") {
+    return (
+      <div className="px-3 py-1.5 rounded-xl text-[10px] font-mono font-bold flex items-center gap-2 bg-red-50 text-red-700 border border-red-200 dark:bg-red-500/10 dark:text-red-400 dark:border-red-500/20">
+        <AlertTriangle size={11} className="text-red-500 dark:text-red-400 shrink-0" />
+        <span>Suspended</span>
+      </div>
+    );
+  }
+  return (
+    <div className="px-3 py-1.5 rounded-xl text-[10px] font-mono font-bold flex items-center gap-2 bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-500/10 dark:text-amber-400 dark:border-amber-500/20">
+      <Clock size={11} className="text-amber-500 dark:text-amber-400 shrink-0" />
+      <span>Pending Review</span>
+    </div>
+  );
+};
+
+function toDateTimeLocalString(dateInput: string | Date | undefined | null) {
+  if (!dateInput) return "";
+  const d = new Date(dateInput);
+  if (isNaN(d.getTime())) return "";
+  const pad = (n: number) => String(n).padStart(2, "0");
+  const year = d.getFullYear();
+  const month = pad(d.getMonth() + 1);
+  const day = pad(d.getDate());
+  const hours = pad(d.getHours());
+  const minutes = pad(d.getMinutes());
+  return `${year}-${month}-${day}T${hours}:${minutes}`;
+}
+
 export default function CompanyDashboardPage() {
   const router = useRouter();
   const [themeMode, toggleThemeMode] = useTheme();
@@ -123,9 +171,14 @@ export default function CompanyDashboardPage() {
   const [jobs, setJobs] = useState<any[]>([]);
   const [jobModalOpen, setJobModalOpen] = useState(false);
   const [editingJobId, setEditingJobId] = useState<number | null>(null);
+  const [showAdvancedEligibility, setShowAdvancedEligibility] = useState(false);
   const [jobForm, setJobForm] = useState<any>({
     title: "",
     department: "",
+    location: "",
+    registrationLink: "",
+    notes: "",
+    eligibilitySummary: "",
     description: "",
     responsibilities: "",
     requirements: "",
@@ -384,9 +437,24 @@ export default function CompanyDashboardPage() {
   const handleOpenJobModal = (job: any = null) => {
     if (job) {
       setEditingJobId(job.id || job.Id);
+      const hasAdvancedCriteria = !!(
+        (job.eligibilityDepartments || job.EligibilityDepartments) ||
+        (job.eligibilityYears || job.EligibilityYears) ||
+        (job.eligibilityMinCGPA && Number(job.eligibilityMinCGPA) > 0) ||
+        (job.EligibilityMinCGPA && Number(job.EligibilityMinCGPA) > 0) ||
+        (job.eligibilityExperience || job.EligibilityExperience) ||
+        (job.salary || job.Salary) ||
+        (job.lpa && Number(job.lpa) > 0) ||
+        (job.LPA && Number(job.LPA) > 0)
+      );
+      setShowAdvancedEligibility(hasAdvancedCriteria);
       setJobForm({
         title: job.title || job.Title || "",
         department: job.department || job.Department || "",
+        location: job.location || job.Location || "",
+        registrationLink: job.registrationLink || job.RegistrationLink || "",
+        notes: job.notes || job.Notes || "",
+        eligibilitySummary: job.eligibilitySummary || job.EligibilitySummary || "",
         description: job.description || job.Description || "",
         responsibilities: job.responsibilities || job.Responsibilities || "",
         requirements: job.requirements || job.Requirements || "",
@@ -403,15 +471,20 @@ export default function CompanyDashboardPage() {
         lpa: String(job.lpa ?? job.LPA ?? "0.0"),
         benefits: job.benefits || job.Benefits || "",
         selectionProcess: job.selectionProcess || job.SelectionProcess || "",
-        deadlines: job.deadlines || job.Deadlines ? new Date(job.deadlines || job.Deadlines).toISOString().split("T")[0] : "",
+        deadlines: toDateTimeLocalString(job.deadlines || job.Deadlines),
         attachments: job.attachments || job.Attachments || "",
         assessmentId: String(job.assessmentId || job.AssessmentId || ""),
       });
     } else {
       setEditingJobId(null);
+      setShowAdvancedEligibility(false);
       setJobForm({
         title: "",
         department: "",
+        location: "",
+        registrationLink: "",
+        notes: "",
+        eligibilitySummary: "",
         description: "",
         responsibilities: "",
         requirements: "",
@@ -793,13 +866,7 @@ export default function CompanyDashboardPage() {
 
         {/* Recruiter Quick Controls */}
         <div className="p-4 border-t border-slate-200 dark:border-white/5 space-y-3 shrink-0">
-          <div className={`px-3 py-2 rounded-xl text-[10px] font-mono font-bold flex items-center gap-2 ${themeMode === "dark"
-              ? "bg-emerald-500/10 text-emerald-350 border border-emerald-500/20"
-              : "bg-emerald-50 text-emerald-700 border border-emerald-250"
-            }`}>
-            <CheckCircle size={11} className="text-emerald-400" />
-            Verified Recruiter
-          </div>
+          <VerificationBadge status={company?.status} />
 
           <button
             onClick={handleLogout}
@@ -885,13 +952,7 @@ export default function CompanyDashboardPage() {
             </div>
 
             <div className="pt-4 border-t border-slate-200 dark:border-white/5 space-y-3 shrink-0">
-              <div className={`px-3 py-2 rounded-xl text-[10px] font-mono font-bold flex items-center gap-2 ${themeMode === "dark"
-                  ? "bg-emerald-500/10 text-emerald-350 border border-emerald-500/20"
-                  : "bg-emerald-50 text-emerald-700 border border-emerald-250"
-                }`}>
-                <CheckCircle size={11} className="text-emerald-400" />
-                Verified Recruiter
-              </div>
+              <VerificationBadge status={company?.status} />
 
               <button
                 onClick={handleLogout}
@@ -970,16 +1031,10 @@ export default function CompanyDashboardPage() {
               </span>
               <h1
                 style={{ color: '#ffffff' }}
-                className="font-serif text-lg sm:text-2xl md:text-3xl font-black mt-1.5 sm:mt-2 leading-tight break-words"
+                className="font-serif text-lg sm:text-2xl md:text-3xl font-extrabold mt-1.5 sm:mt-2 leading-tight break-words"
               >
                 Welcome back, {profile?.fullName || "HR Representative"}
               </h1>
-              <p
-                style={{ color: 'rgba(255, 255, 255, 0.85)' }}
-                className="text-[11px] sm:text-xs leading-normal"
-              >
-                Onboard drives, post recruitment vacancies, evaluate candidate pipelines and portfolios.
-              </p>
             </div>
           </div>
 
@@ -987,7 +1042,7 @@ export default function CompanyDashboardPage() {
           <div className={`mb-10 flex items-center justify-between flex-wrap gap-4 border-b pb-6 ${themeMode === "dark" ? "border-white/5" : "border-slate-200"
             }`}>
             <div>
-              <span className="text-[10px] uppercase font-mono font-black tracking-widest text-[#781c1c] block mb-1 whitespace-nowrap">Madras Christian College</span>
+              <span className="text-[10px] uppercase font-mono font-bold tracking-widest text-[#781c1c] block mb-1 whitespace-nowrap">Madras Christian College</span>
               <h2 className="font-serif text-3xl font-extrabold tracking-tight text-[#18233c] dark:text-white">HR Placement Console</h2>
               <p className={`text-xs mt-1 ${themeMode === "dark" ? "text-gray-400" : "text-slate-500"}`}>
                 Post vacancies, evaluate talent portfolios, select applicants, and coordinate placements.
@@ -995,27 +1050,29 @@ export default function CompanyDashboardPage() {
             </div>
           </div>
 
-          {/* STATUS BANNER */}
-          <div
-            className={`border rounded-3xl p-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 ${statusColors[company?.status] || "bg-slate-500/10 text-slate-500 border-slate-500/20"
+          {/* SLIM VERIFICATION ALERT (Only shown when not verified) */}
+          {company?.status !== "Verified" && (
+            <div
+              className={`px-4 py-3 rounded-2xl border text-xs flex items-center gap-3 ${
+                company?.status === "Pending"
+                  ? "bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/20"
+                  : "bg-red-500/10 text-red-700 dark:text-red-300 border-red-500/20"
               }`}
-          >
-            <div className="flex items-start gap-4">
-              <div className="p-3 bg-white/10 rounded-2xl shrink-0 mt-0.5">
-                {isPending ? <Clock size={24} /> : <CheckCircle size={24} />}
-              </div>
-              <div className="text-left space-y-1">
-                <span className="text-lg font-black uppercase tracking-wide block">
-                  Verification Status: {company?.status}
-                </span>
-                <p className="text-xs font-medium leading-relaxed opacity-90">
-                  {isPending
-                    ? "Your onboarding request is currently under review by the placement administration. Placement features (Job postings, applications) will become active once verified."
-                    : "Your account is verified! You can post jobs, evaluate candidate portfolios, schedule interviews, and manage recruitment."}
-                </p>
-              </div>
+            >
+              {company?.status === "Pending" ? (
+                <Clock size={16} className="shrink-0 text-amber-500" />
+              ) : (
+                <AlertTriangle size={16} className="shrink-0 text-red-500" />
+              )}
+              <span className="font-medium leading-relaxed">
+                {company?.status === "Pending"
+                  ? "Your onboarding request is currently under review by the placement administration. Placement features (Job postings, applications) will become active once verified."
+                  : company?.status === "Rejected"
+                  ? "Your company registration was not approved. Please reach out to the MCC Placement Cell for assistance."
+                  : "Your company account is currently suspended. Please contact the MCC Placement Cell."}
+              </span>
             </div>
-          </div>
+          )}
 
 
           {/* ==========================================
@@ -1026,18 +1083,18 @@ export default function CompanyDashboardPage() {
               {/* Stat Widgets */}
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 {[
-                  { label: "Active Jobs", count: stats.activeJobs, color: "text-emerald-500 bg-emerald-500/5 border-emerald-500/10" },
-                  { label: "Pending Jobs", count: stats.pendingJobs, color: "text-amber-500 bg-amber-500/5 border-amber-500/10" },
-                  { label: "Rejected Jobs", count: stats.rejectedJobs, color: "text-red-500 bg-red-500/5 border-red-500/10" },
-                  { label: "Applications", count: stats.applicationsReceived, color: "text-red-500 bg-red-500/5 border-red-500/10" },
-                  { label: "Shortlisted", count: stats.studentsShortlisted, color: "text-cyan-500 bg-cyan-500/5 border-cyan-500/10" },
-                  { label: "Interviews", count: stats.interviewsScheduled, color: "text-purple-500 bg-purple-500/5 border-purple-500/10" },
-                  { label: "Offers Issued", count: stats.offersReleased, color: "text-indigo-500 bg-indigo-500/5 border-indigo-500/10" },
-                  { label: "Downloads", count: stats.resumeDownloads, color: "text-pink-500 bg-pink-500/5 border-pink-500/10" },
+                  { label: "Active Jobs", count: stats.activeJobs, color: "text-emerald-600 dark:text-emerald-400 bg-emerald-500/5 border-emerald-500/15" },
+                  { label: "Pending Jobs", count: stats.pendingJobs, color: "text-amber-600 dark:text-amber-400 bg-amber-500/5 border-amber-500/15" },
+                  { label: "Rejected Jobs", count: stats.rejectedJobs, color: "text-[#781c1c] dark:text-red-400 bg-[#781c1c]/5 border-[#781c1c]/15" },
+                  { label: "Applications", count: stats.applicationsReceived, color: "text-[#781c1c] dark:text-red-300 bg-[#781c1c]/5 border-[#781c1c]/15" },
+                  { label: "Shortlisted", count: stats.studentsShortlisted, color: "text-amber-600 dark:text-amber-400 bg-amber-500/5 border-amber-500/15" },
+                  { label: "Interviews", count: stats.interviewsScheduled, color: "text-indigo-600 dark:text-indigo-400 bg-indigo-500/5 border-indigo-500/15" },
+                  { label: "Offers Issued", count: stats.offersReleased, color: "text-emerald-600 dark:text-emerald-400 bg-emerald-500/5 border-emerald-500/15" },
+                  { label: "Downloads", count: stats.resumeDownloads, color: "text-indigo-600 dark:text-indigo-400 bg-indigo-500/5 border-indigo-500/15" },
                 ].map((w, idx) => (
                   <div key={idx} className={`p-5 rounded-3xl border text-left space-y-1 ${w.color} ${isDark ? "" : "bg-white"}`}>
                     <span className="text-[10px] font-bold uppercase tracking-wider block opacity-75">{w.label}</span>
-                    <span className="text-2xl font-black block">{w.count}</span>
+                    <span className="text-2xl font-extrabold block">{w.count}</span>
                   </div>
                 ))}
               </div>
@@ -1046,7 +1103,7 @@ export default function CompanyDashboardPage() {
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 {/* Audit Activities Logs */}
                 <div className="lg:col-span-2 glass-card rounded-3xl border p-6 text-left space-y-4 border-slate-200/50 dark:border-white/5 bg-white/40 dark:bg-white/[0.01]">
-                  <span className="text-[10px] uppercase font-mono font-black tracking-widest text-[#781c1c] dark:text-red-400 block mb-2">Recent Workspace Activities</span>
+                  <span className="text-[10px] uppercase font-mono font-bold tracking-widest text-[#781c1c] dark:text-red-400 block mb-2">Recent Workspace Activities</span>
                   <div className="space-y-3.5 max-h-[300px] overflow-y-auto pr-1">
                     {stats.recentActivities.length > 0 ? (
                       stats.recentActivities.map((act: any) => (
@@ -1067,11 +1124,11 @@ export default function CompanyDashboardPage() {
 
                 {/* Notifications Alert Board */}
                 <div className="glass-card rounded-3xl border p-6 text-left space-y-4 border-slate-200/50 dark:border-white/5 bg-white/40 dark:bg-white/[0.01]">
-                  <span className="text-[10px] uppercase font-mono font-black tracking-widest text-[#781c1c] dark:text-red-400 block mb-2">Announcements Feed</span>
+                  <span className="text-[10px] uppercase font-mono font-bold tracking-widest text-[#781c1c] dark:text-red-400 block mb-2">Announcements Feed</span>
                   <div className="space-y-3 max-h-[300px] overflow-y-auto pr-1">
                     {stats.notifications.length > 0 ? (
                       stats.notifications.map((n: any) => (
-                        <div key={n.id} className="p-3 bg-slate-55 dark:bg-white/5 rounded-2xl text-[11px] space-y-1">
+                        <div key={n.id} className="p-3 bg-slate-50 dark:bg-white/5 rounded-2xl text-[11px] space-y-1">
                           <div className="flex justify-between font-bold">
                             <span>{n.title}</span>
                             <span className="text-[8px] text-slate-500">{new Date(n.createdAt).toLocaleDateString()}</span>
@@ -1116,7 +1173,7 @@ export default function CompanyDashboardPage() {
                           <div className="w-20 h-20 bg-red-500/10 text-red-500 rounded-2xl flex items-center justify-center border"><Building2 size={36} /></div>
                         )}
                         <div>
-                          <h4 className="font-black text-lg">{company?.name}</h4>
+                          <h4 className="font-bold text-lg">{company?.name}</h4>
                           <span className="text-[10px] uppercase font-bold text-slate-400 block">{company?.profile?.industry || "Not Specified"}</span>
                         </div>
                       </div>
@@ -1212,7 +1269,7 @@ export default function CompanyDashboardPage() {
                 </div>
               ) : (
                 <form onSubmit={handleSaveProfile} className="glass-card rounded-3xl p-6 border border-slate-200/80 dark:border-white/10 bg-white/40 dark:bg-white/[0.02] space-y-6 text-left">
-                  <h3 className="text-lg font-black uppercase tracking-wider text-slate-400">Edit Company Information</h3>
+                  <h3 className="text-lg font-bold uppercase tracking-wider text-slate-400">Edit Company Information</h3>
 
                   <div className="space-y-4">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1458,7 +1515,7 @@ export default function CompanyDashboardPage() {
                   jobs.map((job) => (
                     <div
                       key={job.id || job.Id}
-                      className={`p-6 border rounded-3xl flex flex-col justify-between h-80 shadow-md ${isDark ? "bg-white/5 border-white/5" : "bg-white border-slate-200"
+                      className={`p-6 border rounded-3xl flex flex-col justify-between min-h-[22rem] shadow-md transition-all ${isDark ? "bg-white/5 border-white/5" : "bg-white border-slate-200"
                         }`}
                     >
                       <div className="space-y-3.5">
@@ -1467,22 +1524,59 @@ export default function CompanyDashboardPage() {
                             {job.status || job.Status}
                           </span>
                           <span className="text-[10px] font-mono font-bold text-slate-400">
-                            Deadline: {new Date(job.deadlines || job.Deadlines).toLocaleDateString()}
+                            Deadline: {new Date(job.deadlines || job.Deadlines).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" })}
                           </span>
                         </div>
 
                         <div>
-                          <h4 className="text-lg font-black truncate">{job.title || job.Title}</h4>
-                          <span className="text-[10px] font-bold text-red-500 uppercase tracking-wide block">{job.department || job.Department} · {job.jobType || job.JobType}</span>
+                          <h4 className="text-lg font-bold truncate">{job.title || job.Title}</h4>
+                          <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 mt-1 text-xs">
+                            <span className="text-[10px] font-bold text-red-500 uppercase tracking-wide">{job.department || job.Department} · {job.jobType || job.JobType}</span>
+                            {(job.location || job.Location) && (
+                              <span className="inline-flex items-center gap-1 text-[11px] font-medium text-slate-500 dark:text-slate-400">
+                                <MapPin size={12} className="text-[#781c1c] dark:text-red-400 shrink-0" />
+                                {job.location || job.Location}
+                              </span>
+                            )}
+                          </div>
                         </div>
 
                         <p className="text-xs text-slate-400 line-clamp-3 leading-relaxed">{job.description || job.Description}</p>
 
-                        <div className="flex flex-wrap gap-1.5 pt-1.5">
+                        {(job.eligibilitySummary || job.EligibilitySummary) && (
+                          <div className="text-[11px] font-medium text-slate-600 dark:text-slate-300">
+                            <span className="text-slate-400 font-semibold">Eligibility: </span>{job.eligibilitySummary || job.EligibilitySummary}
+                          </div>
+                        )}
+
+                        <div className="flex flex-wrap gap-1.5 pt-1">
                           <span className="text-[9px] px-2 py-0.5 bg-slate-500/10 rounded-full font-bold text-slate-400">Min CGPA: {job.eligibilityMinCGPA ?? job.EligibilityMinCGPA}</span>
                           <span className="text-[9px] px-2 py-0.5 bg-indigo-500/10 rounded-full font-bold text-indigo-400">LPA: {job.lpa ?? job.LPA} LPA</span>
                           <span className="text-[9px] px-2 py-0.5 bg-violet-500/10 rounded-full font-bold text-violet-400">Mode: {job.workMode ?? job.WorkMode}</span>
                         </div>
+
+                        {(job.notes || job.Notes) && (
+                          <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-2xl text-[11px] text-amber-700 dark:text-amber-300 leading-normal flex items-start gap-2">
+                            <Info size={14} className="shrink-0 mt-0.5 text-amber-500" />
+                            <div>
+                              <strong className="font-bold">Note:</strong> {job.notes || job.Notes}
+                            </div>
+                          </div>
+                        )}
+
+                        {(job.registrationLink || job.RegistrationLink) && (
+                          <div className="pt-0.5">
+                            <a
+                              href={job.registrationLink || job.RegistrationLink}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-500/10 hover:bg-blue-500/20 text-blue-600 dark:text-blue-400 text-xs font-bold rounded-xl transition"
+                            >
+                              <ExternalLink size={12} />
+                              <span>Register Externally</span>
+                            </a>
+                          </div>
+                        )}
 
                         {job.status === "ChangesRequested" && job.changesFeedback && (
                           <div className="p-3 bg-purple-500/5 border border-purple-500/10 rounded-2xl text-[10px] text-purple-400 leading-normal">
@@ -1491,7 +1585,7 @@ export default function CompanyDashboardPage() {
                         )}
                       </div>
 
-                      <div className="flex gap-2 pt-4 border-t border-slate-100 dark:border-white/5">
+                      <div className="flex gap-2 pt-4 border-t border-slate-100 dark:border-white/5 mt-3">
                         <button
                           onClick={() => handleOpenJobModal(job)}
                           className="flex-1 py-2 bg-[#781c1c]/10 hover:bg-[#781c1c]/20 text-red-500 dark:text-red-300 text-xs font-bold uppercase rounded-xl transition cursor-pointer"
@@ -1512,7 +1606,7 @@ export default function CompanyDashboardPage() {
                     <div className="w-16 h-16 rounded-3xl bg-red-500/10 flex items-center justify-center mx-auto mb-5">
                       <Briefcase className="text-red-400" size={30} />
                     </div>
-                    <p className="text-base font-black text-slate-600 dark:text-slate-300 mb-2">No Job Postings Yet</p>
+                    <p className="text-base font-bold text-slate-600 dark:text-slate-300 mb-2">No Job Postings Yet</p>
                     <p className="text-xs text-slate-400 max-w-xs mx-auto leading-relaxed mb-5">
                       Create your first job listing to start receiving applications from eligible MCC students.
                     </p>
@@ -1603,7 +1697,7 @@ export default function CompanyDashboardPage() {
                           </div>
 
                           <div className="space-y-1">
-                            <h4 className="text-base font-black truncate">{app.student.fullName}</h4>
+                            <h4 className="text-base font-bold truncate">{app.student.fullName}</h4>
                             <p className="text-xs text-slate-400 font-semibold">{app.student.department} · Reg: {app.student.registerNumber || "N/A"}</p>
                           </div>
 
@@ -1675,7 +1769,7 @@ export default function CompanyDashboardPage() {
                         {/* Interview scheduling & list */}
                         <div className="space-y-3">
                           <div className="flex justify-between items-center">
-                            <span className="text-[10px] uppercase font-black tracking-wider text-slate-400">Candidate Interviews</span>
+                            <span className="text-[10px] uppercase font-bold tracking-wider text-slate-400">Candidate Interviews</span>
                             <button
                               onClick={() => {
                                 setActiveSchedulerAppId(activeSchedulerAppId === app.id ? null : app.id);
@@ -1692,7 +1786,7 @@ export default function CompanyDashboardPage() {
                               {app.interviews.map((i: any) => (
                                 <div key={i.id} className="p-3 bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/5 rounded-2xl text-[10px] space-y-1 text-slate-400 font-bold">
                                   <div className="flex justify-between items-center">
-                                    <span className="text-slate-250 uppercase font-black">{i.type} Interview</span>
+                                    <span className="text-slate-300 uppercase font-bold">{i.type} Interview</span>
                                     <span className={`px-2 py-0.5 rounded-full border text-[8px] font-extrabold uppercase ${i.status === "Scheduled" ? "bg-red-500/10 text-red-400 border-red-500/20" : i.status === "Rescheduled" ? "bg-amber-500/10 text-amber-400 border-amber-500/20" : "bg-red-500/10 text-red-400 border-red-500/20"
                                       }`}>{i.status}</span>
                                   </div>
@@ -1768,7 +1862,7 @@ export default function CompanyDashboardPage() {
                         {/* Offer letter panel */}
                         <div className="space-y-3 border-t md:border-t-0 md:border-l border-slate-100 dark:border-white/5 pt-3 md:pt-0 md:pl-4">
                           <div className="flex justify-between items-center">
-                            <span className="text-[10px] uppercase font-black tracking-wider text-slate-400">Offer Administration</span>
+                            <span className="text-[10px] uppercase font-bold tracking-wider text-slate-400">Offer Administration</span>
                             <button
                               onClick={() => {
                                 setActiveOfferAppId(activeOfferAppId === app.id ? null : app.id);
@@ -1824,7 +1918,7 @@ export default function CompanyDashboardPage() {
                     <div className="w-16 h-16 rounded-3xl bg-slate-500/10 flex items-center justify-center mx-auto mb-5">
                       <Users className="text-slate-400" size={30} />
                     </div>
-                    <p className="text-base font-black text-slate-600 dark:text-slate-300 mb-2">No Applications Received</p>
+                    <p className="text-base font-bold text-slate-600 dark:text-slate-300 mb-2">No Applications Received</p>
                     <p className="text-xs text-slate-400 max-w-xs mx-auto leading-relaxed">
                       Once students apply to your job postings, their profiles will appear here for evaluation.
                     </p>
@@ -1860,7 +1954,7 @@ export default function CompanyDashboardPage() {
                     return (
                       <div
                         key={p.Id || p.id}
-                        className={`p-6 border rounded-3xl flex flex-col justify-between h-48 shadow-md ${isDark ? "bg-white/5 border-white/5" : "bg-white border-slate-200"
+                        className={`p-6 border rounded-3xl flex flex-col justify-between min-h-[12rem] shadow-md ${isDark ? "bg-white/5 border-white/5" : "bg-white border-slate-200"
                           }`}
                       >
                         <div className="space-y-2">
@@ -1873,7 +1967,7 @@ export default function CompanyDashboardPage() {
                             </span>
                           </div>
                           <div>
-                            <h4 className="text-lg font-black truncate">{p.Name || p.name}</h4>
+                            <h4 className="text-lg font-bold truncate">{p.Name || p.name}</h4>
                             <span className="text-xs text-slate-400 font-semibold">{studentCount} candidate(s) saved</span>
                           </div>
                           {p.isDynamic && (
@@ -1892,7 +1986,7 @@ export default function CompanyDashboardPage() {
                           </button>
                           <button
                             onClick={() => handleDeletePool(p.Id || p.id)}
-                            className="px-3 py-2 bg-red-650/10 hover:bg-red-600/20 text-red-500 rounded-xl transition cursor-pointer"
+                            className="px-3 py-2 bg-red-600/10 hover:bg-red-600/20 text-red-500 rounded-xl transition cursor-pointer"
                           >
                             <Trash2 size={13} />
                           </button>
@@ -1957,19 +2051,19 @@ export default function CompanyDashboardPage() {
                   {/* Stats Grid */}
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                     {[
-                      { label: "Total Applications", val: analyticsData.totalApplications, icon: Users, color: "text-red-500 bg-red-500/5" },
+                      { label: "Total Applications", val: analyticsData.totalApplications, icon: Users, color: "text-[#781c1c] dark:text-red-400 bg-[#781c1c]/5" },
                       { label: "Pipeline Placed Rate", val: `${analyticsData.conversionRate}%`, icon: CheckCircle, color: "text-emerald-500 bg-emerald-500/5" },
-                      { label: "Average Candidate Match", val: `${analyticsData.averageMatchScore}%`, icon: Sparkles, color: "text-violet-500 bg-violet-500/5" },
+                      { label: "Average Candidate Match", val: `${analyticsData.averageMatchScore}%`, icon: Sparkles, color: "text-indigo-500 bg-indigo-500/5" },
                       { label: "Offer Acceptance Rate", val: `${analyticsData.offerAcceptanceRate}%`, icon: Briefcase, color: "text-amber-500 bg-amber-500/5" },
                     ].map((card, idx) => {
                       const Icon = card.icon;
                       return (
                         <div key={idx} className={`p-6 border rounded-3xl space-y-2 ${card.color} ${isDark ? "border-white/5 bg-white/5" : "bg-white border-slate-200"}`}>
                           <div className="flex justify-between items-center">
-                            <span className="text-[10px] uppercase font-black tracking-wide text-slate-400">{card.label}</span>
+                            <span className="text-[10px] uppercase font-bold tracking-wide text-slate-400">{card.label}</span>
                             <Icon size={16} />
                           </div>
-                          <span className="text-2xl font-black block">{card.val}</span>
+                          <span className="text-2xl font-extrabold block">{card.val}</span>
                         </div>
                       );
                     })}
@@ -1977,20 +2071,20 @@ export default function CompanyDashboardPage() {
 
                   {/* Funnel Layout */}
                   <div className={`p-6 border rounded-3xl space-y-4 ${isDark ? "bg-white/5 border-white/5" : "bg-white border-slate-200"}`}>
-                    <h4 className="text-xs font-black uppercase tracking-wider text-slate-400 mb-4">Hiring Funnel Progression</h4>
+                    <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-4">Hiring Funnel Progression</h4>
                     <div className="space-y-3.5">
                       {[
-                        { label: "Applied", count: analyticsData.funnel.Applied, pct: 105, color: "bg-slate-500" },
-                        { label: "Reviewed", count: analyticsData.funnel.Reviewed, pct: analyticsData.totalApplications > 0 ? (analyticsData.funnel.Reviewed / analyticsData.totalApplications) * 100 : 0, color: "bg-red-500" },
-                        { label: "Shortlisted", count: analyticsData.funnel.Shortlisted, pct: analyticsData.totalApplications > 0 ? (analyticsData.funnel.Shortlisted / analyticsData.totalApplications) * 100 : 0, color: "bg-sky-500" },
-                        { label: "Interview Scheduled", count: analyticsData.funnel.InterviewScheduled, pct: analyticsData.totalApplications > 0 ? (analyticsData.funnel.InterviewScheduled / analyticsData.totalApplications) * 100 : 0, color: "bg-amber-500" },
-                        { label: "Selected", count: analyticsData.funnel.Selected, pct: analyticsData.totalApplications > 0 ? (analyticsData.funnel.Selected / analyticsData.totalApplications) * 100 : 0, color: "bg-purple-500" },
-                        { label: "Offers Sent", count: analyticsData.funnel["Offer Sent"], pct: analyticsData.totalApplications > 0 ? (analyticsData.funnel["Offer Sent"] / analyticsData.totalApplications) * 100 : 0, color: "bg-indigo-500" },
+                        { label: "Applied", count: analyticsData.funnel.Applied, pct: 105, color: "bg-slate-400" },
+                        { label: "Reviewed", count: analyticsData.funnel.Reviewed, pct: analyticsData.totalApplications > 0 ? (analyticsData.funnel.Reviewed / analyticsData.totalApplications) * 100 : 0, color: "bg-[#781c1c]" },
+                        { label: "Shortlisted", count: analyticsData.funnel.Shortlisted, pct: analyticsData.totalApplications > 0 ? (analyticsData.funnel.Shortlisted / analyticsData.totalApplications) * 100 : 0, color: "bg-amber-500" },
+                        { label: "Interview Scheduled", count: analyticsData.funnel.InterviewScheduled, pct: analyticsData.totalApplications > 0 ? (analyticsData.funnel.InterviewScheduled / analyticsData.totalApplications) * 100 : 0, color: "bg-indigo-500" },
+                        { label: "Selected", count: analyticsData.funnel.Selected, pct: analyticsData.totalApplications > 0 ? (analyticsData.funnel.Selected / analyticsData.totalApplications) * 100 : 0, color: "bg-indigo-600" },
+                        { label: "Offers Sent", count: analyticsData.funnel["Offer Sent"], pct: analyticsData.totalApplications > 0 ? (analyticsData.funnel["Offer Sent"] / analyticsData.totalApplications) * 100 : 0, color: "bg-amber-600" },
                         { label: "Offers Accepted", count: analyticsData.funnel["Offer Accepted"] + analyticsData.funnel.Joined, pct: analyticsData.totalApplications > 0 ? ((analyticsData.funnel["Offer Accepted"] + analyticsData.funnel.Joined) / analyticsData.totalApplications) * 100 : 0, color: "bg-emerald-500" }
                       ].map((item, idx) => (
                         <div key={idx} className="space-y-1.5">
                           <div className="flex justify-between items-center text-[10px] font-bold">
-                            <span className="text-slate-350">{item.label}</span>
+                            <span className="text-slate-400">{item.label}</span>
                             <span className="font-mono">{item.count} Candidate(s) ({Math.round(item.pct === 105 ? 100 : item.pct)}%)</span>
                           </div>
                           <div className="w-full bg-slate-200 dark:bg-white/5 h-2.5 rounded-full overflow-hidden">
@@ -2005,7 +2099,7 @@ export default function CompanyDashboardPage() {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     {/* Skills chart */}
                     <div className={`p-6 border rounded-3xl space-y-4 ${isDark ? "bg-white/5 border-white/5" : "bg-white border-slate-200"}`}>
-                      <h4 className="text-xs font-black uppercase tracking-wider text-slate-400">Popular Applicant Skills</h4>
+                      <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400">Popular Applicant Skills</h4>
                       {analyticsData.popularSkills.length > 0 ? (
                         <div className="space-y-3.5 pt-2">
                           {analyticsData.popularSkills.map((s: any, idx: number) => {
@@ -2014,11 +2108,11 @@ export default function CompanyDashboardPage() {
                             return (
                               <div key={idx} className="space-y-1">
                                 <div className="flex justify-between items-center text-[10px] font-bold">
-                                  <span className="text-slate-350 font-mono">#{idx + 1} {s.skill}</span>
+                                  <span className="text-slate-400 font-mono">#{idx + 1} {s.skill}</span>
                                   <span className="text-slate-400">{s.count} matched</span>
                                 </div>
                                 <div className="w-full bg-slate-200 dark:bg-white/5 h-1.5 rounded-full overflow-hidden">
-                                  <div className="h-full bg-red-500 rounded-full transition-all" style={{ width: `${pct}%` }} />
+                                  <div className="h-full bg-[#781c1c] rounded-full transition-all" style={{ width: `${pct}%` }} />
                                 </div>
                               </div>
                             );
@@ -2031,7 +2125,7 @@ export default function CompanyDashboardPage() {
 
                     {/* Department chart */}
                     <div className={`p-6 border rounded-3xl space-y-4 ${isDark ? "bg-white/5 border-white/5" : "bg-white border-slate-200"}`}>
-                      <h4 className="text-xs font-black uppercase tracking-wider text-slate-400">Applicants by Department</h4>
+                      <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400">Applicants by Department</h4>
                       {analyticsData.departments.length > 0 ? (
                         <div className="space-y-3.5 pt-2">
                           {analyticsData.departments.map((d: any, idx: number) => {
@@ -2040,8 +2134,8 @@ export default function CompanyDashboardPage() {
                             return (
                               <div key={idx} className="space-y-1">
                                 <div className="flex justify-between items-center text-[10px] font-bold">
-                                  <span className="text-slate-350">{d.name}</span>
-                                  <span className="text-slate-450">{d.count} student(s)</span>
+                                  <span className="text-slate-400">{d.name}</span>
+                                  <span className="text-slate-400">{d.count} student(s)</span>
                                 </div>
                                 <div className="w-full bg-slate-200 dark:bg-white/5 h-1.5 rounded-full overflow-hidden">
                                   <div className="h-full bg-indigo-500 rounded-full transition-all" style={{ width: `${pct}%` }} />
@@ -2074,7 +2168,7 @@ export default function CompanyDashboardPage() {
           >
             {/* Header */}
             <div className="flex justify-between items-center border-b border-slate-100 dark:border-white/5 pb-4">
-              <h3 className="text-lg font-black uppercase tracking-wider text-slate-400">
+              <h3 className="text-lg font-bold uppercase tracking-wider text-slate-400">
                 {editingJobId ? "Edit Job Posting" : "New Job Placement Opportunity"}
               </h3>
               <button
@@ -2094,6 +2188,7 @@ export default function CompanyDashboardPage() {
                   <input
                     type="text"
                     required
+                    placeholder="e.g. Insurance Advisor, Full Stack Engineer"
                     value={jobForm.title}
                     onChange={(e) => setJobForm({ ...jobForm, title: e.target.value })}
                     className="w-full border text-xs px-4 py-2.5 rounded-xl outline-none bg-slate-50 dark:bg-white/5 border-slate-200 dark:border-white/10 text-slate-900 dark:text-white"
@@ -2104,9 +2199,55 @@ export default function CompanyDashboardPage() {
                   <input
                     type="text"
                     required
-                    placeholder="e.g. Engineering, Sales"
+                    placeholder="e.g. Engineering, Sales, Commerce"
                     value={jobForm.department}
                     onChange={(e) => setJobForm({ ...jobForm, department: e.target.value })}
+                    className="w-full border text-xs px-4 py-2.5 rounded-xl outline-none bg-slate-50 dark:bg-white/5 border-slate-200 dark:border-white/10 text-slate-900 dark:text-white"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="text-[10px] uppercase font-bold text-slate-400 block mb-1">Job Location</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Work from Home, Chennai, Hybrid - Bangalore"
+                    value={jobForm.location}
+                    onChange={(e) => setJobForm({ ...jobForm, location: e.target.value })}
+                    className="w-full border text-xs px-4 py-2.5 rounded-xl outline-none bg-slate-50 dark:bg-white/5 border-slate-200 dark:border-white/10 text-slate-900 dark:text-white"
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] uppercase font-bold text-slate-400 block mb-1">Registration Link (External Form URL)</label>
+                  <input
+                    type="url"
+                    placeholder="e.g. https://forms.gle/HfyJD2wJgGBFdan68"
+                    value={jobForm.registrationLink}
+                    onChange={(e) => setJobForm({ ...jobForm, registrationLink: e.target.value })}
+                    className="w-full border text-xs px-4 py-2.5 rounded-xl outline-none bg-slate-50 dark:bg-white/5 border-slate-200 dark:border-white/10 text-slate-900 dark:text-white"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="text-[10px] uppercase font-bold text-slate-400 block mb-1">Eligibility Summary (Display)</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. All UG & PG Final years"
+                    value={jobForm.eligibilitySummary}
+                    onChange={(e) => setJobForm({ ...jobForm, eligibilitySummary: e.target.value })}
+                    className="w-full border text-xs px-4 py-2.5 rounded-xl outline-none bg-slate-50 dark:bg-white/5 border-slate-200 dark:border-white/10 text-slate-900 dark:text-white"
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] uppercase font-bold text-slate-400 block mb-1">Important Notes / Cutoff Instructions</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Registration closes on 5th October 2026 at 10 AM"
+                    value={jobForm.notes}
+                    onChange={(e) => setJobForm({ ...jobForm, notes: e.target.value })}
                     className="w-full border text-xs px-4 py-2.5 rounded-xl outline-none bg-slate-50 dark:bg-white/5 border-slate-200 dark:border-white/10 text-slate-900 dark:text-white"
                   />
                 </div>
@@ -2212,77 +2353,91 @@ export default function CompanyDashboardPage() {
                 </div>
               </div>
 
-              {/* Eligibility Fields */}
-              <div className="p-4 bg-slate-55 dark:bg-white/5 rounded-3xl space-y-4">
-                <span className="text-[10px] font-extrabold uppercase tracking-wide text-slate-450 block">Candidate Eligibility criteria</span>
+              {/* Collapsible Advanced Eligibility Criteria */}
+              <div className="border border-slate-200 dark:border-white/10 rounded-2xl overflow-hidden">
+                <button
+                  type="button"
+                  onClick={() => setShowAdvancedEligibility(!showAdvancedEligibility)}
+                  className="w-full flex items-center justify-between p-3.5 bg-slate-50 dark:bg-white/5 hover:bg-slate-100 dark:hover:bg-white/10 transition text-left cursor-pointer"
+                >
+                  <div className="flex items-center gap-2">
+                    {showAdvancedEligibility ? <ChevronDown size={15} className="text-slate-400" /> : <ChevronRight size={15} className="text-slate-400" />}
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-slate-700 dark:text-slate-200">
+                      Advanced Eligibility Filters (Optional)
+                    </span>
+                  </div>
+                  <span className="text-[10px] text-slate-400">Department matching, min CGPA & salary criteria</span>
+                </button>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div>
-                    <label className="text-[10px] uppercase font-bold text-slate-400 block mb-1">Eligible Academic Depts</label>
-                    <input
-                      type="text"
-                      placeholder="e.g. Computer Science;MCA (Semicolon split) or all"
-                      value={jobForm.eligibilityDepartments}
-                      onChange={(e) => setJobForm({ ...jobForm, eligibilityDepartments: e.target.value })}
-                      className="w-full border text-xs px-3 py-2 rounded-xl outline-none bg-slate-100 dark:bg-white/5 border-slate-200 dark:border-white/10 text-slate-900 dark:text-white"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-[10px] uppercase font-bold text-slate-400 block mb-1">Graduation Years</label>
-                    <input
-                      type="text"
-                      placeholder="e.g. 2025;2026 (Semicolon split) or all"
-                      value={jobForm.eligibilityYears}
-                      onChange={(e) => setJobForm({ ...jobForm, eligibilityYears: e.target.value })}
-                      className="w-full border text-xs px-3 py-2 rounded-xl outline-none bg-slate-100 dark:bg-white/5 border-slate-200 dark:border-white/10 text-slate-900 dark:text-white"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-[10px] uppercase font-bold text-slate-400 block mb-1">Min CGPA Required</label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      required
-                      value={jobForm.eligibilityMinCGPA}
-                      onChange={(e) => setJobForm({ ...jobForm, eligibilityMinCGPA: e.target.value })}
-                      className="w-full border text-xs px-3 py-2 rounded-xl outline-none bg-slate-100 dark:bg-white/5 border-slate-200 dark:border-white/10 text-slate-900 dark:text-white"
-                    />
-                  </div>
-                </div>
+                {showAdvancedEligibility && (
+                  <div className="p-4 space-y-4 border-t border-slate-200 dark:border-white/10 bg-slate-50/50 dark:bg-white/[0.02]">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div>
+                        <label className="text-[10px] uppercase font-bold text-slate-400 block mb-1">Eligible Academic Depts</label>
+                        <input
+                          type="text"
+                          placeholder="e.g. Computer Science;MCA or all"
+                          value={jobForm.eligibilityDepartments}
+                          onChange={(e) => setJobForm({ ...jobForm, eligibilityDepartments: e.target.value })}
+                          className="w-full border text-xs px-3 py-2 rounded-xl outline-none bg-white dark:bg-white/5 border-slate-200 dark:border-white/10 text-slate-900 dark:text-white"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] uppercase font-bold text-slate-400 block mb-1">Graduation Years</label>
+                        <input
+                          type="text"
+                          placeholder="e.g. 2025;2026 or all"
+                          value={jobForm.eligibilityYears}
+                          onChange={(e) => setJobForm({ ...jobForm, eligibilityYears: e.target.value })}
+                          className="w-full border text-xs px-3 py-2 rounded-xl outline-none bg-white dark:bg-white/5 border-slate-200 dark:border-white/10 text-slate-900 dark:text-white"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] uppercase font-bold text-slate-400 block mb-1">Min CGPA Required</label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          value={jobForm.eligibilityMinCGPA}
+                          onChange={(e) => setJobForm({ ...jobForm, eligibilityMinCGPA: e.target.value })}
+                          className="w-full border text-xs px-3 py-2 rounded-xl outline-none bg-white dark:bg-white/5 border-slate-200 dark:border-white/10 text-slate-900 dark:text-white"
+                        />
+                      </div>
+                    </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div>
-                    <label className="text-[10px] uppercase font-bold text-slate-400 block mb-1">Salary Details</label>
-                    <input
-                      type="text"
-                      placeholder="e.g. Rs. 45,000 / month"
-                      value={jobForm.salary}
-                      onChange={(e) => setJobForm({ ...jobForm, salary: e.target.value })}
-                      className="w-full border text-xs px-3 py-2 rounded-xl outline-none bg-slate-100 dark:bg-white/5 border-slate-200 dark:border-white/10 text-slate-900 dark:text-white"
-                    />
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div>
+                        <label className="text-[10px] uppercase font-bold text-slate-400 block mb-1">Salary Details</label>
+                        <input
+                          type="text"
+                          placeholder="e.g. ₹4.5 LPA + Incentives"
+                          value={jobForm.salary}
+                          onChange={(e) => setJobForm({ ...jobForm, salary: e.target.value })}
+                          className="w-full border text-xs px-3 py-2 rounded-xl outline-none bg-white dark:bg-white/5 border-slate-200 dark:border-white/10 text-slate-900 dark:text-white"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] uppercase font-bold text-slate-400 block mb-1">Numerical LPA (Lakhs)</label>
+                        <input
+                          type="number"
+                          step="0.1"
+                          value={jobForm.lpa}
+                          onChange={(e) => setJobForm({ ...jobForm, lpa: e.target.value })}
+                          className="w-full border text-xs px-3 py-2 rounded-xl outline-none bg-white dark:bg-white/5 border-slate-200 dark:border-white/10 text-slate-900 dark:text-white"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] uppercase font-bold text-slate-400 block mb-1">Eligible Experience</label>
+                        <input
+                          type="text"
+                          placeholder="e.g. Freshers, 0-1 years"
+                          value={jobForm.eligibilityExperience}
+                          onChange={(e) => setJobForm({ ...jobForm, eligibilityExperience: e.target.value })}
+                          className="w-full border text-xs px-3 py-2 rounded-xl outline-none bg-white dark:bg-white/5 border-slate-200 dark:border-white/10 text-slate-900 dark:text-white"
+                        />
+                      </div>
+                    </div>
                   </div>
-                  <div>
-                    <label className="text-[10px] uppercase font-bold text-slate-400 block mb-1">Numerical LPA (Lakhs)</label>
-                    <input
-                      type="number"
-                      step="0.1"
-                      required
-                      value={jobForm.lpa}
-                      onChange={(e) => setJobForm({ ...jobForm, lpa: e.target.value })}
-                      className="w-full border text-xs px-3 py-2 rounded-xl outline-none bg-slate-100 dark:bg-white/5 border-slate-200 dark:border-white/10 text-slate-900 dark:text-white"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-[10px] uppercase font-bold text-slate-400 block mb-1">Eligible Experience</label>
-                    <input
-                      type="text"
-                      placeholder="e.g. Freshers, 0-1 years"
-                      value={jobForm.eligibilityExperience}
-                      onChange={(e) => setJobForm({ ...jobForm, eligibilityExperience: e.target.value })}
-                      className="w-full border text-xs px-3 py-2 rounded-xl outline-none bg-slate-100 dark:bg-white/5 border-slate-200 dark:border-white/10 text-slate-900 dark:text-white"
-                    />
-                  </div>
-                </div>
+                )}
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -2297,9 +2452,9 @@ export default function CompanyDashboardPage() {
                   />
                 </div>
                 <div>
-                  <label className="text-[10px] uppercase font-bold text-slate-400 block mb-1">Deadlines Date *</label>
+                  <label className="text-[10px] uppercase font-bold text-slate-400 block mb-1">Deadline & Cutoff Time *</label>
                   <input
-                    type="date"
+                    type="datetime-local"
                     required
                     value={jobForm.deadlines}
                     onChange={(e) => setJobForm({ ...jobForm, deadlines: e.target.value })}
@@ -2371,7 +2526,7 @@ export default function CompanyDashboardPage() {
             className={`w-full max-w-xl rounded-3xl shadow-2xl relative p-6 text-left border ${isDark ? "bg-[#0b0b0f] text-white border-white/5" : "bg-white text-slate-900 border-slate-200"
               }`}
           >
-            <h3 className="text-base font-black uppercase tracking-wider text-slate-400 mb-4">
+            <h3 className="text-base font-bold uppercase tracking-wider text-slate-400 mb-4">
               Create New Saved Talent Pool
             </h3>
 
@@ -2445,11 +2600,11 @@ export default function CompanyDashboardPage() {
                             type="checkbox"
                             checked={checked}
                             onChange={() => toggleStudentInPool(s.id)}
-                            className="rounded text-red-600 focus:ring-red-500 border-slate-350"
+                            className="rounded text-red-600 focus:ring-red-500 border-slate-300"
                           />
                           <div>
                             <span className="block font-bold">{s.fullName} ({s.cgpa} CGPA)</span>
-                            <span className="block text-[9px] text-slate-450 leading-none mt-0.5">{s.department} · Class of {s.graduationYear || "N/A"}</span>
+                            <span className="block text-[9px] text-slate-400 leading-none mt-0.5">{s.department} · Class of {s.graduationYear || "N/A"}</span>
                           </div>
                         </label>
                       );
@@ -2487,7 +2642,7 @@ export default function CompanyDashboardPage() {
             className={`w-full max-w-md rounded-3xl border shadow-2xl p-6 text-left ${isDark ? "bg-[#0b0b0f] border-white/15 text-white" : "bg-white border-slate-200 text-slate-900"
               }`}
           >
-            <h3 className="text-base font-black uppercase tracking-wider text-slate-400 mb-2">
+            <h3 className="text-base font-bold uppercase tracking-wider text-slate-400 mb-2">
               Save Dynamic Talent Pool
             </h3>
             <p className="text-xs text-slate-400 mb-6">
@@ -2540,7 +2695,7 @@ export default function CompanyDashboardPage() {
                 <span className="text-[10px] text-slate-400 font-bold uppercase block">
                   {selectedPoolNode.isDynamic ? "DYNAMIC TALENT POOL" : "STATIC TALENT POOL"}
                 </span>
-                <h3 className="text-lg font-black mt-1">{selectedPoolNode.name}</h3>
+                <h3 className="text-lg font-bold mt-1">{selectedPoolNode.name}</h3>
               </div>
               <button
                 onClick={() => setSelectedPoolNode(null)}
@@ -2558,7 +2713,7 @@ export default function CompanyDashboardPage() {
                 poolCandidates.map((cand) => (
                   <div
                     key={cand.id}
-                    className={`p-5 border rounded-3xl flex justify-between gap-4 text-xs font-semibold ${isDark ? "bg-white/[0.02] border-white/5" : "bg-slate-50 border-slate-150"
+                    className={`p-5 border rounded-3xl flex justify-between gap-4 text-xs font-semibold ${isDark ? "bg-white/[0.02] border-white/5" : "bg-slate-50 border-slate-200"
                       }`}
                   >
                     <div className="space-y-1 flex-1 min-w-0">
@@ -2570,7 +2725,7 @@ export default function CompanyDashboardPage() {
                         )}
                         <h4 className="font-bold truncate text-sm">{cand.fullName}</h4>
                       </div>
-                      <span className="text-[10px] text-slate-450 block">{cand.department} · {cand.cgpa} CGPA</span>
+                      <span className="text-[10px] text-slate-400 block">{cand.department} · {cand.cgpa} CGPA</span>
                       <p className="text-[10px] text-slate-400 line-clamp-1 leading-normal italic mt-1">"{cand.bio || "No summary provided."}"</p>
                     </div>
 

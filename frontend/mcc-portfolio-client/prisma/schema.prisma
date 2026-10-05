@@ -591,6 +591,10 @@ model JobPosting {
   Company                Company          @relation(fields: [CompanyId], references: [Id], onDelete: Cascade)
   Title                  String
   Department             String
+  Location               String?
+  RegistrationLink       String?
+  Notes                  String?          @db.Text
+  EligibilitySummary     String?
   Description            String           @db.Text
   Responsibilities       String           @db.Text
   Requirements           String           @db.Text
@@ -708,7 +712,7 @@ model AutomationLog {
 model DepartmentAnalyticsSnapshot {
   Id                      Int      @id @default(autoincrement())
   Date                    DateTime @db.Date
-  DepartmentId            String
+  DepartmentId            String   @map("Department")
   Stream                  String
   TotalStudents           Int      @default(0)
   NewSignupsToday         Int      @default(0)
@@ -717,5 +721,5 @@ model DepartmentAnalyticsSnapshot {
   SectionCompletionCounts String   @default("{}") @db.Text
   CreatedAt               DateTime @default(now()) @db.Timestamptz(6)
 
-  @@unique([Date, DepartmentId], name: "UQ_DeptSnapshot_Date_Dept")
+  @@unique([Date, DepartmentId], map: "UQ_DeptSnapshot_Date_Dept")
 }
