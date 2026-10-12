@@ -5,9 +5,30 @@ import { getUserFromRequest, hasModulePermission } from "@/utils/auth";
 const SECTION_KEYS = [
   "header", "about", "experience", "academicDetails",
   "achievements", "projectsResearch", "skills"
-];
+] as const;
 
-function computeSectionCompletion(u, profileMap, expIds, acadIds, achIds, projIds, paperIds, skillIds) {
+type SectionKey = (typeof SECTION_KEYS)[number];
+
+const SECTION_LABELS: Record<SectionKey, string> = {
+  header: "Header",
+  about: "About",
+  experience: "Experience",
+  academicDetails: "Academic Details",
+  achievements: "Achievements",
+  projectsResearch: "Projects & Research",
+  skills: "Skills",
+};
+
+function computeSectionCompletion(
+  u: any,
+  profileMap: Map<number, any>,
+  expIds: Set<number>,
+  acadIds: Set<number>,
+  achIds: Set<number>,
+  projIds: Set<number>,
+  paperIds: Set<number>,
+  skillIds: Set<number>
+): Record<SectionKey, boolean> {
   const p = profileMap.get(u.Id);
   return {
     header: Boolean(u.FullName?.trim()) && Boolean(u.ProfileImageUrl?.trim() || p?.ProfileImageUrl?.trim()) && Boolean(p?.Course?.trim() || u.Department?.trim()) && Boolean(p?.YearOfStudy?.trim()) && Boolean(p?.Phone?.trim()),
@@ -20,11 +41,11 @@ function computeSectionCompletion(u, profileMap, expIds, acadIds, achIds, projId
   };
 }
 
-function sectionLabel(key) {
-  return { header:"Header", about:"About", experience:"Experience", academicDetails:"Academic Details", achievements:"Achievements", projectsResearch:"Projects & Research", skills:"Skills" }[key];
+function sectionLabel(key: SectionKey): string {
+  return SECTION_LABELS[key] || key;
 }
 
-export async function GET(request) {
+export async function GET(request: Request) {
   try {
     const userPayload = getUserFromRequest(request);
     if (!userPayload || !hasModulePermission(userPayload, "analytics", "read")) {
@@ -37,10 +58,10 @@ export async function GET(request) {
     const profiles = await prisma.profiles.findMany();
     const profileMap = new Map(profiles.map((p) => [p.UserId, p]));
     const inst = await prisma.institutionDetails.findFirst();
-    let deptStreamsMap = {};
+    let deptStreamsMap: Record<string, string> = {};
     if (inst?.DeptStreams) { try { deptStreamsMap = JSON.parse(inst.DeptStreams); } catch { } }
     const DEFAULT_AIDED = new Set(["english","tamil","languages","history","political science","public administration","economics","philosophy","social work","mathematics","statistics","physics","chemistry","botany","zoology","computer science","computer science (b.sc)","commerce","physical education"]);
-    const getDeptStream = (dept) => {
+    const getDeptStream = (dept: string) => {
       if (deptStreamsMap[dept]) return deptStreamsMap[dept] === "Aided" ? "Aided" : "SFS";
       const lower = dept.toLowerCase();
       const configKey = Object.keys(deptStreamsMap).find((k) => k.toLowerCase() === lower);
@@ -52,9 +73,9 @@ export async function GET(request) {
     if (type === "signup-growth") {
       const days = parseInt(searchParams.get("days") || "90");
       const since = new Date(); since.setDate(since.getDate() - days);
-      const byDay = {};
+      const byDay: Record<string, number> = {};
       streamUsers.forEach((u) => { if (u.CreatedAt && u.CreatedAt >= since) { const d = u.CreatedAt.toISOString().split("T")[0]; byDay[d] = (byDay[d] || 0) + 1; } });
-      const dates = [];
+      const dates: string[] = [];
       for (let i = days - 1; i >= 0; i--) { const d = new Date(); d.setDate(d.getDate() - i); dates.push(d.toISOString().split("T")[0]); }
       let cumulative = streamUsers.filter((u) => u.CreatedAt && u.CreatedAt < since).length;
       const series = dates.map((date) => { const n = byDay[date] || 0; cumulative += n; return { date, newSignups: n, total: cumulative }; });
@@ -72,15 +93,15 @@ export async function GET(request) {
       const streamEmails = new Set(streamUsers.map((u) => u.Email));
       const loginLogs = await prisma.auditLogs.findMany({ where: { Action: "Student Login", Timestamp: { gte: since } } });
       const streamLogs = loginLogs.filter((l) => streamEmails.has(l.PerformedByEmail));
-      const dauByDay = {};
+      const dauByDay: Record<string, Set<string>> = {};
       const heatmap = Array.from({ length: 7 }, () => new Array(24).fill(0));
       streamLogs.forEach((log) => {
         const d = log.Timestamp.toISOString().split("T")[0];
-        if (!dauByDay[d]) dauByDay[d] = new Set();
+        if (!dauByDay[d]) dauByDay[d] = new Set<string>();
         dauByDay[d].add(log.PerformedByEmail);
         heatmap[log.Timestamp.getDay()][log.Timestamp.getHours()]++;
       });
-      const dates = [];
+      const dates: string[] = [];
       for (let i = days - 1; i >= 0; i--) { const d = new Date(); d.setDate(d.getDate() - i); dates.push(d.toISOString().split("T")[0]); }
       const series = dates.map((date) => ({ date, dau: dauByDay[date]?.size || 0 }));
       const weekAgo = new Date(); weekAgo.setDate(weekAgo.getDate() - 7);
@@ -101,7 +122,7 @@ export async function GET(request) {
       const paperIds = new Set(papers.map((p) => p.UserId));
       const skillIds = new Set(skills.map((s) => s.UserId));
       const total = streamUsers.length;
-      const counts = { header:0, about:0, experience:0, academicDetails:0, achievements:0, projectsResearch:0, skills:0 };
+      const counts: Record<SectionKey, number> = { header:0, about:0, experience:0, academicDetails:0, achievements:0, projectsResearch:0, skills:0 };
       streamUsers.forEach((u) => {
         const s = computeSectionCompletion(u, profileMap, expIds, acadIds, achIds, projIds, paperIds, skillIds);
         for (const key of SECTION_KEYS) { if (s[key]) counts[key]++; }
@@ -117,8 +138,8 @@ export async function GET(request) {
       }
       const snapshots = await delegate.findMany({ where: stream ? { Stream: stream } : undefined, orderBy: { Date: "asc" } });
       if (snapshots.length < 2) return NextResponse.json({ series: [], insufficientData: true });
-      const byDate = {};
-      snapshots.forEach((s) => { const d = s.Date.toISOString().split("T")[0]; if (!byDate[d]) byDate[d] = { sum: 0, count: 0 }; byDate[d].sum += s.AvgCompletionRate; byDate[d].count++; });
+      const byDate: Record<string, { sum: number; count: number }> = {};
+      snapshots.forEach((s: any) => { const d = s.Date.toISOString().split("T")[0]; if (!byDate[d]) byDate[d] = { sum: 0, count: 0 }; byDate[d].sum += s.AvgCompletionRate; byDate[d].count++; });
       const series = Object.entries(byDate).sort(([a],[b]) => a.localeCompare(b)).map(([date, {sum, count}]) => ({ date, avgCompletion: Math.round((sum/count)*10)/10 }));
       return NextResponse.json({ series, insufficientData: false, firstDate: series[0]?.date || null });
     }
